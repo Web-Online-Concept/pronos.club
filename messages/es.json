@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "title": "PRONOS.CLUB — Pronósticos Deportivos Transparentes",
+    "description": "Sigue los pronósticos de un tipster verificado. Estadísticas transparentes, historial completo, ROI comprobado."
+  },
+  "nav": {
+    "home": "Inicio",
+    "picks": "Pronósticos",
+    "history": "Historial",
+    "stats": "Estadísticas",
+    "tipster": "El Tipster",
+    "bookmakers": "Casas de apuestas",
+    "subscribe": "Suscribirse",
+    "login": "Iniciar sesión",
+    "dashboard": "Mi espacio",
+    "admin": "Admin"
+  },
+  "home": {
+    "hero_title": "Pronósticos deportivos verificados y transparentes",
+    "hero_subtitle": "Sigue a un tipster con un historial 100% transparente. Cada apuesta está comprobada con capturas.",
+    "cta_free": "Ver pronósticos gratis",
+    "cta_premium": "Acceder a Premium",
+    "stats_roi": "ROI Global",
+    "stats_profit": "Beneficio Total",
+    "stats_picks": "Apuestas Totales",
+    "stats_winrate": "Tasa de Acierto",
+    "latest_pick": "Último pronóstico"
+  },
+  "picks": {
+    "title": "Pronósticos",
+    "free": "Gratis",
+    "premium": "Premium",
+    "all": "Todos",
+    "pending": "Pendiente",
+    "won": "Ganado",
+    "lost": "Perdido",
+    "void": "Reembolsado",
+    "half_won": "Medio ganado",
+    "half_lost": "Medio perdido",
+    "odds": "Cuota",
+    "stake": "Apuesta",
+    "profit": "Beneficio",
+    "analysis": "Análisis",
+    "premium_locked": "Pronóstico reservado para suscriptores Premium",
+    "unlock": "Desbloquear con Premium"
+  },
+  "stats": {
+    "title": "Estadísticas",
+    "global": "Rendimiento global",
+    "by_sport": "Por deporte",
+    "by_month": "Por mes",
+    "by_odds": "Por rango de cuota",
+    "bankroll_curve": "Curva de bankroll",
+    "drawdown": "Drawdown máximo",
+    "avg_odds": "Cuota media",
+    "best_month": "Mejor mes",
+    "worst_month": "Peor mes",
+    "current_streak": "Racha actual"
+  },
+  "subscribe": {
+    "title": "Hazte Premium",
+    "subtitle": "Accede a todos los pronósticos, análisis detallados y alertas en tiempo real.",
+    "monthly": "Mensual",
+    "quarterly": "Trimestral",
+    "yearly": "Anual",
+    "per_month": "/mes",
+    "per_quarter": "/trimestre",
+    "per_year": "/año",
+    "save": "Ahorra",
+    "cta": "Suscribirse ahora",
+    "features": {
+      "all_picks": "Todos los pronósticos",
+      "analyses": "Análisis detallados",
+      "alerts": "Alertas en tiempo real",
+      "early_access": "Acceso anticipado"
+    }
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "login_subtitle": "Recibe un enlace de inicio de sesión por email",
+    "email_placeholder": "tu@email.com",
+    "send_link": "Enviar enlace mágico",
+    "check_email": "¡Revisa tu bandeja de entrada!",
+    "logout": "Cerrar sesión"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "email_toggle": "Recibir notificaciones por email",
+    "push_toggle": "Recibir notificaciones push",
+    "enable_push": "Activar notificaciones push",
+    "push_enabled": "Notificaciones push activadas"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ha ocurrido un error",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "units": "U",
+    "see_all": "Ver todo"
+  },
+  "footer": {
+    "rights": "Todos los derechos reservados",
+    "legal": "Aviso legal",
+    "privacy": "Política de privacidad",
+    "terms": "Términos del servicio",
+    "disclaimer": "Las apuestas deportivas conllevan riesgos. Juega con responsabilidad."
+  }
+}

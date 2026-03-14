@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "title": "PRONOS.CLUB — Transparent Sports Predictions",
+    "description": "Follow a verified tipster's predictions. Transparent statistics, full history, proven ROI."
+  },
+  "nav": {
+    "home": "Home",
+    "picks": "Predictions",
+    "history": "History",
+    "stats": "Statistics",
+    "tipster": "The Tipster",
+    "bookmakers": "Bookmakers",
+    "subscribe": "Subscribe",
+    "login": "Login",
+    "dashboard": "My Space",
+    "admin": "Admin"
+  },
+  "home": {
+    "hero_title": "Verified & transparent sports predictions",
+    "hero_subtitle": "Follow a tipster with a 100% transparent track record. Every bet is proven with screenshots.",
+    "cta_free": "View free predictions",
+    "cta_premium": "Go Premium",
+    "stats_roi": "Global ROI",
+    "stats_profit": "Total Profit",
+    "stats_picks": "Total Picks",
+    "stats_winrate": "Win Rate",
+    "latest_pick": "Latest prediction"
+  },
+  "picks": {
+    "title": "Predictions",
+    "free": "Free",
+    "premium": "Premium",
+    "all": "All",
+    "pending": "Pending",
+    "won": "Won",
+    "lost": "Lost",
+    "void": "Void",
+    "half_won": "Half won",
+    "half_lost": "Half lost",
+    "odds": "Odds",
+    "stake": "Stake",
+    "profit": "Profit",
+    "analysis": "Analysis",
+    "premium_locked": "This prediction is for Premium subscribers only",
+    "unlock": "Unlock with Premium"
+  },
+  "stats": {
+    "title": "Statistics",
+    "global": "Global performance",
+    "by_sport": "By sport",
+    "by_month": "By month",
+    "by_odds": "By odds range",
+    "bankroll_curve": "Bankroll curve",
+    "drawdown": "Max drawdown",
+    "avg_odds": "Average odds",
+    "best_month": "Best month",
+    "worst_month": "Worst month",
+    "current_streak": "Current streak"
+  },
+  "subscribe": {
+    "title": "Go Premium",
+    "subtitle": "Access all predictions, detailed analyses and real-time alerts.",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly",
+    "per_month": "/month",
+    "per_quarter": "/quarter",
+    "per_year": "/year",
+    "save": "Save",
+    "cta": "Subscribe now",
+    "features": {
+      "all_picks": "All predictions",
+      "analyses": "Detailed analyses",
+      "alerts": "Real-time alerts",
+      "early_access": "Early access"
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "login_subtitle": "Receive a login link by email",
+    "email_placeholder": "your@email.com",
+    "send_link": "Send magic link",
+    "check_email": "Check your inbox!",
+    "logout": "Logout"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "email_toggle": "Receive email notifications",
+    "push_toggle": "Receive push notifications",
+    "enable_push": "Enable push notifications",
+    "push_enabled": "Push notifications enabled"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "units": "U",
+    "see_all": "See all"
+  },
+  "footer": {
+    "rights": "All rights reserved",
+    "legal": "Legal notice",
+    "privacy": "Privacy policy",
+    "terms": "Terms of service",
+    "disclaimer": "Sports betting involves risks. Please gamble responsibly."
+  }
+}
