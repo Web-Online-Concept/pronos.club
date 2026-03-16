@@ -13,7 +13,8 @@
     "subscribe": "Suscribirse",
     "login": "Iniciar sesión",
     "dashboard": "Mi espacio",
-    "admin": "Admin"
+    "admin": "Admin",
+    "logout": "Cerrar sesión"
   },
   "home": {
     "hero_title": "Pronósticos deportivos verificados y transparentes",

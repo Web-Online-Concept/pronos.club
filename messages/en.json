@@ -13,7 +13,8 @@
     "subscribe": "Subscribe",
     "login": "Login",
     "dashboard": "My Space",
-    "admin": "Admin"
+    "admin": "Admin",
+    "logout": "Logout"
   },
   "home": {
     "hero_title": "Verified & transparent sports predictions",
