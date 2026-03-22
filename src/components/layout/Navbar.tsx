@@ -53,7 +53,7 @@ const LOCALES = [
 ];
 
 export default function Navbar() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -149,7 +149,9 @@ export default function Navbar() {
 
           {/* Desktop CTA + Lang */}
           <div className="hidden items-center gap-3 lg:flex">
-            {user ? (
+            {authLoading ? (
+              <div className="h-11 w-32 animate-pulse rounded-xl bg-white/10" />
+            ) : user ? (
               <Link
                 href="/fr/espace"
                 className="cta-emerald flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
@@ -275,7 +277,9 @@ export default function Navbar() {
               </div>
 
               <div className="mt-2 border-t border-neutral-800 pt-3">
-                {user ? (
+                {authLoading ? (
+                  <div className="h-12 animate-pulse rounded-xl bg-white/10" />
+                ) : user ? (
                   <Link
                     href="/fr/espace"
                     onClick={() => setMenuOpen(false)}
