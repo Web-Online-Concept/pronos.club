@@ -38,7 +38,7 @@ export async function POST(request: Request) {
           .update({
             subscription_status: "active",
             subscription_end: new Date(
-              subscription.currentPeriodEnd * 1000
+              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
             ).toISOString(),
             stripe_customer_id: customerId,
           })
@@ -54,10 +54,10 @@ export async function POST(request: Request) {
           amount: 2000,
           currency: "eur",
           current_period_start: new Date(
-            subscription.current_period_start * 1000
+            (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
           ).toISOString(),
-          currentPeriodEnd: new Date(
-            subscription.currentPeriodEnd * 1000
+          current_period_end: new Date(
+            (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
           ).toISOString(),
         });
       }
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
           .update({
             subscription_status: status,
             subscription_end: new Date(
-              subscription.currentPeriodEnd * 1000
+              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
             ).toISOString(),
           })
           .eq("id", userId);
@@ -88,11 +88,11 @@ export async function POST(request: Request) {
           .from("subscriptions")
           .update({
             status,
-            currentPeriodEnd: new Date(
-              subscription.currentPeriodEnd * 1000
+            current_period_end: new Date(
+              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
             ).toISOString(),
-            canceled_at: subscription.canceled_at
-              ? new Date(subscription.canceled_at * 1000).toISOString()
+            canceled_at: (subscription as unknown as Record<string, unknown>).canceled_at
+              ? new Date(((subscription as unknown as Record<string, unknown>).canceled_at as number) * 1000).toISOString()
               : null,
           })
           .eq("stripe_subscription_id", subscription.id);
