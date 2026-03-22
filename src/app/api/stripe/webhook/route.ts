@@ -122,7 +122,8 @@ export async function POST(request: Request) {
 
     case "invoice.paid": {
       const invoice = event.data.object;
-      const customerId = invoice.customer as string;
+      const invoiceAny = invoice as unknown as Record<string, unknown>;
+      const customerId = invoiceAny.customer as string;
 
       // Find user by stripe customer id
       const { data: user } = await supabaseAdmin
@@ -134,10 +135,10 @@ export async function POST(request: Request) {
       if (user) {
         await supabaseAdmin.from("payments").insert({
           user_id: user.id,
-          stripe_payment_id: invoice.payment_intent as string,
+          stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
           stripe_invoice_id: invoice.id,
-          amount: invoice.amount_paid,
-          currency: invoice.currency,
+          amount: (invoiceAny.amount_paid ?? 0) as number,
+          currency: (invoiceAny.currency ?? "eur") as string,
           status: "paid",
           paid_at: new Date().toISOString(),
         });
