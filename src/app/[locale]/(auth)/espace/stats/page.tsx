@@ -368,7 +368,7 @@ export default function MesStatsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => isEuroMode ? `${v}€` : `${v}U`} />
-                  <Tooltip formatter={(value: number) => [isEuroMode ? `${value}€` : `${value}U`, "Profit cumulé"]} />
+                  <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, "Profit cumulé"]} />
                   <defs>
                     <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={GREEN} stopOpacity={0.3} />
@@ -423,7 +423,7 @@ export default function MesStatsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => isEuroMode ? `${v}€` : `${v}U`} />
-                    <Tooltip formatter={(value: number) => [isEuroMode ? `${value}€` : `${value}U`, "Profit"]} />
+                    <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, "Profit"]} />
                     <Bar dataKey="profit" radius={[6, 6, 0, 0]}>
                       {data.byMonth.map((entry, i) => (
                         <Cell key={i} fill={entry.profit >= 0 ? GREEN : RED} />
