@@ -6,15 +6,16 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import type { Pick, Bookmaker } from "@/lib/supabase/types";
 
 // Module-level cache for tipster bankroll — shared across all PickCard instances
-let _tipsterBkCache: { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null | undefined = undefined;
-let _tipsterBkPromise: Promise<typeof _tipsterBkCache> | null = null;
+type TipsterBkType = { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null;
+let _tipsterBkCache: TipsterBkType | undefined = undefined;
+let _tipsterBkPromise: Promise<TipsterBkType> | null = null;
 
-function getTipsterBankroll() {
+function getTipsterBankroll(): Promise<TipsterBkType> {
   if (_tipsterBkCache !== undefined) return Promise.resolve(_tipsterBkCache);
   if (_tipsterBkPromise) return _tipsterBkPromise;
   _tipsterBkPromise = fetch("/api/admin/tipster-bankroll")
     .then((r) => r.json())
-    .then((d) => {
+    .then((d): TipsterBkType => {
       if (d && d.show_on_site && d.mode !== "units_only") {
         _tipsterBkCache = d;
       } else {
@@ -22,7 +23,7 @@ function getTipsterBankroll() {
       }
       return _tipsterBkCache;
     })
-    .catch(() => {
+    .catch((): TipsterBkType => {
       _tipsterBkCache = null;
       return null;
     });
