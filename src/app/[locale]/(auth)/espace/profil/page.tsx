@@ -54,19 +54,27 @@ export default function ProfilPage() {
     setSaving(true);
     setSaved(false);
 
-    await fetch("/api/user/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pseudo: pseudo || null,
-        avatar_url: avatarUrl || null,
-      }),
-    });
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pseudo: pseudo || null,
+          avatar_url: avatarUrl || null,
+        }),
+      });
 
-    await refreshUser();
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        // Refresh user data in background — don't block UI
+        refreshUser().catch(() => {});
+      }
+    } catch {
+      // Silently fail
+    }
+
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   }
 
   const initial = (pseudo || user?.email || "?").charAt(0).toUpperCase();
