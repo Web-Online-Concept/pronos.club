@@ -81,11 +81,11 @@ export default async function BookmakersPage() {
 
         {/* ═══════════ ALERTE ═══════════ */}
         <section className="mt-10">
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-6 py-5 text-center">
-            <p className="text-sm font-bold text-amber-600">
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/5 px-6 py-5 text-center">
+            <p className="text-sm font-bold text-red-600">
               ⚠️ Ne pas être inscrit sur tous les bookmakers = manquer des pronostics gagnants
             </p>
-            <p className="mt-1 text-xs text-amber-600/60">
+            <p className="mt-1 text-xs text-red-500/60">
               L&apos;inscription est gratuite et sans engagement sur chaque plateforme. Faites-le maintenant, vous nous remercierez plus tard.
             </p>
           </div>
@@ -125,7 +125,7 @@ export default async function BookmakersPage() {
             >
               <div className="text-center">
                 <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-blue-300">Régulés en France</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers ANJ</h2>
+                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers ARJEL</h2>
                 <p className="mx-auto mt-2 max-w-md text-xs text-white/30">
                   Agréés par l&apos;Autorité Nationale des Jeux. Certains de nos meilleurs pronostics sont placés sur ces plateformes.
                   Inscrivez-vous pour ne rien manquer.
@@ -247,7 +247,18 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
   const badgeClass = variant === "anj"
     ? "bg-blue-500/20 text-blue-400"
     : "bg-amber-500/20 text-amber-400";
-  const badgeLabel = variant === "anj" ? "ANJ 🇫🇷" : "International 🌍";
+  const badgeLabel = variant === "anj" ? "France 🇫🇷" : "International 🌍";
+
+  // VPN info per bookmaker
+  const vpnInfo: Record<string, { label: string; color: string }> = {
+    "1xbet": { label: "🔒 VPN obligatoire", color: "text-red-400" },
+    "stake": { label: "🔒 VPN à l'inscription seulement", color: "text-amber-400" },
+    "ps3838": { label: "✅ Pas de VPN nécessaire", color: "text-emerald-400" },
+  };
+
+  const accessInfo = variant === "anj"
+    ? { label: "🇫🇷 Français seulement", color: "text-blue-400" }
+    : vpnInfo[book.slug] ?? null;
 
   return (
     <div
@@ -292,6 +303,13 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
 
         {book.country && (
           <p className="mt-3 text-center text-[10px] text-white/20">Licence : {book.country}</p>
+        )}
+
+        {/* Access info */}
+        {accessInfo && (
+          <p className={`mt-3 text-center text-xs font-semibold ${accessInfo.color}`}>
+            {accessInfo.label}
+          </p>
         )}
 
         {/* CTA */}
