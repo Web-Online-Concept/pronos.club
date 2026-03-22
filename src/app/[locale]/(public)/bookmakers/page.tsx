@@ -247,17 +247,17 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
   const badgeClass = variant === "anj"
     ? "bg-blue-500/20 text-blue-400"
     : "bg-amber-500/20 text-amber-400";
-  const badgeLabel = variant === "anj" ? "France 🇫🇷" : "International 🌍";
+  const badgeLabel = variant === "anj" ? "France" : "International";
 
   // VPN info per bookmaker
   const vpnInfo: Record<string, { label: string; color: string }> = {
-    "1xbet": { label: "🔒 VPN obligatoire", color: "text-red-400" },
-    "stake": { label: "🔒 VPN à l'inscription seulement", color: "text-amber-400" },
-    "ps3838": { label: "✅ Pas de VPN nécessaire", color: "text-emerald-400" },
+    "1xbet": { label: "VPN obligatoire", color: "text-red-400" },
+    "stake": { label: "VPN à l'inscription seulement", color: "text-amber-400" },
+    "ps3838": { label: "Pas de VPN nécessaire", color: "text-emerald-400" },
   };
 
   const accessInfo = variant === "anj"
-    ? { label: "🇫🇷 Français seulement", color: "text-blue-400" }
+    ? { label: "Réservé aux joueurs français", color: "text-blue-400" }
     : vpnInfo[book.slug] ?? null;
 
   return (
