@@ -21,7 +21,7 @@ function getTipsterBankroll(): Promise<TipsterBkType> {
       } else {
         _tipsterBkCache = null;
       }
-      return _tipsterBkCache;
+      return _tipsterBkCache ?? null;
     })
     .catch((): TipsterBkType => {
       _tipsterBkCache = null;
