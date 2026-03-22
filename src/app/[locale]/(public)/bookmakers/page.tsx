@@ -1,7 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 
 export default async function BookmakersPage() {
+  const user = await getCurrentUser();
+  const isLoggedIn = !!user;
+  const isPremium = user?.subscription_status === "active";
+
   const { data: bookmakers } = await supabaseAdmin
     .from("bookmakers")
     .select("*")
@@ -172,23 +177,39 @@ export default async function BookmakersPage() {
         {/* ═══════════ CTA FINAL ═══════════ */}
         <section className="mt-12 text-center">
           <p className="text-sm font-semibold text-neutral-600">
-            Vous n&apos;êtes pas encore membre ?
+            {isPremium ? "Vous êtes Premium — profitez de tous nos pronostics" : isLoggedIn ? "Passez Premium pour ne rien manquer" : "Vous n'êtes pas encore membre ?"}
           </p>
           <p className="mt-1 text-xs text-neutral-400">
-            Créez votre compte gratuitement et commencez à suivre nos pronostics dès maintenant.
+            {isPremium ? "Consultez vos pronostics et suivez vos performances." : isLoggedIn ? "Accédez à l'intégralité de nos sélections premium." : "Créez votre compte gratuitement et commencez à suivre nos pronostics dès maintenant."}
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            {isPremium ? (
+              <Link
+                href="/fr/espace"
+                className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
+              >
+                Accéder à mon espace
+              </Link>
+            ) : isLoggedIn ? (
+              <Link
+                href="/fr/espace/abonnement"
+                className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
+              >
+                Devenir Premium — 20€/mois
+              </Link>
+            ) : (
+              <Link
+                href="/fr/login"
+                className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
+              >
+                Créer mon compte gratuit
+              </Link>
+            )}
             <Link
-              href="/fr/login"
-              className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
-            >
-              Créer mon compte gratuit
-            </Link>
-            <Link
-              href="/fr/abonnement"
+              href="/fr/pronostics"
               className="w-full rounded-xl border border-neutral-300 px-8 py-4 text-sm font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 sm:w-auto"
             >
-              Devenir Premium — 20€/mois
+              Voir les pronostics
             </Link>
           </div>
         </section>

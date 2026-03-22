@@ -131,12 +131,28 @@ export default async function HomePage() {
             >
               Voir les pronostics
             </Link>
-            <Link
-              href="/fr/abonnement"
-              className="w-full rounded-xl border border-neutral-700 px-8 py-4 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto"
-            >
-              Devenir Premium — 20€/mois
-            </Link>
+            {isPremium ? (
+              <Link
+                href="/fr/espace"
+                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-8 py-4 text-sm font-bold text-emerald-400 sm:w-auto"
+              >
+                ✅ Accéder à mon espace
+              </Link>
+            ) : isLoggedIn ? (
+              <Link
+                href="/fr/espace/abonnement"
+                className="w-full rounded-xl border border-neutral-700 px-8 py-4 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto"
+              >
+                Devenir Premium — 20€/mois
+              </Link>
+            ) : (
+              <Link
+                href="/fr/login"
+                className="w-full rounded-xl border border-neutral-700 px-8 py-4 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto"
+              >
+                Devenir Premium — 20€/mois
+              </Link>
+            )}
           </div>
 
           {/* Trust indicators */}
