@@ -147,6 +147,27 @@ export default async function BookmakerSlugPage({
                   </div>
                 ))}
               </div>
+
+              {/* Hero CTA */}
+              {affiliateUrl && (
+                <div className="mt-6 flex justify-center sm:justify-start">
+                  <a
+                    href={affiliateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold text-white transition hover:opacity-90"
+                    style={{
+                      background: "linear-gradient(135deg, #d97706cc, #f59e0b)",
+                      boxShadow: "0 4px 20px rgba(245,158,11,0.3)",
+                    }}
+                  >
+                    S&apos;inscrire sur {book.name}
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -191,18 +212,41 @@ export default async function BookmakerSlugPage({
 
         {/* ═══════════ SECTIONS ═══════════ */}
         {content.sections.map((section, i) => (
-          <section key={i} className="mt-10">
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
-              style={{ background: i % 2 === 0 ? "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" : "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl">{section.icon}</span>
-                <h2 className="text-lg font-extrabold text-white">{section.title}</h2>
+          <div key={i}>
+            <section className="mt-10">
+              <div
+                className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
+                style={{ background: i % 2 === 0 ? "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" : "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl">{section.icon}</span>
+                  <h2 className="text-lg font-extrabold text-white">{section.title}</h2>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-white/50">{section.content}</p>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-white/50">{section.content}</p>
-            </div>
-          </section>
+            </section>
+
+            {/* Mid-page CTA after section 2 */}
+            {i === 1 && affiliateUrl && (
+              <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-6 py-5 text-center">
+                <p className="text-sm font-bold text-neutral-800">
+                  Rejoignez {book.name} maintenant — Code bonus : <span className="text-emerald-600">{content.code_bonus}</span>
+                </p>
+                <a
+                  href={affiliateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                  style={{
+                    background: "linear-gradient(135deg, #d97706cc, #f59e0b)",
+                    boxShadow: "0 4px 20px rgba(245,158,11,0.3)",
+                  }}
+                >
+                  S&apos;inscrire gratuitement →
+                </a>
+              </div>
+            )}
+          </div>
         ))}
 
         {/* ═══════════ VIDEOS ═══════════ */}
