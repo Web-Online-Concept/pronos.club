@@ -20,7 +20,7 @@ async function updateSupabaseSession(request: NextRequest, response: NextRespons
           cookiesToSet.forEach(({ name, value, options }) => {
             const persistentOptions = {
               ...options,
-              maxAge: 60 * 60 * 24 * 30,
+              maxAge: 60 * 60 * 24 * 7,
               sameSite: "lax" as const,
               secure: true,
             };

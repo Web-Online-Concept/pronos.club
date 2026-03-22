@@ -18,7 +18,7 @@ export async function createClient() {
               cookieStore.set(name, value, {
                 ...options,
                 // Persist session for 30 days (survives browser close)
-                maxAge: 60 * 60 * 24 * 30,
+                maxAge: 60 * 60 * 24 * 7,
                 sameSite: "lax",
                 secure: true,
               })
