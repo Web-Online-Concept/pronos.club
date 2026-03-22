@@ -99,7 +99,7 @@ export interface Subscription {
   amount: number;
   currency: string;
   current_period_start: string | null;
-  current_period_end: string | null;
+  currentPeriodEnd: string | null;
   canceled_at: string | null;
   created_at: string;
 }

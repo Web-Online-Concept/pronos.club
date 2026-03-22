@@ -51,7 +51,7 @@ export async function POST() {
     });
 
     // Format end date
-    const endDate = new Date(sub.current_period_end * 1000).toLocaleDateString("fr-FR", {
+    const endDate = new Date(sub.currentPeriodEnd * 1000).toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "long",
       year: "numeric",

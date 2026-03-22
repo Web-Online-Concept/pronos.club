@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   amount int NOT NULL,
   currency text DEFAULT 'eur',
   current_period_start timestamptz,
-  current_period_end timestamptz,
+  currentPeriodEnd timestamptz,
   canceled_at timestamptz,
   created_at timestamptz DEFAULT now()
 );
