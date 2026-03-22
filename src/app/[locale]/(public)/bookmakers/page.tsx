@@ -1,6 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Link from "next/link";
-import Image from "next/image";
 
 export default async function BookmakersPage() {
   const { data: bookmakers } = await supabaseAdmin
@@ -26,40 +25,40 @@ export default async function BookmakersPage() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Nos partenaires</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">Bookmakers</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Indispensable</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">Nos bookmakers</h1>
           <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/40">
-            Nous travaillons avec les meilleurs bookmakers du marché.
-            Des plateformes fiables, des cotes compétitives et des retraits rapides.
+            Pour suivre tous nos pronostics et ne jamais manquer une opportunité, 
+            inscrivez-vous sur chacun de ces 6 bookmakers. C&apos;est gratuit et ça prend 2 minutes.
           </p>
         </div>
       </section>
 
       <main className="mx-auto max-w-4xl px-4 pb-16">
 
-        {/* ═══════════ POURQUOI CES BOOKMAKERS ═══════════ */}
+        {/* ═══════════ POURQUOI S'INSCRIRE PARTOUT ═══════════ */}
         <section className="mt-12">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Transparence</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Pourquoi ces bookmakers ?</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Maximisez vos gains</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Pourquoi s&apos;inscrire sur les 6 ?</h2>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
               {
-                icon: "📊",
-                title: "Meilleures cotes",
-                desc: "Nous sélectionnons les bookmakers qui offrent les cotes les plus élevées sur les marchés que nous ciblons.",
+                icon: "🎯",
+                title: "Suivez chaque prono",
+                desc: "Nos picks sont placés sur différents bookmakers selon les meilleures cotes disponibles. Sans compte partout, vous ratez des opportunités.",
               },
               {
-                icon: "⚡",
-                title: "Fiabilité & rapidité",
-                desc: "Plateformes stables, retraits rapides, service client réactif. Nous ne recommandons que ce que nous utilisons.",
+                icon: "📈",
+                title: "Toujours la meilleure cote",
+                desc: "Les cotes varient d'un bookmaker à l'autre. En comparant, vous pouvez gagner 5 à 15% de profit en plus sur le long terme.",
               },
               {
-                icon: "🌍",
-                title: "Accessibilité mondiale",
-                desc: "Des options pour les joueurs français (ANJ) et internationaux. Chacun peut trouver la plateforme adaptée à son pays.",
+                icon: "💰",
+                title: "Cumulez les bonus",
+                desc: "Chaque bookmaker offre un bonus de bienvenue. En vous inscrivant sur les 6, vous démarrez avec un avantage considérable.",
               },
             ].map((item) => (
               <div
@@ -75,19 +74,31 @@ export default async function BookmakersPage() {
           </div>
         </section>
 
-        {/* ═══════════ INTERNATIONAL (HORS ANJ) ═══════════ */}
+        {/* ═══════════ ALERTE ═══════════ */}
+        <section className="mt-10">
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-6 py-5 text-center">
+            <p className="text-sm font-bold text-amber-600">
+              ⚠️ Ne pas être inscrit sur tous les bookmakers = manquer des pronostics gagnants
+            </p>
+            <p className="mt-1 text-xs text-amber-600/60">
+              L&apos;inscription est gratuite et sans engagement sur chaque plateforme. Faites-le maintenant, vous nous remercierez plus tard.
+            </p>
+          </div>
+        </section>
+
+        {/* ═══════════ INTERNATIONAL ═══════════ */}
         {international.length > 0 && (
-          <section className="mt-16">
+          <section className="mt-14">
             <div
               className="-mx-4 border-y border-emerald-900/50 px-4 py-6 sm:-mx-[calc((100vw-56rem)/2+1rem)] sm:px-[calc((100vw-56rem)/2+1rem)]"
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">International</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers hors ANJ</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">Cotes élevées</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers internationaux</h2>
                 <p className="mx-auto mt-2 max-w-md text-xs text-white/30">
-                  Accessibles depuis la plupart des pays. Cotes souvent plus élevées, marchés plus variés.
-                  Idéal pour les joueurs hors France, au Canada, en Espagne et dans le monde entier.
+                  Les meilleures cotes du marché, des milliers de marchés disponibles et des limites de mise élevées.
+                  Utilisés par les parieurs professionnels du monde entier.
                 </p>
               </div>
             </div>
@@ -100,19 +111,19 @@ export default async function BookmakersPage() {
           </section>
         )}
 
-        {/* ═══════════ ANJ (FRANCE) ═══════════ */}
+        {/* ═══════════ ANJ ═══════════ */}
         {anj.length > 0 && (
-          <section className="mt-16">
+          <section className="mt-14">
             <div
               className="-mx-4 border-y border-emerald-900/50 px-4 py-6 sm:-mx-[calc((100vw-56rem)/2+1rem)] sm:px-[calc((100vw-56rem)/2+1rem)]"
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-blue-300">France — ANJ</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers régulés ANJ</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-blue-300">Régulés en France</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers ANJ</h2>
                 <p className="mx-auto mt-2 max-w-md text-xs text-white/30">
-                  Agréés par l&apos;Autorité Nationale des Jeux. Obligatoires pour les joueurs résidant en France.
-                  Sécurité maximale, fonds protégés.
+                  Agréés par l&apos;Autorité Nationale des Jeux. Certains de nos meilleurs pronostics sont placés sur ces plateformes.
+                  Inscrivez-vous pour ne rien manquer.
                 </p>
               </div>
             </div>
@@ -125,45 +136,59 @@ export default async function BookmakersPage() {
           </section>
         )}
 
-        {/* ═══════════ INFO SECTION ═══════════ */}
-        <section className="mt-16">
+        {/* ═══════════ CONSEIL PRO ═══════════ */}
+        <section className="mt-14">
           <div
             className="overflow-hidden rounded-2xl border border-white/[0.06] p-8"
             style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
           >
             <div className="text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl ring-1 ring-emerald-500/20">💡</span>
-              <h3 className="mt-4 text-lg font-extrabold text-white">Comment choisir son bookmaker ?</h3>
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl ring-1 ring-emerald-500/20">🏆</span>
+              <h3 className="mt-4 text-lg font-extrabold text-white">Le conseil des pros</h3>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">
-                Si vous résidez en France, vous devez utiliser un bookmaker agréé ANJ (Betclic, Unibet, Winamax).
-                Si vous êtes au Canada, en Espagne ou dans un autre pays, les bookmakers internationaux offrent 
-                généralement de meilleures cotes et plus de marchés disponibles.
+                Les parieurs rentables ne jouent jamais sur un seul bookmaker. Ils comparent systématiquement
+                les cotes et placent chaque pari là où la cote est la plus élevée. Sur 100 paris, cette habitude
+                peut représenter <span className="font-bold text-emerald-400">10 à 20% de profit supplémentaire</span>.
               </p>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">
-                Notre conseil : inscrivez-vous sur au moins 2 bookmakers pour toujours profiter de la meilleure cote 
-                sur chaque pronostic. C&apos;est la base d&apos;une gestion de bankroll efficace.
+                Inscrivez-vous sur les 6 bookmakers ci-dessus. C&apos;est gratuit, ça prend quelques minutes, 
+                et c&apos;est la première étape pour suivre nos pronostics dans les meilleures conditions.
               </p>
+              <div className="mt-6">
+                <Link
+                  href="/fr/pronostics"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40"
+                >
+                  Voir les pronostics en cours
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ═══════════ CTA ═══════════ */}
+        {/* ═══════════ CTA FINAL ═══════════ */}
         <section className="mt-12 text-center">
-          <p className="text-sm text-neutral-500">
-            Tous les bookmakers présentés sont utilisés quotidiennement par notre tipster.
+          <p className="text-sm font-semibold text-neutral-600">
+            Vous n&apos;êtes pas encore membre ?
+          </p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Créez votre compte gratuitement et commencez à suivre nos pronostics dès maintenant.
           </p>
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/fr/pronostics"
+              href="/fr/login"
               className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
             >
-              Voir les pronostics
+              Créer mon compte gratuit
             </Link>
             <Link
-              href="/fr/statistiques"
+              href="/fr/abonnement"
               className="w-full rounded-xl border border-neutral-300 px-8 py-4 text-sm font-semibold text-neutral-600 transition hover:border-neutral-400 hover:text-neutral-900 sm:w-auto"
             >
-              Consulter les statistiques
+              Devenir Premium — 20€/mois
             </Link>
           </div>
         </section>
@@ -261,7 +286,7 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
                 boxShadow: `0 4px 14px ${accentColor}40`,
               }}
             >
-              S&apos;inscrire
+              S&apos;inscrire gratuitement
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
