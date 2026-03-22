@@ -18,8 +18,14 @@ async function updateSupabaseSession(request: NextRequest, response: NextRespons
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            const persistentOptions = {
+              ...options,
+              maxAge: 60 * 60 * 24 * 30,
+              sameSite: "lax" as const,
+              secure: true,
+            };
             request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, persistentOptions);
           });
         },
       },

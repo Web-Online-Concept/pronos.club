@@ -15,7 +15,13 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, {
+                ...options,
+                // Persist session for 30 days (survives browser close)
+                maxAge: 60 * 60 * 24 * 30,
+                sameSite: "lax",
+                secure: true,
+              })
             );
           } catch {
             // Server Component — ignore
