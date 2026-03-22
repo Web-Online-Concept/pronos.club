@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
-import type { Pick, Bookmaker } from "@/lib/supabase/types";
+import type { Pick, PickLeg, Bookmaker } from "@/lib/supabase/types";
 
 // Module-level cache for tipster bankroll — shared across all PickCard instances
 type TipsterBkType = { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null;
