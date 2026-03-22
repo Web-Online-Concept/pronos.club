@@ -98,19 +98,19 @@ export async function GET(request: Request) {
           } else if (userLegOdds && userLegOdds.length > 0) {
             // Use per-leg user odds for accurate calculation
             // Only include non-void legs
-            const activeUserOdds = allLegs
+            const activeUserOdds: number[] = allLegs
               .filter((l: { status: string }) => l.status !== "void")
               .map((l: { leg_number: number }) => {
-                const userLeg = userLegOdds.find((ul) => ul.leg_number === l.leg_number);
+                const userLeg = userLegOdds.find((ul: { leg_number: number; odds: number }) => ul.leg_number === l.leg_number);
                 return userLeg?.odds ?? 0;
               })
-              .filter((o) => o > 0);
+              .filter((o: number) => o > 0);
 
             if (activeUserOdds.length === 0) {
               // All void
               userProfit = 0;
             } else {
-              const effectiveOdds = activeUserOdds.reduce((acc, o) => acc * o, 1);
+              const effectiveOdds = activeUserOdds.reduce((acc: number, o: number) => acc * o, 1);
               userProfit = parseFloat(((effectiveOdds - 1) * pick.stake).toFixed(2));
             }
           } else {
