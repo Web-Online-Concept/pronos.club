@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-subscriptions",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/recalc-bankroll",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

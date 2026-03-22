@@ -5,6 +5,7 @@ export type NotificationChannel = "email" | "push";
 export interface User {
   id: string;
   email: string;
+  pseudo: string | null;
   display_name: string | null;
   avatar_url: string | null;
   is_admin: boolean;
@@ -28,17 +29,6 @@ export interface Sport {
   active: boolean;
 }
 
-export interface Competition {
-  id: string;
-  sport_id: string;
-  name_fr: string;
-  name_en: string;
-  name_es: string;
-  slug: string;
-  country: string | null;
-  active: boolean;
-}
-
 export interface Bookmaker {
   id: string;
   name: string;
@@ -51,17 +41,36 @@ export interface Bookmaker {
   bonus_info: string | null;
   active: boolean;
   sort_order: number;
+  category: string | null;
+}
+
+export type PickType = "simple" | "combine";
+
+export interface PickLeg {
+  id: string;
+  pick_id: string;
+  leg_number: number;
+  event_name: string;
+  selection: string;
+  sport_id: string;
+  competition: string | null;
+  odds: number;
+  status: PickStatus;
+  event_date: string | null;
+  sport?: Sport;
 }
 
 export interface Pick {
   id: string;
+  pick_type: PickType;
   sport_id: string;
-  competition_id: string;
+  competition: string | null;
   bookmaker_id: string;
   event_name: string;
   event_date: string;
   selection: string;
   odds: number;
+  min_odds: number | null;
   stake: number;
   is_premium: boolean;
   analysis_fr: string | null;
@@ -73,10 +82,11 @@ export interface Pick {
   result_entered_at: string | null;
   published_at: string;
   notify_sent: boolean;
-  // Joined
+  pick_number?: number;
+  bet_url?: string;
   sport?: Sport;
-  competition?: Competition;
   bookmaker?: Bookmaker;
+  legs?: PickLeg[];
 }
 
 export interface Subscription {
