@@ -116,8 +116,8 @@ export default function LoginPage() {
             </div>
             <div className="h-10 w-px bg-neutral-200" />
             <div>
-              <p className="text-center text-2xl font-extrabold text-neutral-900">1U</p>
-              <p className="text-center text-[11px] text-neutral-400">Flat bet</p>
+              <p className="text-center text-2xl font-extrabold text-neutral-900">🏦</p>
+              <p className="text-center text-[11px] text-neutral-400">Gestion de BK</p>
             </div>
             <div className="h-10 w-px bg-neutral-200" />
             <div>
