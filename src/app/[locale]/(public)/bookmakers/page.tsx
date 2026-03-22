@@ -32,22 +32,6 @@ export default async function BookmakersPage() {
             Nous travaillons avec les meilleurs bookmakers du marché.
             Des plateformes fiables, des cotes compétitives et des retraits rapides.
           </p>
-
-          {/* Logo strip */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-6">
-            {books.map((b) => (
-              <div
-                key={b.id}
-                className="flex h-14 w-24 items-center justify-center rounded-xl bg-white/[0.06] p-2 transition hover:bg-white/10 hover:scale-105"
-              >
-                <img
-                  src={b.logo_url || `/bookmakers/${b.slug}.png`}
-                  alt={b.name}
-                  className="h-full w-full object-contain"
-                />
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -229,11 +213,11 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
 
       {/* Logo section */}
       <div className="flex flex-col items-center px-6 pt-6">
-        <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-white/[0.06] p-2">
+        <div className="flex h-24 w-40 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.06]">
           <img
             src={book.logo_url || `/bookmakers/${book.slug}.png`}
             alt={book.name}
-            className="h-full w-full object-contain"
+            className="h-full w-full object-cover"
           />
         </div>
         <h3 className="mt-3 text-lg font-extrabold text-white">{book.name}</h3>
