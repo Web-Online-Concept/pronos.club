@@ -8,7 +8,6 @@ const BOOKMAKER_CONTENT: Record<string, {
   tagline: string;
   vpn: { required: boolean; label: string; countries?: string };
   code_bonus: string;
-  permanent_link: string;
   sections: { title: string; content: string; icon: string }[];
   videos: { title: string; description: string; file: string }[];
   highlights: { label: string; value: string }[];
@@ -17,7 +16,6 @@ const BOOKMAKER_CONTENT: Record<string, {
     tagline: "Les meilleures cotes et un immense choix de paris sportifs",
     vpn: { required: true, label: "VPN obligatoire", countries: "Canada, Norvège, Albanie, Singapour" },
     code_bonus: "PRONOSCLUB",
-    permanent_link: "www.1X-DIRECT.com",
     highlights: [
       { label: "Fondé en", value: "2007" },
       { label: "Sports", value: "50+" },
@@ -156,32 +154,17 @@ export default async function BookmakerSlugPage({
 
       <main className="mx-auto max-w-4xl px-4 pb-16">
 
-        {/* ═══════════ CODE BONUS + LIEN ═══════════ */}
+        {/* ═══════════ CODE BONUS ═══════════ */}
         <section className="mt-10">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Code bonus */}
-            <div
-              className="overflow-hidden rounded-2xl border border-emerald-500/20 p-6 text-center"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/60">Code bonus</p>
-              <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-                <p className="text-2xl font-extrabold tracking-widest text-emerald-400">{content.code_bonus}</p>
-              </div>
-              <p className="mt-2 text-xs text-white/30">À entrer lors de votre inscription</p>
+          <div
+            className="overflow-hidden rounded-2xl border border-emerald-500/20 p-6 text-center"
+            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/60">Code bonus</p>
+            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+              <p className="text-2xl font-extrabold tracking-widest text-emerald-400">{content.code_bonus}</p>
             </div>
-
-            {/* Lien permanent */}
-            <div
-              className="overflow-hidden rounded-2xl border border-amber-500/20 p-6 text-center"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a1000 100%)" }}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/60">Lien permanent</p>
-              <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                <p className="text-lg font-extrabold text-amber-400">{content.permanent_link}</p>
-              </div>
-              <p className="mt-2 text-xs text-white/30">Fonctionne même si le site principal est bloqué</p>
-            </div>
+            <p className="mt-2 text-xs text-white/30">À entrer lors de votre inscription</p>
           </div>
 
           {/* CTA inscription */}
