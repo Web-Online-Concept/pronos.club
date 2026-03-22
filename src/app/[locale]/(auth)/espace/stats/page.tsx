@@ -29,11 +29,12 @@ function lastDayOfMonth(ym: string) {
 
 interface StatsData {
   overview: {
-    totalPicks: number; wonPicks: number; lostPicks: number; voidPicks: number;
+    totalPicks: number; totalFollowed: number; wonPicks: number; lostPicks: number; voidPicks: number;
     totalProfit: number; totalStaked: number; roi: number; winRate: number;
     avgOdds: number; avgOddsWon: number; avgOddsLost: number;
     maxWinStreak: number; maxLoseStreak: number; currentStreak: string;
     maxDrawdown: number;
+    profit: number; won: number; lost: number; staked: number;
     bestPick: { event: string; profit: number; odds: number } | null;
     worstPick: { event: string; profit: number; odds: number } | null;
   };
