@@ -127,69 +127,68 @@ export default async function BookmakerSlugPage({
 
   return (
     <>
-      {/* ═══════════ HERO — CENTERED ═══════════ */}
+      {/* ═══════════ HERO — COMPACT ═══════════ */}
       <section
         className="relative overflow-hidden border-b border-emerald-900/50"
         style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
       >
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px]" style={{ background: colors.glow }} />
+          <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px]" style={{ background: colors.glow }} />
         </div>
 
-        <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
-          <Link href="/fr/bookmakers" className="mb-8 inline-flex items-center gap-1.5 text-xs font-semibold text-white/30 transition hover:text-white/60">
+        <div className="relative mx-auto max-w-4xl px-4 pb-10 pt-6">
+          <Link href="/fr/bookmakers" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white/30 transition hover:text-white/60">
             ← Tous les bookmakers
           </Link>
 
-          {/* Logo */}
-          <div className="mx-auto flex h-28 w-44 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08]">
-            <img
-              src={book.logo_url || `/bookmakers/${book.slug}.png`}
-              alt={book.name}
-              className="h-full w-full object-cover"
-            />
-          </div>
-
-          {/* Name + badge */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <h1 className="text-3xl font-extrabold text-white sm:text-4xl">{book.name}</h1>
-            <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${content.badge.class}`}>
-              {content.badge.label}
-            </span>
-          </div>
-
-          <p className="mx-auto mt-3 max-w-lg text-sm text-white/40">{content.tagline}</p>
-
-          {/* VPN badge */}
-          {content.vpn?.required && (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2">
-              <span className="text-xs font-bold text-red-400">{content.vpn.label}</span>
-              {content.vpn.countries && (
-                <span className="text-[10px] text-red-400/60">({content.vpn.countries})</span>
-              )}
+          <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+            {/* Logo */}
+            <div className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08]">
+              <img
+                src={book.logo_url || `/bookmakers/${book.slug}.png`}
+                alt={book.name}
+                className="h-full w-full object-cover"
+              />
             </div>
-          )}
 
-          {/* Access info */}
-          {content.access_info && (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2">
-              <span className="text-xs font-bold text-blue-400">{content.access_info}</span>
-            </div>
-          )}
-
-          {/* Highlights */}
-          <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-6">
-            {content.highlights.map((h) => (
-              <div key={h.label} className="text-center">
-                <p className="text-xl font-extrabold text-white">{h.value}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">{h.label}</p>
+            {/* Info */}
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <h1 className="text-2xl font-extrabold text-white sm:text-3xl">{book.name}</h1>
+                <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${content.badge.class}`}>
+                  {content.badge.label}
+                </span>
+                {content.vpn?.required && (
+                  <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-[9px] font-bold text-red-400">
+                    {content.vpn.label}
+                  </span>
+                )}
+                {content.access_info && (
+                  <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[9px] font-bold text-blue-400">
+                    {content.access_info}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
+              <p className="mt-1.5 text-sm text-white/40">{content.tagline}</p>
+              {content.vpn?.countries && (
+                <p className="mt-1 text-[10px] text-red-400/50">VPN : {content.vpn.countries}</p>
+              )}
 
-          {/* Hero CTA */}
-          <div className="mt-8">
-            <AffiliateButton text={`S'inscrire sur ${book.name}`} />
+              {/* Highlights inline */}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-4 sm:justify-start">
+                {content.highlights.map((h) => (
+                  <div key={h.label} className="text-center sm:text-left">
+                    <span className="text-sm font-extrabold text-white">{h.value}</span>
+                    <span className="ml-1 text-[9px] uppercase tracking-wider text-white/25">{h.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA right */}
+            <div className="flex-shrink-0">
+              <AffiliateButton text={`S'inscrire`} />
+            </div>
           </div>
         </div>
       </section>
