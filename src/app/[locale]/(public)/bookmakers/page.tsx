@@ -314,30 +314,19 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
 
         {/* CTA */}
         <div className="mt-auto pt-4">
-          {book.affiliate_url ? (
-            <a
-              href={book.affiliate_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
-              style={{
-                background: `linear-gradient(135deg, ${accentColor}cc, ${accentColor})`,
-                boxShadow: `0 4px 14px ${accentColor}40`,
-              }}
-            >
-              S&apos;inscrire gratuitement
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </a>
-          ) : (
-            <Link
-              href={`/fr/bookmakers/${book.slug}`}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/50 transition hover:border-white/20 hover:text-white/70"
-            >
-              En savoir plus
-            </Link>
-          )}
+          <Link
+            href={`/fr/bookmakers/${book.slug}`}
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+            style={{
+              background: `linear-gradient(135deg, ${accentColor}cc, ${accentColor})`,
+              boxShadow: `0 4px 14px ${accentColor}40`,
+            }}
+          >
+            Découvrir {book.name}
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
         </div>
       </div>
     </div>
