@@ -143,13 +143,23 @@ export default async function BookmakerSlugPage({
 
           <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
             {/* Logo */}
-            <div className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08]">
-              <img
-                src={book.logo_url || `/bookmakers/${book.slug}.png`}
-                alt={book.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
+            {affiliateUrl ? (
+              <a href={affiliateUrl} target="_blank" rel="noopener noreferrer" className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08] transition hover:bg-white/[0.12]">
+                <img
+                  src={book.logo_url || `/bookmakers/${book.slug}.png`}
+                  alt={book.name}
+                  className="h-full w-full object-cover"
+                />
+              </a>
+            ) : (
+              <div className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08]">
+                <img
+                  src={book.logo_url || `/bookmakers/${book.slug}.png`}
+                  alt={book.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
 
             {/* Info */}
             <div className="flex-1">
