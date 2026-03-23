@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import VideoPlayer from "@/components/ui/VideoPlayer";
 
 // Brand colors per bookmaker (from their logos)
 const BRAND_COLORS: Record<string, { primary: string; gradient: string; shadow: string; glow: string }> = {
@@ -272,15 +273,11 @@ export default async function BookmakerSlugPage({
                   className="overflow-hidden rounded-2xl border border-white/[0.06]"
                   style={{ background: "linear-gradient(135deg, #111111 0%, #0a0a0a 100%)" }}
                 >
-                  <div className="relative aspect-video bg-black">
-                    <video
-                      src={`/bookmakers/${slug}/${video.file}`}
-                      controls
-                      preload="metadata"
-                      className="h-full w-full object-cover"
-                      poster={`/bookmakers/${slug}/${video.file.replace(".mp4", "-thumb.jpg")}`}
-                    />
-                  </div>
+                  <VideoPlayer
+                    src={`/bookmakers/${slug}/${video.file}`}
+                    thumbnail={`/bookmakers/${slug}/${video.file.replace(".mp4", "-thumb.jpg")}`}
+                    title={video.title}
+                  />
                   <div className="p-4">
                     <h3 className="font-bold text-white">{video.title}</h3>
                     <p className="mt-1 text-xs leading-relaxed text-white/40">{video.description}</p>
