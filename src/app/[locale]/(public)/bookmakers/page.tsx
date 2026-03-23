@@ -41,56 +41,6 @@ export default async function BookmakersPage() {
 
       <main className="mx-auto max-w-4xl px-4 pb-16">
 
-        {/* ═══════════ POURQUOI S'INSCRIRE PARTOUT ═══════════ */}
-        <section className="mt-12">
-          <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Maximisez vos gains</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Pourquoi s&apos;inscrire sur les 6 ?</h2>
-          </div>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: "🎯",
-                title: "Suivez chaque prono",
-                desc: "Nos picks sont placés sur différents bookmakers selon les meilleures cotes disponibles. Sans compte partout, vous ratez des opportunités.",
-              },
-              {
-                icon: "📈",
-                title: "Toujours la meilleure cote",
-                desc: "Les cotes varient d'un bookmaker à l'autre. En comparant, vous pouvez gagner 5 à 15% de profit en plus sur le long terme.",
-              },
-              {
-                icon: "💰",
-                title: "Cumulez les bonus",
-                desc: "Chaque bookmaker offre un bonus de bienvenue. En vous inscrivant sur les 6, vous démarrez avec un avantage considérable.",
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="group overflow-hidden rounded-2xl border border-white/[0.06] p-6 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-              >
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl">{item.icon}</span>
-                <h3 className="mt-4 font-bold text-white">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/40">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ═══════════ ALERTE ═══════════ */}
-        <section className="mt-10">
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/5 px-6 py-5 text-center">
-            <p className="text-sm font-bold text-red-600">
-              ⚠️ Ne pas être inscrit sur tous les bookmakers = manquer des pronostics gagnants
-            </p>
-            <p className="mt-1 text-xs text-red-500/60">
-              L&apos;inscription est gratuite et sans engagement sur chaque plateforme. Faites-le maintenant, vous nous remercierez plus tard.
-            </p>
-          </div>
-        </section>
-
         {/* ═══════════ INTERNATIONAL ═══════════ */}
         {international.length > 0 && (
           <section className="mt-14">
@@ -140,6 +90,56 @@ export default async function BookmakersPage() {
             </div>
           </section>
         )}
+
+        {/* ═══════════ POURQUOI S'INSCRIRE PARTOUT ═══════════ */}
+        <section className="mt-14">
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Maximisez vos gains</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Pourquoi s&apos;inscrire sur les 6 ?</h2>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: "🎯",
+                title: "Suivez chaque prono",
+                desc: "Nos picks sont placés sur différents bookmakers selon les meilleures cotes disponibles. Sans compte partout, vous ratez des opportunités.",
+              },
+              {
+                icon: "📈",
+                title: "Toujours la meilleure cote",
+                desc: "Les cotes varient d'un bookmaker à l'autre. En comparant, vous pouvez gagner 5 à 15% de profit en plus sur le long terme.",
+              },
+              {
+                icon: "💰",
+                title: "Cumulez les bonus",
+                desc: "Chaque bookmaker offre un bonus de bienvenue. En vous inscrivant sur les 6, vous démarrez avec un avantage considérable.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="group overflow-hidden rounded-2xl border border-white/[0.06] p-6 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+              >
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl">{item.icon}</span>
+                <h3 className="mt-4 font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/40">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══════════ ALERTE ═══════════ */}
+        <section className="mt-10">
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/5 px-6 py-5 text-center">
+            <p className="text-sm font-bold text-red-600">
+              ⚠️ Ne pas être inscrit sur tous les bookmakers = manquer des pronostics gagnants
+            </p>
+            <p className="mt-1 text-xs text-red-500/60">
+              L&apos;inscription est gratuite et sans engagement sur chaque plateforme. Faites-le maintenant, vous nous remercierez plus tard.
+            </p>
+          </div>
+        </section>
 
         {/* ═══════════ CONSEIL PRO ═══════════ */}
         <section className="mt-14">
