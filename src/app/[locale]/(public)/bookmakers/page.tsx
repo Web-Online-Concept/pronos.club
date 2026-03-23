@@ -43,22 +43,17 @@ export default async function BookmakersPage() {
 
         {/* ═══════════ INTERNATIONAL ═══════════ */}
         {international.length > 0 && (
-          <section className="mt-14">
-            <div
-              className="-mx-4 border-y border-emerald-900/50 px-4 py-6 sm:-mx-[calc((100vw-56rem)/2+1rem)] sm:px-[calc((100vw-56rem)/2+1rem)]"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
-            >
-              <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">Cotes élevées</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers internationaux</h2>
-                <p className="mx-auto mt-2 max-w-md text-xs text-white/30">
-                  Les meilleures cotes du marché, des milliers de marchés disponibles et des limites de mise élevées.
-                  Utilisés par les parieurs professionnels du monde entier.
-                </p>
-              </div>
+          <section className="mt-12">
+            <div className="text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-500">Cotes élevées</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Bookmakers internationaux</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+                Les meilleures cotes du marché, des milliers de marchés disponibles et des limites de mise élevées.
+                Utilisés par les parieurs professionnels du monde entier.
+              </p>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {international.map((book) => (
                 <BookmakerCard key={book.id} book={book} variant="international" />
               ))}
@@ -66,24 +61,19 @@ export default async function BookmakersPage() {
           </section>
         )}
 
-        {/* ═══════════ ANJ ═══════════ */}
+        {/* ═══════════ ARJEL ═══════════ */}
         {anj.length > 0 && (
           <section className="mt-14">
-            <div
-              className="-mx-4 border-y border-emerald-900/50 px-4 py-6 sm:-mx-[calc((100vw-56rem)/2+1rem)] sm:px-[calc((100vw-56rem)/2+1rem)]"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
-            >
-              <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-blue-300">Régulés en France</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Bookmakers ARJEL</h2>
-                <p className="mx-auto mt-2 max-w-md text-xs text-white/30">
-                  Agréés par l&apos;Autorité Nationale des Jeux. Certains de nos meilleurs pronostics sont placés sur ces plateformes.
-                  Inscrivez-vous pour ne rien manquer.
-                </p>
-              </div>
+            <div className="text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-blue-500">Régulés en France</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Bookmakers ARJEL</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+                Agréés par l&apos;Autorité Nationale des Jeux. Certains de nos meilleurs pronostics sont placés sur ces plateformes.
+                Inscrivez-vous pour ne rien manquer.
+              </p>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {anj.map((book) => (
                 <BookmakerCard key={book.id} book={book} variant="anj" />
               ))}
