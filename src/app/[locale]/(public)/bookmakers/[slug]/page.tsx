@@ -170,19 +170,19 @@ export default async function BookmakerSlugPage({
                   {content.badge.label}
                 </span>
                 {content.vpn?.required && (
-                  <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-[9px] font-bold text-red-400">
+                  <span className="rounded-full border border-red-500/50 bg-red-500/20 px-3 py-1 text-[10px] font-bold text-red-300">
                     {content.vpn.label}
                   </span>
                 )}
                 {content.access_info && (
-                  <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[9px] font-bold text-blue-400">
+                  <span className="rounded-full border border-blue-500/50 bg-blue-500/20 px-3 py-1 text-[10px] font-bold text-blue-300">
                     {content.access_info}
                   </span>
                 )}
               </div>
               <p className="mt-1.5 text-sm text-white/40">{content.tagline}</p>
               {content.vpn?.countries && (
-                <p className="mt-1 text-[10px] text-red-400/50">VPN : {content.vpn.countries}</p>
+                <p className="mt-1 text-xs font-semibold text-red-300/70">VPN : {content.vpn.countries}</p>
               )}
 
               {/* Highlights inline */}
