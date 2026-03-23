@@ -261,8 +261,9 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
     : vpnInfo[book.slug] ?? null;
 
   return (
-    <div
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] transition hover:-translate-y-1 hover:shadow-xl"
+    <Link
+      href={`/fr/bookmakers/${book.slug}`}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] transition hover:-translate-y-1 hover:shadow-xl hover:border-white/10"
       style={{ background: "linear-gradient(135deg, #111111 0%, #0a0a0a 100%)" }}
     >
       {/* Accent line */}
@@ -314,9 +315,8 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
 
         {/* CTA */}
         <div className="mt-auto pt-4">
-          <Link
-            href={`/fr/bookmakers/${book.slug}`}
-            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+          <span
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition group-hover:opacity-90"
             style={{
               background: `linear-gradient(135deg, ${accentColor}cc, ${accentColor})`,
               boxShadow: `0 4px 14px ${accentColor}40`,
@@ -326,9 +326,9 @@ function BookmakerCard({ book, variant }: BookmakerCardProps) {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
-          </Link>
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
