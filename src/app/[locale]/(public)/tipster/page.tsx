@@ -13,14 +13,23 @@ export default async function TipsterPage() {
     .select("status, profit, stake, odds")
     .neq("status", "pending");
 
+  const { count: pendingCount } = await supabaseAdmin
+    .from("picks")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+
   const picks = allPicks ?? [];
   const totalPicks = picks.length;
   const totalProfit = picks.reduce((s, p) => s + (p.profit ?? 0), 0);
   const wonPicks = picks.filter((p) => p.status === "won" || p.status === "half_won").length;
+  const lostPicks = picks.filter((p) => p.status === "lost" || p.status === "half_lost").length;
+  const voidPicks = picks.filter((p) => p.status === "void").length;
   const resolvedPicks = picks.filter((p) => p.status !== "void").length;
   const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 100) : 0;
   const totalStaked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
   const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100) : 0;
+  const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + (p.odds ?? 0), 0) / totalPicks).toFixed(2) : "0";
+  const activePronos = pendingCount ?? 0;
 
   return (
     <>
@@ -83,7 +92,7 @@ export default async function TipsterPage() {
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-2xl">🎯</div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-white">Jérôme</h3>
+                  <h3 className="text-lg font-extrabold text-white">Jérôme <span className="text-sm font-semibold text-white/40">(Bollaert)</span></h3>
                   <p className="text-xs text-emerald-400">Tipster — Analyste sportif</p>
                 </div>
               </div>
@@ -116,23 +125,57 @@ export default async function TipsterPage() {
           </div>
         </section>
 
-        {/* ═══════════ IMAGE : TABLEAU DE BORD ═══════════ */}
+        {/* ═══════════ DASHBOARD LIVE ═══════════ */}
         <section className="mt-10">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06]">
-            <img
-              src="/tipster/dashboard-preview.jpg"
-              alt="Aperçu du tableau de bord PRONOS.CLUB"
-              className="w-full"
-            />
+          <div
+            className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
+            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-sm">📊</span>
+                <h3 className="text-sm font-extrabold text-white">Tableau de bord — Données en temps réel</h3>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-400">{activePronos} en cours</span>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Total picks", value: totalPicks.toString(), color: "text-white" },
+                { label: "Gagnés", value: wonPicks.toString(), color: "text-emerald-400" },
+                { label: "Perdus", value: lostPicks.toString(), color: "text-red-400" },
+                { label: "Void", value: voidPicks.toString(), color: "text-neutral-400" },
+                { label: "Win rate", value: `${winRate}%`, color: winRate >= 50 ? "text-emerald-400" : "text-red-400" },
+                { label: "ROI", value: `${roi >= 0 ? "+" : ""}${roi}%`, color: roi >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: "Profit", value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, color: totalProfit >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: "Cote moyenne", value: avgOdds, color: "text-white" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">
+                  <p className={`text-lg font-extrabold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-white/25">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 text-center">
+              <Link href="/fr/statistiques" className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
+                Voir les statistiques détaillées →
+              </Link>
+            </div>
           </div>
-          <p className="mt-2 text-center text-[10px] text-neutral-400">Aperçu du tableau de bord — statistiques, historique et suivi en temps réel</p>
         </section>
 
         {/* ═══════════ NOTRE PHILOSOPHIE ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Philosophie</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Ce que nous croyons</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Notre ADN</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Ce qui nous définit</h2>
           </div>
 
           <div
@@ -231,6 +274,93 @@ export default async function TipsterPage() {
                 <p className="mt-2 text-sm leading-relaxed text-white/40">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ═══════════ TYPES DE PRONOS ═══════════ */}
+        <section className="mt-14">
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Format</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Les types de pronostics</h2>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sm font-bold text-sky-400">1</span>
+                <div>
+                  <h3 className="font-extrabold text-white">Pari simple</h3>
+                  <span className="rounded bg-sky-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-sky-400">Simple</span>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-white/50">
+                Un seul événement, une seule sélection. C&apos;est le format le plus sûr et le plus fréquent. 
+                Le risque est maîtrisé, le gain est proportionnel à la cote. C&apos;est la base d&apos;une gestion 
+                de bankroll saine.
+              </p>
+              <div className="mt-4 rounded-lg bg-white/[0.04] px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-white/25">Exemple</p>
+                <p className="mt-1 text-sm text-white/60">PSG — Victoire · Cote 1.85 · Mise 1U</p>
+              </div>
+            </div>
+
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-sm font-bold text-purple-400">2</span>
+                <div>
+                  <h3 className="font-extrabold text-white">Pari combiné</h3>
+                  <span className="rounded bg-purple-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-purple-400">Combiné</span>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-white/50">
+                Deux sélections combinées en un seul pari. Les cotes se multiplient, ce qui augmente 
+                le gain potentiel. Nous nous limitons à <strong className="text-white/70">2 sélections maximum</strong> pour 
+                garder un niveau de risque raisonnable. Pas de combinés à 5, 10 ou 15 sélections chez nous.
+              </p>
+              <div className="mt-4 rounded-lg bg-white/[0.04] px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-white/25">Exemple</p>
+                <p className="mt-1 text-sm text-white/60">Real Madrid ML + Over 2.5 · Cote 2.70 · Mise 1U</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-6 py-4 text-center">
+            <p className="text-sm font-semibold text-amber-700">
+              Maximum 2 sélections par combiné — jamais plus. La discipline, c&apos;est aussi savoir limiter le risque.
+            </p>
+          </div>
+        </section>
+
+        {/* ═══════════ VOLUME DE PRONOS ═══════════ */}
+        <section className="mt-14">
+          <div
+            className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
+            style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+          >
+            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
+              <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/20">
+                <span className="text-3xl font-extrabold text-emerald-400">100+</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-white">Plus de 100 pronostics par mois</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/50">
+                  Jérôme publie en moyenne plus de 100 pronostics par mois, répartis sur tous les sports et 
+                  toutes les compétitions. Le volume est important pour lisser la variance et maximiser les 
+                  opportunités. Chaque jour, de nouvelles sélections sont publiées — il y a toujours quelque 
+                  chose à suivre.
+                </p>
+                <p className="mt-2 text-xs text-white/30">
+                  Ce chiffre peut varier selon le calendrier sportif. En période creuse (été, trêve), 
+                  le volume peut baisser. Nous préférons ne rien publier plutôt que de publier un mauvais pick.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
