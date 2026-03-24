@@ -140,6 +140,57 @@ const BOOKMAKER_CONTENT: Record<string, {
       },
     ],
   },
+  "ps3838": {
+    tagline: "Le bookmaker des parieurs professionnels — les meilleures cotes sans restriction",
+    vpn: null,
+    access_info: "Pas de VPN nécessaire",
+    code_bonus: null,
+    badge: { label: "International", class: "bg-amber-500/20 text-amber-400" },
+    highlights: [
+      { label: "Accès via", value: "Broker" },
+      { label: "Cotes", value: "N°1" },
+      { label: "Limites", value: "Aucune" },
+      { label: "Paiement", value: "Skrill" },
+    ],
+    sections: [
+      {
+        title: "Pourquoi PS3838 ?",
+        icon: "🏆",
+        image: "/bookmakers/ps3838/ps3838-interface.jpg",
+        content: "PS3838 (anciennement Pinnacle) est LA référence des parieurs professionnels. Ses cotes sont parmi les plus élevées du marché et surtout, PS3838 ne limite jamais les gagnants. Contrairement aux bookmakers classiques qui ferment les comptes des joueurs rentables, PS3838 accueille tous les profils. C'est le bookmaker utilisé par les tipsters et les parieurs de haut niveau dans le monde entier.",
+      },
+      {
+        title: "Accès via Asian Connect (broker)",
+        icon: "🔗",
+        image: "/bookmakers/ps3838/ps3838-asianconnect.jpg",
+        content: "PS3838 n'est pas accessible directement depuis la France. Pour y accéder, il faut passer par un broker : Asian Connect. C'est une plateforme intermédiaire sécurisée qui vous permet d'ouvrir un compte PS3838 sans VPN, sans restriction. Asian Connect sert de lien entre vous et le bookmaker — vous déposez chez Asian Connect, et vos fonds sont disponibles sur PS3838.",
+      },
+      {
+        title: "Comment s'inscrire",
+        icon: "📝",
+        image: "/bookmakers/ps3838/ps3838-signup.jpg",
+        content: "1. Créez un compte sur Asian Connect via notre lien d'affiliation. 2. Dans votre tableau de bord, sélectionnez PS3838 parmi les bookmakers proposés. 3. Asian Connect crée automatiquement votre compte PS3838. 4. Effectuez votre premier dépôt via Skrill, Neteller ou Bitcoin. 5. Vous recevez vos identifiants PS3838 pour vous connecter directement au site et commencer à parier.",
+      },
+      {
+        title: "Méthodes de paiement",
+        icon: "💳",
+        image: "/bookmakers/ps3838/ps3838-payment.jpg",
+        content: "Asian Connect propose trois méthodes de paiement : Skrill (portefeuille électronique, transferts rapides, pas de frais entre Skrill et Asian Connect, retrait bancaire à 5,50€), Neteller (similaire à Skrill, simple et sécurisé), et Bitcoin (rapide, anonyme, idéal pour les gros montants). Nous recommandons Skrill pour sa simplicité et ses frais réduits.",
+      },
+      {
+        title: "Le bonus Asian Connect",
+        icon: "🎁",
+        image: "/bookmakers/ps3838/ps3838-bonus.jpg",
+        content: "Asian Connect propose un bonus de bienvenue sur votre premier dépôt. Notre conseil : si vous êtes un parieur régulier, acceptez-le — il augmente votre capital de départ. Si vous préférez une flexibilité totale sans conditions de mise, vous pouvez le refuser. Les conditions de validation sont clairement affichées lors de l'inscription.",
+      },
+      {
+        title: "Aucune limite pour les gagnants",
+        icon: "♾️",
+        content: "C'est le point fort majeur de PS3838 : pas de limitation de compte, pas de réduction de mise maximale, pas de fermeture de compte pour les joueurs gagnants. Là où les bookmakers ARJEL et même certains internationaux limitent ou bannissent les parieurs rentables, PS3838 les accueille à bras ouverts. C'est pour cette raison que c'est LE bookmaker recommandé par les tipsters professionnels.",
+      },
+    ],
+    videos: [],
+  },
 };
 
 export default async function BookmakerSlugPage({
