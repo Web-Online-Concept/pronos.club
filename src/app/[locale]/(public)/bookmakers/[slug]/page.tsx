@@ -242,6 +242,57 @@ const BOOKMAKER_CONTENT: Record<string, {
     ],
     videos: [],
   },
+  "betclic": {
+    tagline: "Un acteur majeur des paris sportifs en France depuis 2005",
+    vpn: null,
+    access_info: "Réservé aux joueurs français",
+    code_bonus: "BOLLLC1V",
+    badge: { label: "France", class: "bg-blue-500/20 text-blue-400" },
+    highlights: [
+      { label: "Fondé en", value: "2005" },
+      { label: "Licence", value: "ARJEL" },
+      { label: "Bonus", value: "100€" },
+      { label: "App", value: "Mobile" },
+    ],
+    sections: [
+      {
+        title: "Pourquoi Betclic ?",
+        icon: "🏆",
+        image: "/bookmakers/betclic/betclic-interface.jpg",
+        content: "Betclic est l'un des bookmakers les plus réputés en France et en Europe. Fondé en 2005 et agréé ARJEL, il propose une interface moderne, des cotes compétitives et une offre sportive très complète. Football, tennis, basketball, rugby, eSport — Betclic couvre tous les grands événements avec des marchés variés : paris simples, combinés, handicap, performances individuelles et paris long terme.",
+      },
+      {
+        title: "Des cotes attractives",
+        icon: "📈",
+        image: "/bookmakers/betclic/betclic-cotes.jpg",
+        content: "Betclic se distingue par des cotes souvent supérieures à celles de ses concurrents ARJEL. Les cotes sont mises à jour en temps réel, ajustées en fonction de l'évolution des événements. C'est un avantage concret pour maximiser vos gains sur les grands matchs comme sur les compétitions moins médiatisées.",
+      },
+      {
+        title: "Live betting & Cash-out",
+        icon: "⚡",
+        image: "/bookmakers/betclic/betclic-live.jpg",
+        content: "Betclic propose des paris en direct avec des cotes qui évoluent en temps réel. La fonctionnalité cash-out vous permet de sécuriser vos gains ou de limiter vos pertes avant la fin d'un événement. C'est un outil stratégique essentiel pour les parieurs qui veulent garder le contrôle sur leurs mises.",
+      },
+      {
+        title: "Bonus de bienvenue + Parrainage",
+        icon: "🎁",
+        image: "/bookmakers/betclic/betclic-bonus.jpg",
+        content: "Betclic rembourse votre premier pari jusqu'à 100€ en paris gratuits. Si votre premier pari est perdant, vous êtes remboursé intégralement en freebets. En plus, utilisez notre code parrainage BOLLLC1V lors de votre inscription pour recevoir des freebets supplémentaires. Les deux avantages se cumulent — c'est le meilleur départ possible sur Betclic.",
+      },
+      {
+        title: "Application mobile",
+        icon: "📱",
+        image: "/bookmakers/betclic/betclic-app.jpg",
+        content: "L'application Betclic est disponible sur Android et iOS. Elle reprend l'ensemble des fonctionnalités du site : paris en direct, cash-out, promotions, gestion de compte. Fluide et régulièrement mise à jour, elle vous permet de parier partout et à tout moment, même lors des grandes compétitions.",
+      },
+      {
+        title: "Types de paris variés",
+        icon: "🎯",
+        content: "Betclic offre une grande diversité de paris : pari simple, combiné, système, handicap, over/under, performances individuelles. Cette variété permet d'adapter vos stratégies selon chaque événement. Les parieurs débutants comme expérimentés y trouvent leur compte avec des options allant du plus simple au plus avancé.",
+      },
+    ],
+    videos: [],
+  },
 };
 
 export default async function BookmakerSlugPage({
@@ -374,14 +425,14 @@ export default async function BookmakerSlugPage({
               style={{ borderColor: `${colors.primary}33`, background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
             >
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/60">
-                {slug === "winamax" ? "Code parrainage" : "Code bonus"}
+                {slug === "winamax" || slug === "betclic" ? "Code parrainage" : "Code bonus"}
               </p>
               <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                 <p className="text-2xl font-extrabold tracking-widest text-emerald-400">{content.code_bonus}</p>
               </div>
               <p className="mt-2 text-xs text-white/30">
-                {slug === "winamax" 
-                  ? "À entrer lors de votre inscription — en plus du bonus de bienvenue, recevez entre 20€ et 40€ de freebets supplémentaires"
+                {slug === "winamax" || slug === "betclic"
+                  ? "À entrer lors de votre inscription — en plus du bonus de bienvenue, recevez des freebets supplémentaires"
                   : "À entrer lors de votre inscription"}
               </p>
             </div>
