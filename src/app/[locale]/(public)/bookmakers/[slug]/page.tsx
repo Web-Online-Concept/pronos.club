@@ -223,10 +223,10 @@ const BOOKMAKER_CONTENT: Record<string, {
         content: "Winamax excelle dans les paris en direct avec des statistiques temps réel et un tableau de bord complet. La fonctionnalité cash-out vous permet de sécuriser vos gains ou de minimiser vos pertes avant la fin d'un événement. Disponible avant match et en live, c'est un outil stratégique indispensable pour les parieurs réguliers.",
       },
       {
-        title: "Bonus de bienvenue",
+        title: "Bonus de bienvenue + Parrainage",
         icon: "🎁",
         image: "/bookmakers/winamax/winamax-bonus.jpg",
-        content: "Winamax offre jusqu'à 100€ remboursés sur votre premier pari. Si votre premier pari est perdant, vous êtes remboursé intégralement sous forme de paris gratuits. En plus du bonus de bienvenue, des promotions régulières sont proposées : cotes boostées, paris gratuits, challenges hebdomadaires et accès au Club VIP pour les parieurs les plus actifs.",
+        content: "Winamax offre jusqu'à 100€ remboursés sur votre premier pari. Si votre premier pari est perdant, vous êtes remboursé intégralement sous forme de paris gratuits. En plus de ce bonus, utilisez notre code parrainage BOLMXT pour recevoir entre 20€ et 40€ de freebets supplémentaires dès votre premier dépôt. Les deux se cumulent — c'est le meilleur départ possible sur Winamax.",
       },
       {
         title: "Application mobile",
@@ -366,18 +366,24 @@ export default async function BookmakerSlugPage({
 
       <main className="mx-auto max-w-4xl px-4 pb-16">
 
-        {/* ═══════════ CODE BONUS ═══════════ */}
+        {/* ═══════════ CODE BONUS / PARRAINAGE ═══════════ */}
         {content.code_bonus && (
           <section className="mt-10">
             <div
               className="overflow-hidden rounded-2xl border p-6 text-center"
               style={{ borderColor: `${colors.primary}33`, background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
             >
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/60">Code bonus</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400/60">
+                {slug === "winamax" ? "Code parrainage" : "Code bonus"}
+              </p>
               <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                 <p className="text-2xl font-extrabold tracking-widest text-emerald-400">{content.code_bonus}</p>
               </div>
-              <p className="mt-2 text-xs text-white/30">À entrer lors de votre inscription</p>
+              <p className="mt-2 text-xs text-white/30">
+                {slug === "winamax" 
+                  ? "À entrer lors de votre inscription — en plus du bonus de bienvenue, recevez entre 20€ et 40€ de freebets supplémentaires"
+                  : "À entrer lors de votre inscription"}
+              </p>
             </div>
 
             {/* CTA after bonus */}
