@@ -191,6 +191,57 @@ const BOOKMAKER_CONTENT: Record<string, {
     ],
     videos: [],
   },
+  "winamax": {
+    tagline: "Le leader incontesté des paris sportifs en France",
+    vpn: null,
+    access_info: "Réservé aux joueurs français",
+    code_bonus: null,
+    badge: { label: "France", class: "bg-blue-500/20 text-blue-400" },
+    highlights: [
+      { label: "Fondé en", value: "1999" },
+      { label: "Licence", value: "ARJEL" },
+      { label: "Bonus", value: "100€" },
+      { label: "App", value: "Mobile" },
+    ],
+    sections: [
+      {
+        title: "Pourquoi Winamax ?",
+        icon: "🏆",
+        image: "/bookmakers/winamax/winamax-interface.jpg",
+        content: "Winamax est le bookmaker le plus populaire en France. Fondée en 1999, la plateforme propose des paris sportifs et du poker en ligne avec une interface intuitive, des cotes parmi les meilleures du marché ARJEL, et des promotions régulières. C'est le choix naturel pour les parieurs résidant en France qui veulent une plateforme fiable, régulée et complète.",
+      },
+      {
+        title: "Des cotes compétitives en ARJEL",
+        icon: "📈",
+        image: "/bookmakers/winamax/winamax-cotes.jpg",
+        content: "Parmi les bookmakers agréés en France, Winamax propose régulièrement les cotes les plus élevées. Les cotes sont mises à jour en temps réel, et la diversité des marchés est impressionnante : paris simples, combinés, handicap, nombre de buts, performances individuelles, paris long terme. Football, tennis, basketball, rugby, eSport — tout y est.",
+      },
+      {
+        title: "Live betting & Cash-out",
+        icon: "⚡",
+        image: "/bookmakers/winamax/winamax-live.jpg",
+        content: "Winamax excelle dans les paris en direct avec des statistiques temps réel et un tableau de bord complet. La fonctionnalité cash-out vous permet de sécuriser vos gains ou de minimiser vos pertes avant la fin d'un événement. Disponible avant match et en live, c'est un outil stratégique indispensable pour les parieurs réguliers.",
+      },
+      {
+        title: "Bonus de bienvenue",
+        icon: "🎁",
+        image: "/bookmakers/winamax/winamax-bonus.jpg",
+        content: "Winamax offre jusqu'à 100€ remboursés sur votre premier pari. Si votre premier pari est perdant, vous êtes remboursé intégralement sous forme de paris gratuits. En plus du bonus de bienvenue, des promotions régulières sont proposées : cotes boostées, paris gratuits, challenges hebdomadaires et accès au Club VIP pour les parieurs les plus actifs.",
+      },
+      {
+        title: "Application mobile",
+        icon: "📱",
+        image: "/bookmakers/winamax/winamax-app.jpg",
+        content: "L'application Winamax est disponible sur Android et iOS. Fluide, rapide et régulièrement mise à jour, elle donne accès à toutes les fonctionnalités : paris en direct, cash-out, gestion de compte, promotions. Vous pouvez parier où que vous soyez en quelques clics, même lors des gros événements sportifs.",
+      },
+      {
+        title: "Communauté & fonctionnalités sociales",
+        icon: "👥",
+        content: "Winamax se démarque avec ses fonctionnalités sociales uniques. Le 'Mur des Paris' permet de partager vos paris, d'échanger des conseils et de suivre les mises des meilleurs parieurs. C'est un véritable réseau social du pari sportif qui renforce l'expérience et l'engagement de la communauté.",
+      },
+    ],
+    videos: [],
+  },
 };
 
 export default async function BookmakerSlugPage({
