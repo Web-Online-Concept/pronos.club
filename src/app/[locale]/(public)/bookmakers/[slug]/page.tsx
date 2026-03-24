@@ -293,6 +293,57 @@ const BOOKMAKER_CONTENT: Record<string, {
     ],
     videos: [],
   },
+  "unibet": {
+    tagline: "Le bookmaker le plus complet de France — paris, poker, turf et streaming",
+    vpn: null,
+    access_info: "Réservé aux joueurs français",
+    code_bonus: null,
+    badge: { label: "France", class: "bg-blue-500/20 text-blue-400" },
+    highlights: [
+      { label: "Fondé en", value: "1997" },
+      { label: "Licence", value: "ARJEL" },
+      { label: "Bonus", value: "100€" },
+      { label: "Streaming", value: "35 000+" },
+    ],
+    sections: [
+      {
+        title: "Pourquoi Unibet ?",
+        icon: "🏆",
+        image: "/bookmakers/unibet/unibet-interface.jpg",
+        content: "Unibet est l'un des mastodontes du pari sportif mondial, fondé en 1997 en Suède et agréé ARJEL depuis 2010. Avec plus de 14 millions d'utilisateurs dans le monde, Unibet propose l'une des offres les plus complètes du marché français : paris sportifs, poker, courses hippiques, et un service de streaming unique avec plus de 35 000 événements diffusés en direct chaque année.",
+      },
+      {
+        title: "Triple bonus de bienvenue",
+        icon: "🎁",
+        image: "/bookmakers/unibet/unibet-bonus.jpg",
+        content: "Unibet est le seul bookmaker en France à proposer un triple bonus de bienvenue cumulable : jusqu'à 100€ remboursés en freebets sur votre premier pari sportif, 20€ sur les courses hippiques et 250€ de bonus poker. Soit jusqu'à 370€ au total pour démarrer. Les freebets Unibet n'expirent jamais — utilisez-les quand vous voulez.",
+      },
+      {
+        title: "Unibet TV : streaming en direct",
+        icon: "📺",
+        image: "/bookmakers/unibet/unibet-tv.jpg",
+        content: "Unibet propose le meilleur service de streaming du marché français avec plus de 35 000 événements sportifs par an diffusés gratuitement. Football (Serie A, Liga, Bundesliga, Champions League), tennis (les 4 Grand Chelem dont l'US Open en exclusivité), basketball (NBA), sports US et bien plus. Il suffit d'avoir un solde positif ou d'avoir parié dans les dernières 24h.",
+      },
+      {
+        title: "Fonctionnalités exclusives",
+        icon: "⚡",
+        image: "/bookmakers/unibet/unibet-features.jpg",
+        content: "Unibet innove avec des fonctionnalités uniques : MyBet pour créer vos propres paris combinés sur un même match, l'annulation de pari dans les 2 minutes (sans frais), l'Assurance Buteur si votre joueur sort en première mi-temps, l'Assurance 2+ si votre équipe mène de 2 buts, et le Multimax qui offre jusqu'à 50% de gains supplémentaires sur vos combinés.",
+      },
+      {
+        title: "Des cotes dans le top 3 français",
+        icon: "📈",
+        image: "/bookmakers/unibet/unibet-cotes.jpg",
+        content: "Unibet se classe dans le top 3 des meilleurs bookmakers ARJEL en termes de cotes, aux côtés de Winamax et Betclic. Les cotes sont mises à jour en temps réel et des Super Cotes Boostées sont proposées quotidiennement sur les plus grands événements sportifs. Plus de 30 disciplines sportives sont couvertes avec des marchés allant du plus simple au plus avancé.",
+      },
+      {
+        title: "Application mobile n°1",
+        icon: "📱",
+        content: "L'application Unibet est la mieux notée sur l'App Store en France pour les paris sportifs. Disponible sur Android et iOS, elle offre une interface fluide et intuitive avec accès à tous les paris, le streaming en direct, le cash-out, les promotions et la gestion complète de votre compte. Pariez où que vous soyez, à tout moment.",
+      },
+    ],
+    videos: [],
+  },
 };
 
 export default async function BookmakerSlugPage({
