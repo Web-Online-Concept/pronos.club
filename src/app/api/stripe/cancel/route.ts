@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Stripe from "stripe";
 import nodemailer from "nodemailer";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", { apiVersion: "2026-02-25.clover" });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-02-25.clover" });
 
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
@@ -51,7 +51,7 @@ export async function POST() {
     });
 
     // Format end date
-    const subAny = sub as unknown as Record<string, unknown>;
+    const subAny = sub as Record<string, unknown>;
     const periodEnd = (subAny.current_period_end ?? subAny.currentPeriodEnd ?? 0) as number;
     const endDate = new Date(periodEnd * 1000).toLocaleDateString("fr-FR", {
       day: "numeric",
@@ -89,6 +89,10 @@ export async function POST() {
             <p style="font-size: 15px; color: #333; line-height: 1.6;">
               Après cette date, votre compte repassera automatiquement en <strong>version gratuite</strong>. 
               Aucune donnée ne sera supprimée : votre historique, vos statistiques personnelles et vos préférences seront conservés.
+            </p>
+
+            <p style="font-size: 15px; color: #333; line-height: 1.6;">
+              <strong>Note :</strong> l'accès au groupe Telegram Premium sera automatiquement retiré à la fin de votre période d'abonnement.
             </p>
             
             <p style="font-size: 15px; color: #333; line-height: 1.6;">

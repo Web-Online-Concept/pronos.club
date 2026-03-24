@@ -67,7 +67,9 @@ export async function onPremiumActivated(userId: string) {
             <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">
                 Ce lien est personnel et à usage unique. Il expire dans 48h.<br>
-                Ne le partagez pas — chaque membre a son propre lien.
+                Ne le partagez pas — chaque membre a son propre lien.<br><br>
+                <strong>L'accès au groupe est lié à votre abonnement Premium.</strong><br>
+                En cas de résiliation, vous serez automatiquement retiré du groupe.
               </p>
             </div>
           </div>

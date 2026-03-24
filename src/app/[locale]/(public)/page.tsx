@@ -449,9 +449,9 @@ export default async function HomePage() {
                 desc: "Push, email, Telegram — configurez vos alertes pour ne jamais rater un nouveau pronostic.",
               },
               {
-                icon: "💎",
-                title: "Gestion d'abonnement",
-                desc: "Passez Premium, gérez votre abonnement, consultez vos factures. Tout en un seul endroit.",
+                icon: "💬",
+                title: "Groupe Telegram Premium",
+                desc: "Accédez au groupe de discussions exclusif réservé aux abonnés. Échangez, partagez et progressez avec la communauté.",
               },
             ].map((feature) => (
               <div
@@ -561,6 +561,7 @@ export default async function HomePage() {
                   "Gestion de bankroll personnalisée",
                   "Stats perso en U et en €",
                   "Notifications prioritaires",
+                  "Groupe Telegram exclusif",
                   "Résiliable en 1 clic",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
@@ -629,7 +630,11 @@ export default async function HomePage() {
               },
               {
                 q: "Les pronostics gratuits sont-ils intéressants ?",
-                a: "Oui, les picks gratuits sont de vrais pronostics sélectionnés avec le même sérieux. Le Premium donne accès à l'intégralité des sélections et aux analyses détaillées.",
+                a: "Oui, les picks gratuits sont de vrais pronostics sélectionnés avec le même sérieux. Le Premium donne accès à l'intégralité des sélections et au groupe Telegram exclusif.",
+              },
+              {
+                q: "Comment fonctionne le groupe Telegram ?",
+                a: "En devenant Premium, vous recevez automatiquement un lien d'invitation personnel pour rejoindre le groupe Telegram exclusif. Échangez avec les autres membres et le tipster. L'accès est lié à votre abonnement : en cas de résiliation, vous êtes automatiquement retiré du groupe.",
               },
             ].map((faq) => (
               <details
