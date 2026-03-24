@@ -195,7 +195,7 @@ const BOOKMAKER_CONTENT: Record<string, {
     tagline: "Le leader incontesté des paris sportifs en France",
     vpn: null,
     access_info: "Réservé aux joueurs français",
-    code_bonus: null,
+    code_bonus: "BOLMXT",
     badge: { label: "France", class: "bg-blue-500/20 text-blue-400" },
     highlights: [
       { label: "Fondé en", value: "1999" },
