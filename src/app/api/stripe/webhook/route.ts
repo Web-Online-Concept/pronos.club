@@ -1,5 +1,6 @@
 import { stripe } from "@/lib/stripe/config";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
             (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
           ).toISOString(),
         });
+
+        // Send Telegram invite
+        onPremiumActivated(userId).catch(() => {});
       }
       break;
     }
@@ -116,6 +120,9 @@ export async function POST(request: Request) {
           .from("subscriptions")
           .update({ status: "canceled" })
           .eq("stripe_subscription_id", subscription.id);
+
+        // Kick from Telegram group
+        onPremiumRevoked(userId).catch(() => {});
       }
       break;
     }
