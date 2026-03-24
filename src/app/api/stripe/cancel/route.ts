@@ -51,7 +51,7 @@ export async function POST() {
     });
 
     // Format end date
-    const subAny = sub as Record<string, unknown>;
+    const subAny = sub as unknown as Record<string, unknown>;
     const periodEnd = (subAny.current_period_end ?? subAny.currentPeriodEnd ?? 0) as number;
     const endDate = new Date(periodEnd * 1000).toLocaleDateString("fr-FR", {
       day: "numeric",
