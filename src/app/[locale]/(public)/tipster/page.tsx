@@ -337,6 +337,136 @@ export default async function TipsterPage() {
           </div>
         </section>
 
+        {/* ═══════════ COMMENT SUIVRE NOS PRONOS ═══════════ */}
+        <section className="mt-14">
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Guide</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Comment suivre nos pronostics</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+              Tout ce que vous devez savoir pour bien démarrer et maximiser vos gains
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-4">
+            {/* Étape 1 — Comprendre le ticket */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">1</span>
+                <h3 className="font-extrabold text-white">Comprendre le ticket</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">
+                Chaque pronostic publié contient : le sport, l&apos;événement, la sélection, la cote, la mise en unités 
+                (0.5U à 3U) et le bookmaker recommandé. Un screenshot du ticket réel est attaché pour prouver 
+                que le pari a bien été placé avant le match.
+              </p>
+            </div>
+
+            {/* Étape 2 — La cote minimum */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-bold text-amber-400">2</span>
+                <h3 className="font-extrabold text-white">Respectez la cote minimum</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">
+                Chaque pronostic indique une <strong className="text-white/70">cote minimum</strong>. C&apos;est la cote 
+                en dessous de laquelle le pari n&apos;a plus de valeur. Si la cote proposée par votre bookmaker est 
+                inférieure à la cote minimum indiquée, <strong className="text-red-400/70">ne jouez pas ce pick</strong>. 
+                La valeur du pronostic repose sur la cote — sans elle, le pari n&apos;est plus rentable.
+              </p>
+              <div className="mt-3 rounded-lg bg-amber-500/10 px-4 py-3">
+                <p className="text-xs text-amber-400/80">
+                  <strong>Exemple :</strong> si le pick indique &quot;PSG ML @ 1.85 — cote min 1.70&quot;, ne jouez pas si votre bookmaker 
+                  propose moins de 1.70. Cherchez la cote sur un autre bookmaker ou passez votre tour.
+                </p>
+              </div>
+            </div>
+
+            {/* Étape 3 — Les unités */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">3</span>
+                <h3 className="font-extrabold text-white">Les unités de mise</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">
+                Tous nos pronostics sont publiés en <strong className="text-white/70">unités (U)</strong>. 
+                Une unité correspond à un pourcentage de votre bankroll que vous définissez vous-même 
+                dans votre espace personnel. Les mises vont de 0.5U (faible conviction) à 3U (très forte conviction).
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                {[
+                  { u: "0.5U", label: "Prudent", color: "bg-sky-500/15 text-sky-400" },
+                  { u: "1U", label: "Standard", color: "bg-emerald-500/15 text-emerald-400" },
+                  { u: "2U", label: "Confiance", color: "bg-amber-500/15 text-amber-400" },
+                  { u: "3U", label: "Max", color: "bg-red-500/15 text-red-400" },
+                ].map((m) => (
+                  <div key={m.u} className={`rounded-lg px-2 py-2 ${m.color}`}>
+                    <p className="text-sm font-extrabold">{m.u}</p>
+                    <p className="text-[9px] opacity-60">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Étape 4 — Personnaliser son espace */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">4</span>
+                <h3 className="font-extrabold text-white">Personnalisez votre espace</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">
+                Dans votre espace personnel, vous pouvez configurer :
+              </p>
+              <div className="mt-3 space-y-2">
+                {[
+                  { icon: "🏦", text: "Votre bankroll et la valeur de votre unité (mise fixe ou % de bankroll)" },
+                  { icon: "✅", text: "Sélectionner les picks que vous jouez vraiment pour un suivi personnalisé" },
+                  { icon: "📈", text: "Voir vos stats perso en unités ou en euros — basculez en un clic" },
+                  { icon: "🔔", text: "Configurer vos notifications (push, email) pour ne rien rater" },
+                  { icon: "📊", text: "Comparer vos performances à celles du tipster" },
+                ].map((item) => (
+                  <div key={item.text} className="flex items-start gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2">
+                    <span className="mt-0.5 text-sm">{item.icon}</span>
+                    <p className="text-xs text-white/50">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Étape 5 — Choisir le bon book */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">5</span>
+                <h3 className="font-extrabold text-white">Placez le pari sur le bon bookmaker</h3>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">
+                Chaque pronostic indique sur quel bookmaker la cote a été prise. Vous pouvez jouer sur ce bookmaker 
+                ou chercher une meilleure cote ailleurs — c&apos;est pour ça qu&apos;il est essentiel d&apos;être inscrit 
+                sur les 6 bookmakers. Comparez toujours les cotes avant de placer votre pari.
+              </p>
+              <div className="mt-3 text-center">
+                <Link href="/fr/bookmakers" className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
+                  Voir nos 6 bookmakers recommandés →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ═══════════ VOLUME DE PRONOS ═══════════ */}
         <section className="mt-14">
           <div
