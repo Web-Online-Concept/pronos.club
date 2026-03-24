@@ -20,13 +20,6 @@ function lastDayOfMonth(ym: string) {
   return `${ym}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const STATUS_FILTERS = [
-  { value: "all", label: "Tous" },
-  { value: "won", label: "✅ Gagnés" },
-  { value: "lost", label: "❌ Perdus" },
-  { value: "void", label: "↩️ Remb." },
-];
-
 interface SportOption {
   name: string;
   icon: string;
@@ -40,6 +33,8 @@ export default function HistoriquePage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
+  const [awaitingCount, setAwaitingCount] = useState(0);
+  const [finishedCount, setFinishedCount] = useState(0);
   const BATCH = 20;
 
   // Time filters
@@ -54,7 +49,7 @@ export default function HistoriquePage() {
   const [sports, setSports] = useState<SportOption[]>([]);
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
-  // Fetch sports + months on mount
+  // Fetch sports + months + counts on mount
   useEffect(() => {
     fetch("/api/stats?meta_only=true")
       .then((r) => r.json())
@@ -62,6 +57,17 @@ export default function HistoriquePage() {
         setSports(d.allSports ?? []);
         setAvailableMonths(d.availableMonths ?? []);
       })
+      .catch(() => {});
+
+    // Fetch awaiting + finished counts
+    fetch("/api/picks/history?limit=0&offset=0&status=awaiting")
+      .then((r) => r.json())
+      .then((d) => setAwaitingCount(d.count ?? 0))
+      .catch(() => {});
+
+    fetch("/api/picks/history?limit=0&offset=0&exclude_pending=true")
+      .then((r) => r.json())
+      .then((d) => setFinishedCount(d.count ?? 0))
       .catch(() => {});
   }, []);
 
@@ -131,9 +137,24 @@ export default function HistoriquePage() {
             <h1 className="mt-2 text-3xl font-extrabold text-white">
               Historique
             </h1>
-            <p className="mt-2 text-sm text-white/40">
-              {total} pronostic{total > 1 ? "s" : ""} terminé{total > 1 ? "s" : ""}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              {awaitingCount > 0 && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                  </span>
+                  <span className="text-xs font-semibold text-amber-400">
+                    {awaitingCount} en attente de résultat{awaitingCount > 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
+                <span className="text-xs font-semibold text-emerald-400">
+                  {finishedCount} prono{finishedCount > 1 ? "s" : ""} terminé{finishedCount > 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -175,7 +196,7 @@ export default function HistoriquePage() {
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
           <option value="all">Toutes les dates</option>
-          <option value="custom">📅 Personnalisé</option>
+          <option value="custom">Personnalisé</option>
           {years.length > 0 && (
             <optgroup label="Par année">
               {years.map((y) => (
@@ -215,10 +236,10 @@ export default function HistoriquePage() {
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
           <option value="all">Tous les résultats</option>
-          <option value="awaiting">⏳ En attente MAJ</option>
-          <option value="won">✅ Gagnés</option>
-          <option value="lost">❌ Perdus</option>
-          <option value="void">↩️ Remboursés</option>
+          <option value="awaiting">En attente MAJ</option>
+          <option value="won">Gagnés</option>
+          <option value="lost">Perdus</option>
+          <option value="void">Remboursés</option>
         </select>
       </div>
 
