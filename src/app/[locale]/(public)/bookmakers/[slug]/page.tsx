@@ -21,7 +21,7 @@ const BOOKMAKER_CONTENT: Record<string, {
   access_info: string | null;
   code_bonus: string | null;
   badge: { label: string; class: string };
-  sections: { title: string; content: string; icon: string }[];
+  sections: { title: string; content: string; icon: string; image?: string }[];
   videos: { title: string; description: string; file: string }[];
   highlights: { label: string; value: string }[];
 }> = {
@@ -79,6 +79,64 @@ const BOOKMAKER_CONTENT: Record<string, {
         title: "1xbet dans le monde",
         description: "Sponsor de grands clubs et compétitions internationales — découvrez la présence mondiale de 1xbet.",
         file: "pubs.mp4",
+      },
+    ],
+  },
+  "stake": {
+    tagline: "Plateforme crypto de référence pour les paris sportifs et le casino",
+    vpn: { required: true, label: "VPN à l'inscription seulement", countries: "Canada, Singapour" },
+    access_info: null,
+    code_bonus: "PRONOSCLUB",
+    badge: { label: "International", class: "bg-amber-500/20 text-amber-400" },
+    highlights: [
+      { label: "Fondé en", value: "2017" },
+      { label: "Paiement", value: "Crypto" },
+      { label: "Programme", value: "VIP" },
+      { label: "Rakeback", value: "Oui" },
+    ],
+    sections: [
+      {
+        title: "Pourquoi Stake ?",
+        icon: "🏆",
+        image: "/bookmakers/stake/stake-interface.jpg",
+        content: "Stake est une plateforme internationale de paris sportifs et de casino en ligne qui s'est imposée comme la référence pour les parieurs crypto. Interface ultra-moderne, cotes compétitives, programme VIP généreux et communauté active — Stake offre une expérience de paris haut de gamme. C'est l'un des bookmakers les plus utilisés par les tipsters professionnels dans le monde.",
+      },
+      {
+        title: "VPN : uniquement à l'inscription",
+        icon: "🔒",
+        image: "/bookmakers/stake/stake-vpn.jpg",
+        content: "Bonne nouvelle : le VPN n'est nécessaire que lors de votre première inscription. Connectez-vous via le Canada ou Singapour pour créer votre compte. Une fois inscrit, vous pouvez vous connecter et parier normalement depuis n'importe où, sans VPN. C'est simple, rapide, et vous ne le faites qu'une seule fois.",
+      },
+      {
+        title: "Comment s'inscrire sur Stake",
+        icon: "📝",
+        image: "/bookmakers/stake/stake-signup.jpg",
+        content: "1. Activez votre VPN sur le Canada ou Singapour. 2. Rendez-vous sur Stake via notre lien d'affiliation. 3. Cliquez sur 'S'inscrire' et remplissez le formulaire (email, pseudo, mot de passe). 4. Entrez le code bonus PRONOSCLUB dans les 24h suivant l'inscription pour débloquer le rakeback immédiat. 5. Validez votre email. 6. Désactivez le VPN — vous n'en aurez plus jamais besoin.",
+      },
+      {
+        title: "Dépôts et retraits en crypto",
+        icon: "₿",
+        image: "/bookmakers/stake/stake-coinbase.jpg",
+        content: "Stake fonctionne exclusivement en cryptomonnaies. Nous recommandons l'USDC via Coinbase : très peu de volatilité, transferts ultra-rapides et frais minimes. Règle importante : vous retirez dans la même crypto que celle utilisée pour déposer. Le processus est simple : achetez de l'USDC sur Coinbase, transférez vers Stake, et inversement pour retirer vers votre compte bancaire.",
+      },
+      {
+        title: "Le programme VIP Stake",
+        icon: "💎",
+        image: "/bookmakers/stake/stake-vip.jpg",
+        content: "Stake propose un programme VIP à 15 niveaux (Bronze à Obsidienne). Chaque niveau débloque des bonus supplémentaires : rakeback, bonus hebdomadaires, bonus mensuels, rechargements, et un hôte VIP dédié à partir du niveau Platine. Les paris sportifs comptent 3× plus que les paris casino pour la progression. En utilisant le code PRONOSCLUB, vous débloquez le rakeback immédiatement sans attendre le niveau Bronze.",
+      },
+      {
+        title: "Rakeback : récupérez sur chaque pari",
+        icon: "💰",
+        image: "/bookmakers/stake/stake-rakeback.jpg",
+        content: "Le rakeback vous permet de récupérer 5% de l'avantage de la maison sur chaque pari, que vous gagniez ou perdiez. C'est un avantage considérable sur le long terme qui réduit vos pertes et augmente votre rentabilité. Normalement réservé aux membres Bronze, le code PRONOSCLUB vous donne un accès immédiat au rakeback dès votre inscription.",
+      },
+    ],
+    videos: [
+      {
+        title: "Comment s'inscrire sur Stake",
+        description: "Tutoriel complet : VPN, inscription, code bonus PRONOSCLUB, et première connexion.",
+        file: "inscription.mp4",
       },
     ],
   },
@@ -239,7 +297,18 @@ export default async function BookmakerSlugPage({
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl">{section.icon}</span>
                   <h2 className="text-lg font-extrabold text-white">{section.title}</h2>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-white/50">{section.content}</p>
+                {section.image ? (
+                  <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <p className="flex-1 text-sm leading-relaxed text-white/50">{section.content}</p>
+                    <img
+                      src={section.image}
+                      alt={section.title}
+                      className="w-full rounded-xl sm:w-72"
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm leading-relaxed text-white/50">{section.content}</p>
+                )}
               </div>
             </section>
 
@@ -266,25 +335,44 @@ export default async function BookmakerSlugPage({
               <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Vidéos &amp; guides</h2>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {content.videos.map((video, i) => (
-                <div
-                  key={i}
-                  className="overflow-hidden rounded-2xl border border-white/[0.06]"
-                  style={{ background: "linear-gradient(135deg, #111111 0%, #0a0a0a 100%)" }}
-                >
-                  <VideoPlayer
-                    src={`/bookmakers/${slug}/${video.file}`}
-                    thumbnail={`/bookmakers/${slug}/${video.file.replace(".mp4", "-thumb.jpg")}`}
-                    title={video.title}
-                  />
-                  <div className="p-4">
-                    <h3 className="font-bold text-white">{video.title}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-white/40">{video.description}</p>
-                  </div>
-                </div>
-              ))}
+            {/* First video — full width */}
+            <div
+              className="mt-8 overflow-hidden rounded-2xl border border-white/[0.06]"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a0a0a 100%)" }}
+            >
+              <VideoPlayer
+                src={`/bookmakers/${slug}/${content.videos[0].file}`}
+                thumbnail={`/bookmakers/${slug}/${content.videos[0].file.replace(".mp4", "-thumb.jpg")}`}
+                title={content.videos[0].title}
+              />
+              <div className="p-5">
+                <h3 className="text-lg font-bold text-white">{content.videos[0].title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-white/40">{content.videos[0].description}</p>
+              </div>
             </div>
+
+            {/* Remaining videos — grid */}
+            {content.videos.length > 1 && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {content.videos.slice(1).map((video, i) => (
+                  <div
+                    key={i}
+                    className="overflow-hidden rounded-2xl border border-white/[0.06]"
+                    style={{ background: "linear-gradient(135deg, #111111 0%, #0a0a0a 100%)" }}
+                  >
+                    <VideoPlayer
+                      src={`/bookmakers/${slug}/${video.file}`}
+                      thumbnail={`/bookmakers/${slug}/${video.file.replace(".mp4", "-thumb.jpg")}`}
+                      title={video.title}
+                    />
+                    <div className="p-4">
+                      <h3 className="font-bold text-white">{video.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-white/40">{video.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
