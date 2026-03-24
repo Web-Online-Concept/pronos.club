@@ -40,24 +40,28 @@ export default async function PronosticsPage() {
       >
         <div className="mx-auto max-w-2xl px-4 py-10">
           <div className="text-center">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Club</p>
-              <h1 className="mt-2 text-3xl font-extrabold text-white">
-                Pronos en cours
-              </h1>
-              <p className="mt-2 text-sm text-white/40">
-                {activePicks.length} pick{activePicks.length > 1 ? "s" : ""} disponible{activePicks.length > 1 ? "s" : ""}
-              </p>
-            </div>
-            {activePicks.length > 0 && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-5 py-2.5">
-                <span className="relative flex h-2.5 w-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Club</p>
+            <h1 className="mt-2 text-3xl font-extrabold text-white">
+              Pronos en cours
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
+                <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
-                <span className="text-sm font-bold text-emerald-400">Actif</span>
+                <span className="text-xs font-semibold text-emerald-400">
+                  {activePicks.length} pick{activePicks.length > 1 ? "s" : ""} disponible{activePicks.length > 1 ? "s" : ""}
+                </span>
               </div>
-            )}
+              {activePicks.length > 0 && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
+                  <span className="text-xs font-semibold text-sky-400">
+                    {activePicks.filter((p) => p.is_premium).length} premium · {activePicks.filter((p) => !p.is_premium).length} gratuit{activePicks.filter((p) => !p.is_premium).length > 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
