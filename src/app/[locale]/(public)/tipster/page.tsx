@@ -325,7 +325,7 @@ export default async function TipsterPage() {
               </p>
               <div className="mt-4 rounded-lg bg-white/[0.04] px-4 py-3 text-center">
                 <p className="text-[10px] uppercase tracking-wider text-white/25">Exemple</p>
-                <p className="mt-1 text-sm text-white/60">Real Madrid ML + Over 2.5 · Cote 2.70 · Mise 1U</p>
+                <p className="mt-1 text-sm text-white/60">PSG Victoire + Real Madrid Victoire · Cote 2.70 · Mise 1U</p>
               </div>
             </div>
           </div>
@@ -467,31 +467,79 @@ export default async function TipsterPage() {
           </div>
         </section>
 
-        {/* ═══════════ VOLUME DE PRONOS ═══════════ */}
+        {/* ═══════════ VOLUME + GRATUIT VS PREMIUM ═══════════ */}
         <section className="mt-14">
-          <div
-            className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
-            style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-          >
-            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
-              <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/20">
-                <span className="text-3xl font-extrabold text-emerald-400">100+</span>
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Volume</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Plus de 100 pronostics par mois</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+              Le volume est important pour lisser la variance et maximiser les opportunités.
+              Chaque jour, de nouvelles sélections sont publiées.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {/* Gratuit */}
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-white">Compte gratuit</h3>
+                <span className="rounded-full bg-neutral-500/20 px-3 py-0.5 text-[10px] font-bold text-neutral-400">0€</span>
               </div>
-              <div>
-                <h3 className="text-lg font-extrabold text-white">Plus de 100 pronostics par mois</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/50">
-                  Jérôme publie en moyenne plus de 100 pronostics par mois, répartis sur tous les sports et 
-                  toutes les compétitions. Le volume est important pour lisser la variance et maximiser les 
-                  opportunités. Chaque jour, de nouvelles sélections sont publiées — il y a toujours quelque 
-                  chose à suivre.
-                </p>
-                <p className="mt-2 text-xs text-white/30">
-                  Ce chiffre peut varier selon le calendrier sportif. En période creuse (été, trêve), 
-                  le volume peut baisser. Nous préférons ne rien publier plutôt que de publier un mauvais pick.
-                </p>
+              <p className="mt-3 text-sm text-white/50">
+                Accédez à une sélection de pronostics gratuits publiés chaque semaine. 
+                Suffisant pour découvrir notre méthode et vérifier nos résultats.
+              </p>
+              <div className="mt-4 space-y-1.5">
+                {[
+                  "Picks gratuits sélectionnés",
+                  "Historique complet",
+                  "Statistiques publiques",
+                  "Gestion de bankroll",
+                  "Stats perso en U et €",
+                ].map((f) => (
+                  <p key={f} className="flex items-center gap-2 text-xs text-white/40">
+                    <span className="text-emerald-400/60">✓</span> {f}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            {/* Premium */}
+            <div
+              className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 p-6"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+            >
+              <div className="absolute -top-px left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-white">Compte Premium</h3>
+                <span className="rounded-full bg-emerald-500/20 px-3 py-0.5 text-[10px] font-bold text-emerald-400">20€/mois</span>
+              </div>
+              <p className="mt-3 text-sm text-white/50">
+                L&apos;intégralité des pronostics — plus de 100 par mois. C&apos;est là que la rentabilité 
+                se construit, avec le volume et la régularité.
+              </p>
+              <div className="mt-4 space-y-1.5">
+                {[
+                  "Tous les pronostics (100+/mois)",
+                  "Groupe Telegram exclusif",
+                  "Notifications prioritaires",
+                  "Tout ce qui est inclus en gratuit",
+                  "Résiliable en 1 clic",
+                ].map((f) => (
+                  <p key={f} className="flex items-center gap-2 text-xs text-white/50">
+                    <span className="text-emerald-400">✓</span> {f}
+                  </p>
+                ))}
               </div>
             </div>
           </div>
+
+          <p className="mt-4 text-center text-xs text-neutral-400">
+            Le volume peut varier selon le calendrier sportif. Nous préférons ne rien publier plutôt que de publier un mauvais pick.
+          </p>
         </section>
 
         {/* ═══════════ COMPRENDRE LA VARIANCE ═══════════ */}
