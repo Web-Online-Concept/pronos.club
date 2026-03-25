@@ -127,3 +127,38 @@ export async function PUT(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) return NextResponse.json({ error: "Missing bilan id" }, { status: 400 });
+
+  // Get bilan to delete cover image from storage
+  const { data: bilan } = await supabaseAdmin
+    .from("bilans")
+    .select("slug, cover_image")
+    .eq("id", id)
+    .single();
+
+  if (bilan?.cover_image) {
+    const path = bilan.cover_image.split("/bilans/").pop();
+    if (path) {
+      await supabaseAdmin.storage.from("bilans").remove([path]);
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("bilans")
+    .delete()
+    .eq("id", id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

@@ -125,6 +125,15 @@ export default function AdminBilansPage() {
     setBilans((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
   }
 
+  async function deleteBilan() {
+    if (!editing) return;
+    if (!confirm(`Supprimer le bilan "${editing.title}" ? Cette action est irréversible.`)) return;
+
+    await fetch(`/api/admin/bilans?id=${editing.id}`, { method: "DELETE" });
+    setBilans((prev) => prev.filter((b) => b.id !== editing.id));
+    setEditing(null);
+  }
+
   async function refreshStats() {
     if (!editing) return;
     setRefreshingStats(true);
@@ -402,11 +411,17 @@ export default function AdminBilansPage() {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-white/[0.06] px-6 py-4">
+            <div className="flex items-center justify-between border-t border-white/[0.06] px-6 py-4">
+              <button
+                onClick={deleteBilan}
+                className="cursor-pointer rounded-lg border border-red-500/30 px-3 py-1.5 text-[10px] font-bold text-red-400 transition hover:bg-red-500/10"
+              >
+                🗑 Supprimer
+              </button>
               <button
                 onClick={saveBilan}
                 disabled={saving}
-                className="w-full cursor-pointer rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-50"
+                className="cursor-pointer rounded-xl px-8 py-3 text-sm font-bold text-white transition disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
               >
                 {saving ? "Enregistrement..." : saved ? "✅ Enregistré !" : "💾 Enregistrer"}
