@@ -35,7 +35,7 @@ export default async function AdminLayout({
       </div>
       <div
         className="min-h-screen"
-        style={{ background: "linear-gradient(180deg, #141a22 0%, #1a2030 100%)" }}
+        style={{ background: "linear-gradient(180deg, #1e2530 0%, #242c3a 100%)" }}
       >
         {children}
       </div>
