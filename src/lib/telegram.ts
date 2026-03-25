@@ -1,8 +1,9 @@
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-const GROUP_ID = process.env.TELEGRAM_GROUP_ID!;
+const BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+const GROUP_ID = (process.env.TELEGRAM_GROUP_ID || "").trim();
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 export async function createInviteLink(userId: string): Promise<string | null> {
+  console.log("[TELEGRAM] createInviteLink GROUP_ID:", JSON.stringify(GROUP_ID), "BOT_TOKEN length:", BOT_TOKEN.length);
   try {
     const res = await fetch(`${TELEGRAM_API}/createChatInviteLink`, {
       method: "POST",
