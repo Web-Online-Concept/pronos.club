@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/config";
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_PASS,
-  },
-});
+import { sendCancellationEmail } from "@/lib/emails";
 
 export async function POST() {
   const supabase = await createClient();
@@ -59,61 +50,8 @@ export async function POST() {
 
     const displayName = profile.pseudo || user.email?.split("@")[0] || "Membre";
 
-    // Send confirmation email via Brevo
-    await transporter.sendMail({
-      from: '"PRONOS.CLUB" <noreply@pronos.club>',
-      to: user.email!,
-      subject: "Confirmation de résiliation — PRONOS.CLUB",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0a0a0a, #062e1f); border-radius: 16px;">
-            <h1 style="color: white; font-size: 22px; margin: 0;">PRONOS.CLUB</h1>
-            <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 8px 0 0;">Confirmation de résiliation</p>
-          </div>
-          
-          <div style="padding: 30px 0;">
-            <p style="font-size: 15px; color: #333;">Bonjour ${displayName},</p>
-            
-            <p style="font-size: 15px; color: #333; line-height: 1.6;">
-              Votre demande de résiliation a bien été prise en compte.
-            </p>
-            
-            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0; font-size: 14px; color: #92400e;">
-                <strong>Votre accès Premium reste actif jusqu'au ${endDate}.</strong>
-              </p>
-            </div>
-            
-            <p style="font-size: 15px; color: #333; line-height: 1.6;">
-              Après cette date, votre compte repassera automatiquement en <strong>version gratuite</strong>. 
-              Aucune donnée ne sera supprimée : votre historique, vos statistiques personnelles et vos préférences seront conservés.
-            </p>
-
-            <p style="font-size: 15px; color: #333; line-height: 1.6;">
-              <strong>Note :</strong> l'accès au groupe Telegram Premium sera automatiquement retiré à la fin de votre période d'abonnement.
-            </p>
-            
-            <p style="font-size: 15px; color: #333; line-height: 1.6;">
-              Vous pourrez vous réabonner à tout moment depuis votre espace personnel.
-            </p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://pronos.club/fr/espace" style="display: inline-block; background: #059669; color: white; padding: 12px 30px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px;">
-                Accéder à mon espace
-              </a>
-            </div>
-            
-            <p style="font-size: 13px; color: #999; line-height: 1.5;">
-              Si vous avez des questions, n'hésitez pas à nous contacter en répondant à cet email.
-            </p>
-          </div>
-          
-          <div style="border-top: 1px solid #eee; padding-top: 20px; text-align: center;">
-            <p style="font-size: 12px; color: #999; margin: 0;">PRONOS.CLUB — Pronostics sportifs professionnels</p>
-          </div>
-        </div>
-      `,
-    }).catch(() => {});
+    // Send cancellation email
+    await sendCancellationEmail(user.email!, displayName, endDate).catch(() => {});
 
     return NextResponse.json({ success: true, endDate });
   } catch {

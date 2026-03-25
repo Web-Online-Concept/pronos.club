@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendWelcomeEmail } from "@/lib/emails";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -30,6 +31,12 @@ export async function GET(request: Request) {
             email: authUser.email,
             display_name: authUser.email?.split("@")[0] ?? "User",
           });
+
+          // Send welcome email to new users
+          if (authUser.email) {
+            const displayName = authUser.email.split("@")[0];
+            await sendWelcomeEmail(authUser.email, displayName).catch(() => {});
+          }
         }
       }
 

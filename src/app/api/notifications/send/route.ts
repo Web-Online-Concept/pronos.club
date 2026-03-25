@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendNewPickEmail } from "@/lib/emails";
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 
@@ -17,9 +18,6 @@ export async function POST(request: Request) {
   }
 
   const { title, body, url, pickId, sport, isPremium } = await request.json();
-
-  // If pick is premium, only notify premium subscribers
-  // If pick is free, notify everyone
 
   // Get all users with push enabled
   let pushQuery = supabaseAdmin
@@ -79,43 +77,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Send emails via Brevo
-  if (emailUsers && process.env.BREVO_API_KEY) {
+  // Send emails via centralized template
+  if (emailUsers) {
     await Promise.allSettled(
       emailUsers.map(async (user) => {
         try {
-          const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: {
-              "api-key": process.env.BREVO_API_KEY!,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sender: { name: "PRONOS.CLUB", email: "noreply@pronos.club" },
-              to: [{ email: user.email }],
-              subject: `🔔 Nouveau pronostic disponible sur PRONOS.CLUB`,
-              htmlContent: `
-                <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
-                  <h2 style="color:#059669">🔔 Nouveau pronostic publié !</h2>
-                  <p style="color:#555;font-size:15px">
-                    Un nouveau pronostic vient d'être publié sur PRONOS.CLUB.<br>
-                    Connectez-vous pour le consulter.
-                  </p>
-                  <a href="${process.env.NEXT_PUBLIC_SITE_URL}/fr/pronostics" 
-                     style="display:inline-block;background:#059669;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px">
-                    Voir le pronostic
-                  </a>
-                  <p style="margin-top:24px;font-size:12px;color:#999">
-                    PRONOS.CLUB — Les paris sportifs comportent des risques.
-                  </p>
-                </div>
-              `,
-            }),
-          });
-
-          if (res.ok) {
-            emailSent++;
-          }
+          const sent = await sendNewPickEmail(user.email, sport, isPremium);
+          if (sent) emailSent++;
         } catch {
           // Silent fail for individual emails
         }

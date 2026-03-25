@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
+import { sendBilanEmail } from "@/lib/emails";
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 
 const MONTH_NAMES = [
   "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -12,15 +12,6 @@ function formatMonth(ym: string) {
   const [y, m] = ym.split("-");
   return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
 }
-
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  auth: {
-    user: process.env.BREVO_SMTP_USER,
-    pass: process.env.BREVO_SMTP_PASS,
-  },
-});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -165,60 +156,17 @@ async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
   if (!premiumUsers || premiumUsers.length === 0) return;
 
   const month = formatMonth(bilan.month as string);
-  const profit = bilan.profit as number;
-  const roi = bilan.roi as number;
-  const winRate = bilan.win_rate as number;
-  const totalPicks = bilan.total_picks as number;
   const slug = bilan.slug as string;
+  const stats = {
+    totalPicks: bilan.total_picks as number,
+    winRate: bilan.win_rate as number,
+    roi: bilan.roi as number,
+    profit: bilan.profit as number,
+  };
 
   for (const user of premiumUsers) {
     const name = user.pseudo || user.display_name || user.email.split("@")[0];
-
-    await transporter.sendMail({
-      from: '"PRONOS.CLUB" <noreply@pronos.club>',
-      to: user.email,
-      subject: `Bilan ${month} publié — PRONOS.CLUB`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f5f5f5;">
-          <div style="text-align: center; padding: 40px 20px 30px; background: linear-gradient(135deg, #0a0a0a, #062e1f); border-radius: 0 0 16px 16px;">
-            <img src="https://pronos.club/pronos_club.png" alt="PRONOS.CLUB" width="120" height="120" style="width: 120px; height: 120px; object-fit: contain;" />
-            <p style="color: rgba(255,255,255,0.4); font-size: 12px; margin: 8px 0 0; text-transform: uppercase; letter-spacing: 2px;">Bilan mensuel</p>
-          </div>
-          <div style="padding: 40px 30px; background-color: #ffffff;">
-            <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">Bilan ${month}</h2>
-            <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-              Bonjour ${name}, le bilan du mois est disponible !
-            </p>
-            <div style="display: flex; justify-content: center; gap: 12px; margin: 20px 0; text-align: center;">
-              <div style="background: #f0fdf4; border-radius: 12px; padding: 12px 16px; flex: 1;">
-                <p style="margin: 0; font-size: 20px; font-weight: 800; color: #059669;">${totalPicks}</p>
-                <p style="margin: 2px 0 0; font-size: 10px; color: #6b7280; text-transform: uppercase;">picks</p>
-              </div>
-              <div style="background: #f0fdf4; border-radius: 12px; padding: 12px 16px; flex: 1;">
-                <p style="margin: 0; font-size: 20px; font-weight: 800; color: #059669;">${winRate}%</p>
-                <p style="margin: 2px 0 0; font-size: 10px; color: #6b7280; text-transform: uppercase;">win rate</p>
-              </div>
-              <div style="background: ${roi >= 0 ? "#f0fdf4" : "#fef2f2"}; border-radius: 12px; padding: 12px 16px; flex: 1;">
-                <p style="margin: 0; font-size: 20px; font-weight: 800; color: ${roi >= 0 ? "#059669" : "#dc2626"};">${roi >= 0 ? "+" : ""}${roi}%</p>
-                <p style="margin: 2px 0 0; font-size: 10px; color: #6b7280; text-transform: uppercase;">roi</p>
-              </div>
-              <div style="background: ${profit >= 0 ? "#f0fdf4" : "#fef2f2"}; border-radius: 12px; padding: 12px 16px; flex: 1;">
-                <p style="margin: 0; font-size: 20px; font-weight: 800; color: ${profit >= 0 ? "#059669" : "#dc2626"};">${profit >= 0 ? "+" : ""}${profit}U</p>
-                <p style="margin: 2px 0 0; font-size: 10px; color: #6b7280; text-transform: uppercase;">profit</p>
-              </div>
-            </div>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://pronos.club/fr/bilans/${slug}" style="display: inline-block; background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; padding: 16px 40px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(16,185,129,0.3);">
-                Lire le bilan complet →
-              </a>
-            </div>
-          </div>
-          <div style="text-align: center; padding: 25px 20px; background-color: #f5f5f5;">
-            <p style="font-size: 12px; color: #9ca3af; margin: 0;">PRONOS.CLUB — Pronostics sportifs professionnels</p>
-          </div>
-        </div>
-      `,
-    }).catch(() => {});
+    await sendBilanEmail(user.email, name, month, slug, stats).catch(() => {});
   }
 }
 
