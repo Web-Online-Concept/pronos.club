@@ -57,9 +57,9 @@ export async function POST(request: Request) {
 
   // Telegram: invite if becoming premium, kick if losing premium
   if (!wasActive && willBeActive) {
-    onPremiumActivated(targetId).catch(() => {});
+    await onPremiumActivated(targetId).catch((err) => console.error("[TELEGRAM] error:", err));
   } else if (wasActive && !willBeActive) {
-    onPremiumRevoked(targetId).catch(() => {});
+    await onPremiumRevoked(targetId).catch((err) => console.error("[TELEGRAM] error:", err));
   }
 
   return NextResponse.json(data);
