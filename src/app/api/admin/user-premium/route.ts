@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
+import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -29,10 +30,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "user_id or email required" }, { status: 400 });
   }
 
+  // Get current status before update
+  const { data: currentUser } = await supabaseAdmin
+    .from("users")
+    .select("subscription_status")
+    .eq("id", targetId)
+    .single();
+
+  const wasActive = currentUser?.subscription_status === "active";
+  const newStatus = subscription_status ?? "active";
+  const willBeActive = newStatus === "active";
+
   const { data, error } = await supabaseAdmin
     .from("users")
     .update({
-      subscription_status: subscription_status ?? "active",
+      subscription_status: newStatus,
       subscription_end: subscription_end ?? new Date(Date.now() + 365 * 86400000).toISOString(),
     })
     .eq("id", targetId)
@@ -41,6 +53,13 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Telegram: invite if becoming premium, kick if losing premium
+  if (!wasActive && willBeActive) {
+    onPremiumActivated(targetId).catch(() => {});
+  } else if (wasActive && !willBeActive) {
+    onPremiumRevoked(targetId).catch(() => {});
   }
 
   return NextResponse.json(data);
