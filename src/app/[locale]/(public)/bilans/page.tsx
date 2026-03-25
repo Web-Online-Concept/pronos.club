@@ -21,7 +21,7 @@ export default async function BilansPage() {
   const items = bilans ?? [];
 
   return (
-    <>
+    <div className="flex min-h-[calc(100vh-100px)] flex-col">
       {/* Hero */}
       <section
         className="relative overflow-hidden border-b border-emerald-900/50"
@@ -49,7 +49,7 @@ export default async function BilansPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-3xl px-4 pb-16">
+      <main className="mx-auto flex-1 w-full max-w-3xl px-4 pb-16">
         {items.length > 0 ? (
           <div className="mt-8 space-y-4">
             {items.map((bilan) => (
@@ -108,6 +108,6 @@ export default async function BilansPage() {
           </div>
         )}
       </main>
-    </>
+    </div>
   );
 }
