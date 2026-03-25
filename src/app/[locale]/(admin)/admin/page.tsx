@@ -27,13 +27,16 @@ export default async function AdminDashboard() {
     { label: "Abonnés premium", value: activeSubscribers ?? 0, accent: "#a78bfa" },
   ];
 
-  const links = [
+  const tipsterLinks = [
     { href: "/admin/picks/new", label: "Publier un pick", icon: "🎯", accent: "#10b981", desc: "Créer et notifier" },
     { href: "/admin/picks/results", label: "Saisir résultats", icon: "✅", accent: "#f59e0b", desc: "Mettre à jour les picks" },
     { href: "/admin/picks", label: "Tous les picks", icon: "📋", accent: "#3b82f6", desc: "Gérer les publications" },
+    { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
+  ];
+
+  const adminLinks = [
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
-    { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
     { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
     { href: "/admin/paiements", label: "Paiements", icon: "💰", accent: "#10b981", desc: "Suivi Stripe" },
     { href: "/admin/comptabilite", label: "Comptabilité", icon: "📊", accent: "#ef4444", desc: "Revenus & stats" },
@@ -60,49 +63,39 @@ export default async function AdminDashboard() {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="relative overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center"
-            style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${stat.accent}10 100%)` }}
+            className="relative overflow-hidden rounded-xl border border-white/[0.08] p-5 text-center"
+            style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${stat.accent}10 100%)` }}
           >
-            {/* Top accent line */}
             <div
               className="absolute left-0 top-0 h-[3px] w-full"
               style={{ background: `linear-gradient(90deg, transparent 0%, ${stat.accent} 50%, transparent 100%)` }}
             />
-            <p
-              className="text-3xl font-extrabold"
-              style={{ color: stat.accent }}
-            >
-              {stat.value}
-            </p>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">
-              {stat.label}
-            </p>
+            <p className="text-3xl font-extrabold" style={{ color: stat.accent }}>{stat.value}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Quick actions */}
-      <div className="mt-8">
-        <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/20">Actions rapides</p>
+      {/* Tipster section */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🎯</span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-400">Tipster</p>
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {links.map((link) => (
+          {tipsterLinks.map((link) => (
             <Link
               key={link.href}
               href={`/fr${link.href}`}
-              className="group relative overflow-hidden rounded-xl border border-white/[0.06] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-              style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${link.accent}08 100%)` }}
+              className="group relative overflow-hidden rounded-xl border border-white/[0.08] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${link.accent}08 100%)` }}
             >
-              {/* Hover glow */}
               <div
                 className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 style={{ background: `radial-gradient(circle at 50% 50%, ${link.accent}10 0%, transparent 70%)` }}
               />
-
               <div className="relative flex items-start gap-3">
-                <div
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg"
-                  style={{ background: `${link.accent}15` }}
-                >
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${link.accent}15` }}>
                   <span className="text-lg">{link.icon}</span>
                 </div>
                 <div>
@@ -110,11 +103,40 @@ export default async function AdminDashboard() {
                   <p className="mt-0.5 text-[10px] text-white/30">{link.desc}</p>
                 </div>
               </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/10 transition-all group-hover:translate-x-1 group-hover:text-white/30">→</div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-              {/* Arrow */}
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/10 transition-all group-hover:translate-x-1 group-hover:text-white/30">
-                →
+      {/* Admin section */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">⚙️</span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/30">Administration</p>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {adminLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={`/fr${link.href}`}
+              className="group relative overflow-hidden rounded-xl border border-white/[0.08] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${link.accent}08 100%)` }}
+            >
+              <div
+                className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: `radial-gradient(circle at 50% 50%, ${link.accent}10 0%, transparent 70%)` }}
+              />
+              <div className="relative flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${link.accent}15` }}>
+                  <span className="text-lg">{link.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{link.label}</p>
+                  <p className="mt-0.5 text-[10px] text-white/30">{link.desc}</p>
+                </div>
               </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/10 transition-all group-hover:translate-x-1 group-hover:text-white/30">→</div>
             </Link>
           ))}
         </div>
