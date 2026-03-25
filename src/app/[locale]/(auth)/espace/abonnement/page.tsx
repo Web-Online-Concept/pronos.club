@@ -1,323 +1,254 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import EspaceHero from "@/components/layout/EspaceHero";
 
-interface Invoice {
-  id: string;
-  date: number;
-  amount: number;
-  currency: string;
-  status: string;
-  pdf: string | null;
-  number: string | null;
-}
+const FREE_FEATURES = [
+  "Picks gratuits sélectionnés",
+  "Historique complet",
+  "Statistiques publiques",
+  "Gestion de bankroll",
+  "Stats perso en U et €",
+];
 
-export default function EspaceAbonnementPage() {
-  const { user, signOut } = useAuth();
-  const searchParams = useSearchParams();
-  const success = searchParams.get("success") === "true";
+const PREMIUM_FEATURES = [
+  "Tous les pronostics (50+/mois)",
+  "Groupe Telegram exclusif",
+  "Notifications prioritaires",
+  "Bilan mensuel par email",
+  "Tout ce qui est inclus en gratuit",
+  "Résiliable en 1 clic",
+];
+
+export default function AbonnementPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(true);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [canceling, setCanceling] = useState(false);
-  const [cancelSuccess, setCancelSuccess] = useState(false);
-  const [cancelEndDate, setCancelEndDate] = useState("");
+  const [error, setError] = useState("");
 
   const isPremium = user?.subscription_status === "active";
 
-  useEffect(() => {
-    fetch("/api/stripe/invoices")
-      .then((r) => r.json())
-      .then((d) => setInvoices(d.invoices ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingInvoices(false));
-  }, []);
-
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    const res = await fetch("/api/account/delete", { method: "DELETE" });
-    if (res.ok) {
-      signOut();
-    } else {
-      setDeleting(false);
-    }
-  }
-
-  async function handleUpdateCard() {
-    setLoading(true);
-    const res = await fetch("/api/stripe/portal", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    setLoading(false);
-  }
-
-  async function handleCancel() {
-    setCanceling(true);
-    const res = await fetch("/api/stripe/cancel", { method: "POST" });
-    if (res.ok) {
-      const data = await res.json();
-      setCancelEndDate(data.endDate ?? "");
-      setCancelSuccess(true);
-      setShowCancelConfirm(false);
-    }
-    setCanceling(false);
-  }
-
   async function handleSubscribe() {
+    if (!user) {
+      window.location.href = "/fr/login";
+      return;
+    }
+
     setLoading(true);
-    const res = await fetch("/api/stripe/checkout", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    setLoading(false);
+    setError("");
+
+    try {
+      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || "Une erreur est survenue");
+        setLoading(false);
+      }
+    } catch {
+      setError("Impossible de contacter le serveur de paiement");
+      setLoading(false);
+    }
+  }
+
+  async function handleManage() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || "Impossible d'accéder au portail de gestion");
+        setLoading(false);
+      }
+    } catch {
+      setError("Impossible de contacter le serveur de paiement");
+      setLoading(false);
+    }
   }
 
   return (
     <>
       <EspaceHero title="Mon Abonnement" />
 
-      <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
+      <main className="mx-auto max-w-3xl px-4 pb-16 pt-8">
 
-        {/* Success message */}
-        {success && (
-          <div className="mb-6 overflow-hidden rounded-2xl border border-emerald-500/20 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
-            <span className="text-3xl">🎉</span>
-            <p className="mt-2 font-bold text-white">Bienvenue dans le Premium !</p>
-            <p className="mt-1 text-sm text-white/40">Vous avez maintenant accès à tous les pronostics.</p>
-          </div>
-        )}
-
-        {/* Status card */}
-        <div className="overflow-hidden rounded-2xl border border-white/[0.06]" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
-          <div className="p-6 text-center">
-            {isPremium ? (
-              <>
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20">
-                  <span className="text-2xl">⭐</span>
-                </div>
-                <h2 className="mt-4 text-xl font-extrabold text-white">Premium actif</h2>
-                <p className="mt-1 text-sm text-white/40">Vous avez accès à tous les pronostics premium</p>
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-4 py-1.5">
-                  <span className="text-sm font-bold text-amber-400">20€/mois</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
-                  <span className="text-2xl">💎</span>
-                </div>
-                <h2 className="mt-4 text-xl font-extrabold text-white">Compte gratuit</h2>
-                <p className="mt-1 text-sm text-white/40">Passez Premium pour débloquer tous les pronostics</p>
-              </>
-            )}
-          </div>
-
-          {/* Info rows */}
-          <div className="border-t border-white/[0.06] px-6 py-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/40">Statut actuel</span>
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${isPremium ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-white/50"}`}>
-                {isPremium ? "Actif" : "Gratuit"}
+        {/* Current status */}
+        {isPremium && (
+          <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
               </span>
+              <span className="text-sm font-bold text-emerald-700">Abonnement Premium actif</span>
             </div>
-          </div>
-
-          {isPremium && user?.subscription_end && (
-            <div className="border-t border-white/[0.06] px-6 py-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/40">Prochain renouvellement</span>
-                <span className="text-sm font-semibold text-white">
-                  {new Date(user.subscription_end).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isPremium && (
-            <div className="border-t border-white/[0.06] px-6 py-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-white/40">Tarif</span>
-                <span className="text-sm font-semibold text-white">20€ / mois</span>
-              </div>
-            </div>
-          )}
-
-          {/* CTA */}
-          <div className="border-t border-white/[0.06] p-6">
-            {isPremium ? (
-              <div className="space-y-3">
-                {cancelSuccess ? (
-                  <div className="rounded-xl bg-amber-500/10 p-4 text-center">
-                    <p className="text-sm font-bold text-amber-400">Abonnement résilié</p>
-                    <p className="mt-1 text-xs text-white/40">
-                      Votre accès Premium reste actif jusqu&apos;au {cancelEndDate || "fin de la période en cours"}.
-                      <br />Votre compte repassera ensuite en version gratuite — aucune donnée ne sera supprimée.
-                    </p>
-                    <p className="mt-2 text-xs text-white/30">Un email de confirmation vous a été envoyé.</p>
-                  </div>
-                ) : showCancelConfirm ? (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 text-center">
-                    <p className="text-sm font-bold text-white">Confirmer la résiliation ?</p>
-                    <p className="mt-1 text-xs text-white/40">
-                      Votre accès Premium restera actif jusqu&apos;à la fin de la période en cours.
-                      <br />Vous repasserez ensuite en compte gratuit.
-                    </p>
-                    <div className="mt-4 flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => setShowCancelConfirm(false)}
-                        className="cursor-pointer rounded-lg border border-white/10 bg-white/[0.05] px-5 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        disabled={canceling}
-                        className="cursor-pointer rounded-lg bg-red-600 px-5 py-2 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
-                      >
-                        {canceling ? "Résiliation..." : "Oui, résilier"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleUpdateCard}
-                      disabled={loading}
-                      className="w-full cursor-pointer rounded-xl border border-white/10 bg-white/[0.05] py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
-                    >
-                      {loading ? "Redirection..." : "Modifier ma carte bancaire"}
-                    </button>
-                    <button
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 py-3.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
-                    >
-                      Résilier mon abonnement
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={handleSubscribe}
-                disabled={loading}
-                className="w-full cursor-pointer rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-50"
-                style={{
-                  background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-                  boxShadow: "0 4px 14px rgba(16,185,129,0.3)",
-                }}
-              >
-                {loading ? "Redirection..." : "Passer Premium — 20€/mois"}
-              </button>
+            {user?.subscription_end && (
+              <p className="mt-1 text-xs text-emerald-600/60">
+                {new Date(user.subscription_end).getTime() > Date.now() + 3650 * 86400000
+                  ? "Accès illimité"
+                  : `Renouvellement : ${new Date(user.subscription_end).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
+                }
+              </p>
             )}
-          </div>
-        </div>
-
-        {/* Features premium */}
-        {!isPremium && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-white/[0.06]" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
-            <div className="p-6 text-center">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">Avantages Premium</p>
-              <div className="mt-4 flex justify-center">
-                <div className="space-y-3">
-                  {[
-                    "Tous les pronostics premium",
-                    "Analyse détaillée de chaque pick",
-                    "Notifications prioritaires",
-                    "Stats personnelles complètes",
-                    "Support prioritaire",
-                    "Résiliable en 1 clic",
-                  ].map((f) => (
-                    <div key={f} className="flex items-center gap-3">
-                      <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      <span className="text-sm text-white/60">{f}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* Invoices */}
-        {invoices.length > 0 && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-white/[0.06]" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
-            <div className="p-6">
-              <p className="text-center text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">Historique</p>
-              <h3 className="mt-1 text-center font-bold text-white">Mes factures</h3>
+        {/* Cards */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Free */}
+          <div
+            className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
+            style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+          >
+            <div className="text-center">
+              <span className="rounded-full bg-neutral-500/20 px-3 py-1 text-[10px] font-bold uppercase text-neutral-400">Gratuit</span>
+              <div className="mt-4">
+                <span className="text-4xl font-extrabold text-white">0€</span>
+              </div>
+              <p className="mt-1 text-xs text-white/30">Pour toujours</p>
             </div>
-            <div className="border-t border-white/[0.06]">
-              {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between border-b border-white/[0.04] px-6 py-3 last:border-b-0">
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {new Date(inv.date * 1000).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                    <p className="text-xs text-white/30">{inv.number ?? inv.id}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-white">{inv.amount}€</span>
-                    {inv.pdf && (
-                      <a
-                        href={inv.pdf}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:bg-white/15"
-                      >
-                        PDF
-                      </a>
-                    )}
-                  </div>
+            <div className="mt-6 space-y-2.5">
+              {FREE_FEATURES.map((f) => (
+                <div key={f} className="flex items-center gap-2.5">
+                  <svg className="h-4 w-4 shrink-0 text-emerald-400/60" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-white/50">{f}</span>
                 </div>
               ))}
             </div>
+            {!user && (
+              <div className="mt-6">
+                <Link
+                  href="/fr/login"
+                  className="block w-full cursor-pointer rounded-xl border border-white/10 py-3 text-center text-sm font-bold text-white/50 transition hover:border-white/20 hover:text-white/70"
+                >
+                  Créer mon compte
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Premium */}
+          <div
+            className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 p-6"
+            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+          >
+            <div className="absolute -top-px left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
+            <div className="text-center">
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase text-emerald-400">Premium</span>
+              <div className="mt-4">
+                <span className="text-4xl font-extrabold text-white">20€</span>
+                <span className="text-lg text-white/30">/mois</span>
+              </div>
+              <p className="mt-1 text-xs text-white/30">Sans engagement</p>
+            </div>
+            <div className="mt-6 space-y-2.5">
+              {PREMIUM_FEATURES.map((f) => (
+                <div key={f} className="flex items-center gap-2.5">
+                  <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-white/70">{f}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6">
+              {isPremium ? (
+                <button
+                  onClick={handleManage}
+                  disabled={loading}
+                  className="w-full cursor-pointer rounded-xl border-2 border-white/10 py-3 text-sm font-bold text-white/70 transition hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                >
+                  {loading ? "Chargement..." : "Gérer mon abonnement"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
+                >
+                  {loading ? "Redirection vers Stripe..." : "S'abonner — 20€/mois"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-center text-sm text-red-600">
+            {error}
           </div>
         )}
 
-        {loadingInvoices && (
-          <p className="mt-6 text-center text-sm text-neutral-400">Chargement des factures...</p>
-        )}
+        {/* Trust elements */}
+        <div className="mt-10 grid grid-cols-3 gap-4 text-center">
+          <div>
+            <span className="text-2xl">🔒</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">Paiement sécurisé</p>
+            <p className="text-[10px] text-neutral-400">via Stripe</p>
+          </div>
+          <div>
+            <span className="text-2xl">⚡</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">Accès immédiat</p>
+            <p className="text-[10px] text-neutral-400">dès le paiement</p>
+          </div>
+          <div>
+            <span className="text-2xl">🚫</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">Sans engagement</p>
+            <p className="text-[10px] text-neutral-400">résiliable en 1 clic</p>
+          </div>
+        </div>
 
-        {/* Delete account */}
-        <div className="mt-12 text-center">
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="cursor-pointer text-xs text-neutral-400 transition hover:text-red-500"
-            >
-              Supprimer mon compte
-            </button>
-          ) : (
-            <div className="rounded-2xl border border-red-300 bg-red-50 p-5">
-              <p className="text-sm font-bold text-red-700">Êtes-vous sûr de vouloir supprimer votre compte ?</p>
-              <p className="mt-1 text-xs text-red-500">Cette action est irréversible. Toutes vos données seront supprimées.</p>
-              <div className="mt-4 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="cursor-pointer rounded-lg border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-100"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={deleting}
-                  className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
-                >
-                  {deleting ? "Suppression..." : "Oui, supprimer définitivement"}
-                </button>
-              </div>
-            </div>
-          )}
+        {/* FAQ */}
+        <div className="mt-10">
+          <h2 className="text-center text-lg font-extrabold text-neutral-800">Questions fréquentes</h2>
+          <div className="mt-4 space-y-2">
+            {[
+              {
+                q: "Comment fonctionne le paiement ?",
+                a: "Le paiement est sécurisé via Stripe. Votre carte est débitée de 20€ chaque mois à la date anniversaire de votre inscription. Aucune donnée bancaire n'est stockée sur notre site.",
+              },
+              {
+                q: "Puis-je résilier à tout moment ?",
+                a: "Oui. Cliquez sur 'Gérer mon abonnement', puis 'Résilier'. Vous conservez l'accès Premium jusqu'à la fin de la période payée. Aucun frais de résiliation.",
+              },
+              {
+                q: "Que se passe-t-il si je résilie ?",
+                a: "Votre compte repasse en version gratuite. Vos données sont conservées (historique, stats, bankroll). L'accès au groupe Telegram Premium est automatiquement retiré. Vous pouvez vous réabonner à tout moment.",
+              },
+              {
+                q: "Est-ce que les résultats sont garantis ?",
+                a: "Non. Les pronostics sont des opinions basées sur l'analyse sportive du tipster. Les paris sportifs comportent un risque de perte. Consultez notre page Jeu Responsable pour plus d'informations.",
+              },
+            ].map((faq) => (
+              <details
+                key={faq.q}
+                className="group overflow-hidden rounded-xl border border-neutral-200 bg-white"
+              >
+                <summary className="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-semibold text-neutral-800 transition hover:bg-neutral-50">
+                  {faq.q}
+                  <svg className="h-4 w-4 shrink-0 text-neutral-400 transition group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="border-t border-neutral-100 px-5 py-4 text-sm text-neutral-500 leading-relaxed">
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
         </div>
 
       </main>
