@@ -1,4 +1,4 @@
-const BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+const BOT_TOKEN = (process.env.TELEGRAM_PREMIUM_BOT_TOKEN || "").trim();
 const GROUP_ID = (process.env.TELEGRAM_GROUP_ID || "").trim();
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
