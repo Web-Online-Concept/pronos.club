@@ -471,7 +471,7 @@ export default async function TipsterPage() {
         <section className="mt-14">
           <div className="text-center">
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Volume</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Plus de 100 pronostics par mois</h2>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Plus de 50 pronostics par mois</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
               Le volume est important pour lisser la variance et maximiser les opportunités.
               Chaque jour, de nouvelles sélections sont publiées.
@@ -518,12 +518,12 @@ export default async function TipsterPage() {
                 <span className="rounded-full bg-emerald-500/20 px-3 py-0.5 text-[10px] font-bold text-emerald-400">20€/mois</span>
               </div>
               <p className="mt-3 text-sm text-white/50">
-                L&apos;intégralité des pronostics — plus de 100 par mois. C&apos;est là que la rentabilité 
+                L&apos;intégralité des pronostics — plus de 50 par mois. C&apos;est là que la rentabilité 
                 se construit, avec le volume et la régularité.
               </p>
               <div className="mt-4 space-y-1.5">
                 {[
-                  "Tous les pronostics (100+/mois)",
+                  "Tous les pronostics (50+/mois)",
                   "Groupe Telegram exclusif",
                   "Notifications prioritaires",
                   "Tout ce qui est inclus en gratuit",
@@ -563,7 +563,7 @@ export default async function TipsterPage() {
                 <p className="mt-3 text-sm leading-relaxed text-white/50">
                   Un tipster avec 60% de réussite peut enchaîner 5 ou 6 paris perdants d&apos;affilée. 
                   Ce n&apos;est pas un signe d&apos;échec — c&apos;est la réalité statistique des paris sportifs.
-                  Ce qui compte, c&apos;est le bilan sur 100, 200, 500 paris.
+                  Ce qui compte, c&apos;est le bilan sur 500 à 1000 paris minimum.
                 </p>
                 <p className="mt-3 text-sm leading-relaxed text-white/50">
                   C&apos;est exactement pour ça que nous insistons sur la gestion de bankroll : ne jamais miser plus 
