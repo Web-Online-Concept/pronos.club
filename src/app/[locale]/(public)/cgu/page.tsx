@@ -50,13 +50,12 @@ export default function CGUPage() {
 
           <section>
             <h2 className="text-lg font-extrabold text-neutral-900">4. Abonnement Premium</h2>
-            <div className="mt-3 space-y-2">
-              <p><strong>Prix :</strong> 20€ par mois, prélevé automatiquement via Stripe.</p>
-              <p><strong>Sans engagement :</strong> l&apos;abonnement est résiliable à tout moment depuis l&apos;espace personnel. La résiliation prend effet à la fin de la période en cours. Aucun remboursement prorata temporis ne sera effectué.</p>
-              <p><strong>Accès :</strong> l&apos;abonnement Premium donne accès à l&apos;intégralité des pronostics publiés, au groupe Telegram exclusif et aux notifications prioritaires. L&apos;accès au groupe Telegram est automatiquement retiré en cas de résiliation.</p>
-              <p><strong>Droit de rétractation :</strong> conformément à l&apos;article L. 221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les contenus numériques fournis sur un support immatériel dont l&apos;exécution a commencé avec l&apos;accord du consommateur. En s&apos;abonnant, l&apos;utilisateur accepte que l&apos;accès immédiat aux pronostics constitue le début d&apos;exécution et renonce expressément à son droit de rétractation.</p>
-              <p><strong>Modification des tarifs :</strong> l&apos;éditeur se réserve le droit de modifier le prix de l&apos;abonnement. Tout changement sera notifié par email au moins 30 jours avant son entrée en vigueur. L&apos;utilisateur pourra résilier avant l&apos;application du nouveau tarif.</p>
-            </div>
+            <p className="mt-3">
+              PRONOS.CLUB propose un abonnement Premium donnant accès à des contenus et fonctionnalités supplémentaires. 
+              Les conditions de vente, de paiement, de résiliation et de remboursement sont détaillées dans les 
+              <a href="/fr/cgv" className="text-emerald-600 underline"> Conditions Générales de Vente (CGV)</a>, 
+              qui complètent les présentes CGU.
+            </p>
           </section>
 
           <section>

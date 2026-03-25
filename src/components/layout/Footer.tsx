@@ -81,6 +81,7 @@ export default function Footer() {
               {[
                 { href: "/fr/mentions-legales", label: "Mentions légales" },
                 { href: "/fr/cgu", label: "CGU" },
+                { href: "/fr/cgv", label: "CGV" },
                 { href: "/fr/confidentialite", label: "Confidentialité" },
                 { href: "/fr/jeu-responsable", label: "Jeu responsable" },
               ].map((link) => (
