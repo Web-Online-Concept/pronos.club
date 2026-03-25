@@ -12,7 +12,10 @@ export interface User {
   locale: string;
   notify_email: boolean;
   notify_push: boolean;
+  notify_bilan: boolean;
   push_subscription: object | null;
+  telegram_user_id: number | null;
+  telegram_invite_link: string | null;
   stripe_customer_id: string | null;
   subscription_status: SubscriptionStatus;
   subscription_end: string | null;
