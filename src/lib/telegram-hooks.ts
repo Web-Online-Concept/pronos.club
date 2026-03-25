@@ -15,6 +15,7 @@ const transporter = nodemailer.createTransport({
  * Called when a user becomes premium — generates invite link and sends email
  */
 export async function onPremiumActivated(userId: string) {
+  console.log("[TELEGRAM] onPremiumActivated called for user:", userId);
   try {
     const { data: user } = await supabaseAdmin
       .from("users")
@@ -22,14 +23,17 @@ export async function onPremiumActivated(userId: string) {
       .eq("id", userId)
       .single();
 
-    if (!user || !user.email) return;
+    console.log("[TELEGRAM] user found:", user?.email, "telegram_user_id:", user?.telegram_user_id);
+
+    if (!user || !user.email) { console.log("[TELEGRAM] no user or email, aborting"); return; }
 
     // Already in group
-    if (user.telegram_user_id) return;
+    if (user.telegram_user_id) { console.log("[TELEGRAM] already in group, aborting"); return; }
 
     // Generate invite link
     const inviteLink = await createInviteLink(userId);
-    if (!inviteLink) return;
+    console.log("[TELEGRAM] invite link:", inviteLink);
+    if (!inviteLink) { console.log("[TELEGRAM] failed to create invite link"); return; }
 
     // Store it
     await supabaseAdmin
@@ -78,7 +82,9 @@ export async function onPremiumActivated(userId: string) {
           </div>
         </div>
       `,
-    }).catch(() => {});
+    }).catch((emailErr: unknown) => { console.error("[TELEGRAM] sendMail error:", emailErr); });
+
+    console.log("[TELEGRAM] email sent to:", user.email);
   } catch (err) {
     console.error("onPremiumActivated Telegram error:", err);
   }
