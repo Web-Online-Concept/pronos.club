@@ -37,6 +37,8 @@ export default function AdminBilansPage() {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [refreshingStats, setRefreshingStats] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // New bilan form
   const [newMonth, setNewMonth] = useState("");
@@ -58,10 +60,21 @@ export default function AdminBilansPage() {
     if (!newMonth || !newTitle) return;
     setSaving(true);
 
+    // Auto-fetch stats for the month
+    const statsRes = await fetch(`/api/admin/bilans?calc_month=${newMonth}`);
+    const stats = await statsRes.json();
+
     const res = await fetch("/api/admin/bilans", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle, month: newMonth }),
+      body: JSON.stringify({
+        title: newTitle,
+        month: newMonth,
+        total_picks: stats.total_picks ?? 0,
+        win_rate: stats.win_rate ?? 0,
+        roi: stats.roi ?? 0,
+        profit: stats.profit ?? 0,
+      }),
     });
 
     if (res.ok) {
@@ -110,6 +123,49 @@ export default function AdminBilansPage() {
     });
 
     setBilans((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+  }
+
+  async function refreshStats() {
+    if (!editing) return;
+    setRefreshingStats(true);
+
+    const res = await fetch(`/api/admin/bilans?calc_month=${editing.month}`);
+    const stats = await res.json();
+
+    setEditing({
+      ...editing,
+      total_picks: stats.total_picks ?? editing.total_picks,
+      win_rate: stats.win_rate ?? editing.win_rate,
+      roi: stats.roi ?? editing.roi,
+      profit: stats.profit ?? editing.profit,
+    });
+
+    setRefreshingStats(false);
+  }
+
+  async function uploadImage(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!editing || !e.target.files?.[0]) return;
+    setUploadingImage(true);
+
+    const file = e.target.files[0];
+    const ext = file.name.split(".").pop();
+    const path = `${editing.slug}.${ext}`;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Upload to Supabase Storage
+    const res = await fetch(`/api/admin/bilans-upload?path=${encodeURIComponent(path)}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.url) {
+      setEditing({ ...editing, cover_image: data.url });
+    }
+
+    setUploadingImage(false);
   }
 
   const inputClass =
@@ -274,6 +330,13 @@ export default function AdminBilansPage() {
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-white/[0.06]" />
                   <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-500">Chiffres du mois</span>
+                  <button
+                    onClick={refreshStats}
+                    disabled={refreshingStats}
+                    className="cursor-pointer rounded bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                  >
+                    {refreshingStats ? "..." : "🔄 Recalculer"}
+                  </button>
                   <div className="h-px flex-1 bg-white/[0.06]" />
                 </div>
 
@@ -324,8 +387,16 @@ export default function AdminBilansPage() {
 
                 {/* Cover image */}
                 <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Image de couverture (URL)</label>
-                  <input type="text" value={editing.cover_image ?? ""} onChange={(e) => setEditing({ ...editing, cover_image: e.target.value })} placeholder="/bilans/2026-03.jpg" className={inputClass} />
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Image de couverture</label>
+                  {editing.cover_image && (
+                    <div className="mb-2 overflow-hidden rounded-lg">
+                      <img src={editing.cover_image} alt="Couverture" className="w-full max-h-48 object-cover" />
+                    </div>
+                  )}
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-3 text-xs font-semibold text-white/40 transition hover:border-emerald-500/50 hover:text-emerald-400">
+                    <input type="file" accept="image/*" onChange={uploadImage} className="hidden" />
+                    {uploadingImage ? "Upload en cours..." : editing.cover_image ? "📷 Changer l'image" : "📷 Uploader une image"}
+                  </label>
                 </div>
               </div>
             </div>

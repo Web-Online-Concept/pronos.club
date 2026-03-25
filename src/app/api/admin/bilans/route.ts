@@ -2,7 +2,43 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const calcMonth = searchParams.get("calc_month");
+
+  // If calc_month provided, return auto-calculated stats for that month
+  if (calcMonth) {
+    try {
+      await requireAdmin();
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const [y, m] = calcMonth.split("-");
+    const from = `${calcMonth}-01`;
+    const to = `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`;
+
+    const { data: picks } = await supabaseAdmin
+      .from("picks")
+      .select("status, profit, stake, odds")
+      .neq("status", "pending")
+      .gte("event_date", from)
+      .lte("event_date", to);
+
+    const all = picks ?? [];
+    const resolved = all.filter((p) => p.status !== "void");
+    const won = all.filter((p) => p.status === "won" || p.status === "half_won").length;
+    const totalStaked = all.reduce((s, p) => s + (p.stake ?? 0), 0);
+    const totalProfit = all.reduce((s, p) => s + (p.profit ?? 0), 0);
+
+    return NextResponse.json({
+      total_picks: all.length,
+      win_rate: resolved.length > 0 ? Math.round((won / resolved.length) * 100 * 10) / 10 : 0,
+      roi: totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100 * 10) / 10 : 0,
+      profit: Math.round(totalProfit * 10) / 10,
+    });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("bilans")
     .select("*")
