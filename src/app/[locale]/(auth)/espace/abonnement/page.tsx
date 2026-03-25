@@ -115,7 +115,7 @@ export default function AbonnementPage() {
               </div>
               <p className="mt-1 text-xs text-white/30">Pour toujours</p>
             </div>
-            <div className="mt-6 space-y-2.5">
+            <div className="mt-6 flex justify-center"><div className="space-y-2.5">
               {FREE_FEATURES.map((f) => (
                 <div key={f} className="flex items-center gap-2.5">
                   <svg className="h-4 w-4 shrink-0 text-emerald-400/60" fill="currentColor" viewBox="0 0 20 20">
@@ -124,7 +124,7 @@ export default function AbonnementPage() {
                   <span className="text-sm text-white/50">{f}</span>
                 </div>
               ))}
-            </div>
+            </div></div>
             {!user && (
               <div className="mt-6">
                 <Link
@@ -151,7 +151,7 @@ export default function AbonnementPage() {
               </div>
               <p className="mt-1 text-xs text-white/30">Sans engagement</p>
             </div>
-            <div className="mt-6 space-y-2.5">
+            <div className="mt-6 flex justify-center"><div className="space-y-2.5">
               {PREMIUM_FEATURES.map((f) => (
                 <div key={f} className="flex items-center gap-2.5">
                   <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
@@ -160,7 +160,7 @@ export default function AbonnementPage() {
                   <span className="text-sm text-white/70">{f}</span>
                 </div>
               ))}
-            </div>
+            </div></div>
 
             <div className="mt-6">
               {isPremium ? (
