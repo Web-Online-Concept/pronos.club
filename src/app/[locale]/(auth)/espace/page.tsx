@@ -64,15 +64,15 @@ export default function MemberDashboard() {
           <p className="mt-1 text-sm text-white/40">Personnalisez votre gestion de bankroll</p>
         </Link>
 
-        <div
-          className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center opacity-80"
+        <Link
+          href="/fr/espace/app-mobile"
+          className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
           style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
         >
           <span className="text-2xl">📱</span>
           <h3 className="mt-2 font-bold text-white">Appli Mobile</h3>
           <p className="mt-1 text-sm text-white/40">Installer l&apos;appli Pronos Club</p>
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Bientôt disponible</p>
-        </div>
+        </Link>
 
         <Link
           href="/fr/espace/profil"
