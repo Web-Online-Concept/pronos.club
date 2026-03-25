@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const updates: Record<string, boolean> = {};
   if ("notify_email" in body) updates.notify_email = body.notify_email;
   if ("notify_push" in body) updates.notify_push = body.notify_push;
+  if ("notify_bilan" in body) updates.notify_bilan = body.notify_bilan;
 
   const { error } = await supabaseAdmin
     .from("users")

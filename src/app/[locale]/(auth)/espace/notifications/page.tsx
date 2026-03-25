@@ -8,7 +8,10 @@ import EspaceHero from "@/components/layout/EspaceHero";
 export default function NotificationsPage() {
   const { user } = useAuth();
   const [emailEnabled, setEmailEnabled] = useState(user?.notify_email ?? true);
+  const [bilanEnabled, setBilanEnabled] = useState(user?.notify_bilan ?? true);
   const [saving, setSaving] = useState(false);
+
+  const isPremium = user?.subscription_status === "active";
 
   async function toggleEmail() {
     setSaving(true);
@@ -21,6 +24,20 @@ export default function NotificationsPage() {
     });
 
     setEmailEnabled(newValue);
+    setSaving(false);
+  }
+
+  async function toggleBilan() {
+    setSaving(true);
+    const newValue = !bilanEnabled;
+
+    await fetch("/api/user/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notify_bilan: newValue }),
+    });
+
+    setBilanEnabled(newValue);
     setSaving(false);
   }
 
@@ -45,7 +62,7 @@ export default function NotificationsPage() {
             <div>
               <p className="text-sm font-medium">Notifications email</p>
               <p className="text-xs opacity-40">
-                {emailEnabled ? "Activées" : "Désactivées"}
+                {emailEnabled ? "Activées — recevez un email à chaque nouveau pick" : "Désactivées"}
               </p>
             </div>
             <button
@@ -58,6 +75,39 @@ export default function NotificationsPage() {
               <span
                 className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
                   emailEnabled ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Bilan mensuel */}
+        <div className={`rounded-xl border p-4 ${isPremium ? "border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100/50" : "border-neutral-200 bg-neutral-50 opacity-60"}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Bilan mensuel par email</p>
+                {!isPremium && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-600">PREMIUM</span>
+                )}
+              </div>
+              <p className="text-xs opacity-40">
+                {isPremium
+                  ? bilanEnabled ? "Activé — recevez le bilan du tipster chaque mois" : "Désactivé"
+                  : "Réservé aux abonnés Premium"
+                }
+              </p>
+            </div>
+            <button
+              onClick={toggleBilan}
+              disabled={saving || !isPremium}
+              className={`relative h-7 w-12 rounded-full transition ${
+                bilanEnabled && isPremium ? "bg-emerald-500" : "bg-neutral-300"
+              } ${!isPremium ? "cursor-not-allowed" : ""}`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
+                  bilanEnabled && isPremium ? "left-[22px]" : "left-0.5"
                 }`}
               />
             </button>

@@ -159,6 +159,7 @@ async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
     .from("users")
     .select("email, pseudo, display_name")
     .eq("subscription_status", "active")
+    .eq("notify_bilan", true)
     .not("email", "is", null);
 
   if (!premiumUsers || premiumUsers.length === 0) return;
