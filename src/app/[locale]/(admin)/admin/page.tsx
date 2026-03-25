@@ -38,6 +38,7 @@ export default async function AdminDashboard() {
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
     { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
+    { href: "/admin/emails", label: "Emails", icon: "📧", accent: "#10b981", desc: "Emails automatisés" },
     { href: "/admin/paiements", label: "Paiements", icon: "💰", accent: "#10b981", desc: "Suivi Stripe" },
     { href: "/admin/comptabilite", label: "Comptabilité", icon: "📊", accent: "#ef4444", desc: "Revenus & stats" },
   ];
@@ -64,7 +65,7 @@ export default async function AdminDashboard() {
           <div
             key={stat.label}
             className="relative overflow-hidden rounded-xl border border-white/[0.08] p-5 text-center"
-            style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${stat.accent}10 100%)` }}
+            style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${stat.accent}10 100%)` }}
           >
             <div
               className="absolute left-0 top-0 h-[3px] w-full"
