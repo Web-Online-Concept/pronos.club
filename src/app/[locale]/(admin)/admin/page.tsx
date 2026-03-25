@@ -34,6 +34,7 @@ export default async function AdminDashboard() {
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
     { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
+    { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
     { href: "/admin/paiements", label: "Paiements", icon: "💰", accent: "#10b981", desc: "Suivi Stripe" },
     { href: "/admin/comptabilite", label: "Comptabilité", icon: "📊", accent: "#ef4444", desc: "Revenus & stats" },
   ];
