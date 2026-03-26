@@ -15,25 +15,7 @@ interface Category {
   icon: string;
 }
 
-interface Post {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  content: string;
-  cover_image: string | null;
-  category_id: string | null;
-  tags: string[];
-  author_name: string;
-  view_count: number;
-  meta_title: string | null;
-  meta_description: string | null;
-  og_image: string | null;
-  published_at: string;
-  blog_categories: Category | null;
-}
-
-async function getPost(slug: string): Promise<Post | null> {
+async function getPost(slug: string) {
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
     .select("*, blog_categories(name, slug, color, icon)")
@@ -121,6 +103,8 @@ export default async function BlogArticlePage({
       year: "numeric",
     });
 
+  const articleUrl = `https://pronos.club/${locale}/blog/${post.slug}`;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -146,7 +130,7 @@ export default async function BlogArticlePage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <main className="min-h-screen bg-[#0a0a0f] text-white">
+      <main className="min-h-screen bg-white text-neutral-900">
         {/* Cover image */}
         {post.cover_image && (
           <div className="relative mx-auto max-w-5xl px-4 pt-8">
@@ -163,8 +147,8 @@ export default async function BlogArticlePage({
         {/* Article header */}
         <article className="mx-auto max-w-3xl px-4 pt-10 pb-16">
           {/* Breadcrumb */}
-          <div className="mb-6 flex items-center gap-2 text-xs text-white/30">
-            <Link href={`/${locale}/blog`} className="hover:text-white/60 transition">
+          <div className="mb-6 flex items-center gap-2 text-xs text-neutral-400">
+            <Link href={`/${locale}/blog`} className="hover:text-neutral-600 transition">
               Blog
             </Link>
             {post.blog_categories && (
@@ -172,7 +156,7 @@ export default async function BlogArticlePage({
                 <span>›</span>
                 <Link
                   href={`/${locale}/blog?category=${post.blog_categories.slug}`}
-                  className="hover:text-white/60 transition"
+                  className="hover:text-neutral-600 transition"
                   style={{ color: post.blog_categories.color }}
                 >
                   {post.blog_categories.icon} {post.blog_categories.name}
@@ -181,11 +165,11 @@ export default async function BlogArticlePage({
             )}
           </div>
 
-          <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+          <h1 className="text-3xl font-black leading-tight tracking-tight text-neutral-900 sm:text-4xl lg:text-5xl">
             {post.title}
           </h1>
 
-          <div className="mt-4 flex items-center gap-4 text-sm text-white/40">
+          <div className="mt-4 flex items-center gap-4 text-sm text-neutral-400">
             <span>{fmt(post.published_at)}</span>
             <span>·</span>
             <span>{post.view_count} vue{post.view_count > 1 ? "s" : ""}</span>
@@ -194,12 +178,12 @@ export default async function BlogArticlePage({
           </div>
 
           {/* Tags */}
-          {post.tags.length > 0 && (
+          {post.tags && post.tags.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {post.tags.map((tag: string) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-white/[0.06] px-3 py-1 text-xs text-white/40"
+                  className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500"
                 >
                   #{tag}
                 </span>
@@ -211,52 +195,76 @@ export default async function BlogArticlePage({
           <div
             className={[
               "mt-10",
-              "prose prose-invert prose-emerald max-w-none",
-              "prose-headings:font-bold prose-headings:tracking-tight",
+              "prose prose-neutral max-w-none",
+              "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-neutral-900",
               "prose-h2:mt-10 prose-h2:text-2xl",
               "prose-h3:mt-8 prose-h3:text-xl",
-              "prose-p:text-white/75 prose-p:leading-relaxed",
-              "prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline",
-              "prose-strong:text-white",
-              "prose-blockquote:border-l-emerald-500 prose-blockquote:text-white/60",
+              "prose-p:text-neutral-700 prose-p:leading-relaxed",
+              "prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline",
+              "prose-strong:text-neutral-900",
+              "prose-blockquote:border-l-emerald-500 prose-blockquote:text-neutral-500",
               "prose-img:rounded-xl prose-img:mx-auto",
-              "prose-ul:text-white/75 prose-ol:text-white/75",
+              "prose-ul:text-neutral-700 prose-ol:text-neutral-700",
               "prose-li:marker:text-emerald-500",
               "[&_iframe]:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video",
             ].join(" ")}
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
 
-          {/* Share */}
-          <div className="mt-12 flex items-center gap-3 border-t border-white/[0.06] pt-8">
-            <span className="text-sm text-white/30">Partager :</span>
+          {/* Share buttons */}
+          <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-8">
+            <span className="text-sm font-medium text-neutral-400">Partager :</span>
             <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`https://pronos.club/${locale}/blog/${post.slug}`)}`}
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 hover:text-white transition"
+              className="rounded-lg bg-neutral-900 px-4 py-2 text-xs font-medium text-white hover:bg-neutral-700 transition"
             >
               𝕏 Twitter
             </a>
             <a
-              href={`https://t.me/share/url?url=${encodeURIComponent(`https://pronos.club/${locale}/blog/${post.slug}`)}&text=${encodeURIComponent(post.title)}`}
+              href={`https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(post.title)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-white/50 hover:bg-white/10 hover:text-white transition"
+              className="rounded-lg bg-[#0088cc] px-4 py-2 text-xs font-medium text-white hover:bg-[#006699] transition"
             >
-              Telegram
+              ✈️ Telegram
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-[#1877F2] px-4 py-2 text-xs font-medium text-white hover:bg-[#0d65d9] transition"
+            >
+              📘 Facebook
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(post.title + " " + articleUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-[#25D366] px-4 py-2 text-xs font-medium text-white hover:bg-[#1da851] transition"
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-[#0A66C2] px-4 py-2 text-xs font-medium text-white hover:bg-[#084e96] transition"
+            >
+              💼 LinkedIn
             </a>
           </div>
 
           {/* CTA */}
-          <div className="mt-12 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center">
-            <p className="text-lg font-bold">Recevez nos pronostics premium</p>
-            <p className="mt-1 text-sm text-white/50">
+          <div className="mt-12 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+            <p className="text-lg font-bold text-neutral-900">Recevez nos pronostics premium</p>
+            <p className="mt-1 text-sm text-neutral-500">
               Plus de 50 pronostics par mois · Historique transparent · Groupe Telegram exclusif
             </p>
             <Link
               href={`/${locale}/abonnement`}
-              className="mt-4 inline-block rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold hover:bg-emerald-500 transition"
+              className="mt-4 inline-block rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition"
             >
               Découvrir Premium — 20€/mois
             </Link>
@@ -265,30 +273,30 @@ export default async function BlogArticlePage({
 
         {/* Related articles */}
         {related.length > 0 && (
-          <section className="border-t border-white/[0.06] bg-white/[0.01]">
+          <section className="border-t border-neutral-200 bg-neutral-50">
             <div className="mx-auto max-w-6xl px-4 py-12">
-              <h2 className="mb-6 text-lg font-bold">Articles similaires</h2>
+              <h2 className="mb-6 text-lg font-bold text-neutral-900">Articles similaires</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {related.map((r: any) => (
                   <Link
                     key={r.id}
                     href={`/${locale}/blog/${r.slug}`}
-                    className="group overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition"
+                    className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition"
                   >
-                    <div className="aspect-video overflow-hidden bg-white/[0.03]">
+                    <div className="aspect-video overflow-hidden bg-neutral-100">
                       {r.cover_image ? (
                         <img src={r.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-3xl text-white/10">
+                        <div className="flex h-full items-center justify-center text-3xl text-neutral-200">
                           {r.blog_categories?.icon || "📄"}
                         </div>
                       )}
                     </div>
                     <div className="p-4">
-                      <h3 className="text-sm font-semibold line-clamp-2 group-hover:text-emerald-400 transition">
+                      <h3 className="text-sm font-semibold text-neutral-900 line-clamp-2 group-hover:text-emerald-600 transition">
                         {r.title}
                       </h3>
-                      <p className="mt-2 text-[10px] text-white/25">{fmt(r.published_at)}</p>
+                      <p className="mt-2 text-[10px] text-neutral-400">{fmt(r.published_at)}</p>
                     </div>
                   </Link>
                 ))}
