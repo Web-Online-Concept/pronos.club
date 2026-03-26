@@ -75,6 +75,7 @@ export default async function Footer() {
                 { href: "/fr/bilans", label: "Bilans" },
                 { href: "/fr/tipster", label: "Tipster" },
                 { href: "/fr/bookmakers", label: "Books" },
+                { href: "/fr/blog", label: "Blog" },
               ].map((link) => (
                 <Link
                   key={link.href}
