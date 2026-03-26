@@ -118,10 +118,10 @@ export default function AdminSocialPage() {
           <div className="mt-3 space-y-3">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Plateforme</label>
-              <select value={newPlatform} onChange={(e) => setNewPlatform(e.target.value)} className={inputClass + " cursor-pointer"}>
-                <option value="">Choisir...</option>
+              <select value={newPlatform} onChange={(e) => setNewPlatform(e.target.value)} className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-2.5 text-sm text-white outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20">
+                <option value="" className="bg-[#1a1a1a] text-white/50">Choisir...</option>
                 {PLATFORMS.map((p) => (
-                  <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
+                  <option key={p.value} value={p.value} className="bg-[#1a1a1a] text-white">{p.icon} {p.label}</option>
                 ))}
               </select>
             </div>
