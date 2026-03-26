@@ -193,24 +193,30 @@ export default async function BlogArticlePage({
 
           {/* Content */}
           <div
-            className={[
-              "mt-10",
-              "prose prose-lg prose-neutral max-w-none",
-              "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-neutral-900",
-              "prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl",
-              "prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl",
-              "prose-p:text-neutral-700 prose-p:leading-relaxed prose-p:mb-6",
-              "prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline",
-              "prose-strong:text-neutral-900",
-              "prose-blockquote:border-l-emerald-500 prose-blockquote:text-neutral-500",
-              "prose-img:rounded-xl prose-img:mx-auto prose-img:my-8",
-              "prose-ul:text-neutral-700 prose-ul:mb-6 prose-ol:text-neutral-700 prose-ol:mb-6",
-              "prose-li:marker:text-emerald-500 prose-li:mb-2",
-              "[&_iframe]:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:my-8",
-              "[&_hr]:my-10 [&_hr]:border-neutral-200",
-            ].join(" ")}
+            className="blog-article-content mt-10"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
+
+          <style dangerouslySetInnerHTML={{ __html: `
+            .blog-article-content { color: #374151; font-size: 1.125rem; line-height: 1.75; }
+            .blog-article-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin-top: 2.5rem; margin-bottom: 1rem; }
+            .blog-article-content h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin-top: 2rem; margin-bottom: 0.75rem; }
+            .blog-article-content h4 { font-size: 1.125rem; font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+            .blog-article-content p { margin-bottom: 1.25rem; line-height: 1.75; color: #374151; }
+            .blog-article-content strong { color: #111827; font-weight: 700; }
+            .blog-article-content em { font-style: italic; }
+            .blog-article-content u { text-decoration: underline; }
+            .blog-article-content a { color: #059669; text-decoration: none; }
+            .blog-article-content a:hover { text-decoration: underline; }
+            .blog-article-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+            .blog-article-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }
+            .blog-article-content li { margin-bottom: 0.25rem; color: #374151; }
+            .blog-article-content blockquote { border-left: 4px solid #10b981; padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1.5rem 0; }
+            .blog-article-content img { border-radius: 12px; max-width: 100%; height: auto; margin: 2rem auto; display: block; }
+            .blog-article-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
+            .blog-article-content iframe { width: 100%; aspect-ratio: 16/9; border-radius: 12px; margin: 2rem 0; border: none; }
+            .blog-article-content br { display: block; content: ""; margin-top: 0.5rem; }
+          `}} />
 
           {/* Share buttons */}
           <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-8">
