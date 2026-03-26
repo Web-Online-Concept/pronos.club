@@ -269,7 +269,7 @@ export default async function BlogArticlePage({
             <div className="mx-auto max-w-6xl px-4 py-12">
               <h2 className="mb-6 text-lg font-bold">Articles similaires</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {related.map((r: { id: string; title: string; slug: string; cover_image: string | null; published_at: string; blog_categories: Category | null }) => (
+                {related.map((r: any) => (
                   <Link
                     key={r.id}
                     href={`/${locale}/blog/${r.slug}`}
