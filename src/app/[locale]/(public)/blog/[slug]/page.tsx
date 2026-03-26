@@ -198,11 +198,11 @@ export default async function BlogArticlePage({
           />
 
           <style dangerouslySetInnerHTML={{ __html: `
-            .blog-article-content { color: #374151; font-size: 1.125rem; line-height: 1.75; }
+            .blog-article-content { color: #374151; font-size: 1.125rem; line-height: 1.5; }
             .blog-article-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin-top: 2.5rem; margin-bottom: 1rem; }
             .blog-article-content h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin-top: 2rem; margin-bottom: 0.75rem; }
             .blog-article-content h4 { font-size: 1.125rem; font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-            .blog-article-content p { margin-bottom: 0.75rem; line-height: 1.7; color: #374151; }
+            .blog-article-content p { margin-bottom: 0.75rem; line-height: 1.5; color: #374151; }
             .blog-article-content strong { color: #111827; font-weight: 700; }
             .blog-article-content em { font-style: italic; }
             .blog-article-content u { text-decoration: underline; }
