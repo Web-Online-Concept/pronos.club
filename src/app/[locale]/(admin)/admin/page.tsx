@@ -38,6 +38,7 @@ export default async function AdminDashboard() {
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
     { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
+    { href: "/admin/avis", label: "Avis clients", icon: "⭐", accent: "#f59e0b", desc: "Modération des avis" },
     { href: "/admin/emails", label: "Emails", icon: "📧", accent: "#10b981", desc: "Emails automatisés" },
     { href: "/admin/paiements", label: "Paiements", icon: "💰", accent: "#10b981", desc: "Suivi Stripe" },
     { href: "/admin/comptabilite", label: "Comptabilité", icon: "📊", accent: "#ef4444", desc: "Revenus & stats" },
