@@ -1,7 +1,27 @@
 import Link from "next/link";
 import Image from "next/image";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export default function Footer() {
+const SOCIAL_ICONS: Record<string, string> = {
+  twitter: "𝕏",
+  telegram: "✈️",
+  instagram: "📸",
+  youtube: "▶️",
+  tiktok: "🎵",
+  discord: "💬",
+  facebook: "📘",
+  threads: "🧵",
+};
+
+export default async function Footer() {
+  const { data: socialLinks } = await supabaseAdmin
+    .from("social_links")
+    .select("platform, url, username")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  const socials = socialLinks ?? [];
+
   return (
     <footer className="border-t border-emerald-900/50 text-neutral-400" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}>
       <div className="mx-auto max-w-6xl px-4 py-12">
@@ -22,6 +42,24 @@ export default function Footer() {
               Pronostics sportifs transparents et vérifiables.
               Chaque pick est publié avec preuve avant le match.
             </p>
+
+            {/* Social icons */}
+            {socials.length > 0 && (
+              <div className="mt-4 flex justify-center gap-2">
+                {socials.map((social) => (
+                  <a
+                    key={social.platform}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-800 text-sm transition hover:bg-emerald-600"
+                    title={social.username}
+                  >
+                    {SOCIAL_ICONS[social.platform] || "🔗"}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
