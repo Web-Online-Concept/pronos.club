@@ -113,7 +113,7 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
       type="button"
       onClick={onClick}
       title={title}
-      className={`rounded-md px-2 py-1.5 text-xs transition ${
+      className={`cursor-pointer rounded-md px-2 py-1.5 text-xs transition ${
         active
           ? "bg-emerald-500/30 text-emerald-300"
           : "text-white/50 hover:bg-white/10 hover:text-white"

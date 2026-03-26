@@ -195,18 +195,19 @@ export default async function BlogArticlePage({
           <div
             className={[
               "mt-10",
-              "prose prose-neutral max-w-none",
+              "prose prose-lg prose-neutral max-w-none",
               "prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-neutral-900",
-              "prose-h2:mt-10 prose-h2:text-2xl",
-              "prose-h3:mt-8 prose-h3:text-xl",
-              "prose-p:text-neutral-700 prose-p:leading-relaxed",
+              "prose-h2:mt-10 prose-h2:mb-4 prose-h2:text-2xl",
+              "prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl",
+              "prose-p:text-neutral-700 prose-p:leading-relaxed prose-p:mb-6",
               "prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline",
               "prose-strong:text-neutral-900",
               "prose-blockquote:border-l-emerald-500 prose-blockquote:text-neutral-500",
-              "prose-img:rounded-xl prose-img:mx-auto",
-              "prose-ul:text-neutral-700 prose-ol:text-neutral-700",
-              "prose-li:marker:text-emerald-500",
-              "[&_iframe]:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video",
+              "prose-img:rounded-xl prose-img:mx-auto prose-img:my-8",
+              "prose-ul:text-neutral-700 prose-ul:mb-6 prose-ol:text-neutral-700 prose-ol:mb-6",
+              "prose-li:marker:text-emerald-500 prose-li:mb-2",
+              "[&_iframe]:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:my-8",
+              "[&_hr]:my-10 [&_hr]:border-neutral-200",
             ].join(" ")}
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
