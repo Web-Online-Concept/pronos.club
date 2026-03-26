@@ -1,32 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth";
+import { NextResponse } from "next/server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function isAdmin(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
-  if (!token) return false;
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-  if (!user) return false;
-  const { data } = await supabaseAdmin
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  return data?.role === "admin";
-}
-
-export async function POST(req: NextRequest) {
-  const adminOk = await isAdmin(req);
-  if (!adminOk) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function POST(request: Request) {
+  try { await requireAdmin(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
-    const formData = await req.formData();
+    const formData = await request.formData();
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
@@ -52,21 +34,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (error) {
-      if (error.message?.includes("not found") || error.message?.includes("Bucket")) {
-        await supabaseAdmin.storage.createBucket("blog-images", {
-          public: true,
-          fileSizeLimit: 5 * 1024 * 1024,
-          allowedMimeTypes: allowed,
-        });
-        const { error: retryError } = await supabaseAdmin.storage
-          .from("blog-images")
-          .upload(filename, buffer, { contentType: file.type, upsert: false });
-        if (retryError) {
-          return NextResponse.json({ error: retryError.message }, { status: 500 });
-        }
-      } else {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     const { data: urlData } = supabaseAdmin.storage

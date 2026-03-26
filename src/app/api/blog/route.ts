@@ -1,29 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function isAdmin(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("sb-access-token")?.value;
-  if (!token) return false;
-  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-  if (!user) return false;
-  const { data } = await supabaseAdmin
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  return data?.role === "admin";
-}
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth";
+import { NextResponse } from "next/server";
 
 // GET — public (published) or admin (all)
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const admin = searchParams.get("admin") === "true";
   const slug = searchParams.get("slug");
   const category = searchParams.get("category");
@@ -42,8 +23,9 @@ export async function GET(req: NextRequest) {
     if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     if (post.status !== "published" && !admin) {
-      const adminOk = await isAdmin(req);
-      if (!adminOk) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      try { await requireAdmin(); } catch {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
     }
 
     // Increment view count (fire and forget)
@@ -64,8 +46,9 @@ export async function GET(req: NextRequest) {
     .select("id, title, slug, excerpt, cover_image, category_id, tags, status, author_name, view_count, published_at, created_at, updated_at, blog_categories(name, slug, color, icon)", { count: "exact" });
 
   if (admin) {
-    const adminOk = await isAdmin(req);
-    if (!adminOk) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    try { await requireAdmin(); } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     query = query.order("updated_at", { ascending: false });
   } else {
     query = query.eq("status", "published").order("published_at", { ascending: false });
@@ -89,11 +72,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST — create new post (admin only)
-export async function POST(req: NextRequest) {
-  const adminOk = await isAdmin(req);
-  if (!adminOk) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function POST(request: Request) {
+  try { await requireAdmin(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const body = await req.json();
+  const body = await request.json();
   const {
     title, slug, excerpt, content, cover_image,
     category_id, tags, status, author_name,
@@ -131,11 +115,12 @@ export async function POST(req: NextRequest) {
 }
 
 // PUT — update post (admin only)
-export async function PUT(req: NextRequest) {
-  const adminOk = await isAdmin(req);
-  if (!adminOk) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function PUT(request: Request) {
+  try { await requireAdmin(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const body = await req.json();
+  const body = await request.json();
   const { id, ...updates } = body;
 
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
@@ -169,11 +154,12 @@ export async function PUT(req: NextRequest) {
 }
 
 // DELETE — delete post (admin only)
-export async function DELETE(req: NextRequest) {
-  const adminOk = await isAdmin(req);
-  if (!adminOk) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(request: Request) {
+  try { await requireAdmin(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const { searchParams } = new URL(req.url);
+  const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
