@@ -84,6 +84,7 @@ export default function Footer() {
                 { href: "/fr/cgv", label: "CGV" },
                 { href: "/fr/confidentialite", label: "Confidentialité" },
                 { href: "/fr/jeu-responsable", label: "Jeu responsable" },
+                { href: "/fr/contact", label: "Contact" },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -93,7 +94,6 @@ export default function Footer() {
                   {link.label}
                 </Link>
               ))}
-              <span className="mt-1 text-xs text-neutral-600">contact@pronos.club</span>
             </div>
           </div>
         </div>

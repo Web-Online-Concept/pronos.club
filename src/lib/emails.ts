@@ -59,6 +59,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   try {
     await transporter.sendMail({
       from: '"PRONOS.CLUB" <noreply@pronos.club>',
+      replyTo: '"PRONOS.CLUB" <contact@pronos.club>',
       to,
       subject,
       html,
