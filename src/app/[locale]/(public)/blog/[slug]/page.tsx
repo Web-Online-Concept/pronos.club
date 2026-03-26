@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface Category {
   name: string;
@@ -28,23 +34,46 @@ interface Post {
 }
 
 async function getPost(slug: string): Promise<Post | null> {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "http://localhost:3000";
-  const res = await fetch(`${base || "http://localhost:3000"}/api/blog?slug=${slug}`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) return null;
-  return res.json();
+  const { data: post } = await supabaseAdmin
+    .from("blog_posts")
+    .select("*, blog_categories(name, slug, color, icon)")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .single();
+
+  if (!post) return null;
+
+  // Increment view count (fire and forget)
+  supabaseAdmin
+    .from("blog_posts")
+    .update({ view_count: (post.view_count || 0) + 1 })
+    .eq("id", post.id)
+    .then(() => {});
+
+  return post;
 }
 
 async function getRelated(categorySlug: string | undefined, currentSlug: string) {
   if (!categorySlug) return [];
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "http://localhost:3000";
-  const res = await fetch(
-    `${base || "http://localhost:3000"}/api/blog?category=${categorySlug}&limit=4`,
-    { next: { revalidate: 60 } }
-  );
-  const data = await res.json();
-  return (data.posts || []).filter((p: Post) => p.slug !== currentSlug).slice(0, 3);
+
+  const { data: cat } = await supabaseAdmin
+    .from("blog_categories")
+    .select("id")
+    .eq("slug", categorySlug)
+    .single();
+
+  if (!cat) return [];
+
+  const { data: posts } = await supabaseAdmin
+    .from("blog_posts")
+    .select("id, title, slug, cover_image, published_at, blog_categories(name, slug, color, icon)")
+    .eq("status", "published")
+    .eq("category_id", cat.id)
+    .neq("slug", currentSlug)
+    .order("published_at", { ascending: false })
+    .limit(3);
+
+  return posts || [];
 }
 
 export async function generateMetadata({

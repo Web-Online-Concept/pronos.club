@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
 
 export const metadata: Metadata = {
   title: "Blog — PRONOS.CLUB",
   description: "Actualités sportives, guides paris sportifs, analyses et previews. Tout le contenu pour devenir un parieur rentable.",
 };
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface Category {
   id: string;
@@ -27,19 +33,32 @@ interface Post {
 }
 
 async function getPosts(category?: string) {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "http://localhost:3000";
-  const url = new URL("/api/blog", base || "http://localhost:3000");
-  url.searchParams.set("limit", "24");
-  if (category) url.searchParams.set("category", category);
+  let query = supabaseAdmin
+    .from("blog_posts")
+    .select("id, title, slug, excerpt, cover_image, category_id, tags, status, author_name, view_count, published_at, created_at, updated_at, blog_categories(name, slug, color, icon)", { count: "exact" })
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .range(0, 23);
 
-  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
-  return res.json();
+  if (category) {
+    const { data: cat } = await supabaseAdmin
+      .from("blog_categories")
+      .select("id")
+      .eq("slug", category)
+      .single();
+    if (cat) query = query.eq("category_id", cat.id);
+  }
+
+  const { data: posts, count } = await query;
+  return { posts: posts || [], total: count || 0 };
 }
 
 async function getCategories(): Promise<Category[]> {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ? "" : "http://localhost:3000";
-  const res = await fetch(`${base || "http://localhost:3000"}/api/blog/categories`, { next: { revalidate: 300 } });
-  return res.json();
+  const { data } = await supabaseAdmin
+    .from("blog_categories")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  return data || [];
 }
 
 export default async function BlogPage({
