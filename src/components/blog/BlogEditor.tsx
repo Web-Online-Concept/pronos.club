@@ -1,7 +1,6 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/extension-bubble-menu/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -222,23 +221,6 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
           e.target.value = "";
         }}
       />
-
-      {/* Bubble menu (on text selection) */}
-      {editor && (
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-[#1a1a2e] px-2 py-1 shadow-xl">
-            <ToolBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-              <strong>B</strong>
-            </ToolBtn>
-            <ToolBtn active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-              <em>I</em>
-            </ToolBtn>
-            <ToolBtn active={editor.isActive("link")} onClick={addLink}>
-              🔗
-            </ToolBtn>
-          </div>
-        </BubbleMenu>
-      )}
 
       {/* Editor content */}
       <EditorContent editor={editor} />
