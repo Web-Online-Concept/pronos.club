@@ -104,7 +104,7 @@ export default function ReseauxPage() {
     <>
       <EspaceHero title="Nos Réseaux" />
 
-      <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
+      <main className="mx-auto flex min-h-[calc(100vh-350px)] max-w-lg flex-col px-4 pb-16 pt-8">
         <p className="text-sm text-neutral-500">
           Suivez-nous sur les réseaux sociaux pour ne rien manquer de l&apos;actualité PRONOS.CLUB.
         </p>
