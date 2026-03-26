@@ -130,7 +130,7 @@ export default async function BlogPage({
 
       {/* Grid */}
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {(posts as Post[]).length === 0 ? (
+        {(posts as any[]).length === 0 ? (
           <div className="flex flex-col items-center py-20 text-center">
             <p className="text-5xl">📰</p>
             <p className="mt-4 text-lg font-medium text-white/40">
@@ -143,49 +143,49 @@ export default async function BlogPage({
         ) : (
           <>
             {/* Featured (first post, larger) */}
-            {!category && (posts as Post[]).length > 0 && (
+            {!category && (posts as any[]).length > 0 && (
               <Link
-                href={`/${locale}/blog/${(posts as Post[])[0].slug}`}
+                href={`/${locale}/blog/${(posts as any[])[0].slug}`}
                 className="group mb-8 block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition"
               >
                 <div className="grid md:grid-cols-2">
                   <div className="aspect-video overflow-hidden bg-white/[0.03]">
-                    {(posts as Post[])[0].cover_image ? (
+                    {(posts as any[])[0].cover_image ? (
                       <img
-                        src={(posts as Post[])[0].cover_image!}
+                        src={(posts as any[])[0].cover_image!}
                         alt=""
                         className="h-full w-full object-cover transition group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-6xl text-white/10">
-                        {(posts as Post[])[0].blog_categories?.icon || "📄"}
+                        {(posts as any[])[0].blog_categories?.icon || "📄"}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col justify-center p-6 md:p-10">
-                    {(posts as Post[])[0].blog_categories && (
+                    {(posts as any[])[0].blog_categories && (
                       <span
                         className="mb-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium"
                         style={{
-                          backgroundColor: `${(posts as Post[])[0].blog_categories!.color}20`,
-                          color: (posts as Post[])[0].blog_categories!.color,
+                          backgroundColor: `${(posts as any[])[0].blog_categories!.color}20`,
+                          color: (posts as any[])[0].blog_categories!.color,
                         }}
                       >
-                        {(posts as Post[])[0].blog_categories!.icon}{" "}
-                        {(posts as Post[])[0].blog_categories!.name}
+                        {(posts as any[])[0].blog_categories!.icon}{" "}
+                        {(posts as any[])[0].blog_categories!.name}
                       </span>
                     )}
                     <h2 className="text-2xl font-bold leading-tight group-hover:text-emerald-400 transition">
-                      {(posts as Post[])[0].title}
+                      {(posts as any[])[0].title}
                     </h2>
-                    {(posts as Post[])[0].excerpt && (
+                    {(posts as any[])[0].excerpt && (
                       <p className="mt-3 text-sm text-white/50 line-clamp-3">
-                        {(posts as Post[])[0].excerpt}
+                        {(posts as any[])[0].excerpt}
                       </p>
                     )}
                     <p className="mt-4 text-xs text-white/30">
-                      {fmt((posts as Post[])[0].published_at)}
-                      {" · "}{(posts as Post[])[0].view_count} vue{(posts as Post[])[0].view_count > 1 ? "s" : ""}
+                      {fmt((posts as any[])[0].published_at)}
+                      {" · "}{(posts as any[])[0].view_count} vue{(posts as any[])[0].view_count > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
@@ -194,9 +194,9 @@ export default async function BlogPage({
 
             {/* Rest of posts in grid */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {(posts as Post[])
+              {(posts as any[])
                 .slice(!category ? 1 : 0)
-                .map((post: Post) => (
+                .map((post: any) => (
                   <Link
                     key={post.id}
                     href={`/${locale}/blog/${post.slug}`}
