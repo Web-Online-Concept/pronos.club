@@ -49,32 +49,39 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
 
         {/* Preview */}
         {(tab === "preview" || tab === "split") && (
-          <div className="min-h-[500px] overflow-auto bg-white px-6 py-6">
+          <div
+            className="min-h-[500px] overflow-auto bg-white px-6 py-6"
+            style={{ color: "#374151" }}
+          >
             {content ? (
               <div
-                className={[
-                  "prose prose-lg prose-neutral max-w-none",
-                  "prose-headings:font-bold prose-headings:text-neutral-900",
-                  "prose-h2:mt-8 prose-h2:mb-4 prose-h2:text-2xl",
-                  "prose-h3:mt-6 prose-h3:mb-3 prose-h3:text-xl",
-                  "prose-p:text-neutral-700 prose-p:leading-relaxed prose-p:mb-5",
-                  "prose-a:text-emerald-600",
-                  "prose-strong:text-neutral-900",
-                  "prose-blockquote:border-l-emerald-500 prose-blockquote:text-neutral-500",
-                  "prose-img:rounded-xl prose-img:mx-auto prose-img:my-6",
-                  "prose-ul:mb-5 prose-ol:mb-5",
-                  "prose-li:mb-1 prose-li:marker:text-emerald-500",
-                  "[&_iframe]:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:my-6",
-                  "[&_hr]:my-8 [&_hr]:border-neutral-200",
-                ].join(" ")}
+                className="blog-preview-styles"
+                style={{ color: "#374151" }}
                 dangerouslySetInnerHTML={{ __html: content }}
               />
             ) : (
-              <p className="text-sm text-neutral-300 italic">L&apos;aperçu apparaîtra ici...</p>
+              <p style={{ color: "#9ca3af", fontStyle: "italic" }}>L&apos;aperçu apparaîtra ici...</p>
             )}
           </div>
         )}
       </div>
+
+      {/* Style for preview content */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .blog-preview-styles h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin-top: 2rem; margin-bottom: 1rem; }
+        .blog-preview-styles h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .blog-preview-styles p { margin-bottom: 1.25rem; line-height: 1.75; color: #374151; }
+        .blog-preview-styles strong { color: #111827; font-weight: 700; }
+        .blog-preview-styles a { color: #059669; }
+        .blog-preview-styles ul, .blog-preview-styles ol { margin-bottom: 1.25rem; padding-left: 1.5rem; }
+        .blog-preview-styles ul { list-style-type: disc; }
+        .blog-preview-styles ol { list-style-type: decimal; }
+        .blog-preview-styles li { margin-bottom: 0.25rem; color: #374151; }
+        .blog-preview-styles blockquote { border-left: 4px solid #10b981; padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1.5rem 0; }
+        .blog-preview-styles img { border-radius: 12px; max-width: 100%; margin: 1.5rem auto; display: block; }
+        .blog-preview-styles hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+        .blog-preview-styles iframe { width: 100%; aspect-ratio: 16/9; border-radius: 12px; margin: 1.5rem 0; }
+      `}} />
     </div>
   );
 }
