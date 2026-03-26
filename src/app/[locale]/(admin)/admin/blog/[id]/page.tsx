@@ -25,7 +25,6 @@ export default function AdminBlogEditorPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showSeo, setShowSeo] = useState(false);
 
-  // Form state
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugManual, setSlugManual] = useState(false);
@@ -55,7 +54,6 @@ export default function AdminBlogEditorPage() {
     }
   }, [title, slugManual]);
 
-  // Load categories
   useEffect(() => {
     fetch("/api/blog/categories").then(r => r.json()).then(setCategories).catch(() => {});
   }, []);
@@ -73,7 +71,6 @@ export default function AdminBlogEditorPage() {
           router.push(`/${locale}/admin/blog`);
           return;
         }
-        // Fetch full content
         const fullRes = await fetch(`/api/blog?slug=${post.slug}&admin=true`);
         const fullPost = await fullRes.json();
 
@@ -103,13 +100,16 @@ export default function AdminBlogEditorPage() {
     try {
       const res = await fetch("/api/blog/upload", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.url) setCoverImage(data.url);
-    } catch {
-      alert("Erreur upload image");
+      if (data.url) {
+        setCoverImage(data.url);
+      } else {
+        alert("Erreur upload : " + (data.error || "réponse invalide"));
+      }
+    } catch (err) {
+      alert("Erreur upload image : " + String(err));
     }
   }, []);
 
-  // Save
   const handleSave = async (publishNow?: boolean) => {
     if (!title.trim()) { alert("Le titre est obligatoire"); return; }
     if (!slug.trim()) { alert("Le slug est obligatoire"); return; }
@@ -168,7 +168,7 @@ export default function AdminBlogEditorPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <button
             onClick={() => router.push(`/${locale}/admin/blog`)}
-            className="text-sm text-white/40 hover:text-white transition"
+            className="cursor-pointer text-sm text-white/40 hover:text-white transition"
           >
             ← Retour au blog
           </button>
@@ -183,7 +183,7 @@ export default function AdminBlogEditorPage() {
             <button
               onClick={() => handleSave()}
               disabled={saving}
-              className="rounded-lg bg-white/10 px-4 py-1.5 text-sm font-medium hover:bg-white/20 transition disabled:opacity-50"
+              className="cursor-pointer rounded-lg bg-white/10 px-4 py-1.5 text-sm font-medium hover:bg-white/20 transition disabled:opacity-50"
             >
               {saving ? "..." : "Sauvegarder"}
             </button>
@@ -191,7 +191,7 @@ export default function AdminBlogEditorPage() {
               <button
                 onClick={() => handleSave(true)}
                 disabled={saving}
-                className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold hover:bg-emerald-500 transition disabled:opacity-50"
+                className="cursor-pointer rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold hover:bg-emerald-500 transition disabled:opacity-50"
               >
                 {saving ? "..." : "Publier"}
               </button>
@@ -200,7 +200,7 @@ export default function AdminBlogEditorPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-8">
         {/* Cover image */}
         <div className="mb-6">
           {coverImage ? (
@@ -209,13 +209,13 @@ export default function AdminBlogEditorPage() {
               <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/60 opacity-0 group-hover:opacity-100 transition">
                 <button
                   onClick={() => coverInputRef.current?.click()}
-                  className="rounded-lg bg-white/20 px-4 py-2 text-sm font-medium hover:bg-white/30 transition"
+                  className="cursor-pointer rounded-lg bg-white/20 px-4 py-2 text-sm font-medium hover:bg-white/30 transition"
                 >
                   Changer
                 </button>
                 <button
                   onClick={() => setCoverImage("")}
-                  className="rounded-lg bg-red-500/30 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/40 transition"
+                  className="cursor-pointer rounded-lg bg-red-500/30 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/40 transition"
                 >
                   Supprimer
                 </button>
@@ -224,7 +224,7 @@ export default function AdminBlogEditorPage() {
           ) : (
             <button
               onClick={() => coverInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-sm text-white/30 hover:border-emerald-500/30 hover:text-white/50 transition"
+              className="cursor-pointer flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] px-6 py-12 text-sm text-white/30 hover:border-emerald-500/30 hover:text-white/50 transition"
             >
               📷 Ajouter une image de couverture
             </button>
@@ -316,7 +316,7 @@ export default function AdminBlogEditorPage() {
         <div className="mt-8">
           <button
             onClick={() => setShowSeo(!showSeo)}
-            className="flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition"
+            className="cursor-pointer flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition"
           >
             <span>{showSeo ? "▼" : "▶"}</span>
             <span>Options SEO</span>
@@ -349,8 +349,6 @@ export default function AdminBlogEditorPage() {
                 />
                 <p className="mt-1 text-[10px] text-white/20">{(metaDescription || excerpt || "").length}/160 caractères</p>
               </div>
-
-              {/* Google preview */}
               <div className="rounded-lg bg-white p-4">
                 <p className="text-sm text-blue-800 hover:underline cursor-pointer">
                   {metaTitle || title || "Titre de l'article"} — PRONOS.CLUB
