@@ -75,7 +75,7 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {posts.slice(!category ? 1 : 0).map((post: any) => (
                 <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition">
-                  <div className="aspect-video overflow-hidden bg-neutral-100">
+                  <div className="aspect-[2.5/1] overflow-hidden bg-neutral-100">
                     {post.cover_image ? <img src={post.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-4xl text-neutral-200">{post.blog_categories?.icon || "📄"}</div>}
                   </div>
                   <div className="p-4">
