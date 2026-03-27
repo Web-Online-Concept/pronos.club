@@ -240,7 +240,7 @@ export default async function BlogArticlePage({
               margin-bottom: 0.5rem;
             }
             .blog-article-content p {
-              margin-bottom: 0.75rem;
+              margin-bottom: 1.125rem;
               line-height: 1.7;
               color: #374151;
             }
