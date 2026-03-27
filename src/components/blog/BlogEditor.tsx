@@ -117,7 +117,7 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           color: #374151;
           font-size: 1rem;
-          line-height: 1.7;
+          line-height: 1.5;
         }
         .blog-quill-wrapper .ql-editor.ql-blank::before {
           color: #9ca3af;
