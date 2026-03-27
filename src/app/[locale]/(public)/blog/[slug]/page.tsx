@@ -138,7 +138,7 @@ export default async function BlogArticlePage({
           </div>
         )}
 
-        <article className="mx-auto max-w-3xl px-4 pt-10 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <article className="mx-auto max-w-4xl px-4 pt-10 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
           {/* Breadcrumb */}
           <div className="mb-8 flex items-center gap-2 text-xs" style={{ color: "#9ca3af" }}>
             <Link href={`/${locale}/blog`} className="hover:text-neutral-600 transition">
