@@ -1,0 +1,135 @@
+/* ==============================================
+   PRONOS.CLUB — Blog Article Styles
+   Used by: BlogEditor preview + public article page
+   SINGLE SOURCE OF TRUTH — edit here, both update
+   ============================================== */
+
+.blog-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #374151;
+  font-size: 1rem;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.blog-content h2 {
+  font-family: 'Merriweather', Georgia, serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.blog-content h3 {
+  font-family: 'Merriweather', Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.blog-content h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.blog-content p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+  color: #374151;
+}
+
+.blog-content strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.blog-content em {
+  font-style: italic;
+}
+
+.blog-content u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.blog-content a {
+  color: #059669;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.blog-content a:hover {
+  color: #047857;
+}
+
+.blog-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.blog-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.blog-content li {
+  margin-bottom: 0.25rem;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.blog-content blockquote {
+  border-left: 3px solid #10b981;
+  padding: 0.75rem 1.25rem;
+  margin: 1.5rem 0;
+  background: #f9fafb;
+  border-radius: 0 8px 8px 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.blog-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 1.5rem auto;
+  display: block;
+}
+
+.blog-content hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 2rem 0;
+}
+
+.blog-content iframe {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 10px;
+  margin: 1.5rem 0;
+  border: none;
+}
+
+/* Quill alignment classes */
+.blog-content .ql-align-center {
+  text-align: center;
+}
+
+.blog-content .ql-align-right {
+  text-align: right;
+}
+
+.blog-content .ql-align-justify {
+  text-align: justify;
+}
