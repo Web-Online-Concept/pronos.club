@@ -57,17 +57,32 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
           </div>
         ) : (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {posts.map((post: any) => (
-                <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition">
-                  <div className="h-36 overflow-hidden bg-neutral-100">
-                    {post.cover_image ? <img src={post.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-3xl text-neutral-200">{post.blog_categories?.icon || "📄"}</div>}
+            {!category && posts.length > 0 && (
+              <Link href={`/${locale}/blog/${posts[0].slug}`} className="group mb-10 block overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition">
+                <div className="grid md:grid-cols-2">
+                  <div className="aspect-video overflow-hidden bg-neutral-100">
+                    {posts[0].cover_image ? <img src={posts[0].cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-6xl text-neutral-200">{posts[0].blog_categories?.icon || "📄"}</div>}
                   </div>
-                  <div className="p-3">
-                    {post.blog_categories && <span className="mb-1.5 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: post.blog_categories.color }}>{post.blog_categories.icon} {post.blog_categories.name}</span>}
+                  <div className="flex flex-col justify-center p-6 md:p-10">
+                    {posts[0].blog_categories && <span className="mb-3 inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: posts[0].blog_categories.color }}>{posts[0].blog_categories.icon} {posts[0].blog_categories.name}</span>}
+                    <h2 className="text-2xl font-bold leading-tight group-hover:text-emerald-600 transition">{posts[0].title}</h2>
+                    {posts[0].excerpt && <p className="mt-3 text-sm text-neutral-500 line-clamp-3">{posts[0].excerpt}</p>}
+                    <p className="mt-4 text-xs text-neutral-400">{fmt(posts[0].published_at)} · {posts[0].view_count} vues</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {posts.slice(!category ? 1 : 0).map((post: any) => (
+                <Link key={post.id} href={`/${locale}/blog/${post.slug}`} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition">
+                  <div className="aspect-[2.5/1] overflow-hidden bg-neutral-100">
+                    {post.cover_image ? <img src={post.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-4xl text-neutral-200">{post.blog_categories?.icon || "📄"}</div>}
+                  </div>
+                  <div className="p-4">
+                    {post.blog_categories && <span className="mb-2 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: post.blog_categories.color }}>{post.blog_categories.icon} {post.blog_categories.name}</span>}
                     <h3 className="text-sm font-semibold leading-snug group-hover:text-emerald-600 transition line-clamp-2">{post.title}</h3>
-                    {post.excerpt && <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2">{post.excerpt}</p>}
-                    <p className="mt-2 text-[10px] text-neutral-400">{fmt(post.published_at)} · {post.view_count} vues</p>
+                    {post.excerpt && <p className="mt-2 text-xs text-neutral-500 line-clamp-2">{post.excerpt}</p>}
+                    <p className="mt-3 text-[10px] text-neutral-400">{fmt(post.published_at)} · {post.view_count} vues</p>
                   </div>
                 </Link>
               ))}
