@@ -211,7 +211,8 @@ export default async function BlogArticlePage({
               color: #374151;
               font-size: 1rem;
               line-height: 1.7;
-              overflow-wrap: anywhere;
+              overflow-wrap: break-word;
+              word-break: normal;
             }
             .blog-article-content h2 {
               font-family: 'Merriweather', Georgia, serif;
