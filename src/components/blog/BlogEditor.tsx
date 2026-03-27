@@ -109,11 +109,15 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
           overflow-y: auto;
         }
 
-        /* Editor area — white background, uses shared blog-content styles */
+        /* Editor area — white background, inherits blog-content styles */
         .blog-quill-wrapper .ql-editor {
           background: #ffffff;
           padding: 2rem;
           min-height: 400px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          color: #374151;
+          font-size: 1rem;
+          line-height: 1.7;
         }
         .blog-quill-wrapper .ql-editor.ql-blank::before {
           color: #9ca3af;
