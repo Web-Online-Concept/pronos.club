@@ -96,12 +96,16 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
           background: #1a1a2e;
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 12px 12px 0 0;
+          position: sticky;
+          top: 52px;
+          z-index: 40;
         }
         .blog-quill-editor .ql-container.ql-snow {
           border: 1px solid rgba(255,255,255,0.08);
           border-top: none;
           border-radius: 0 0 12px 12px;
-          min-height: 500px;
+          max-height: 600px;
+          overflow-y: auto;
         }
 
         /* Editor area - WHITE background like the public page */
