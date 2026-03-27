@@ -25,7 +25,6 @@ async function getPost(slug: string) {
 
   if (!post) return null;
 
-  // Increment view count (fire and forget)
   supabaseAdmin
     .from("blog_posts")
     .update({ view_count: (post.view_count || 0) + 1 })
@@ -112,42 +111,36 @@ export default async function BlogArticlePage({
     description: post.excerpt || "",
     image: post.cover_image || undefined,
     datePublished: post.published_at,
-    author: {
-      "@type": "Organization",
-      name: post.author_name || "PRONOS.CLUB",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "PRONOS.CLUB",
-      url: "https://pronos.club",
-    },
+    author: { "@type": "Organization", name: post.author_name || "PRONOS.CLUB" },
+    publisher: { "@type": "Organization", name: "PRONOS.CLUB", url: "https://pronos.club" },
   };
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <main className="min-h-screen bg-white text-neutral-900">
-        {/* Cover image */}
+      {/* Google Fonts for editorial look */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+      <main className="min-h-screen bg-white">
+        {/* Cover image - full width */}
         {post.cover_image && (
-          <div className="relative mx-auto max-w-5xl px-4 pt-8">
+          <div className="mx-auto max-w-4xl px-4 pt-8">
             <div className="overflow-hidden rounded-2xl">
               <img
                 src={post.cover_image}
                 alt={post.title}
-                className="w-full max-h-[480px] object-cover"
+                className="w-full max-h-[420px] object-cover"
               />
             </div>
           </div>
         )}
 
-        {/* Article header */}
-        <article className="mx-auto max-w-3xl px-4 pt-10 pb-16">
+        <article className="mx-auto max-w-2xl px-4 pt-10 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
           {/* Breadcrumb */}
-          <div className="mb-6 flex items-center gap-2 text-xs text-neutral-400">
+          <div className="mb-8 flex items-center gap-2 text-xs" style={{ color: "#9ca3af" }}>
             <Link href={`/${locale}/blog`} className="hover:text-neutral-600 transition">
               Blog
             </Link>
@@ -156,7 +149,7 @@ export default async function BlogArticlePage({
                 <span>›</span>
                 <Link
                   href={`/${locale}/blog?category=${post.blog_categories.slug}`}
-                  className="hover:text-neutral-600 transition"
+                  className="font-medium hover:opacity-80 transition"
                   style={{ color: post.blog_categories.color }}
                 >
                   {post.blog_categories.icon} {post.blog_categories.name}
@@ -165,25 +158,45 @@ export default async function BlogArticlePage({
             )}
           </div>
 
-          <h1 className="text-3xl font-black leading-tight tracking-tight text-neutral-900 sm:text-4xl lg:text-5xl">
+          {/* Title */}
+          <h1 style={{
+            fontFamily: "'Merriweather', Georgia, serif",
+            fontSize: "2rem",
+            fontWeight: 900,
+            lineHeight: 1.3,
+            color: "#111827",
+            letterSpacing: "-0.02em",
+            marginBottom: "1rem",
+          }}>
             {post.title}
           </h1>
 
-          <div className="mt-4 flex items-center gap-4 text-sm text-neutral-400">
-            <span>{fmt(post.published_at)}</span>
-            <span>·</span>
-            <span>{post.view_count} vue{post.view_count > 1 ? "s" : ""}</span>
-            <span>·</span>
-            <span>Par {post.author_name}</span>
+          {/* Author line */}
+          <div className="flex items-center gap-3 pb-8 mb-8" style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "#059669", color: "white", fontWeight: 700, fontSize: "0.875rem" }}>
+              PC
+            </div>
+            <div>
+              <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827" }}>{post.author_name || "PRONOS.CLUB"}</p>
+              <p style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                {fmt(post.published_at)} · {post.view_count} vue{post.view_count > 1 ? "s" : ""}
+              </p>
+            </div>
           </div>
 
           {/* Tags */}
           {post.tags && post.tags.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-8">
               {post.tags.map((tag: string) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500"
+                  style={{
+                    background: "#f3f4f6",
+                    color: "#6b7280",
+                    fontSize: "0.75rem",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "9999px",
+                  }}
                 >
                   #{tag}
                 </span>
@@ -192,86 +205,164 @@ export default async function BlogArticlePage({
           )}
 
           {/* Content */}
-          <div
-            className="blog-article-content mt-10"
-            dangerouslySetInnerHTML={{ __html: post.content }}
-          />
+          <div className="blog-article-content" dangerouslySetInnerHTML={{ __html: post.content }} />
 
           <style dangerouslySetInnerHTML={{ __html: `
-            .blog-article-content { color: #374151; font-size: 1.125rem; line-height: 1.5; }
-            .blog-article-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin-top: 2.5rem; margin-bottom: 1rem; }
-            .blog-article-content h3 { font-size: 1.25rem; font-weight: 700; color: #111827; margin-top: 2rem; margin-bottom: 0.75rem; }
-            .blog-article-content h4 { font-size: 1.125rem; font-weight: 700; color: #111827; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-            .blog-article-content p { margin-bottom: 1.25rem; line-height: 1.5; color: #374151; }
-            .blog-article-content strong { color: #111827; font-weight: 700; }
+            .blog-article-content {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              color: #374151;
+              font-size: 1rem;
+              line-height: 1.7;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
+            .blog-article-content h2 {
+              font-family: 'Merriweather', Georgia, serif;
+              font-size: 1.375rem;
+              font-weight: 700;
+              color: #111827;
+              margin-top: 2.5rem;
+              margin-bottom: 0.75rem;
+              line-height: 1.3;
+            }
+            .blog-article-content h3 {
+              font-family: 'Merriweather', Georgia, serif;
+              font-size: 1.125rem;
+              font-weight: 700;
+              color: #111827;
+              margin-top: 2rem;
+              margin-bottom: 0.5rem;
+              line-height: 1.4;
+            }
+            .blog-article-content h4 {
+              font-size: 1rem;
+              font-weight: 600;
+              color: #111827;
+              margin-top: 1.5rem;
+              margin-bottom: 0.5rem;
+            }
+            .blog-article-content p {
+              margin-bottom: 1.125rem;
+              line-height: 1.7;
+              color: #374151;
+            }
+            .blog-article-content strong { color: #111827; font-weight: 600; }
             .blog-article-content em { font-style: italic; }
-            .blog-article-content u { text-decoration: underline; }
-            .blog-article-content a { color: #059669; text-decoration: none; }
-            .blog-article-content a:hover { text-decoration: underline; }
-            .blog-article-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1.25rem; }
-            .blog-article-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1.25rem; }
-            .blog-article-content li { margin-bottom: 0.25rem; color: #374151; }
-            .blog-article-content blockquote { border-left: 4px solid #10b981; padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1.5rem 0; }
-            .blog-article-content img { border-radius: 12px; max-width: 100%; height: auto; margin: 2rem auto; display: block; }
-            .blog-article-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 2.5rem 0; }
-            .blog-article-content iframe { width: 100%; aspect-ratio: 16/9; border-radius: 12px; margin: 2rem 0; border: none; }
-            .blog-article-content br { display: block; content: ""; margin-top: 0.5rem; }
+            .blog-article-content u { text-decoration: underline; text-underline-offset: 2px; }
+            .blog-article-content a { color: #059669; text-decoration: underline; text-underline-offset: 2px; }
+            .blog-article-content a:hover { color: #047857; }
+            .blog-article-content ul {
+              list-style-type: disc;
+              padding-left: 1.5rem;
+              margin-bottom: 1.125rem;
+            }
+            .blog-article-content ol {
+              list-style-type: decimal;
+              padding-left: 1.5rem;
+              margin-bottom: 1.125rem;
+            }
+            .blog-article-content li {
+              margin-bottom: 0.375rem;
+              color: #374151;
+              line-height: 1.6;
+            }
+            .blog-article-content blockquote {
+              border-left: 3px solid #10b981;
+              padding: 0.75rem 1.25rem;
+              margin: 1.5rem 0;
+              background: #f9fafb;
+              border-radius: 0 8px 8px 0;
+              color: #6b7280;
+              font-style: italic;
+            }
+            .blog-article-content img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 10px;
+              margin: 1.75rem auto;
+              display: block;
+            }
+            .blog-article-content hr {
+              border: none;
+              border-top: 1px solid #e5e7eb;
+              margin: 2.5rem 0;
+            }
+            .blog-article-content iframe {
+              width: 100%;
+              aspect-ratio: 16/9;
+              border-radius: 10px;
+              margin: 1.75rem 0;
+              border: none;
+            }
+
+            /* Quill specific: remove extra spacing from empty paragraphs */
+            .blog-article-content p br { display: block; content: ""; margin-top: 0; }
+            .blog-article-content .ql-align-center { text-align: center; }
+            .blog-article-content .ql-align-right { text-align: right; }
+            .blog-article-content .ql-align-justify { text-align: justify; }
           `}} />
 
           {/* Share buttons */}
-          <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-8">
-            <span className="text-sm font-medium text-neutral-400">Partager :</span>
-            <a
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-neutral-900 px-4 py-2 text-xs font-medium text-white hover:bg-neutral-700 transition"
-            >
-              𝕏 Twitter
-            </a>
-            <a
-              href={`https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(post.title)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-[#0088cc] px-4 py-2 text-xs font-medium text-white hover:bg-[#006699] transition"
-            >
-              ✈️ Telegram
-            </a>
-            <a
-              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-[#1877F2] px-4 py-2 text-xs font-medium text-white hover:bg-[#0d65d9] transition"
-            >
-              📘 Facebook
-            </a>
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(post.title + " " + articleUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-[#25D366] px-4 py-2 text-xs font-medium text-white hover:bg-[#1da851] transition"
-            >
-              💬 WhatsApp
-            </a>
-            <a
-              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-[#0A66C2] px-4 py-2 text-xs font-medium text-white hover:bg-[#084e96] transition"
-            >
-              💼 LinkedIn
-            </a>
+          <div className="mt-12 pt-8 flex flex-wrap items-center gap-3" style={{ borderTop: "1px solid #e5e7eb" }}>
+            <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#9ca3af" }}>Partager :</span>
+            {[
+              { label: "𝕏", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`, bg: "#0f1419" },
+              { label: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(post.title)}`, bg: "#0088cc" },
+              { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`, bg: "#1877F2" },
+              { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(post.title + " " + articleUrl)}`, bg: "#25D366" },
+              { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`, bg: "#0A66C2" },
+            ].map((s) => (
+              <a
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: s.bg,
+                  color: "white",
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                  padding: "0.5rem 1rem",
+                  borderRadius: "8px",
+                  textDecoration: "none",
+                  transition: "opacity 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
+                onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+              >
+                {s.label}
+              </a>
+            ))}
           </div>
 
           {/* CTA */}
-          <div className="mt-12 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
-            <p className="text-lg font-bold text-neutral-900">Recevez nos pronostics premium</p>
-            <p className="mt-1 text-sm text-neutral-500">
+          <div style={{
+            marginTop: "3rem",
+            padding: "2rem",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            borderRadius: "16px",
+            textAlign: "center",
+          }}>
+            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0 }}>
+              Recevez nos pronostics premium
+            </p>
+            <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.5rem" }}>
               Plus de 50 pronostics par mois · Historique transparent · Groupe Telegram exclusif
             </p>
             <Link
               href={`/${locale}/abonnement`}
-              className="mt-4 inline-block rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 transition"
+              style={{
+                display: "inline-block",
+                marginTop: "1rem",
+                background: "#059669",
+                color: "white",
+                padding: "0.75rem 2rem",
+                borderRadius: "12px",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
             >
               Découvrir Premium — 20€/mois
             </Link>
@@ -280,30 +371,33 @@ export default async function BlogArticlePage({
 
         {/* Related articles */}
         {related.length > 0 && (
-          <section className="border-t border-neutral-200 bg-neutral-50">
-            <div className="mx-auto max-w-6xl px-4 py-12">
-              <h2 className="mb-6 text-lg font-bold text-neutral-900">Articles similaires</h2>
+          <section style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+            <div className="mx-auto max-w-4xl px-4 py-12">
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", marginBottom: "1.5rem" }}>
+                Articles similaires
+              </h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {related.map((r: any) => (
                   <Link
                     key={r.id}
                     href={`/${locale}/blog/${r.slug}`}
-                    className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition"
+                    className="group overflow-hidden rounded-xl bg-white transition"
+                    style={{ border: "1px solid #e5e7eb" }}
                   >
-                    <div className="aspect-video overflow-hidden bg-neutral-100">
+                    <div className="aspect-video overflow-hidden" style={{ background: "#f3f4f6" }}>
                       {r.cover_image ? (
                         <img src={r.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-3xl text-neutral-200">
+                        <div className="flex h-full items-center justify-center text-3xl" style={{ color: "#d1d5db" }}>
                           {r.blog_categories?.icon || "📄"}
                         </div>
                       )}
                     </div>
-                    <div className="p-4">
-                      <h3 className="text-sm font-semibold text-neutral-900 line-clamp-2 group-hover:text-emerald-600 transition">
+                    <div style={{ padding: "1rem" }}>
+                      <h3 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827", lineHeight: 1.4 }} className="line-clamp-2 group-hover:text-emerald-600 transition">
                         {r.title}
                       </h3>
-                      <p className="mt-2 text-[10px] text-neutral-400">{fmt(r.published_at)}</p>
+                      <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "#9ca3af" }}>{fmt(r.published_at)}</p>
                     </div>
                   </Link>
                 ))}
