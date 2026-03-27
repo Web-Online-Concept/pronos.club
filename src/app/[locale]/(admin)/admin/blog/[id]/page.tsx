@@ -38,7 +38,6 @@ export default function AdminBlogEditorPage() {
   const [metaDescription, setMetaDescription] = useState("");
   const [postId, setPostId] = useState<string | null>(null);
 
-  // Auto-generate slug from title
   useEffect(() => {
     if (!slugManual && title) {
       const generated = title
@@ -58,7 +57,6 @@ export default function AdminBlogEditorPage() {
     fetch("/api/blog/categories").then(r => r.json()).then(setCategories).catch(() => {});
   }, []);
 
-  // Load existing post
   useEffect(() => {
     if (isNew) return;
     (async () => {
@@ -93,7 +91,6 @@ export default function AdminBlogEditorPage() {
     })();
   }, [id, isNew, locale, router]);
 
-  // Upload cover image
   const handleCoverUpload = useCallback(async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -146,6 +143,7 @@ export default function AdminBlogEditorPage() {
         if (isNew) {
           router.replace(`/${locale}/admin/blog/${data.id}`);
         }
+        alert("Article sauvegardé !");
       }
     } catch {
       alert("Erreur sauvegarde");
@@ -200,7 +198,7 @@ export default function AdminBlogEditorPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-8">
         {/* Cover image */}
         <div className="mb-6">
           {coverImage ? (
@@ -350,15 +348,9 @@ export default function AdminBlogEditorPage() {
                 <p className="mt-1 text-[10px] text-white/20">{(metaDescription || excerpt || "").length}/160 caractères</p>
               </div>
               <div className="rounded-lg bg-white p-4">
-                <p className="text-sm text-blue-800 hover:underline cursor-pointer">
-                  {metaTitle || title || "Titre de l'article"} — PRONOS.CLUB
-                </p>
-                <p className="text-xs text-green-700">
-                  pronos.club/blog/{slug || "mon-article"}
-                </p>
-                <p className="mt-1 text-xs text-gray-600 line-clamp-2">
-                  {metaDescription || excerpt || "Description de l'article..."}
-                </p>
+                <p className="text-sm text-blue-800">{metaTitle || title || "Titre de l'article"} — PRONOS.CLUB</p>
+                <p className="text-xs text-green-700">pronos.club/blog/{slug || "mon-article"}</p>
+                <p className="mt-1 text-xs text-gray-600 line-clamp-2">{metaDescription || excerpt || "Description de l'article..."}</p>
               </div>
             </div>
           )}
