@@ -173,9 +173,7 @@ export default async function BlogArticlePage({
 
           {/* Author line */}
           <div className="flex items-center gap-3 pb-8 mb-8" style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "#059669", color: "white", fontWeight: 700, fontSize: "0.875rem" }}>
-              PC
-            </div>
+            <img src="/pronos_club.png" alt="PRONOS.CLUB" className="h-10 w-10 rounded-full object-contain" />
             <div>
               <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827" }}>{post.author_name || "PRONOS.CLUB"}</p>
               <p style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
