@@ -102,20 +102,20 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
             </div>
           </div>
 
+          {/* CONTENT — uses the SAME .blog-content class as the editor */}
+          <div className="blog-content" dangerouslySetInnerHTML={{ __html: post.content }} />
+
           {/* Tags */}
           {post.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-8">
+            <div className="flex flex-wrap gap-2 mt-12 pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
               {post.tags.map((tag: string) => (
                 <span key={tag} style={{ background: "#f3f4f6", color: "#6b7280", fontSize: "0.75rem", padding: "0.25rem 0.75rem", borderRadius: "9999px" }}>#{tag}</span>
               ))}
             </div>
           )}
 
-          {/* CONTENT — uses the SAME .blog-content class as the editor */}
-          <div className="blog-content" dangerouslySetInnerHTML={{ __html: post.content }} />
-
           {/* Share */}
-          <div className="mt-12 pt-8 flex flex-wrap items-center gap-3" style={{ borderTop: "1px solid #e5e7eb" }}>
+          <div className={`${post.tags?.length > 0 ? "mt-6" : "mt-12 pt-8"} flex flex-wrap items-center gap-3`} style={post.tags?.length > 0 ? undefined : { borderTop: "1px solid #e5e7eb" }}>
             <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#9ca3af" }}>Partager :</span>
             {[
               { label: "𝕏", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`, bg: "#0f1419" },
