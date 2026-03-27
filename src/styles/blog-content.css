@@ -133,3 +133,10 @@
 .blog-content .ql-align-justify {
   text-align: justify;
 }
+
+/* Empty paragraphs (line breaks) must take space */
+.blog-content p:empty,
+.blog-content p br:only-child {
+  display: block;
+  min-height: 1.5em;
+}
