@@ -61,6 +61,21 @@ export default function BlogEditor({ content, onChange }: BlogEditorProps) {
         image: imageHandler,
       },
     },
+    keyboard: {
+      bindings: {
+        enter: {
+          key: "Enter",
+          handler: function(this: any) {
+            const range = this.quill.getSelection();
+            if (range) {
+              this.quill.insertText(range.index, "\n");
+              this.quill.setSelection(range.index + 1);
+            }
+            return false;
+          },
+        },
+      },
+    },
     clipboard: {
       matchVisual: true,
     },
