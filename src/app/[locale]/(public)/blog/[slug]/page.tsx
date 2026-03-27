@@ -327,8 +327,6 @@ export default async function BlogArticlePage({
                   textDecoration: "none",
                   transition: "opacity 0.2s",
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
-                onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
               >
                 {s.label}
               </a>
