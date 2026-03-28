@@ -11,6 +11,8 @@
   line-height: 1.5;
   overflow-wrap: break-word;
   word-break: normal;
+  -webkit-hyphens: none;
+  hyphens: none;
 }
 
 .blog-content h2 {
