@@ -114,7 +114,8 @@
 }
 
 .blog-content iframe {
-  width: 100%;
+  width: 100% !important;
+  height: auto !important;
   aspect-ratio: 16/9;
   border-radius: 10px;
   margin: 1.5rem 0;
