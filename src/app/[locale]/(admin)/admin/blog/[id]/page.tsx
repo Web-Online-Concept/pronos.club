@@ -70,15 +70,24 @@ export default function AdminBlogEditorPage() {
     } catch (e) { alert("Erreur upload : " + String(e)); }
   }, []);
 
+  // Convert YouTube links back to iframes (Quill bug workaround)
+  const fixVideoEmbeds = (html: string): string => {
+    return html.replace(
+      /<a\s+href="(https?:\/\/www\.youtube\.com\/embed\/[^"]+)"[^>]*>[^<]*<\/a>/g,
+      '<iframe class="ql-video" frameborder="0" allowfullscreen="true" src="$1"></iframe>'
+    );
+  };
+
   const handleSave = async (publishNow?: boolean) => {
     if (!title.trim()) { alert("Titre obligatoire"); return; }
     if (!slug.trim()) { alert("Slug obligatoire"); return; }
     setSaving(true);
     const finalStatus = publishNow ? "published" : status;
+    const fixedContent = fixVideoEmbeds(content);
     const payload = {
       ...(postId ? { id: postId } : {}),
       title: title.trim(), slug: slug.trim(), excerpt: excerpt.trim() || null,
-      content, cover_image: coverImage || null, category_id: categoryId || null,
+      content: fixedContent, cover_image: coverImage || null, category_id: categoryId || null,
       tags: tags.split(",").map(t => t.trim()).filter(Boolean),
       status: finalStatus, meta_title: metaTitle.trim() || null, meta_description: metaDescription.trim() || null,
     };
