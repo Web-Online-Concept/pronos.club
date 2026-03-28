@@ -9,10 +9,8 @@
   color: #374151;
   font-size: 1rem;
   line-height: 1.5;
-  word-break: keep-all;
-  overflow-wrap: normal;
-  -webkit-hyphens: none;
-  hyphens: none;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .blog-content h2 {
