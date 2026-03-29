@@ -9,10 +9,15 @@ export const metadata: Metadata = {
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-async function getPosts(category?: string) {
+const PER_PAGE = 12;
+
+async function getPosts(category?: string, page: number = 1) {
+  const offset = (page - 1) * PER_PAGE;
+
   let query = supabaseAdmin.from("blog_posts")
     .select("id, title, slug, excerpt, cover_image, category_id, tags, status, author_name, view_count, published_at, blog_categories(name, slug, color, icon)", { count: "exact" })
-    .eq("status", "published").order("published_at", { ascending: false }).range(0, 23);
+    .eq("status", "published").order("published_at", { ascending: false })
+    .range(offset, offset + PER_PAGE - 1);
 
   if (category) {
     const { data: cat } = await supabaseAdmin.from("blog_categories").select("id").eq("slug", category).single();
@@ -28,12 +33,23 @@ async function getCategories() {
   return (data || []) as any[];
 }
 
-export default async function BlogPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ category?: string }> }) {
+export default async function BlogPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ category?: string; page?: string }> }) {
   const { locale } = await params;
-  const { category } = await searchParams;
-  const [{ posts }, categories] = await Promise.all([getPosts(category), getCategories()]);
+  const { category, page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageParam || "1"));
+  const [{ posts, total }, categories] = await Promise.all([getPosts(category, currentPage), getCategories()]);
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   const fmt = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+  // Build pagination URL helper
+  const pageUrl = (p: number) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return `/${locale}/blog${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
@@ -72,6 +88,40 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
                 </Link>
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-10 flex items-center justify-center gap-2">
+                {/* Previous */}
+                {currentPage > 1 ? (
+                  <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">← Précédent</Link>
+                ) : (
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">← Précédent</span>
+                )}
+
+                {/* Page numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <Link
+                    key={p}
+                    href={pageUrl(p)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      p === currentPage
+                        ? "bg-neutral-900 text-white"
+                        : "border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    {p}
+                  </Link>
+                ))}
+
+                {/* Next */}
+                {currentPage < totalPages ? (
+                  <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">Suivant →</Link>
+                ) : (
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">Suivant →</span>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
