@@ -262,5 +262,29 @@
     "faq_a3": "Your account reverts to the free version. Your data is kept (history, stats, bankroll). Access to the Premium Telegram group is automatically removed. You can resubscribe at any time.",
     "faq_q4": "Are results guaranteed?",
     "faq_a4": "No. Predictions are opinions based on the tipster's sports analysis. Sports betting involves a risk of loss. Visit our Responsible Gambling page for more information."
+  },
+  "history": {
+    "tag": "Pronos Club",
+    "title": "History",
+    "awaiting_one": "{count} awaiting result",
+    "awaiting_many": "{count} awaiting results",
+    "finished_one": "{count} completed prediction",
+    "finished_many": "{count} completed predictions",
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December",
+    "filter_all_dates": "All dates",
+    "filter_custom": "Custom",
+    "filter_by_year": "By year",
+    "filter_by_month": "By month",
+    "filter_all_sports": "All sports",
+    "filter_all_results": "All results",
+    "filter_awaiting": "Awaiting update",
+    "filter_won": "Won",
+    "filter_lost": "Lost",
+    "filter_void": "Void",
+    "date_from": "From",
+    "date_to": "To",
+    "loading": "Loading...",
+    "no_results": "No results",
+    "load_more": "Load more ({current}/{total})"
   }
 }

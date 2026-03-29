@@ -3,16 +3,7 @@
 import { useState, useEffect } from "react";
 import PickCard from "@/components/picks/PickCard";
 import type { Pick } from "@/lib/supabase/types";
-
-const MONTH_NAMES = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
-];
-
-function formatMonth(ym: string) {
-  const [y, m] = ym.split("-");
-  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
-}
+import { useTranslations } from "next-intl";
 
 function lastDayOfMonth(ym: string) {
   const [y, m] = ym.split("-");
@@ -27,6 +18,14 @@ interface SportOption {
 }
 
 export default function HistoriquePage() {
+  const t = useTranslations("history");
+  const MONTH_NAMES = t("months").split(",");
+
+  function formatMonth(ym: string) {
+    const [y, m] = ym.split("-");
+    return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+  }
+
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -133,9 +132,9 @@ export default function HistoriquePage() {
       >
         <div className="mx-auto max-w-2xl px-4 py-10">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Club</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
             <h1 className="mt-2 text-3xl font-extrabold text-white">
-              Historique
+              {t("title")}
             </h1>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
               {awaitingCount > 0 && (
@@ -145,13 +144,13 @@ export default function HistoriquePage() {
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
                   </span>
                   <span className="text-xs font-semibold text-amber-400">
-                    {awaitingCount} en attente de résultat{awaitingCount > 1 ? "s" : ""}
+                    {awaitingCount > 1 ? t("awaiting_many", { count: awaitingCount }) : t("awaiting_one", { count: awaitingCount })}
                   </span>
                 </div>
               )}
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
                 <span className="text-xs font-semibold text-emerald-400">
-                  {finishedCount} prono{finishedCount > 1 ? "s" : ""} terminé{finishedCount > 1 ? "s" : ""}
+                  {finishedCount > 1 ? t("finished_many", { count: finishedCount }) : t("finished_one", { count: finishedCount })}
                 </span>
               </div>
             </div>
@@ -195,17 +194,17 @@ export default function HistoriquePage() {
           }}
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
-          <option value="all">Toutes les dates</option>
-          <option value="custom">Personnalisé</option>
+          <option value="all">{t("filter_all_dates")}</option>
+          <option value="custom">{t("filter_custom")}</option>
           {years.length > 0 && (
-            <optgroup label="Par année">
+            <optgroup label={t("filter_by_year")}>
               {years.map((y) => (
                 <option key={y} value={`year:${y}`}>{y}</option>
               ))}
             </optgroup>
           )}
           {availableMonths.length > 0 && (
-            <optgroup label="Par mois">
+            <optgroup label={t("filter_by_month")}>
               {availableMonths.map((m) => (
                 <option key={m} value={`month:${m}`}>{formatMonth(m)}</option>
               ))}
@@ -220,7 +219,7 @@ export default function HistoriquePage() {
             onChange={(e) => setSport(e.target.value)}
             className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
           >
-            <option value="all">Tous les sports</option>
+            <option value="all">{t("filter_all_sports")}</option>
             {sports.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.icon} {s.name}
@@ -235,11 +234,11 @@ export default function HistoriquePage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
-          <option value="all">Tous les résultats</option>
-          <option value="awaiting">En attente MAJ</option>
-          <option value="won">Gagnés</option>
-          <option value="lost">Perdus</option>
-          <option value="void">Remboursés</option>
+          <option value="all">{t("filter_all_results")}</option>
+          <option value="awaiting">{t("filter_awaiting")}</option>
+          <option value="won">{t("filter_won")}</option>
+          <option value="lost">{t("filter_lost")}</option>
+          <option value="void">{t("filter_void")}</option>
         </select>
       </div>
 
@@ -247,7 +246,7 @@ export default function HistoriquePage() {
       {filterMode === "custom" && (
         <div className="mt-3 flex flex-wrap items-end justify-center gap-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">Du</label>
+            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">{t("date_from")}</label>
             <input
               type="date"
               value={dateFrom}
@@ -256,7 +255,7 @@ export default function HistoriquePage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">Au</label>
+            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">{t("date_to")}</label>
             <input
               type="date"
               value={dateTo}
@@ -269,11 +268,11 @@ export default function HistoriquePage() {
 
       {/* Picks */}
       {loading ? (
-        <p className="mt-8 text-center opacity-50">Chargement...</p>
+        <p className="mt-8 text-center opacity-50">{t("loading")}</p>
       ) : picks.length === 0 ? (
         <div className="mt-12 text-center">
           <p className="text-4xl">📭</p>
-          <p className="mt-2 text-sm text-neutral-600 font-semibold">Aucun résultat</p>
+          <p className="mt-2 text-sm text-neutral-600 font-semibold">{t("no_results")}</p>
         </div>
       ) : (
         <>
@@ -290,7 +289,7 @@ export default function HistoriquePage() {
                 disabled={loadingMore}
                 className="cursor-pointer rounded-full bg-neutral-900 px-8 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:opacity-50"
               >
-                {loadingMore ? "Chargement..." : `Charger plus (${picks.length}/${total})`}
+                {loadingMore ? t("loading") : t("load_more", { current: picks.length, total })}
               </button>
             </div>
           )}

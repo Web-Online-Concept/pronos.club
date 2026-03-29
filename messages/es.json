@@ -262,5 +262,29 @@
     "faq_a3": "Tu cuenta vuelve a la versión gratuita. Tus datos se conservan (historial, stats, bankroll). El acceso al grupo Telegram Premium se retira automáticamente. Puedes volver a suscribirte en cualquier momento.",
     "faq_q4": "¿Se garantizan los resultados?",
     "faq_a4": "No. Los pronósticos son opiniones basadas en el análisis deportivo del tipster. Las apuestas deportivas conllevan riesgo de pérdida. Consulta nuestra página de Juego Responsable para más información."
+  },
+  "history": {
+    "tag": "Pronos Club",
+    "title": "Historial",
+    "awaiting_one": "{count} en espera de resultado",
+    "awaiting_many": "{count} en espera de resultados",
+    "finished_one": "{count} pronóstico terminado",
+    "finished_many": "{count} pronósticos terminados",
+    "months": "Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre",
+    "filter_all_dates": "Todas las fechas",
+    "filter_custom": "Personalizado",
+    "filter_by_year": "Por año",
+    "filter_by_month": "Por mes",
+    "filter_all_sports": "Todos los deportes",
+    "filter_all_results": "Todos los resultados",
+    "filter_awaiting": "En espera",
+    "filter_won": "Ganados",
+    "filter_lost": "Perdidos",
+    "filter_void": "Reembolsados",
+    "date_from": "Desde",
+    "date_to": "Hasta",
+    "loading": "Cargando...",
+    "no_results": "Sin resultados",
+    "load_more": "Cargar más ({current}/{total})"
   }
 }
