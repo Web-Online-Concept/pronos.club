@@ -749,5 +749,38 @@
     "info_response_value": "Within 24h",
     "info_telegram": "Telegram",
     "info_telegram_value": "Premium group"
+  },
+  "login": {
+    "check_title": "Check your inbox",
+    "check_sent_to": "A login link has been sent to",
+    "check_instruction": "Click the link in the email to access your predictions.",
+    "check_spam": "Check your spam folder if you don't see it.",
+    "pitch_tag": "Members area",
+    "pitch_title_1": "Access our",
+    "pitch_title_2": " predictions",
+    "pitch_subtitle": "Join the community and enjoy picks analyzed by our professional tipster.",
+    "pitch_transparent": "Transparent",
+    "pitch_bankroll": "BK management",
+    "pitch_alerts": "Instant alerts",
+    "form_title": "Login / Sign up",
+    "form_subtitle": "Already a member or new? Same form — enter your email",
+    "feature1_title": "Free sign-up, no commitment",
+    "feature1_desc": "No credit card, no password, just an email",
+    "feature2_title": "Free predictions included",
+    "feature2_desc": "Access free picks as soon as you sign up",
+    "feature3_title": "Real-time alerts",
+    "feature3_desc": "Push, email and Telegram",
+    "placeholder_email": "your@email.com",
+    "btn_loading": "Sending...",
+    "btn_submit": "Get my login link →",
+    "footer_new": "New here? Your account will be created automatically.",
+    "footer_existing": "Already signed up? You'll be reconnected in one click."
+  },
+  "reviews": {
+    "hero_tag": "Testimonials",
+    "hero_title": "Subscriber reviews",
+    "reviews_count": "reviews",
+    "empty_title": "Reviews coming soon",
+    "empty_desc": "Our first Premium subscribers will soon be able to share their experience"
   }
 }

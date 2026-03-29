@@ -1,6 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getTranslations } from "next-intl/server";
 
-export default async function ReviewsPage() {
+export default async function ReviewsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "reviews" });
+
   const { data: reviews } = await supabaseAdmin
     .from("reviews")
     .select("id, pseudo, avatar_url, rating, content, created_at")
@@ -14,6 +18,8 @@ export default async function ReviewsPage() {
     ? (items.reduce((s, r) => s + r.rating, 0) / items.length).toFixed(1)
     : "0";
 
+  const dateFmt = locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR";
+
   return (
     <>
       {/* Hero */}
@@ -25,8 +31,8 @@ export default async function ReviewsPage() {
           <div className="absolute -left-32 -top-32 h-[400px] w-[400px] rounded-full bg-emerald-500/15 blur-[120px]" />
         </div>
         <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">Témoignages</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">Avis de nos abonnés</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">{t("hero_tag")}</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t("hero_title")}</h1>
           {items.length > 0 && (
             <div className="mt-4 flex items-center justify-center gap-3">
               <div className="flex gap-0.5">
@@ -35,7 +41,7 @@ export default async function ReviewsPage() {
                 ))}
               </div>
               <span className="text-lg font-extrabold text-white">{avgRating}</span>
-              <span className="text-sm text-white/30">({items.length} avis)</span>
+              <span className="text-sm text-white/30">({items.length} {t("reviews_count")})</span>
             </div>
           )}
         </div>
@@ -67,7 +73,7 @@ export default async function ReviewsPage() {
                         ))}
                       </div>
                       <span className="text-[10px] text-white/20">
-                        {new Date(review.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                        {new Date(review.created_at).toLocaleDateString(dateFmt, { day: "numeric", month: "long", year: "numeric" })}
                       </span>
                     </div>
                   </div>
@@ -79,8 +85,8 @@ export default async function ReviewsPage() {
         ) : (
           <div className="mt-16 text-center">
             <p className="text-4xl">⭐</p>
-            <p className="mt-2 text-sm text-neutral-500 font-semibold">Les avis arrivent bientôt</p>
-            <p className="mt-1 text-xs text-neutral-400">Nos premiers abonnés Premium pourront bientôt partager leur expérience</p>
+            <p className="mt-2 text-sm text-neutral-500 font-semibold">{t("empty_title")}</p>
+            <p className="mt-1 text-xs text-neutral-400">{t("empty_desc")}</p>
           </div>
         )}
       </main>

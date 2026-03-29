@@ -749,5 +749,38 @@
     "info_response_value": "En menos de 24h",
     "info_telegram": "Telegram",
     "info_telegram_value": "Grupo Premium"
+  },
+  "login": {
+    "check_title": "Revisa tu bandeja de entrada",
+    "check_sent_to": "Se ha enviado un enlace de conexión a",
+    "check_instruction": "Haz clic en el enlace del email para acceder a tus pronósticos.",
+    "check_spam": "Revisa tu carpeta de spam si no lo encuentras.",
+    "pitch_tag": "Espacio miembros",
+    "pitch_title_1": "Accede a nuestros",
+    "pitch_title_2": " pronósticos",
+    "pitch_subtitle": "Únete a la comunidad y disfruta de picks analizados por nuestro tipster profesional.",
+    "pitch_transparent": "Transparente",
+    "pitch_bankroll": "Gestión de BK",
+    "pitch_alerts": "Alertas instantáneas",
+    "form_title": "Conexión / Registro",
+    "form_subtitle": "¿Ya eres miembro o eres nuevo? Mismo formulario — introduce tu email",
+    "feature1_title": "Registro gratuito sin compromiso",
+    "feature1_desc": "Sin tarjeta, sin contraseña, un email basta",
+    "feature2_title": "Pronósticos gratuitos incluidos",
+    "feature2_desc": "Accede a los picks gratuitos desde tu registro",
+    "feature3_title": "Alertas en tiempo real",
+    "feature3_desc": "Push, email y Telegram",
+    "placeholder_email": "tu@email.com",
+    "btn_loading": "Enviando...",
+    "btn_submit": "Recibir mi enlace de conexión →",
+    "footer_new": "¿Eres nuevo? Tu cuenta se creará automáticamente.",
+    "footer_existing": "¿Ya registrado? Te reconectarás en un clic."
+  },
+  "reviews": {
+    "hero_tag": "Testimonios",
+    "hero_title": "Opiniones de nuestros suscriptores",
+    "reviews_count": "opiniones",
+    "empty_title": "Las opiniones llegan pronto",
+    "empty_desc": "Nuestros primeros suscriptores Premium podrán compartir pronto su experiencia"
   }
 }
