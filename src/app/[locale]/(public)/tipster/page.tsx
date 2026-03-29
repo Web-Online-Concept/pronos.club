@@ -1,8 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-export default async function TipsterPage() {
+export default async function TipsterPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "tipster" });
   const user = await getCurrentUser();
   const isLoggedIn = !!user;
   const isPremium = user?.subscription_status === "active";
@@ -44,21 +47,20 @@ export default async function TipsterPage() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Notre approche</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">Le tipster &amp; la méthode</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("hero_tag")}</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t("hero_title")}</h1>
           <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/40">
-            Pas de promesses. Pas de rêves. Une méthode rigoureuse, des analyses sérieuses, 
-            et un objectif clair : la rentabilité sur le moyen et long terme.
+            {t("hero_subtitle")}
           </p>
 
           {/* Live stats */}
           {totalPicks > 0 && (
             <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-6">
               {[
-                { label: "Picks", value: totalPicks.toString() },
-                { label: "Win rate", value: `${winRate}%`, green: winRate >= 50 },
-                { label: "ROI", value: `${roi >= 0 ? "+" : ""}${roi}%`, green: roi >= 0 },
-                { label: "Profit", value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, green: totalProfit >= 0 },
+                { label: t("kpi_picks"), value: totalPicks.toString() },
+                { label: t("kpi_winrate"), value: `${winRate}%`, green: winRate >= 50 },
+                { label: t("kpi_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, green: roi >= 0 },
+                { label: t("kpi_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, green: totalProfit >= 0 },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <p className={`text-xl font-extrabold ${
@@ -79,8 +81,8 @@ export default async function TipsterPage() {
         {/* ═══════════ QUI SOMMES-NOUS ═══════════ */}
         <section className="mt-12">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">L&apos;équipe</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Qui sommes-nous ?</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("team_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("team_title")}</h2>
           </div>
 
           <div className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -92,14 +94,12 @@ export default async function TipsterPage() {
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-2xl">🎯</div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-white">Jérôme <span className="text-sm font-semibold text-white/40">(Bollaert)</span></h3>
-                  <p className="text-xs text-emerald-400">Tipster — Analyste sportif</p>
+                  <h3 className="text-lg font-extrabold text-white">{t("jerome_name")} <span className="text-sm font-semibold text-white/40">({t("jerome_alias")})</span></h3>
+                  <p className="text-xs text-emerald-400">{t("jerome_role")}</p>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-white/50">
-                Parieur professionnel depuis plus de 10 ans. Jérôme analyse chaque événement sportif avec rigueur, 
-                en croisant les données statistiques, les compositions d&apos;équipes, les dynamiques et les cotes du marché. 
-                Il ne publie un pronostic que lorsqu&apos;il identifie une vraie valeur — pas pour publier pour publier.
+                {t("jerome_desc")}
               </p>
             </div>
 
@@ -111,15 +111,12 @@ export default async function TipsterPage() {
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-2xl">💻</div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-white">La plateforme</h3>
-                  <p className="text-xs text-emerald-400">Développée sur mesure</p>
+                  <h3 className="text-lg font-extrabold text-white">{t("platform_title")}</h3>
+                  <p className="text-xs text-emerald-400">{t("platform_role")}</p>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-white/50">
-                PRONOS.CLUB n&apos;est pas un simple blog ou un canal Telegram. C&apos;est une plateforme web complète 
-                développée sur mesure : suivi de chaque pronostic en temps réel, statistiques détaillées, gestion de bankroll 
-                personnalisée, historique vérifiable et transparent. Chaque ticket est screenshoté, chaque résultat est figé. 
-                Rien n&apos;est modifiable après coup. La technologie est au service de la transparence.
+                {t("platform_desc")}
               </p>
             </div>
           </div>
@@ -134,27 +131,27 @@ export default async function TipsterPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-sm">📊</span>
-                <h3 className="text-sm font-extrabold text-white">Tableau de bord — Données en temps réel</h3>
+                <h3 className="text-sm font-extrabold text-white">{t("dashboard_title")}</h3>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-400">{activePronos} en cours</span>
+                <span className="text-[10px] font-semibold text-emerald-400">{t("dashboard_active", { count: activePronos })}</span>
               </div>
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: "Total picks", value: totalPicks.toString(), color: "text-white" },
-                { label: "Gagnés", value: wonPicks.toString(), color: "text-emerald-400" },
-                { label: "Perdus", value: lostPicks.toString(), color: "text-red-400" },
-                { label: "Void", value: voidPicks.toString(), color: "text-neutral-400" },
-                { label: "Win rate", value: `${winRate}%`, color: winRate >= 50 ? "text-emerald-400" : "text-red-400" },
-                { label: "ROI", value: `${roi >= 0 ? "+" : ""}${roi}%`, color: roi >= 0 ? "text-emerald-400" : "text-red-400" },
-                { label: "Profit", value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, color: totalProfit >= 0 ? "text-emerald-400" : "text-red-400" },
-                { label: "Cote moyenne", value: avgOdds, color: "text-white" },
+                { label: t("dashboard_total"), value: totalPicks.toString(), color: "text-white" },
+                { label: t("dashboard_won"), value: wonPicks.toString(), color: "text-emerald-400" },
+                { label: t("dashboard_lost"), value: lostPicks.toString(), color: "text-red-400" },
+                { label: t("dashboard_void"), value: voidPicks.toString(), color: "text-neutral-400" },
+                { label: t("dashboard_winrate"), value: `${winRate}%`, color: winRate >= 50 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, color: roi >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, color: totalProfit >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_avg_odds"), value: avgOdds, color: "text-white" },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">
                   <p className={`text-lg font-extrabold ${stat.color}`}>{stat.value}</p>
@@ -164,8 +161,8 @@ export default async function TipsterPage() {
             </div>
 
             <div className="mt-4 text-center">
-              <Link href="/fr/statistiques" className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
-                Voir les statistiques détaillées →
+              <Link href={`/${locale}/statistiques`} className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
+                {t("dashboard_see_stats")}
               </Link>
             </div>
           </div>
@@ -174,8 +171,8 @@ export default async function TipsterPage() {
         {/* ═══════════ NOTRE PHILOSOPHIE ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Notre ADN</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Ce qui nous définit</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("philo_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("philo_title")}</h2>
           </div>
 
           <div
@@ -183,53 +180,20 @@ export default async function TipsterPage() {
             style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
           >
             <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <span className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/20 text-sm">❌</span>
-                <div>
-                  <h3 className="font-bold text-white">On ne promet pas de gagner à chaque pronostic</h3>
-                  <p className="mt-1 text-sm text-white/40">
-                    Aucun tipster au monde ne gagne 100% de ses paris. Quiconque vous promet ça vous ment. 
-                    Notre objectif est un taux de réussite régulier et une rentabilité prouvée sur le long terme, 
-                    pas un sprint de victoires éphémères.
-                  </p>
+              {[
+                { icon: "❌", bg: "bg-red-500/20", title: t("philo1_title"), desc: t("philo1_desc") },
+                { icon: "❌", bg: "bg-red-500/20", title: t("philo2_title"), desc: t("philo2_desc") },
+                { icon: "✅", bg: "bg-emerald-500/20", title: t("philo3_title"), desc: t("philo3_desc") },
+                { icon: "✅", bg: "bg-emerald-500/20", title: t("philo4_title"), desc: t("philo4_desc") },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-4">
+                  <span className={`mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${item.bg} text-sm`}>{item.icon}</span>
+                  <div>
+                    <h3 className="font-bold text-white">{item.title}</h3>
+                    <p className="mt-1 text-sm text-white/40">{item.desc}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <span className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/20 text-sm">❌</span>
-                <div>
-                  <h3 className="font-bold text-white">On ne vend pas du rêve</h3>
-                  <p className="mt-1 text-sm text-white/40">
-                    Si vous cherchez un tipster qui annonce &quot;+50 unités par mois&quot; ou &quot;devenez riche en 3 mois&quot;, 
-                    vous êtes au mauvais endroit. Les paris sportifs sont un investissement à variance — il y a des hauts et des bas. 
-                    La différence entre un parieur rentable et un perdant, c&apos;est la discipline et la méthode sur la durée.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <span className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-sm">✅</span>
-                <div>
-                  <h3 className="font-bold text-white">On mise sur la transparence totale</h3>
-                  <p className="mt-1 text-sm text-white/40">
-                    Chaque pronostic est publié avec un screenshot du ticket avant le match. Les résultats sont publics, 
-                    les statistiques calculées automatiquement, et rien n&apos;est modifiable après coup. Vous pouvez vérifier 
-                    chaque pick dans l&apos;historique. C&apos;est la base de notre crédibilité.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <span className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-sm">✅</span>
-                <div>
-                  <h3 className="font-bold text-white">On vise la rentabilité régulière</h3>
-                  <p className="mt-1 text-sm text-white/40">
-                    Notre objectif est d&apos;envoyer les meilleures sélections avec un ROI positif mois après mois. 
-                    Pas de mise &quot;all-in&quot;, pas de martingale, pas de prise de risque inconsidérée. 
-                    Une gestion de bankroll saine et une sélection rigoureuse — c&apos;est ce qui fait la différence.
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -237,32 +201,16 @@ export default async function TipsterPage() {
         {/* ═══════════ LA MÉTHODE ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Méthode</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Comment Jérôme sélectionne ses picks</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("method_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("method_title")}</h2>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {[
-              {
-                icon: "📊",
-                title: "Analyse statistique",
-                desc: "Chaque sélection repose sur une analyse approfondie : forme des équipes, confrontations directes, statistiques avancées, compositions probables. Rien n'est laissé au hasard.",
-              },
-              {
-                icon: "💎",
-                title: "Value betting",
-                desc: "Jérôme ne parie que lorsqu'il identifie une valeur — c'est-à-dire quand la cote proposée par le bookmaker est supérieure à la probabilité réelle de l'événement. C'est la clé de la rentabilité long terme.",
-              },
-              {
-                icon: "📈",
-                title: "Multi-bookmakers",
-                desc: "Les pronostics sont placés sur le bookmaker qui offre la meilleure cote à l'instant T. C'est pour ça qu'il est essentiel d'être inscrit sur les 6 bookmakers que nous recommandons.",
-              },
-              {
-                icon: "🎯",
-                title: "Sélection stricte",
-                desc: "Qualité plutôt que quantité. Jérôme ne publie que les picks dans lesquels il a une vraie conviction. Pas de remplissage, pas de paris pour faire du volume. Chaque pick compte.",
-              },
+              { icon: "📊", title: t("method1_title"), desc: t("method1_desc") },
+              { icon: "💎", title: t("method2_title"), desc: t("method2_desc") },
+              { icon: "📈", title: t("method3_title"), desc: t("method3_desc") },
+              { icon: "🎯", title: t("method4_title"), desc: t("method4_desc") },
             ].map((item) => (
               <div
                 key={item.title}
@@ -280,8 +228,8 @@ export default async function TipsterPage() {
         {/* ═══════════ TYPES DE PRONOS ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Format</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Les types de pronostics</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("format_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("format_title")}</h2>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -292,18 +240,16 @@ export default async function TipsterPage() {
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 text-sm font-bold text-sky-400">1</span>
                 <div>
-                  <h3 className="font-extrabold text-white">Pari simple</h3>
-                  <span className="rounded bg-sky-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-sky-400">Simple</span>
+                  <h3 className="font-extrabold text-white">{t("format_simple")}</h3>
+                  <span className="rounded bg-sky-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-sky-400">{t("format_simple_label")}</span>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-white/50">
-                Un seul événement, une seule sélection. C&apos;est le format le plus sûr et le plus fréquent. 
-                Le risque est maîtrisé, le gain est proportionnel à la cote. C&apos;est la base d&apos;une gestion 
-                de bankroll saine.
+                {t("format_simple_desc")}
               </p>
               <div className="mt-4 rounded-lg bg-white/[0.04] px-4 py-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-white/25">Exemple</p>
-                <p className="mt-1 text-sm text-white/60">PSG — Victoire · Cote 1.85 · Mise 1U</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/25">{t("format_example")}</p>
+                <p className="mt-1 text-sm text-white/60">{t("format_simple_example")}</p>
               </div>
             </div>
 
@@ -314,25 +260,21 @@ export default async function TipsterPage() {
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-sm font-bold text-purple-400">2</span>
                 <div>
-                  <h3 className="font-extrabold text-white">Pari combiné</h3>
-                  <span className="rounded bg-purple-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-purple-400">Combiné</span>
+                  <h3 className="font-extrabold text-white">{t("format_combi")}</h3>
+                  <span className="rounded bg-purple-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-purple-400">{t("format_combi_label")}</span>
                 </div>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-white/50">
-                Deux sélections combinées en un seul pari. Les cotes se multiplient, ce qui augmente 
-                le gain potentiel. Nous nous limitons à <strong className="text-white/70">2 sélections maximum</strong> pour 
-                garder un niveau de risque raisonnable. Pas de combinés à 5, 10 ou 15 sélections chez nous.
-              </p>
+              <p className="mt-4 text-sm leading-relaxed text-white/50" dangerouslySetInnerHTML={{ __html: t("format_combi_desc") }} />
               <div className="mt-4 rounded-lg bg-white/[0.04] px-4 py-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-white/25">Exemple</p>
-                <p className="mt-1 text-sm text-white/60">PSG Victoire + Real Madrid Victoire · Cote 2.70 · Mise 1U</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/25">{t("format_example")}</p>
+                <p className="mt-1 text-sm text-white/60">{t("format_combi_example")}</p>
               </div>
             </div>
           </div>
 
           <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-6 py-4 text-center">
             <p className="text-sm font-semibold text-amber-700">
-              Maximum 2 sélections par combiné — jamais plus. La discipline, c&apos;est aussi savoir limiter le risque.
+              {t("format_combi_warning")}
             </p>
           </div>
         </section>
@@ -340,73 +282,48 @@ export default async function TipsterPage() {
         {/* ═══════════ COMMENT SUIVRE NOS PRONOS ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Guide</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Comment suivre nos pronostics</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("guide_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("guide_title")}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
-              Tout ce que vous devez savoir pour bien démarrer et maximiser vos gains
+              {t("guide_subtitle")}
             </p>
           </div>
 
           <div className="mt-8 space-y-4">
-            {/* Étape 1 — Comprendre le ticket */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-            >
+            {/* Step 1 */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">1</span>
-                <h3 className="font-extrabold text-white">Comprendre le ticket</h3>
+                <h3 className="font-extrabold text-white">{t("guide1_title")}</h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-white/50">
-                Chaque pronostic publié contient : le sport, l&apos;événement, la sélection, la cote, la mise en unités 
-                (0.5U à 3U) et le bookmaker recommandé. Un screenshot du ticket réel est attaché pour prouver 
-                que le pari a bien été placé avant le match.
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">{t("guide1_desc")}</p>
             </div>
 
-            {/* Étape 2 — La cote minimum */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
-            >
+            {/* Step 2 */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-bold text-amber-400">2</span>
-                <h3 className="font-extrabold text-white">Respectez la cote minimum</h3>
+                <h3 className="font-extrabold text-white">{t("guide2_title")}</h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-white/50">
-                Chaque pronostic indique une <strong className="text-white/70">cote minimum</strong>. C&apos;est la cote 
-                en dessous de laquelle le pari n&apos;a plus de valeur. Si la cote proposée par votre bookmaker est 
-                inférieure à la cote minimum indiquée, <strong className="text-red-400/70">ne jouez pas ce pick</strong>. 
-                La valeur du pronostic repose sur la cote — sans elle, le pari n&apos;est plus rentable.
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/50" dangerouslySetInnerHTML={{ __html: t("guide2_desc") }} />
               <div className="mt-3 rounded-lg bg-amber-500/10 px-4 py-3">
-                <p className="text-xs text-amber-400/80">
-                  <strong>Exemple :</strong> si le pick indique &quot;PSG ML @ 1.85 — cote min 1.70&quot;, ne jouez pas si votre bookmaker 
-                  propose moins de 1.70. Cherchez la cote sur un autre bookmaker ou passez votre tour.
-                </p>
+                <p className="text-xs text-amber-400/80" dangerouslySetInnerHTML={{ __html: t("guide2_example") }} />
               </div>
             </div>
 
-            {/* Étape 3 — Les unités */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-            >
+            {/* Step 3 */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">3</span>
-                <h3 className="font-extrabold text-white">Les unités de mise</h3>
+                <h3 className="font-extrabold text-white">{t("guide3_title")}</h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-white/50">
-                Tous nos pronostics sont publiés en <strong className="text-white/70">unités (U)</strong>. 
-                Une unité correspond à un pourcentage de votre bankroll que vous définissez vous-même 
-                dans votre espace personnel. Les mises vont de 0.5U (faible conviction) à 3U (très forte conviction).
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/50" dangerouslySetInnerHTML={{ __html: t("guide3_desc") }} />
               <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                 {[
-                  { u: "0.5U", label: "Prudent", color: "bg-sky-500/15 text-sky-400" },
-                  { u: "1U", label: "Standard", color: "bg-emerald-500/15 text-emerald-400" },
-                  { u: "2U", label: "Confiance", color: "bg-amber-500/15 text-amber-400" },
-                  { u: "3U", label: "Max", color: "bg-red-500/15 text-red-400" },
+                  { u: "0.5U", label: t("guide3_prudent"), color: "bg-sky-500/15 text-sky-400" },
+                  { u: "1U", label: t("guide3_standard"), color: "bg-emerald-500/15 text-emerald-400" },
+                  { u: "2U", label: t("guide3_confiance"), color: "bg-amber-500/15 text-amber-400" },
+                  { u: "3U", label: t("guide3_max"), color: "bg-red-500/15 text-red-400" },
                 ].map((m) => (
                   <div key={m.u} className={`rounded-lg px-2 py-2 ${m.color}`}>
                     <p className="text-sm font-extrabold">{m.u}</p>
@@ -416,25 +333,20 @@ export default async function TipsterPage() {
               </div>
             </div>
 
-            {/* Étape 4 — Personnaliser son espace */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
-            >
+            {/* Step 4 */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">4</span>
-                <h3 className="font-extrabold text-white">Personnalisez votre espace</h3>
+                <h3 className="font-extrabold text-white">{t("guide4_title")}</h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-white/50">
-                Dans votre espace personnel, vous pouvez configurer :
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">{t("guide4_desc")}</p>
               <div className="mt-3 space-y-2">
                 {[
-                  { icon: "🏦", text: "Votre bankroll et la valeur de votre unité (mise fixe ou % de bankroll)" },
-                  { icon: "✅", text: "Sélectionner les picks que vous jouez vraiment pour un suivi personnalisé" },
-                  { icon: "📈", text: "Voir vos stats perso en unités ou en euros — basculez en un clic" },
-                  { icon: "🔔", text: "Configurer vos notifications (push, email) pour ne rien rater" },
-                  { icon: "📊", text: "Comparer vos performances à celles du tipster" },
+                  { icon: "🏦", text: t("guide4_f1") },
+                  { icon: "✅", text: t("guide4_f2") },
+                  { icon: "📈", text: t("guide4_f3") },
+                  { icon: "🔔", text: t("guide4_f4") },
+                  { icon: "📊", text: t("guide4_f5") },
                 ].map((item) => (
                   <div key={item.text} className="flex items-start gap-2.5 rounded-lg bg-white/[0.03] px-3 py-2">
                     <span className="mt-0.5 text-sm">{item.icon}</span>
@@ -444,23 +356,16 @@ export default async function TipsterPage() {
               </div>
             </div>
 
-            {/* Étape 5 — Choisir le bon book */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-            >
+            {/* Step 5 */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-400">5</span>
-                <h3 className="font-extrabold text-white">Placez le pari sur le bon bookmaker</h3>
+                <h3 className="font-extrabold text-white">{t("guide5_title")}</h3>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-white/50">
-                Chaque pronostic indique sur quel bookmaker la cote a été prise. Vous pouvez jouer sur ce bookmaker 
-                ou chercher une meilleure cote ailleurs — c&apos;est pour ça qu&apos;il est essentiel d&apos;être inscrit 
-                sur les 6 bookmakers. Comparez toujours les cotes avant de placer votre pari.
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-white/50">{t("guide5_desc")}</p>
               <div className="mt-3 text-center">
-                <Link href="/fr/bookmakers" className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
-                  Voir nos 6 bookmakers recommandés →
+                <Link href={`/${locale}/bookmakers`} className="text-xs font-semibold text-emerald-400 transition hover:text-emerald-300">
+                  {t("guide5_link")}
                 </Link>
               </div>
             </div>
@@ -470,36 +375,20 @@ export default async function TipsterPage() {
         {/* ═══════════ VOLUME + GRATUIT VS PREMIUM ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Volume</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Plus de 50 pronostics par mois</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
-              Le volume est important pour lisser la variance et maximiser les opportunités.
-              Chaque jour, de nouvelles sélections sont publiées.
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("volume_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("volume_title")}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">{t("volume_subtitle")}</p>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {/* Gratuit */}
-            <div
-              className="overflow-hidden rounded-2xl border border-white/[0.06] p-6"
-              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
-            >
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06] p-6" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
               <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-white">Compte gratuit</h3>
-                <span className="rounded-full bg-neutral-500/20 px-3 py-0.5 text-[10px] font-bold text-neutral-400">0€</span>
+                <h3 className="font-extrabold text-white">{t("volume_free_title")}</h3>
+                <span className="rounded-full bg-neutral-500/20 px-3 py-0.5 text-[10px] font-bold text-neutral-400">{t("volume_free_price")}</span>
               </div>
-              <p className="mt-3 text-sm text-white/50">
-                Accédez à une sélection de pronostics gratuits publiés chaque semaine. 
-                Suffisant pour découvrir notre méthode et vérifier nos résultats.
-              </p>
+              <p className="mt-3 text-sm text-white/50">{t("volume_free_desc")}</p>
               <div className="mt-4 space-y-1.5">
-                {[
-                  "Picks gratuits sélectionnés",
-                  "Historique complet",
-                  "Statistiques publiques",
-                  "Gestion de bankroll",
-                  "Stats perso en U et €",
-                ].map((f) => (
+                {[t("volume_free_f1"), t("volume_free_f2"), t("volume_free_f3"), t("volume_free_f4"), t("volume_free_f5")].map((f) => (
                   <p key={f} className="flex items-center gap-2 text-xs text-white/40">
                     <span className="text-emerald-400/60">✓</span> {f}
                   </p>
@@ -507,28 +396,15 @@ export default async function TipsterPage() {
               </div>
             </div>
 
-            {/* Premium */}
-            <div
-              className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 p-6"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
-            >
+            <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 p-6" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <div className="absolute -top-px left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
               <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-white">Compte Premium</h3>
-                <span className="rounded-full bg-emerald-500/20 px-3 py-0.5 text-[10px] font-bold text-emerald-400">20€/mois</span>
+                <h3 className="font-extrabold text-white">{t("volume_premium_title")}</h3>
+                <span className="rounded-full bg-emerald-500/20 px-3 py-0.5 text-[10px] font-bold text-emerald-400">{t("volume_premium_price")}</span>
               </div>
-              <p className="mt-3 text-sm text-white/50">
-                L&apos;intégralité des pronostics — plus de 50 par mois. C&apos;est là que la rentabilité 
-                se construit, avec le volume et la régularité.
-              </p>
+              <p className="mt-3 text-sm text-white/50">{t("volume_premium_desc")}</p>
               <div className="mt-4 space-y-1.5">
-                {[
-                  "Tous les pronostics (50+/mois)",
-                  "Groupe Telegram exclusif",
-                  "Notifications prioritaires",
-                  "Tout ce qui est inclus en gratuit",
-                  "Résiliable en 1 clic",
-                ].map((f) => (
+                {[t("volume_premium_f1"), t("volume_premium_f2"), t("volume_premium_f3"), t("volume_premium_f4"), t("volume_premium_f5")].map((f) => (
                   <p key={f} className="flex items-center gap-2 text-xs text-white/50">
                     <span className="text-emerald-400">✓</span> {f}
                   </p>
@@ -537,16 +413,14 @@ export default async function TipsterPage() {
             </div>
           </div>
 
-          <p className="mt-4 text-center text-xs text-neutral-400">
-            Le volume peut varier selon le calendrier sportif. Nous préférons ne rien publier plutôt que de publier un mauvais pick.
-          </p>
+          <p className="mt-4 text-center text-xs text-neutral-400">{t("volume_disclaimer")}</p>
         </section>
 
         {/* ═══════════ COMPRENDRE LA VARIANCE ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Comprendre</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">La variance dans les paris sportifs</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("variance_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("variance_title")}</h2>
           </div>
 
           <div
@@ -555,25 +429,14 @@ export default async function TipsterPage() {
           >
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               <div className="flex-1">
-                <h3 className="text-lg font-extrabold text-white">Qu&apos;est-ce que la variance ?</h3>
-                <p className="mt-3 text-sm leading-relaxed text-white/50">
-                  La variance, c&apos;est la fluctuation naturelle des résultats à court terme. Même avec une stratégie 
-                  gagnante, vous traverserez des périodes de pertes — c&apos;est mathématiquement inévitable.
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-white/50">
-                  Un tipster avec 60% de réussite peut enchaîner 5 ou 6 paris perdants d&apos;affilée. 
-                  Ce n&apos;est pas un signe d&apos;échec — c&apos;est la réalité statistique des paris sportifs.
-                  Ce qui compte, c&apos;est le bilan sur 500 à 1000 paris minimum.
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-white/50">
-                  C&apos;est exactement pour ça que nous insistons sur la gestion de bankroll : ne jamais miser plus 
-                  qu&apos;une fraction de votre capital sur un seul pari, pour pouvoir absorber les mauvaises passes 
-                  et profiter des bonnes.
-                </p>
+                <h3 className="text-lg font-extrabold text-white">{t("variance_q")}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/50">{t("variance_p1")}</p>
+                <p className="mt-3 text-sm leading-relaxed text-white/50">{t("variance_p2")}</p>
+                <p className="mt-3 text-sm leading-relaxed text-white/50">{t("variance_p3")}</p>
               </div>
               <img
                 src="/tipster/variance-graph.jpg"
-                alt="Exemple de courbe de variance"
+                alt={t("variance_img_alt")}
                 className="w-full rounded-xl sm:w-72"
               />
             </div>
@@ -583,27 +446,15 @@ export default async function TipsterPage() {
         {/* ═══════════ GESTION DE BANKROLL ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Bankroll</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">La gestion de bankroll, c&apos;est la clé</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("bankroll_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("bankroll_title")}</h2>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
-              {
-                icon: "🏦",
-                title: "Configurez votre BK",
-                desc: "Définissez votre bankroll de départ et la valeur de votre unité. Notre outil calcule automatiquement vos mises en euros ou en unités.",
-              },
-              {
-                icon: "📐",
-                title: "Mises calibrées",
-                desc: "Les pronostics sont publiés en unités (0.5U à 3U). Le tipster adapte la mise en fonction de sa conviction. Pas de mise all-in, jamais.",
-              },
-              {
-                icon: "🔄",
-                title: "Suivi automatique",
-                desc: "Votre bankroll se met à jour automatiquement après chaque résultat. Vous voyez en temps réel l'évolution de votre capital en euros et en unités.",
-              },
+              { icon: "🏦", title: t("bk1_title"), desc: t("bk1_desc") },
+              { icon: "📐", title: t("bk2_title"), desc: t("bk2_desc") },
+              { icon: "🔄", title: t("bk3_title"), desc: t("bk3_desc") },
             ].map((item) => (
               <div
                 key={item.title}
@@ -626,20 +477,14 @@ export default async function TipsterPage() {
           >
             <div className="text-center">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl ring-1 ring-emerald-500/20">🤔</span>
-              <h3 className="mt-4 text-lg font-extrabold text-white">À qui s&apos;adresse PRONOS.CLUB ?</h3>
+              <h3 className="mt-4 text-lg font-extrabold text-white">{t("audience_title")}</h3>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-emerald-500/10 p-5">
-                <p className="text-sm font-bold text-emerald-400">C&apos;est pour vous si :</p>
+                <p className="text-sm font-bold text-emerald-400">{t("audience_for")}</p>
                 <div className="mt-3 space-y-2">
-                  {[
-                    "Vous voulez une approche sérieuse et disciplinée",
-                    "Vous comprenez que la rentabilité se mesure sur le long terme",
-                    "Vous êtes prêt à suivre une gestion de bankroll stricte",
-                    "Vous cherchez la transparence et les résultats vérifiables",
-                    "Vous voulez un outil complet, pas juste un canal Telegram",
-                  ].map((item) => (
+                  {[t("audience_for_1"), t("audience_for_2"), t("audience_for_3"), t("audience_for_4"), t("audience_for_5")].map((item) => (
                     <p key={item} className="flex items-start gap-2 text-xs text-emerald-300/70">
                       <span className="mt-0.5 text-emerald-400">✓</span> {item}
                     </p>
@@ -647,15 +492,9 @@ export default async function TipsterPage() {
                 </div>
               </div>
               <div className="rounded-xl bg-red-500/10 p-5">
-                <p className="text-sm font-bold text-red-400">Ce n&apos;est PAS pour vous si :</p>
+                <p className="text-sm font-bold text-red-400">{t("audience_not")}</p>
                 <div className="mt-3 space-y-2">
-                  {[
-                    "Vous voulez devenir riche en une semaine",
-                    "Vous attendez 100% de victoires",
-                    "Vous misez plus que ce que vous pouvez perdre",
-                    "Vous cherchez des tips sur des cotes à 10+",
-                    "Vous pensez que les paris sont un jeu de chance",
-                  ].map((item) => (
+                  {[t("audience_not_1"), t("audience_not_2"), t("audience_not_3"), t("audience_not_4"), t("audience_not_5")].map((item) => (
                     <p key={item} className="flex items-start gap-2 text-xs text-red-300/70">
                       <span className="mt-0.5 text-red-400">✗</span> {item}
                     </p>
@@ -669,20 +508,17 @@ export default async function TipsterPage() {
         {/* ═══════════ LES BOOKMAKERS ═══════════ */}
         <section className="mt-14">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">Essentiel</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">Nos bookmakers</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
-              Nos pronostics sont placés sur 6 bookmakers différents pour toujours obtenir la meilleure cote. 
-              Pour suivre tous nos picks, inscrivez-vous sur chacun d&apos;entre eux.
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("bookmakers_tag")}</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("bookmakers_title")}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">{t("bookmakers_subtitle")}</p>
           </div>
 
           <div className="mt-6 text-center">
             <Link
-              href="/fr/bookmakers"
+              href={`/${locale}/bookmakers`}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40"
             >
-              Voir les 6 bookmakers
+              {t("bookmakers_cta")}
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -697,44 +533,44 @@ export default async function TipsterPage() {
             style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
           >
             <h3 className="text-xl font-extrabold text-white">
-              {isPremium ? "Merci pour votre confiance" : "Prêt à nous rejoindre ?"}
+              {isPremium ? t("cta_premium") : t("cta_guest")}
             </h3>
             <p className="mx-auto mt-3 max-w-md text-sm text-white/40">
               {isPremium
-                ? "Vous avez accès à tous nos pronostics premium et au groupe Telegram exclusif."
+                ? t("cta_desc_premium")
                 : isLoggedIn
-                ? "Passez Premium pour accéder à toutes nos sélections et rejoindre le groupe Telegram exclusif."
-                : "Inscription gratuite. Consultez nos résultats, vérifiez notre transparence, puis décidez."}
+                ? t("cta_desc_logged")
+                : t("cta_desc_guest")}
             </p>
 
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               {isPremium ? (
                 <Link
-                  href="/fr/espace"
+                  href={`/${locale}/espace`}
                   className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 sm:w-auto"
                 >
-                  Accéder à mon espace
+                  {t("cta_btn_space")}
                 </Link>
               ) : isLoggedIn ? (
                 <Link
-                  href="/fr/espace/abonnement"
+                  href={`/${locale}/espace/abonnement`}
                   className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 sm:w-auto"
                 >
-                  Devenir Premium — 20€/mois
+                  {t("cta_btn_premium")}
                 </Link>
               ) : (
                 <Link
-                  href="/fr/login"
+                  href={`/${locale}/login`}
                   className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 sm:w-auto"
                 >
-                  Créer mon compte gratuit
+                  {t("cta_btn_free")}
                 </Link>
               )}
               <Link
-                href="/fr/statistiques"
+                href={`/${locale}/statistiques`}
                 className="w-full rounded-xl border border-white/10 px-8 py-4 text-sm font-semibold text-white/50 transition hover:border-white/20 hover:text-white/70 sm:w-auto"
               >
-                Voir les statistiques
+                {t("cta_btn_stats")}
               </Link>
             </div>
           </div>
