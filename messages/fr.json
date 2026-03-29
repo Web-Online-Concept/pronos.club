@@ -14,7 +14,16 @@
     "login": "Connexion",
     "dashboard": "Mon espace",
     "admin": "Admin",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "pronos": "Pronos",
+    "history_short": "Historique",
+    "stats_short": "Stats",
+    "bilans_short": "Bilans",
+    "tipster_short": "Tipster",
+    "books": "Books",
+    "blog_short": "Blog",
+    "my_space": "Mon espace",
+    "login_btn": "Connexion"
   },
   "home": {
     "hero_title_line1": "Pronostics sportifs",
@@ -214,7 +223,24 @@
     "legal": "Mentions légales",
     "privacy": "Politique de confidentialité",
     "terms": "CGV",
-    "disclaimer": "Les paris sportifs comportent des risques. Jouez responsablement."
+    "disclaimer": "Les paris sportifs comportent des risques. Jouez responsablement.",
+    "brand_desc": "Pronostics sportifs transparents et vérifiables. Chaque pick est publié avec preuve avant le match.",
+    "nav_title": "Navigation",
+    "account_title": "Mon compte",
+    "account_login": "Connexion",
+    "account_premium": "Abonnement Premium",
+    "account_space": "Mon espace",
+    "account_notif": "Notifications",
+    "legal_title": "Légal",
+    "legal_mentions": "Mentions légales",
+    "legal_cgu": "CGU",
+    "legal_cgv": "CGV",
+    "legal_privacy": "Confidentialité",
+    "legal_responsible": "Jeu responsable",
+    "legal_contact": "Contact",
+    "bottom_copy": "© {year} PRONOS.CLUB — Tous droits réservés",
+    "bottom_risk": "Les paris sportifs comportent des risques. Jouez responsablement. 18+",
+    "bottom_phone": "Appelez le 09 74 75 13 13 (appel non surtaxé)"
   },
   "subscription": {
     "page_title": "Mon Abonnement",

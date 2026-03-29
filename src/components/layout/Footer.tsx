@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 
 const SOCIAL_ICONS: Record<string, string> = {
   twitter: "𝕏",
@@ -14,6 +16,10 @@ const SOCIAL_ICONS: Record<string, string> = {
 };
 
 export default async function Footer() {
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: "footer" });
+  const tn = await getTranslations({ locale, namespace: "nav" });
+
   const { data: socialLinks } = await supabaseAdmin
     .from("social_links")
     .select("platform, url, username")
@@ -21,6 +27,16 @@ export default async function Footer() {
     .order("sort_order", { ascending: true });
 
   const socials = socialLinks ?? [];
+
+  const NAV_LINKS = [
+    { href: `/${locale}/pronostics`, label: tn("pronos") },
+    { href: `/${locale}/historique`, label: tn("history_short") },
+    { href: `/${locale}/statistiques`, label: tn("stats_short") },
+    { href: `/${locale}/bilans`, label: tn("bilans_short") },
+    { href: `/${locale}/tipster`, label: tn("tipster_short") },
+    { href: `/${locale}/bookmakers`, label: tn("books") },
+    { href: `/${locale}/blog`, label: tn("blog_short") },
+  ];
 
   return (
     <footer className="border-t border-emerald-900/50 text-neutral-400" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}>
@@ -39,8 +55,7 @@ export default async function Footer() {
               />
             </div>
             <p className="mt-3 text-sm leading-relaxed">
-              Pronostics sportifs transparents et vérifiables.
-              Chaque pick est publié avec preuve avant le match.
+              {t("brand_desc")}
             </p>
 
             {/* Social icons */}
@@ -65,18 +80,10 @@ export default async function Footer() {
           {/* Navigation */}
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-              Navigation
+              {t("nav_title")}
             </p>
             <div className="mt-3 flex flex-col gap-2">
-              {[
-                { href: "/fr/pronostics", label: "Pronos" },
-                { href: "/fr/historique", label: "Historique" },
-                { href: "/fr/statistiques", label: "Stats" },
-                { href: "/fr/bilans", label: "Bilans" },
-                { href: "/fr/tipster", label: "Tipster" },
-                { href: "/fr/bookmakers", label: "Books" },
-                { href: "/fr/blog", label: "Blog" },
-              ].map((link) => (
+              {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -91,14 +98,14 @@ export default async function Footer() {
           {/* Compte */}
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-              Mon compte
+              {t("account_title")}
             </p>
             <div className="mt-3 flex flex-col gap-2">
               {[
-                { href: "/fr/login", label: "Connexion" },
-                { href: "/fr/abonnement", label: "Abonnement Premium" },
-                { href: "/fr/espace", label: "Mon espace" },
-                { href: "/fr/espace/notifications", label: "Notifications" },
+                { href: `/${locale}/login`, label: t("account_login") },
+                { href: `/${locale}/abonnement`, label: t("account_premium") },
+                { href: `/${locale}/espace`, label: t("account_space") },
+                { href: `/${locale}/espace/notifications`, label: t("account_notif") },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -114,16 +121,16 @@ export default async function Footer() {
           {/* Légal */}
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-              Légal
+              {t("legal_title")}
             </p>
             <div className="mt-3 flex flex-col gap-2">
               {[
-                { href: "/fr/mentions-legales", label: "Mentions légales" },
-                { href: "/fr/cgu", label: "CGU" },
-                { href: "/fr/cgv", label: "CGV" },
-                { href: "/fr/confidentialite", label: "Confidentialité" },
-                { href: "/fr/jeu-responsable", label: "Jeu responsable" },
-                { href: "/fr/contact", label: "Contact" },
+                { href: `/${locale}/mentions-legales`, label: t("legal_mentions") },
+                { href: `/${locale}/cgu`, label: t("legal_cgu") },
+                { href: `/${locale}/cgv`, label: t("legal_cgv") },
+                { href: `/${locale}/confidentialite`, label: t("legal_privacy") },
+                { href: `/${locale}/jeu-responsable`, label: t("legal_responsible") },
+                { href: `/${locale}/contact`, label: t("legal_contact") },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -139,13 +146,9 @@ export default async function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-10 border-t border-emerald-900/40 pt-6 text-center text-xs text-neutral-600">
-          <p>© {new Date().getFullYear()} PRONOS.CLUB — Tous droits réservés</p>
-          <p className="mt-1">
-            Les paris sportifs comportent des risques. Jouez responsablement. 18+
-          </p>
-          <p className="mt-1">
-            Appelez le 09 74 75 13 13 (appel non surtaxé)
-          </p>
+          <p>{t("bottom_copy", { year: new Date().getFullYear() })}</p>
+          <p className="mt-1">{t("bottom_risk")}</p>
+          <p className="mt-1">{t("bottom_phone")}</p>
         </div>
       </div>
     </footer>

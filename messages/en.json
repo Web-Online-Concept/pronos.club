@@ -14,7 +14,16 @@
     "login": "Login",
     "dashboard": "My Space",
     "admin": "Admin",
-    "logout": "Logout"
+    "logout": "Logout",
+    "pronos": "Picks",
+    "history_short": "History",
+    "stats_short": "Stats",
+    "bilans_short": "Reports",
+    "tipster_short": "Tipster",
+    "books": "Books",
+    "blog_short": "Blog",
+    "my_space": "My space",
+    "login_btn": "Login"
   },
   "home": {
     "hero_title_line1": "Professional",
@@ -214,7 +223,24 @@
     "legal": "Legal notice",
     "privacy": "Privacy policy",
     "terms": "Terms of service",
-    "disclaimer": "Sports betting involves risks. Please gamble responsibly."
+    "disclaimer": "Sports betting involves risks. Please gamble responsibly.",
+    "brand_desc": "Transparent and verifiable sports predictions. Every pick is published with proof before the match.",
+    "nav_title": "Navigation",
+    "account_title": "My account",
+    "account_login": "Login",
+    "account_premium": "Premium subscription",
+    "account_space": "My space",
+    "account_notif": "Notifications",
+    "legal_title": "Legal",
+    "legal_mentions": "Legal notice",
+    "legal_cgu": "Terms of Use",
+    "legal_cgv": "Terms of Sale",
+    "legal_privacy": "Privacy",
+    "legal_responsible": "Responsible gambling",
+    "legal_contact": "Contact",
+    "bottom_copy": "© {year} PRONOS.CLUB — All rights reserved",
+    "bottom_risk": "Sports betting involves risks. Gamble responsibly. 18+",
+    "bottom_phone": "Call 09 74 75 13 13 (non-premium rate)"
   },
   "subscription": {
     "page_title": "My Subscription",

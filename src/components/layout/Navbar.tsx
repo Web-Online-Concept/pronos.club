@@ -5,16 +5,7 @@ import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePathname, useRouter } from "next/navigation";
-
-const NAV_LINKS = [
-  { href: "/fr/pronostics", label: "Pronos" },
-  { href: "/fr/historique", label: "Historique" },
-  { href: "/fr/statistiques", label: "Stats" },
-  { href: "/fr/bilans", label: "Bilans" },
-  { href: "/fr/tipster", label: "Tipster" },
-  { href: "/fr/bookmakers", label: "Books" },
-  { href: "/fr/blog", label: "Blog" },
-];
+import { useTranslations, useLocale } from "next-intl";
 
 function FlagFR({ className = "h-5 w-7" }: { className?: string }) {
   return (
@@ -54,6 +45,8 @@ const LOCALES = [
 ];
 
 export default function Navbar() {
+  const t = useTranslations("nav");
+  const locale = useLocale();
   const { user, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -61,8 +54,17 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const currentLocale = LOCALES.find((l) => pathname.startsWith(`/${l.code}`))?.code ?? "fr";
-  const currentFlag = LOCALES.find((l) => l.code === currentLocale)!;
+  const NAV_LINKS = [
+    { href: `/${locale}/pronostics`, label: t("pronos") },
+    { href: `/${locale}/historique`, label: t("history_short") },
+    { href: `/${locale}/statistiques`, label: t("stats_short") },
+    { href: `/${locale}/bilans`, label: t("bilans_short") },
+    { href: `/${locale}/tipster`, label: t("tipster_short") },
+    { href: `/${locale}/bookmakers`, label: t("books") },
+    { href: `/${locale}/blog`, label: t("blog_short") },
+  ];
+
+  const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -123,7 +125,7 @@ export default function Navbar() {
       >
         <nav className="mx-auto flex h-[100px] max-w-6xl items-center justify-between px-4">
           {/* Logo */}
-          <Link href={`/${currentLocale}`} className="flex items-center">
+          <Link href={`/${locale}`} className="flex items-center">
             <Image
               src="/pronos_club.png"
               alt="PRONOS.CLUB"
@@ -154,7 +156,7 @@ export default function Navbar() {
               <div className="h-11 w-32 animate-pulse rounded-xl bg-white/10" />
             ) : user ? (
               <Link
-                href="/fr/espace"
+                href={`/${locale}/espace`}
                 className="cta-emerald flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
               >
                 {user.avatar_url ? (
@@ -168,18 +170,18 @@ export default function Navbar() {
                     {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
                   </div>
                 )}
-                {user.pseudo || "Mon espace"}
+                {user.pseudo || t("my_space")}
               </Link>
             ) : (
               <Link
-                href="/fr/login"
+                href={`/${locale}/login`}
                 className="cta-emerald rounded-xl px-6 py-3 text-base font-bold text-white"
               >
-                Connexion
+                {t("login_btn")}
               </Link>
             )}
 
-            {/* Language selector — after CTA */}
+            {/* Language selector */}
             <div className="ml-1" ref={langRef}>
               <div className="relative">
                 <button
@@ -201,16 +203,16 @@ export default function Navbar() {
 
                 {langOpen && (
                   <div className="absolute right-0 top-full z-50 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/30">
-                    {LOCALES.map((locale) => (
+                    {LOCALES.map((loc) => (
                       <button
-                        key={locale.code}
-                        onClick={() => switchLocale(locale.code)}
+                        key={loc.code}
+                        onClick={() => switchLocale(loc.code)}
                         className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm !cursor-pointer transition hover:bg-neutral-800 ${
-                          locale.code === currentLocale ? "bg-neutral-800 font-semibold text-emerald-400" : "text-neutral-300"
+                          loc.code === locale ? "bg-neutral-800 font-semibold text-emerald-400" : "text-neutral-300"
                         }`}
                       >
-                        <locale.Flag className="h-4 w-6 rounded-sm shadow-sm" />
-                        <span>{locale.label}</span>
+                        <loc.Flag className="h-4 w-6 rounded-sm shadow-sm" />
+                        <span>{loc.label}</span>
                       </button>
                     ))}
                   </div>
@@ -258,21 +260,21 @@ export default function Navbar() {
 
               {/* Mobile lang selector */}
               <div className="mt-2 flex gap-2 border-t border-neutral-800 pt-3">
-                {LOCALES.map((locale) => (
+                {LOCALES.map((loc) => (
                   <button
-                    key={locale.code}
+                    key={loc.code}
                     onClick={() => {
-                      switchLocale(locale.code);
+                      switchLocale(loc.code);
                       setMenuOpen(false);
                     }}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                      locale.code === currentLocale
+                      loc.code === locale
                         ? "border-emerald-600 bg-emerald-600/15 font-semibold text-emerald-400"
                         : "border-neutral-700 text-neutral-400 hover:border-emerald-600 hover:bg-neutral-800"
                     }`}
                   >
-                    <locale.Flag className="h-3.5 w-5 rounded-sm" />
-                    <span>{locale.label}</span>
+                    <loc.Flag className="h-3.5 w-5 rounded-sm" />
+                    <span>{loc.label}</span>
                   </button>
                 ))}
               </div>
@@ -282,7 +284,7 @@ export default function Navbar() {
                   <div className="h-12 animate-pulse rounded-xl bg-white/10" />
                 ) : user ? (
                   <Link
-                    href="/fr/espace"
+                    href={`/${locale}/espace`}
                     onClick={() => setMenuOpen(false)}
                     className="cta-emerald flex items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-base font-bold text-white"
                   >
@@ -297,15 +299,15 @@ export default function Navbar() {
                         {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
                       </div>
                     )}
-                    {user.pseudo || "Mon espace"}
+                    {user.pseudo || t("my_space")}
                   </Link>
                 ) : (
                   <Link
-                    href="/fr/login"
+                    href={`/${locale}/login`}
                     onClick={() => setMenuOpen(false)}
                     className="cta-emerald block rounded-xl px-3 py-3 text-center text-base font-bold text-white"
                   >
-                    Connexion
+                    {t("login_btn")}
                   </Link>
                 )}
               </div>
