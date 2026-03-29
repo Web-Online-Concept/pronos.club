@@ -690,6 +690,14 @@
     "badge_many": "{count} bilans publiés",
     "empty_title": "Les bilans arrivent bientôt",
     "empty_desc": "Le premier bilan sera publié à la fin du mois en cours",
-    "months": "Janvier,Février,Mars,Avril,Mai,Juin,Juillet,Août,Septembre,Octobre,Novembre,Décembre"
+    "months": "Janvier,Février,Mars,Avril,Mai,Juin,Juillet,Août,Septembre,Octobre,Novembre,Décembre",
+    "back": "← Tous les bilans",
+    "nav_stats": "Statistiques détaillées →",
+    "cta_text": "Envie de suivre nos pronostics ?",
+    "cta_btn": "Créer mon compte gratuit",
+    "kpi_picks": "Picks",
+    "kpi_winrate": "Win rate",
+    "kpi_roi": "ROI",
+    "kpi_profit": "Profit"
   }
 }

@@ -690,6 +690,14 @@
     "badge_many": "{count} reports published",
     "empty_title": "Reports coming soon",
     "empty_desc": "The first report will be published at the end of the current month",
-    "months": "January,February,March,April,May,June,July,August,September,October,November,December"
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December",
+    "back": "← All reports",
+    "nav_stats": "Detailed statistics →",
+    "cta_text": "Want to follow our predictions?",
+    "cta_btn": "Create my free account",
+    "kpi_picks": "Picks",
+    "kpi_winrate": "Win rate",
+    "kpi_roi": "ROI",
+    "kpi_profit": "Profit"
   }
 }

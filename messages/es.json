@@ -690,6 +690,14 @@
     "badge_many": "{count} informes publicados",
     "empty_title": "Los informes llegan pronto",
     "empty_desc": "El primer informe se publicará al final del mes en curso",
-    "months": "Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre"
+    "months": "Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre",
+    "back": "← Todos los informes",
+    "nav_stats": "Estadísticas detalladas →",
+    "cta_text": "¿Quieres seguir nuestros pronósticos?",
+    "cta_btn": "Crear mi cuenta gratis",
+    "kpi_picks": "Picks",
+    "kpi_winrate": "Win rate",
+    "kpi_roi": "ROI",
+    "kpi_profit": "Beneficio"
   }
 }
