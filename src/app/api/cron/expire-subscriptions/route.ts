@@ -1,8 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { onPremiumRevoked } from "@/lib/telegram-hooks";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  // Verify cron secret (Vercel Cron or manual trigger)
   const authHeader = request.headers.get("authorization");
   const cronHeader = request.headers.get("x-vercel-cron");
 
@@ -28,24 +28,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ expired: 0, message: "No expired subscriptions" });
   }
 
-  // Reset each expired user to free
-  const expiredIds = expiredUsers.map((u) => u.id);
+  let kicked = 0;
 
-  const { error: updateError } = await supabaseAdmin
-    .from("users")
-    .update({
-      subscription_status: "free",
-      subscription_end: null,
-    })
-    .in("id", expiredIds);
+  for (const user of expiredUsers) {
+    // Reset to free
+    await supabaseAdmin
+      .from("users")
+      .update({ subscription_status: "free", subscription_end: null })
+      .eq("id", user.id);
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    // Kick from Telegram group
+    try {
+      await onPremiumRevoked(user.id);
+      kicked++;
+    } catch {
+      // Silent fail — user might not be in Telegram
+    }
   }
 
   return NextResponse.json({
-    expired: expiredIds.length,
+    expired: expiredUsers.length,
+    kicked,
     users: expiredUsers.map((u) => u.email),
-    message: `${expiredIds.length} subscription(s) expired and reset to free`,
+    message: `${expiredUsers.length} subscription(s) expired, ${kicked} kicked from Telegram`,
   });
 }
