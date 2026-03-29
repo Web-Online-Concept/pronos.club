@@ -376,7 +376,13 @@
     "pie_title": "Répartition W/L",
     "pie_won": "Gagnés",
     "pie_lost": "Perdus",
-    "pie_void": "Remb."
+    "pie_void": "Remb.",
+    "my_title": "Mes Stats",
+    "bk_label": "Bankroll",
+    "bk_unit": "1U",
+    "bk_mode": "Mode",
+    "bk_mode_fixed": "Mise fixe",
+    "bk_mode_percent": "% de BK"
   },
   "tipster": {
     "hero_tag": "Notre approche",

@@ -376,7 +376,13 @@
     "pie_title": "W/L breakdown",
     "pie_won": "Won",
     "pie_lost": "Lost",
-    "pie_void": "Void"
+    "pie_void": "Void",
+    "my_title": "My Stats",
+    "bk_label": "Bankroll",
+    "bk_unit": "1U",
+    "bk_mode": "Mode",
+    "bk_mode_fixed": "Fixed stake",
+    "bk_mode_percent": "% of BK"
   },
   "tipster": {
     "hero_tag": "Our approach",

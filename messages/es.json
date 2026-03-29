@@ -376,7 +376,13 @@
     "pie_title": "Distribución W/L",
     "pie_won": "Ganados",
     "pie_lost": "Perdidos",
-    "pie_void": "Reemb."
+    "pie_void": "Reemb.",
+    "my_title": "Mis Stats",
+    "bk_label": "Bankroll",
+    "bk_unit": "1U",
+    "bk_mode": "Modo",
+    "bk_mode_fixed": "Apuesta fija",
+    "bk_mode_percent": "% de BK"
   },
   "tipster": {
     "hero_tag": "Nuestro enfoque",
