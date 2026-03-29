@@ -1,19 +1,21 @@
-import { NextResponse } from "next/server";
-
 export async function GET() {
-  const sitePassword = process.env.SITE_PASSWORD;
+  const robots = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /fr/admin/
+Disallow: /en/admin/
+Disallow: /es/admin/
+Disallow: /fr/espace/
+Disallow: /en/espace/
+Disallow: /es/espace/
+Disallow: /fr/login
+Disallow: /en/login
+Disallow: /es/login
 
-  // If site is password-protected, block all crawlers
-  if (sitePassword) {
-    return new NextResponse(
-      `User-agent: *\nDisallow: /\n`,
-      { headers: { "Content-Type": "text/plain" } }
-    );
-  }
+Sitemap: https://pronos.club/sitemap.xml
+`;
 
-  // Site is public — allow crawling
-  return new NextResponse(
-    `User-agent: *\nAllow: /\n\nSitemap: https://pronos.club/sitemap.xml\n`,
-    { headers: { "Content-Type": "text/plain" } }
-  );
+  return new Response(robots, {
+    headers: { "Content-Type": "text/plain" },
+  });
 }

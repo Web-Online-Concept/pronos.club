@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -24,6 +25,25 @@ export async function generateMetadata({
       apple: "/apple-touch-icon.png",
     },
     manifest: "/site.webmanifest",
+    openGraph: {
+      ...defaultOpenGraph,
+      title: t("title"),
+      description: t("description"),
+    },
+    twitter: {
+      ...defaultTwitter,
+      title: t("title"),
+      description: t("description"),
+    },
+    metadataBase: new URL("https://pronos.club"),
+    alternates: {
+      canonical: `https://pronos.club/${locale}`,
+      languages: {
+        fr: "https://pronos.club/fr",
+        en: "https://pronos.club/en",
+        es: "https://pronos.club/es",
+      },
+    },
   };
 }
 
