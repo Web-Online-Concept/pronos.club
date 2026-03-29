@@ -709,6 +709,14 @@
     "empty": "Ningún artículo por el momento",
     "views": "vistas",
     "prev": "← Anterior",
-    "next": "Siguiente →"
+    "next": "Siguiente →",
+    "not_found": "Artículo no encontrado",
+    "view_one": "vista",
+    "view_many": "vistas",
+    "share": "Compartir:",
+    "cta_title": "Recibe nuestros pronósticos premium",
+    "cta_desc": "Más de 50 pronósticos al mes · Historial transparente · Grupo Telegram exclusivo",
+    "cta_btn": "Descubrir Premium — 20€/mes",
+    "related": "Artículos similares"
   }
 }

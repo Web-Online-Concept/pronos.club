@@ -709,6 +709,14 @@
     "empty": "No articles yet",
     "views": "views",
     "prev": "← Previous",
-    "next": "Next →"
+    "next": "Next →",
+    "not_found": "Article not found",
+    "view_one": "view",
+    "view_many": "views",
+    "share": "Share:",
+    "cta_title": "Get our premium predictions",
+    "cta_desc": "Over 50 predictions per month · Transparent history · Exclusive Telegram group",
+    "cta_btn": "Discover Premium — €20/month",
+    "related": "Related articles"
   }
 }

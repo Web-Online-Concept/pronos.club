@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { getTranslations } from "next-intl/server";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -26,9 +27,10 @@ async function getRelated(catSlug: string | undefined, currentSlug: string) {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  const t = await getTranslations({ locale, namespace: "blog" });
   const post = await getPost(slug);
-  if (!post) return { title: "Article introuvable" };
+  if (!post) return { title: t("not_found") };
   return {
     title: `${post.meta_title || post.title} — PRONOS.CLUB`,
     description: post.meta_description || post.excerpt || "",
@@ -45,11 +47,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
 export default async function BlogArticlePage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
   const { locale, slug } = await params;
+  const t = await getTranslations({ locale, namespace: "blog" });
   const post = await getPost(slug);
   if (!post) notFound();
 
   const related = await getRelated(post.blog_categories?.slug, post.slug);
-  const fmt = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const dateFmt = locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR";
+  const fmt = (d: string) => new Date(d).toLocaleDateString(dateFmt, { day: "numeric", month: "long", year: "numeric" });
   const articleUrl = `https://pronos.club/${locale}/blog/${post.slug}`;
 
   const jsonLd = {
@@ -98,7 +102,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
             <img src="/pronos_club.png" alt="PRONOS.CLUB" className="h-10 w-10 rounded-full object-contain" />
             <div>
               <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827" }}>{post.author_name || "PRONOS.CLUB"}</p>
-              <p style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{fmt(post.published_at)} · {post.view_count} vue{post.view_count > 1 ? "s" : ""}</p>
+              <p style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{fmt(post.published_at)} · {post.view_count} {post.view_count > 1 ? t("view_many") : t("view_one")}</p>
             </div>
           </div>
 
@@ -116,7 +120,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
 
           {/* Share */}
           <div className={`${post.tags?.length > 0 ? "mt-6" : "mt-12 pt-8"} flex flex-wrap items-center gap-3`} style={post.tags?.length > 0 ? undefined : { borderTop: "1px solid #e5e7eb" }}>
-            <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#9ca3af" }}>Partager :</span>
+            <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#9ca3af" }}>{t("share")}</span>
             {[
               { label: "𝕏", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`, bg: "#0f1419" },
               { label: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(post.title)}`, bg: "#0088cc" },
@@ -130,9 +134,9 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
 
           {/* CTA */}
           <div style={{ marginTop: "3rem", padding: "2rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "16px", textAlign: "center" }}>
-            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0 }}>Recevez nos pronostics premium</p>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.5rem" }}>Plus de 50 pronostics par mois · Historique transparent · Groupe Telegram exclusif</p>
-            <Link href={`/${locale}/abonnement`} style={{ display: "inline-block", marginTop: "1rem", background: "#059669", color: "white", padding: "0.75rem 2rem", borderRadius: "12px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none" }}>Découvrir Premium — 20€/mois</Link>
+            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0 }}>{t("cta_title")}</p>
+            <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.5rem" }}>{t("cta_desc")}</p>
+            <Link href={`/${locale}/abonnement`} style={{ display: "inline-block", marginTop: "1rem", background: "#059669", color: "white", padding: "0.75rem 2rem", borderRadius: "12px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none" }}>{t("cta_btn")}</Link>
           </div>
         </article>
 
@@ -140,7 +144,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ lo
         {related.length > 0 && (
           <section style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
             <div className="mx-auto max-w-4xl px-4 py-12">
-              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", marginBottom: "1.5rem" }}>Articles similaires</h2>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", marginBottom: "1.5rem" }}>{t("related")}</h2>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {related.map((r: any) => (
                   <Link key={r.id} href={`/${locale}/blog/${r.slug}`} className="group overflow-hidden rounded-xl bg-white transition" style={{ border: "1px solid #e5e7eb" }}>
