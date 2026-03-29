@@ -1,166 +1,172 @@
-import Link from "next/link";
-import { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import { getTranslations } from "next-intl/server";
+"use client";
 
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+import { useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useTranslations } from "next-intl";
 
-async function getPost(slug: string) {
-  const { data: post } = await supabaseAdmin.from("blog_posts")
-    .select("*, blog_categories(name, slug, color, icon)")
-    .eq("slug", slug).eq("status", "published").single();
-  if (!post) return null;
-  supabaseAdmin.from("blog_posts").update({ view_count: (post.view_count || 0) + 1 }).eq("id", post.id).then(() => {});
-  return post;
-}
+export default function ContactPage() {
+  const t = useTranslations("contact");
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.pseudo || user?.display_name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
-async function getRelated(catSlug: string | undefined, currentSlug: string) {
-  if (!catSlug) return [];
-  const { data: cat } = await supabaseAdmin.from("blog_categories").select("id").eq("slug", catSlug).single();
-  if (!cat) return [];
-  const { data } = await supabaseAdmin.from("blog_posts")
-    .select("id, title, slug, cover_image, published_at, blog_categories(name, slug, color, icon)")
-    .eq("status", "published").eq("category_id", cat.id).neq("slug", currentSlug)
-    .order("published_at", { ascending: false }).limit(3);
-  return data || [];
-}
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name || !email || !subject || !message) return;
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
-  const { locale, slug } = await params;
-  const t = await getTranslations({ locale, namespace: "blog" });
-  const post = await getPost(slug);
-  if (!post) return { title: t("not_found") };
-  return {
-    title: `${post.meta_title || post.title} — PRONOS.CLUB`,
-    description: post.meta_description || post.excerpt || "",
-    openGraph: {
-      title: post.meta_title || post.title,
-      description: post.meta_description || post.excerpt || "",
-      images: post.cover_image ? [{ url: post.cover_image }] : [],
-      type: "article",
-      publishedTime: post.published_at,
-    },
-    twitter: { card: "summary_large_image", title: post.meta_title || post.title, description: post.meta_description || post.excerpt || "" },
-  };
-}
+    setSending(true);
+    setError("");
 
-export default async function BlogArticlePage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
-  const { locale, slug } = await params;
-  const t = await getTranslations({ locale, namespace: "blog" });
-  const post = await getPost(slug);
-  if (!post) notFound();
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, subject, message }),
+      });
 
-  const related = await getRelated(post.blog_categories?.slug, post.slug);
-  const dateFmt = locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR";
-  const fmt = (d: string) => new Date(d).toLocaleDateString(dateFmt, { day: "numeric", month: "long", year: "numeric" });
-  const articleUrl = `https://pronos.club/${locale}/blog/${post.slug}`;
+      const data = await res.json();
 
-  const jsonLd = {
-    "@context": "https://schema.org", "@type": "Article",
-    headline: post.title, description: post.excerpt || "", image: post.cover_image || undefined,
-    datePublished: post.published_at,
-    author: { "@type": "Organization", name: post.author_name || "PRONOS.CLUB" },
-    publisher: { "@type": "Organization", name: "PRONOS.CLUB", url: "https://pronos.club" },
-  };
+      if (data.success) {
+        setSent(true);
+      } else {
+        setError(data.error || t("error_generic"));
+      }
+    } catch {
+      setError(t("error_network"));
+    }
+
+    setSending(false);
+  }
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+      {/* Hero */}
+      <section
+        className="border-b border-emerald-900/50"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      >
+        <div className="mx-auto max-w-3xl px-4 py-14 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("hero_tag")}</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white">{t("hero_title")}</h1>
+          <p className="mx-auto mt-4 max-w-md text-sm text-white/40">
+            {t("hero_subtitle")}
+          </p>
+        </div>
+      </section>
 
-      <main className="min-h-screen bg-white">
-        {post.cover_image && (
-          <div className="mx-auto max-w-4xl px-4 pt-8">
-            <div className="overflow-hidden rounded-2xl">
-              <img src={post.cover_image} alt={post.title} className="w-full max-h-[420px] object-cover" />
+      <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
+
+        {sent ? (
+          <div className="mt-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+              <span className="text-3xl">✅</span>
             </div>
+            <h2 className="mt-4 text-xl font-extrabold text-neutral-900">{t("sent_title")}</h2>
+            <p className="mt-2 text-sm text-neutral-500" dangerouslySetInnerHTML={{ __html: t("sent_desc", { email }) }} />
           </div>
-        )}
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
 
-        <article className="mx-auto max-w-4xl px-4 pt-10 pb-16" style={{ fontFamily: "'Inter', sans-serif" }}>
-          {/* Breadcrumb */}
-          <div className="mb-8 flex items-center gap-2 text-xs" style={{ color: "#9ca3af" }}>
-            <Link href={`/${locale}/blog`} className="hover:text-neutral-600 transition">Blog</Link>
-            {post.blog_categories && (
-              <>
-                <span>›</span>
-                <Link href={`/${locale}/blog?category=${post.blog_categories.slug}`} className="font-medium hover:opacity-80 transition" style={{ color: post.blog_categories.color }}>{post.blog_categories.icon} {post.blog_categories.name}</Link>
-              </>
-            )}
-          </div>
-
-          {/* Title */}
-          <h1 style={{ fontFamily: "'Merriweather', Georgia, serif", fontSize: "2rem", fontWeight: 900, lineHeight: 1.3, color: "#111827", letterSpacing: "-0.02em", marginBottom: "1rem" }}>
-            {post.title}
-          </h1>
-
-          {/* Author */}
-          <div className="flex items-center gap-3 pb-8 mb-8" style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <img src="/pronos_club.png" alt="PRONOS.CLUB" className="h-10 w-10 rounded-full object-contain" />
-            <div>
-              <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827" }}>{post.author_name || "PRONOS.CLUB"}</p>
-              <p style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{fmt(post.published_at)} · {post.view_count} {post.view_count > 1 ? t("view_many") : t("view_one")}</p>
-            </div>
-          </div>
-
-          {/* CONTENT — uses the SAME .blog-content class as the editor */}
-          <div className="blog-content" dangerouslySetInnerHTML={{ __html: post.content }} />
-
-          {/* Tags */}
-          {post.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-12 pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
-              {post.tags.map((tag: string) => (
-                <span key={tag} style={{ background: "#f3f4f6", color: "#6b7280", fontSize: "0.75rem", padding: "0.25rem 0.75rem", borderRadius: "9999px" }}>#{tag}</span>
-              ))}
-            </div>
-          )}
-
-          {/* Share */}
-          <div className={`${post.tags?.length > 0 ? "mt-6" : "mt-12 pt-8"} flex flex-wrap items-center gap-3`} style={post.tags?.length > 0 ? undefined : { borderTop: "1px solid #e5e7eb" }}>
-            <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#9ca3af" }}>{t("share")}</span>
-            {[
-              { label: "𝕏", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(articleUrl)}`, bg: "#0f1419" },
-              { label: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(post.title)}`, bg: "#0088cc" },
-              { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`, bg: "#1877F2" },
-              { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(post.title + " " + articleUrl)}`, bg: "#25D366" },
-              { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`, bg: "#0A66C2" },
-            ].map(s => (
-              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" style={{ background: s.bg, color: "white", fontSize: "0.75rem", fontWeight: 500, padding: "0.5rem 1rem", borderRadius: "8px", textDecoration: "none" }}>{s.label}</a>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div style={{ marginTop: "3rem", padding: "2rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "16px", textAlign: "center" }}>
-            <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0 }}>{t("cta_title")}</p>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.5rem" }}>{t("cta_desc")}</p>
-            <Link href={`/${locale}/abonnement`} style={{ display: "inline-block", marginTop: "1rem", background: "#059669", color: "white", padding: "0.75rem 2rem", borderRadius: "12px", fontSize: "0.875rem", fontWeight: 600, textDecoration: "none" }}>{t("cta_btn")}</Link>
-          </div>
-        </article>
-
-        {/* Related */}
-        {related.length > 0 && (
-          <section style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
-            <div className="mx-auto max-w-4xl px-4 py-12">
-              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", marginBottom: "1.5rem" }}>{t("related")}</h2>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {related.map((r: any) => (
-                  <Link key={r.id} href={`/${locale}/blog/${r.slug}`} className="group overflow-hidden rounded-xl bg-white transition" style={{ border: "1px solid #e5e7eb" }}>
-                    <div className="aspect-video overflow-hidden" style={{ background: "#f3f4f6" }}>
-                      {r.cover_image ? <img src={r.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-3xl" style={{ color: "#d1d5db" }}>{r.blog_categories?.icon || "📄"}</div>}
-                    </div>
-                    <div style={{ padding: "1rem" }}>
-                      <h3 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827", lineHeight: 1.4 }} className="line-clamp-2 group-hover:text-emerald-600 transition">{r.title}</h3>
-                      <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "#9ca3af" }}>{fmt(r.published_at)}</p>
-                    </div>
-                  </Link>
-                ))}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-500">{t("label_name")}</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder={t("placeholder_name")}
+                  className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-500">{t("label_email")}</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder={t("placeholder_email")}
+                  className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
               </div>
             </div>
-          </section>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-neutral-500">{t("label_subject")}</label>
+              <select
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+                className="w-full cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              >
+                <option value="">{t("placeholder_subject")}</option>
+                <option value="question">{t("subject_question")}</option>
+                <option value="abonnement">{t("subject_subscription")}</option>
+                <option value="technique">{t("subject_technical")}</option>
+                <option value="suggestion">{t("subject_suggestion")}</option>
+                <option value="partenariat">{t("subject_partnership")}</option>
+                <option value="autre">{t("subject_other")}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-neutral-500">{t("label_message")}</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                required
+                rows={6}
+                placeholder={t("placeholder_message")}
+                className="w-full resize-y rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={sending || !name || !email || !subject || !message}
+              className="w-full cursor-pointer rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
+            >
+              {sending ? t("btn_sending") : t("btn_send")}
+            </button>
+
+            <p className="text-center text-xs text-neutral-400">
+              {t("also_email")}{" "}
+              <a href="mailto:contact@pronos.club" className="text-emerald-600 underline">contact@pronos.club</a>
+            </p>
+          </form>
         )}
+
+        {/* Infos */}
+        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 text-center">
+            <span className="text-xl">📧</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-700">{t("info_email")}</p>
+            <a href="mailto:contact@pronos.club" className="text-xs text-emerald-600">contact@pronos.club</a>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 text-center">
+            <span className="text-xl">⏱️</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-700">{t("info_response")}</p>
+            <p className="text-xs text-neutral-500">{t("info_response_value")}</p>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 text-center">
+            <span className="text-xl">💬</span>
+            <p className="mt-2 text-xs font-semibold text-neutral-700">{t("info_telegram")}</p>
+            <p className="text-xs text-neutral-500">{t("info_telegram_value")}</p>
+          </div>
+        </div>
       </main>
     </>
   );
