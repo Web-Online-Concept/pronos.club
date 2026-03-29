@@ -29,7 +29,6 @@ export async function POST(request: Request) {
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
 
-      // Get the subscription details
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const userId = subscription.metadata.supabase_user_id;
 
@@ -45,7 +44,6 @@ export async function POST(request: Request) {
           })
           .eq("id", userId);
 
-        // Log the subscription
         await supabaseAdmin.from("subscriptions").insert({
           user_id: userId,
           stripe_subscription_id: subscriptionId,
@@ -62,7 +60,6 @@ export async function POST(request: Request) {
           ).toISOString(),
         });
 
-        // Send Telegram invite
         onPremiumActivated(userId).catch(() => {});
       }
       break;
@@ -87,7 +84,6 @@ export async function POST(request: Request) {
           })
           .eq("id", userId);
 
-        // Update subscription record
         await supabaseAdmin
           .from("subscriptions")
           .update({
@@ -111,9 +107,7 @@ export async function POST(request: Request) {
       if (userId) {
         await supabaseAdmin
           .from("users")
-          .update({
-            subscription_status: "canceled",
-          })
+          .update({ subscription_status: "canceled" })
           .eq("id", userId);
 
         await supabaseAdmin
@@ -121,7 +115,6 @@ export async function POST(request: Request) {
           .update({ status: "canceled" })
           .eq("stripe_subscription_id", subscription.id);
 
-        // Kick from Telegram group
         onPremiumRevoked(userId).catch(() => {});
       }
       break;
@@ -131,8 +124,13 @@ export async function POST(request: Request) {
       const invoice = event.data.object;
       const invoiceAny = invoice as unknown as Record<string, unknown>;
       const customerId = invoiceAny.customer as string;
+      const amountPaid = (invoiceAny.amount_paid ?? 0) as number;
 
-      // Find user by stripe customer id
+      // Calculate Stripe fees: 1.5% + 0.25€ for EU cards (average)
+      // Stripe actual fee can be retrieved from balance transaction if needed
+      const stripeFee = Math.round(amountPaid * 0.015 + 25); // 1.5% + 0.25€ in cents
+      const netAmount = amountPaid - stripeFee;
+
       const { data: user } = await supabaseAdmin
         .from("users")
         .select("id")
@@ -144,9 +142,38 @@ export async function POST(request: Request) {
           user_id: user.id,
           stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
           stripe_invoice_id: invoice.id,
-          amount: (invoiceAny.amount_paid ?? 0) as number,
+          amount: amountPaid,
           currency: (invoiceAny.currency ?? "eur") as string,
+          stripe_fee: stripeFee,
+          net_amount: netAmount,
           status: "paid",
+          paid_at: new Date().toISOString(),
+        });
+      }
+      break;
+    }
+
+    case "invoice.payment_failed": {
+      const invoice = event.data.object;
+      const invoiceAny = invoice as unknown as Record<string, unknown>;
+      const customerId = invoiceAny.customer as string;
+
+      const { data: user } = await supabaseAdmin
+        .from("users")
+        .select("id")
+        .eq("stripe_customer_id", customerId)
+        .single();
+
+      if (user) {
+        await supabaseAdmin.from("payments").insert({
+          user_id: user.id,
+          stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
+          stripe_invoice_id: invoice.id,
+          amount: (invoiceAny.amount_due ?? 0) as number,
+          currency: (invoiceAny.currency ?? "eur") as string,
+          stripe_fee: 0,
+          net_amount: 0,
+          status: "failed",
           paid_at: new Date().toISOString(),
         });
       }
