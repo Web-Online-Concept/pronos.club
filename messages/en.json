@@ -699,5 +699,16 @@
     "kpi_winrate": "Win rate",
     "kpi_roi": "ROI",
     "kpi_profit": "Profit"
+  },
+  "blog": {
+    "title": "Blog — PRONOS.CLUB",
+    "description": "Sports news, betting guides, analyses and previews.",
+    "heading": "Blog",
+    "subtitle": "News, analyses, guides — everything to bet smarter",
+    "filter_all": "All",
+    "empty": "No articles yet",
+    "views": "views",
+    "prev": "← Previous",
+    "next": "Next →"
   }
 }

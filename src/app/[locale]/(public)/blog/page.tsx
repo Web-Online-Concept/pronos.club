@@ -1,11 +1,6 @@
 import Link from "next/link";
-import { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
-
-export const metadata: Metadata = {
-  title: "Blog — PRONOS.CLUB",
-  description: "Actualités sportives, guides paris sportifs, analyses et previews.",
-};
+import { getTranslations } from "next-intl/server";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -33,14 +28,25 @@ async function getCategories() {
   return (data || []) as any[];
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "blog" });
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
+
 export default async function BlogPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ category?: string; page?: string }> }) {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "blog" });
   const { category, page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam || "1"));
   const [{ posts, total }, categories] = await Promise.all([getPosts(category, currentPage), getCategories()]);
   const totalPages = Math.ceil(total / PER_PAGE);
 
-  const fmt = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const dateFmt = locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR";
+  const fmt = (d: string) => new Date(d).toLocaleDateString(dateFmt, { day: "numeric", month: "long", year: "numeric" });
 
   // Build pagination URL helper
   const pageUrl = (p: number) => {
@@ -55,10 +61,10 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
     <main className="min-h-screen bg-white text-neutral-900">
       <div className="border-b border-neutral-200 bg-gradient-to-b from-neutral-50 to-white">
         <div className="mx-auto max-w-6xl px-4 py-12 text-center">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">Blog</h1>
-          <p className="mt-3 text-base text-neutral-500">Actualités, analyses, guides — tout pour parier intelligemment</p>
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("heading")}</h1>
+          <p className="mt-3 text-base text-neutral-500">{t("subtitle")}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-2">
-            <Link href={`/${locale}/blog`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${!category ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Tous</Link>
+            <Link href={`/${locale}/blog`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${!category ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>{t("filter_all")}</Link>
             {categories.map((c: any) => (
               <Link key={c.slug} href={`/${locale}/blog?category=${c.slug}`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${category === c.slug ? "text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`} style={category === c.slug ? { backgroundColor: c.color } : undefined}>{c.icon} {c.name}</Link>
             ))}
@@ -69,7 +75,7 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
         {posts.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-center">
             <p className="text-5xl">📰</p>
-            <p className="mt-4 text-lg text-neutral-400">Aucun article pour le moment</p>
+            <p className="mt-4 text-lg text-neutral-400">{t("empty")}</p>
           </div>
         ) : (
           <>
@@ -83,7 +89,7 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
                     {post.blog_categories && <span className="mb-1.5 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: post.blog_categories.color }}>{post.blog_categories.icon} {post.blog_categories.name}</span>}
                     <h3 className="text-sm font-semibold leading-snug group-hover:text-emerald-600 transition line-clamp-2">{post.title}</h3>
                     {post.excerpt && <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2">{post.excerpt}</p>}
-                    <p className="mt-2 text-[10px] text-neutral-400">{fmt(post.published_at)} · {post.view_count} vues</p>
+                    <p className="mt-2 text-[10px] text-neutral-400">{fmt(post.published_at)} · {post.view_count} {t("views")}</p>
                   </div>
                 </Link>
               ))}
@@ -94,9 +100,9 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
               <div className="mt-10 flex items-center justify-center gap-2">
                 {/* Previous */}
                 {currentPage > 1 ? (
-                  <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">← Précédent</Link>
+                  <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">{t("prev")}</Link>
                 ) : (
-                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">← Précédent</span>
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">{t("prev")}</span>
                 )}
 
                 {/* Page numbers */}
@@ -116,9 +122,9 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
 
                 {/* Next */}
                 {currentPage < totalPages ? (
-                  <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">Suivant →</Link>
+                  <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">{t("next")}</Link>
                 ) : (
-                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">Suivant →</span>
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">{t("next")}</span>
                 )}
               </div>
             )}
