@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/fr/bilans", label: "Bilans" },
   { href: "/fr/tipster", label: "Tipster" },
   { href: "/fr/bookmakers", label: "Books" },
+  { href: "/fr/blog", label: "Blog" },
 ];
 
 function FlagFR({ className = "h-5 w-7" }: { className?: string }) {
