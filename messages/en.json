@@ -984,5 +984,30 @@
     "rg_delete": "If you wish to step away from sports betting, you can delete your PRONOS.CLUB account at any time from your personal space (My Profile → Delete my account). Deletion is permanent and results in the loss of all your data. If you have an active subscription, remember to cancel it before deleting your account.",
     "rg_footer_warning": "Gambling involves risks: debt, addiction, isolation.",
     "rg_footer_phone": "Call <strong>09 74 75 13 13</strong> (non-premium rate)"
+  },
+  "dashboard": {
+    "hero_default": "My space",
+    "stats_title": "My Stats",
+    "stats_desc": "Your performance on followed picks",
+    "history_title": "My History",
+    "history_desc": "The picks you followed",
+    "sub_title": "My Subscription",
+    "sub_desc": "Manage my Premium subscription",
+    "notif_title": "My Notifications",
+    "notif_desc": "Push, email, Telegram",
+    "bk_title": "My Bankroll",
+    "bk_desc": "Customize your bankroll management",
+    "app_title": "Mobile App",
+    "app_desc": "Install the Pronos Club app",
+    "profile_title": "My Profile",
+    "profile_desc": "Avatar, username, preferences",
+    "social_title": "Social Media",
+    "social_desc": "Follow us everywhere",
+    "review_title": "My Review",
+    "review_desc": "Share your opinion on PRONOS.CLUB",
+    "review_soon": "Coming soon",
+    "admin_title": "Administration",
+    "admin_desc": "Manage picks and the site",
+    "logout": "Log out"
   }
 }

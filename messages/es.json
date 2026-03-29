@@ -984,5 +984,30 @@
     "rg_delete": "Si deseas alejarte de las apuestas deportivas, puedes eliminar tu cuenta PRONOS.CLUB en cualquier momento desde tu espacio personal (Mi Perfil → Eliminar mi cuenta). La eliminación es definitiva y conlleva la pérdida de todos tus datos. Si tienes una suscripción activa, recuerda cancelarla antes de eliminar tu cuenta.",
     "rg_footer_warning": "Jugar conlleva riesgos: endeudamiento, dependencia, aislamiento.",
     "rg_footer_phone": "Llama al <strong>09 74 75 13 13</strong> (llamada no premium)"
+  },
+  "dashboard": {
+    "hero_default": "Mi espacio",
+    "stats_title": "Mis Stats",
+    "stats_desc": "Tu rendimiento en los pronos seguidos",
+    "history_title": "Mi Historial",
+    "history_desc": "Los pronos que seguiste",
+    "sub_title": "Mi Suscripción",
+    "sub_desc": "Gestionar mi suscripción Premium",
+    "notif_title": "Mis Notificaciones",
+    "notif_desc": "Push, email, Telegram",
+    "bk_title": "Mi Bankroll",
+    "bk_desc": "Personaliza tu gestión de bankroll",
+    "app_title": "App Móvil",
+    "app_desc": "Instalar la app Pronos Club",
+    "profile_title": "Mi Perfil",
+    "profile_desc": "Avatar, seudónimo, preferencias",
+    "social_title": "Redes Sociales",
+    "social_desc": "Síguenos en todas partes",
+    "review_title": "Mi Opinión",
+    "review_desc": "Da tu opinión sobre PRONOS.CLUB",
+    "review_soon": "Próximamente",
+    "admin_title": "Administración",
+    "admin_desc": "Gestionar picks y el sitio",
+    "logout": "Cerrar sesión"
   }
 }
