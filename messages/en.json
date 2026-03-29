@@ -311,7 +311,15 @@
     "date_to": "To",
     "loading": "Loading...",
     "no_results": "No results",
-    "load_more": "Load more ({current}/{total})"
+    "load_more": "Load more ({current}/{total})",
+    "my_title": "My History",
+    "filter_pending": "⏳ Active",
+    "filter_awaiting_result": "🔄 Awaiting result",
+    "filter_won_emoji": "✅ Won",
+    "filter_lost_emoji": "❌ Lost",
+    "filter_void_emoji": "↩️ Void",
+    "empty_followed": "No followed picks",
+    "empty_followed_desc": "Your followed picks will appear here once results are available."
   },
   "statistics": {
     "loading": "Loading statistics...",

@@ -311,7 +311,15 @@
     "date_to": "Au",
     "loading": "Chargement...",
     "no_results": "Aucun résultat",
-    "load_more": "Charger plus ({current}/{total})"
+    "load_more": "Charger plus ({current}/{total})",
+    "my_title": "Mon Historique",
+    "filter_pending": "⏳ En cours",
+    "filter_awaiting_result": "🔄 En attente de résultat",
+    "filter_won_emoji": "✅ Gagnés",
+    "filter_lost_emoji": "❌ Perdus",
+    "filter_void_emoji": "↩️ Remboursés",
+    "empty_followed": "Aucun prono suivi",
+    "empty_followed_desc": "Vos pronos suivis apparaîtront ici une fois les résultats disponibles."
   },
   "statistics": {
     "loading": "Chargement des statistiques...",

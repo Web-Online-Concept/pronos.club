@@ -311,7 +311,15 @@
     "date_to": "Hasta",
     "loading": "Cargando...",
     "no_results": "Sin resultados",
-    "load_more": "Cargar más ({current}/{total})"
+    "load_more": "Cargar más ({current}/{total})",
+    "my_title": "Mi Historial",
+    "filter_pending": "⏳ En curso",
+    "filter_awaiting_result": "🔄 En espera de resultado",
+    "filter_won_emoji": "✅ Ganados",
+    "filter_lost_emoji": "❌ Perdidos",
+    "filter_void_emoji": "↩️ Reembolsados",
+    "empty_followed": "Ningún prono seguido",
+    "empty_followed_desc": "Tus pronos seguidos aparecerán aquí una vez los resultados estén disponibles."
   },
   "statistics": {
     "loading": "Cargando estadísticas...",
