@@ -6,19 +6,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend
 } from "recharts";
-
-const MONTH_NAMES = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-];
+import { useTranslations } from "next-intl";
 
 const RED = "#ef4444";
 const GREEN = "#059669";
-
-function formatMonth(ym: string) {
-  const [y, m] = ym.split("-");
-  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
-}
 
 function lastDayOfMonth(ym: string) {
   const [y, m] = ym.split("-");
@@ -49,6 +40,14 @@ interface StatsData {
 }
 
 export default function StatistiquesPage() {
+  const t = useTranslations("statistics");
+  const MONTH_NAMES = t("months").split(",");
+
+  function formatMonth(ym: string) {
+    const [y, m] = ym.split("-");
+    return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+  }
+
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sport, setSport] = useState("all");
@@ -86,7 +85,7 @@ export default function StatistiquesPage() {
   if (loading || !data) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <p className="text-center opacity-50">Chargement des statistiques...</p>
+        <p className="text-center opacity-50">{t("loading")}</p>
       </main>
     );
   }
@@ -125,13 +124,13 @@ export default function StatistiquesPage() {
       >
         <div className="mx-auto max-w-5xl px-4 py-10">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Club</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-white">Statistiques</h1>
-            <p className="mt-2 text-sm text-white/40">Performance détaillée du tipster</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
+            <h1 className="mt-2 text-3xl font-extrabold text-white">{t("title")}</h1>
+            <p className="mt-2 text-sm text-white/40">{t("subtitle")}</p>
             {showEuro && bk && uv > 0 && (
               <div className="mt-3 inline-flex items-center gap-4 rounded-full bg-white/5 px-5 py-2">
-                <span className="text-xs text-white/40">Bankroll : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
-                <span className="text-xs text-white/40">1U = <span className="font-bold text-emerald-400">{uv.toFixed(2)}€</span></span>
+                <span className="text-xs text-white/40">{t("bankroll_label")} : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
+                <span className="text-xs text-white/40">{t("unit_label")} = <span className="font-bold text-emerald-400">{uv.toFixed(2)}€</span></span>
               </div>
             )}
           </div>
@@ -174,17 +173,17 @@ export default function StatistiquesPage() {
           }}
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
-          <option value="all">Toutes les dates</option>
-          <option value="custom">📅 Personnalisé</option>
+          <option value="all">{t("filter_all_dates")}</option>
+          <option value="custom">{t("filter_custom")}</option>
           {years.length > 0 && (
-            <optgroup label="Par année">
+            <optgroup label={t("filter_by_year")}>
               {years.map((y) => (
                 <option key={y} value={`year:${y}`}>{y}</option>
               ))}
             </optgroup>
           )}
           {months.length > 0 && (
-            <optgroup label="Par mois">
+            <optgroup label={t("filter_by_month")}>
               {months.map((m) => (
                 <option key={m} value={`month:${m}`}>{formatMonth(m)}</option>
               ))}
@@ -199,7 +198,7 @@ export default function StatistiquesPage() {
             onChange={(e) => setSport(e.target.value)}
             className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
           >
-            <option value="all">Tous les sports</option>
+            <option value="all">{t("filter_all_sports")}</option>
             {sports.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.icon} {s.name}
@@ -219,7 +218,7 @@ export default function StatistiquesPage() {
                   : "text-neutral-400 hover:text-neutral-600"
               }`}
             >
-              Unités
+              {t("toggle_units")}
             </button>
             <button
               onClick={() => setDisplayMode("euros")}
@@ -229,7 +228,7 @@ export default function StatistiquesPage() {
                   : "text-neutral-400 hover:text-neutral-600"
               }`}
             >
-              Euros €
+              {t("toggle_euros")}
             </button>
           </div>
         )}
@@ -239,7 +238,7 @@ export default function StatistiquesPage() {
       {filterMode === "custom" && (
         <div className="mt-3 flex flex-wrap items-end justify-center gap-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">Du</label>
+            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">{t("date_from")}</label>
             <input
               type="date"
               value={dateFrom}
@@ -248,7 +247,7 @@ export default function StatistiquesPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">Au</label>
+            <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">{t("date_to")}</label>
             <input
               type="date"
               value={dateTo}
@@ -263,7 +262,7 @@ export default function StatistiquesPage() {
         <div className="flex flex-1 items-center justify-center text-center">
           <div>
             <p className="text-4xl">📊</p>
-            <p className="mt-2 text-sm opacity-50">Pas assez de données pour cette période</p>
+            <p className="mt-2 text-sm opacity-50">{t("no_data")}</p>
           </div>
         </div>
       ) : (
@@ -272,19 +271,19 @@ export default function StatistiquesPage() {
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <p className="text-3xl font-extrabold text-white">{o.totalPicks}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Picks</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_picks")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <p className={`text-3xl font-extrabold ${o.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{o.winRate}%</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Win rate</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_winrate")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <p className={`text-3xl font-extrabold ${o.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{o.roi >= 0 ? "+" : ""}{o.roi}%</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">ROI</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_roi")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
               <p className={`text-3xl font-extrabold ${o.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{o.totalProfit >= 0 ? "+" : ""}{displayVal(o.totalProfit)}</p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Profit</p>
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_profit")}</p>
             </div>
           </div>
 
@@ -293,22 +292,22 @@ export default function StatistiquesPage() {
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-500" />
               <p className="mt-1 text-2xl font-extrabold text-emerald-600">{o.wonPicks}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Gagnés</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_won")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-400 to-red-500" />
               <p className="mt-1 text-2xl font-extrabold text-red-500">{o.lostPicks}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Perdus</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_lost")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-neutral-300 to-neutral-400" />
               <p className="mt-1 text-2xl font-extrabold text-neutral-500">{o.voidPicks}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Remb.</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_void")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 to-blue-500" />
               <p className="mt-1 text-2xl font-extrabold text-neutral-900">{o.avgOdds}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Cote moy.</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_avg_odds")}</p>
             </div>
           </div>
 
@@ -317,22 +316,22 @@ export default function StatistiquesPage() {
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className={`absolute inset-x-0 top-0 h-1 ${(o.currentStreak ?? "").startsWith("W") ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-red-500"}`} />
               <p className={`mt-1 text-2xl font-extrabold ${(o.currentStreak ?? "").startsWith("W") ? "text-emerald-600" : "text-red-500"}`}>{o.currentStreak ?? "-"}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Série en cours</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_current_streak")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-500" />
               <p className="mt-1 text-2xl font-extrabold text-emerald-600">{o.maxWinStreak}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Série W max</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_max_win_streak")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-400 to-red-500" />
               <p className="mt-1 text-2xl font-extrabold text-red-500">{o.maxLoseStreak}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Série L max</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_max_lose_streak")}</p>
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" />
               <p className="mt-1 text-2xl font-extrabold text-neutral-900">{displayVal(o.totalStaked)}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Total misé</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_total_staked")}</p>
             </div>
           </div>
 
@@ -341,16 +340,16 @@ export default function StatistiquesPage() {
             <div className="mb-8 mt-4 grid gap-3 sm:grid-cols-2">
               {o.bestPick && (
                 <div className="overflow-hidden rounded-2xl border-l-4 border-emerald-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Meilleur pick</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{t("best_pick")}</p>
                   <p className="mt-1 font-bold text-white">{o.bestPick.event}</p>
-                  <p className="mt-1 text-sm text-white/50">Cote {o.bestPick.odds} → <span className="font-bold text-emerald-400">+{displayVal(o.bestPick.profit)}</span></p>
+                  <p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.bestPick.odds} → <span className="font-bold text-emerald-400">+{displayVal(o.bestPick.profit)}</span></p>
                 </div>
               )}
               {o.worstPick && (
                 <div className="overflow-hidden rounded-2xl border-l-4 border-red-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #2e0606 100%)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-400">Pire pick</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-400">{t("worst_pick")}</p>
                   <p className="mt-1 font-bold text-white">{o.worstPick.event}</p>
-                  <p className="mt-1 text-sm text-white/50">Cote {o.worstPick.odds} → <span className="font-bold text-red-400">{displayVal(o.worstPick.profit)}</span></p>
+                  <p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.worstPick.odds} → <span className="font-bold text-red-400">{displayVal(o.worstPick.profit)}</span></p>
                 </div>
               )}
             </div>
@@ -367,8 +366,8 @@ export default function StatistiquesPage() {
         style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
       >
         <div className="text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">Courbe de progression</p>
-          <h2 className="mt-1 text-xl font-extrabold text-white">Évolution du profit</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">{t("chart_profit_tag")}</p>
+          <h2 className="mt-1 text-xl font-extrabold text-white">{t("chart_profit_title")}</h2>
         </div>
       </div>
     )}
@@ -385,7 +384,7 @@ export default function StatistiquesPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => isEuroMode ? `${v}€` : `${v}U`} />
-                  <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, "Profit cumulé"]} />
+                  <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, t("chart_profit_tooltip")]} />
                   <defs>
                     <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={GREEN} stopOpacity={0.3} />
@@ -405,8 +404,8 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">Retour sur investissement</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Évolution du ROI</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">{t("chart_roi_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("chart_roi_title")}</h2>
               </div>
             </div>
             <div className="mt-4 h-64 w-full">
@@ -430,8 +429,8 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">Mois par mois</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Performance mensuelle</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">{t("by_month_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("by_month_title")}</h2>
               </div>
             </div>
               <div className="mt-4 h-64 w-full">
@@ -440,7 +439,7 @@ export default function StatistiquesPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => isEuroMode ? `${v}€` : `${v}U`} />
-                    <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, "Profit"]} />
+                    <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, t("kpi_profit")]} />
                     <Bar dataKey="profit" radius={[6, 6, 0, 0]}>
                       {data.byMonth.map((entry, i) => (
                         <Cell key={i} fill={entry.profit >= 0 ? GREEN : RED} />
@@ -453,11 +452,11 @@ export default function StatistiquesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-neutral-200 text-xs uppercase opacity-40">
-                      <th className="pb-2 text-left">Mois</th>
-                      <th className="pb-2 text-center">Picks</th>
-                      <th className="pb-2 text-center">W/L</th>
-                      <th className="pb-2 text-center">ROI</th>
-                      <th className="pb-2 text-right">Profit</th>
+                      <th className="pb-2 text-left">{t("th_month")}</th>
+                      <th className="pb-2 text-center">{t("th_picks")}</th>
+                      <th className="pb-2 text-center">{t("th_wl")}</th>
+                      <th className="pb-2 text-center">{t("th_roi")}</th>
+                      <th className="pb-2 text-right">{t("th_profit")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -486,8 +485,8 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">Répartition</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Par sport</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">{t("by_sport_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("by_sport_title")}</h2>
               </div>
             </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -515,19 +514,19 @@ export default function StatistiquesPage() {
                     <div className="mt-4 grid grid-cols-4 gap-2">
                       <div className="text-center">
                         <p className="text-sm font-extrabold text-white">{s.total}</p>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">Picks</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_picks")}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-extrabold text-white">{s.won}W {s.lost}L</p>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">Bilan</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_record")}</p>
                       </div>
                       <div className="text-center">
                         <p className={`text-sm font-extrabold ${s.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{s.winRate}%</p>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">Win rate</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_winrate")}</p>
                       </div>
                       <div className="text-center">
                         <p className={`text-sm font-extrabold ${s.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{s.roi}%</p>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">ROI</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_roi")}</p>
                       </div>
                     </div>
                   </div>
@@ -544,20 +543,20 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">Plateformes</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Par bookmaker</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">{t("by_bookie_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("by_bookie_title")}</h2>
               </div>
             </div>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-neutral-200 text-xs uppercase opacity-40">
-                      <th className="pb-2 text-left">Bookmaker</th>
-                      <th className="pb-2 text-center">Picks</th>
-                      <th className="pb-2 text-center">W/L</th>
-                      <th className="pb-2 text-center">Win rate</th>
-                      <th className="pb-2 text-center">ROI</th>
-                      <th className="pb-2 text-right">Profit</th>
+                      <th className="pb-2 text-left">{t("th_bookmaker")}</th>
+                      <th className="pb-2 text-center">{t("th_picks")}</th>
+                      <th className="pb-2 text-center">{t("th_wl")}</th>
+                      <th className="pb-2 text-center">{t("th_winrate")}</th>
+                      <th className="pb-2 text-center">{t("th_roi")}</th>
+                      <th className="pb-2 text-right">{t("th_profit")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -586,8 +585,8 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">Analyse des cotes</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Distribution par cote</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">{t("odds_dist_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("odds_dist_title")}</h2>
               </div>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -598,8 +597,8 @@ export default function StatistiquesPage() {
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="total" fill="#d1d5db" name="Total" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="won" fill={GREEN} name="Gagnés" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total" fill="#d1d5db" name={t("chart_total")} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="won" fill={GREEN} name={t("chart_won")} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -627,8 +626,8 @@ export default function StatistiquesPage() {
               style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">Bilan global</p>
-                <h2 className="mt-1 text-xl font-extrabold text-white">Répartition W/L</h2>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-300">{t("pie_tag")}</p>
+                <h2 className="mt-1 text-xl font-extrabold text-white">{t("pie_title")}</h2>
               </div>
             </div>
             <div className="mt-4 h-64">
@@ -636,9 +635,9 @@ export default function StatistiquesPage() {
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Gagnés", value: o.wonPicks },
-                      { name: "Perdus", value: o.lostPicks },
-                      { name: "Remb.", value: o.voidPicks },
+                      { name: t("pie_won"), value: o.wonPicks },
+                      { name: t("pie_lost"), value: o.lostPicks },
+                      { name: t("pie_void"), value: o.voidPicks },
                     ].filter((d) => d.value > 0)}
                     dataKey="value"
                     nameKey="name"
