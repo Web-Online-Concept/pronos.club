@@ -1179,5 +1179,34 @@
     "pc_p2": "Si Chrome te propone \"Instalar PRONOS.CLUB\" en la barra de direcciones, también puedes instalarlo como aplicación de escritorio para un acceso rápido.",
     "why_title": "¿Por qué instalar la aplicación?",
     "why_items": "Notificaciones push instantáneas con cada nuevo pronóstico|Se abre a pantalla completa, como una app real|Acceso rápido desde tu pantalla de inicio|Sin necesidad de App Store ni Play Store|100% gratis, sin descarga"
+  },
+  "social": {
+    "hero": "Nuestras Redes",
+    "intro": "Síguenos en redes sociales para no perderte nada de la actualidad de PRONOS.CLUB.",
+    "empty": "Nuestras redes llegan pronto",
+    "default_label": "Enlace",
+    "info_title": "Mantente informado",
+    "info_desc": "Síguenos en redes para anuncios, resultados en directo y los entresijos de PRONOS.CLUB. Activa también las notificaciones en tu espacio para no perderte ningún pronóstico."
+  },
+  "user_review": {
+    "hero": "Mi Opinión",
+    "locked_title": "Reservado para suscriptores Premium",
+    "locked_desc": "Solo los suscriptores Premium pueden dejar una opinión. Suscríbete para compartir tu experiencia.",
+    "sent_title": "¡Gracias por tu opinión!",
+    "sent_desc": "Tu opinión ha sido enviada y será visible en el sitio tras la verificación de nuestro equipo.",
+    "already_title": "Opinión ya enviada",
+    "already_desc": "Ya has enviado una opinión. Será visible en el sitio tras la verificación.",
+    "intro": "¡Tu opinión cuenta! Comparte tu experiencia con PRONOS.CLUB. Tu opinión se publicará tras la verificación de nuestro equipo.",
+    "label_rating": "Tu nota",
+    "label_review": "Tu opinión",
+    "placeholder": "¿Qué es lo que más aprecias? ¿Qué podría mejorarse? Tu experiencia en pocas palabras...",
+    "preview": "Vista previa",
+    "preview_you": "Tú",
+    "val_required": "Por favor, da una nota y escribe tu opinión",
+    "err_send": "Error al enviar",
+    "err_network": "Error de red",
+    "btn_sending": "Enviando...",
+    "btn_submit": "Enviar mi opinión",
+    "footer_note": "Tu opinión será verificada antes de su publicación. El seudónimo y avatar se mostrarán públicamente."
   }
 }

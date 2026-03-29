@@ -1179,5 +1179,34 @@
     "pc_p2": "Si Chrome vous propose \"Installer PRONOS.CLUB\" dans la barre d'adresse, vous pouvez aussi l'installer comme application de bureau pour un accès rapide.",
     "why_title": "Pourquoi installer l'application ?",
     "why_items": "Notifications push instantanées à chaque nouveau pronostic|S'ouvre en plein écran, comme une vraie app|Accès rapide depuis votre écran d'accueil|Pas besoin de l'App Store ni du Play Store|100% gratuit, aucun téléchargement"
+  },
+  "social": {
+    "hero": "Nos Réseaux",
+    "intro": "Suivez-nous sur les réseaux sociaux pour ne rien manquer de l'actualité PRONOS.CLUB.",
+    "empty": "Nos réseaux arrivent bientôt",
+    "default_label": "Lien",
+    "info_title": "Restez informé",
+    "info_desc": "Suivez-nous sur les réseaux pour les annonces, les résultats en direct et les coulisses de PRONOS.CLUB. Activez aussi les notifications dans votre espace pour ne rater aucun pronostic."
+  },
+  "user_review": {
+    "hero": "Mon Avis",
+    "locked_title": "Réservé aux abonnés Premium",
+    "locked_desc": "Seuls les abonnés Premium peuvent laisser un avis. Abonnez-vous pour partager votre expérience.",
+    "sent_title": "Merci pour votre avis !",
+    "sent_desc": "Votre avis a été soumis et sera visible sur le site après vérification par notre équipe.",
+    "already_title": "Avis déjà envoyé",
+    "already_desc": "Vous avez déjà soumis un avis. Il sera visible sur le site après vérification.",
+    "intro": "Votre avis compte ! Partagez votre expérience avec PRONOS.CLUB. Votre avis sera publié après vérification par notre équipe.",
+    "label_rating": "Votre note",
+    "label_review": "Votre avis",
+    "placeholder": "Qu'est-ce que vous appréciez le plus ? Qu'est-ce qui pourrait être amélioré ? Votre expérience en quelques mots...",
+    "preview": "Aperçu",
+    "preview_you": "Vous",
+    "val_required": "Veuillez donner une note et écrire votre avis",
+    "err_send": "Erreur lors de l'envoi",
+    "err_network": "Erreur réseau",
+    "btn_sending": "Envoi en cours...",
+    "btn_submit": "Soumettre mon avis",
+    "footer_note": "Votre avis sera vérifié avant publication. Pseudo et avatar seront affichés publiquement."
   }
 }

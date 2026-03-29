@@ -1179,5 +1179,34 @@
     "pc_p2": "If Chrome offers to \"Install PRONOS.CLUB\" in the address bar, you can also install it as a desktop app for quick access.",
     "why_title": "Why install the app?",
     "why_items": "Instant push notifications for each new prediction|Opens fullscreen, like a real app|Quick access from your home screen|No need for the App Store or Play Store|100% free, no download"
+  },
+  "social": {
+    "hero": "Our Socials",
+    "intro": "Follow us on social media so you never miss any PRONOS.CLUB news.",
+    "empty": "Our socials are coming soon",
+    "default_label": "Link",
+    "info_title": "Stay informed",
+    "info_desc": "Follow us on social media for announcements, live results and behind the scenes of PRONOS.CLUB. Also enable notifications in your space to never miss a prediction."
+  },
+  "user_review": {
+    "hero": "My Review",
+    "locked_title": "Reserved for Premium subscribers",
+    "locked_desc": "Only Premium subscribers can leave a review. Subscribe to share your experience.",
+    "sent_title": "Thank you for your review!",
+    "sent_desc": "Your review has been submitted and will be visible on the site after verification by our team.",
+    "already_title": "Review already submitted",
+    "already_desc": "You have already submitted a review. It will be visible on the site after verification.",
+    "intro": "Your opinion matters! Share your experience with PRONOS.CLUB. Your review will be published after verification by our team.",
+    "label_rating": "Your rating",
+    "label_review": "Your review",
+    "placeholder": "What do you appreciate the most? What could be improved? Your experience in a few words...",
+    "preview": "Preview",
+    "preview_you": "You",
+    "val_required": "Please give a rating and write your review",
+    "err_send": "Error sending",
+    "err_network": "Network error",
+    "btn_sending": "Sending...",
+    "btn_submit": "Submit my review",
+    "footer_note": "Your review will be verified before publication. Username and avatar will be displayed publicly."
   }
 }
