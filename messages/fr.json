@@ -681,5 +681,15 @@
     "unibet_s5": "Unibet se classe dans le top 3 des meilleurs bookmakers ARJEL en termes de cotes, aux côtés de Winamax et Betclic. Les cotes sont mises à jour en temps réel et des Super Cotes Boostées sont proposées quotidiennement sur les plus grands événements sportifs. Plus de 30 disciplines sportives sont couvertes avec des marchés allant du plus simple au plus avancé.",
     "unibet_s6_title": "Application mobile n°1",
     "unibet_s6": "L'application Unibet est la mieux notée sur l'App Store en France pour les paris sportifs. Disponible sur Android et iOS, elle offre une interface fluide et intuitive avec accès à tous les paris, le streaming en direct, le cash-out, les promotions et la gestion complète de votre compte. Pariez où que vous soyez, à tout moment."
+  },
+  "bilans": {
+    "hero_tag": "Transparence",
+    "hero_title": "Bilans mensuels",
+    "hero_subtitle": "Chaque mois, notre tipster publie un bilan complet : résultats, analyse, contexte et perspectives. Tout est transparent, les bons mois comme les mauvais.",
+    "badge_one": "{count} bilan publié",
+    "badge_many": "{count} bilans publiés",
+    "empty_title": "Les bilans arrivent bientôt",
+    "empty_desc": "Le premier bilan sera publié à la fin du mois en cours",
+    "months": "Janvier,Février,Mars,Avril,Mai,Juin,Juillet,Août,Septembre,Octobre,Novembre,Décembre"
   }
 }

@@ -681,5 +681,15 @@
     "unibet_s5": "Unibet se sitúa en el top 3 de los mejores bookmakers ARJEL en cuotas, junto a Winamax y Betclic. Las cuotas se actualizan en tiempo real y se ofrecen Super Cuotas Mejoradas diariamente en los mayores eventos deportivos. Más de 30 disciplinas deportivas cubiertas con mercados desde los más simples hasta los más avanzados.",
     "unibet_s6_title": "Aplicación móvil n°1",
     "unibet_s6": "La app de Unibet es la mejor valorada en la App Store en Francia para apuestas deportivas. Disponible en Android e iOS, ofrece una interfaz fluida e intuitiva con acceso a todas las apuestas, streaming en directo, cash-out, promociones y gestión completa de tu cuenta. Apuesta donde sea, en cualquier momento."
+  },
+  "bilans": {
+    "hero_tag": "Transparencia",
+    "hero_title": "Informes mensuales",
+    "hero_subtitle": "Cada mes, nuestro tipster publica un informe completo: resultados, análisis, contexto y perspectivas. Todo es transparente, los buenos meses y los malos.",
+    "badge_one": "{count} informe publicado",
+    "badge_many": "{count} informes publicados",
+    "empty_title": "Los informes llegan pronto",
+    "empty_desc": "El primer informe se publicará al final del mes en curso",
+    "months": "Enero,Febrero,Marzo,Abril,Mayo,Junio,Julio,Agosto,Septiembre,Octubre,Noviembre,Diciembre"
   }
 }

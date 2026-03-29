@@ -681,5 +681,15 @@
     "unibet_s5": "Unibet ranks in the top 3 best ARJEL bookmakers for odds, alongside Winamax and Betclic. Odds are updated in real time and Super Boosted Odds are offered daily on the biggest sporting events. Over 30 sports disciplines are covered with markets ranging from the simplest to the most advanced.",
     "unibet_s6_title": "Mobile app #1",
     "unibet_s6": "The Unibet app is the highest-rated on the App Store in France for sports betting. Available on Android and iOS, it offers a smooth and intuitive interface with access to all bets, live streaming, cash-out, promotions and complete account management. Bet wherever you are, anytime."
+  },
+  "bilans": {
+    "hero_tag": "Transparency",
+    "hero_title": "Monthly reports",
+    "hero_subtitle": "Every month, our tipster publishes a complete report: results, analysis, context and outlook. Everything is transparent, the good months as well as the bad.",
+    "badge_one": "{count} report published",
+    "badge_many": "{count} reports published",
+    "empty_title": "Reports coming soon",
+    "empty_desc": "The first report will be published at the end of the current month",
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December"
   }
 }
