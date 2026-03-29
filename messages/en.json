@@ -1009,5 +1009,21 @@
     "admin_title": "Administration",
     "admin_desc": "Manage picks and the site",
     "logout": "Log out"
+  },
+  "pronostics": {
+    "tag": "Pronos Club",
+    "title": "Active picks",
+    "badge_one": "{count} pick available",
+    "badge_many": "{count} picks available",
+    "badge_premium": "{premium} premium · {free} free",
+    "badge_premium_plural": "{premium} premium · {free} free",
+    "empty_title": "No active picks at the moment",
+    "empty_desc": "Enable notifications in your personal space to be alerted when a new pick is published",
+    "cta_unlock": "Unlock all predictions",
+    "cta_unlock_desc": "Full access to selections, analyses and tipster screenshots",
+    "cta_unlock_btn": "View Premium plans",
+    "recent_tag": "Recent history",
+    "recent_title": "Latest results",
+    "recent_see_all": "View all →"
   }
 }

@@ -1009,5 +1009,21 @@
     "admin_title": "Administración",
     "admin_desc": "Gestionar picks y el sitio",
     "logout": "Cerrar sesión"
+  },
+  "pronostics": {
+    "tag": "Pronos Club",
+    "title": "Pronos en curso",
+    "badge_one": "{count} pick disponible",
+    "badge_many": "{count} picks disponibles",
+    "badge_premium": "{premium} premium · {free} gratis",
+    "badge_premium_plural": "{premium} premium · {free} gratis",
+    "empty_title": "Ningún prono en curso por el momento",
+    "empty_desc": "Activa las notificaciones en tu espacio personal para ser alertado cuando se publique un nuevo prono",
+    "cta_unlock": "Desbloquea todos los pronósticos",
+    "cta_unlock_desc": "Acceso completo a selecciones, análisis y capturas del tipster",
+    "cta_unlock_btn": "Ver planes Premium",
+    "recent_tag": "Historial reciente",
+    "recent_title": "Últimos resultados",
+    "recent_see_all": "Ver todo →"
   }
 }

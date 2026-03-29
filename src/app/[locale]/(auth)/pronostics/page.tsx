@@ -2,8 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import PickCard from "@/components/picks/PickCard";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-export default async function PronosticsPage() {
+export default async function PronosticsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "pronostics" });
   const supabase = await createClient();
   const user = await getCurrentUser();
   const isPremium = user?.subscription_status === "active";
@@ -24,13 +27,14 @@ export default async function PronosticsPage() {
   const now = new Date();
   const allPending = pendingPicks ?? [];
 
-  // Only show picks where match hasn't started yet
   const activePicks = allPending.filter((p) => new Date(p.event_date) > now);
   const results = recentResults ?? [];
 
+  const premiumCount = activePicks.filter((p) => p.is_premium).length;
+  const freeCount = activePicks.filter((p) => !p.is_premium).length;
+
   return (
     <>
-      {/* Viewport wrapper: hero + picks + historique header fill the screen */}
       <div className="flex min-h-[calc(100vh-100px)] flex-col">
 
       {/* Hero full-width */}
@@ -40,9 +44,9 @@ export default async function PronosticsPage() {
       >
         <div className="mx-auto max-w-2xl px-4 py-10">
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Club</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
             <h1 className="mt-2 text-3xl font-extrabold text-white">
-              Pronos en cours
+              {t("title")}
             </h1>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
@@ -51,13 +55,15 @@ export default async function PronosticsPage() {
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
                 <span className="text-xs font-semibold text-emerald-400">
-                  {activePicks.length} pick{activePicks.length > 1 ? "s" : ""} disponible{activePicks.length > 1 ? "s" : ""}
+                  {activePicks.length > 1 ? t("badge_many", { count: activePicks.length }) : t("badge_one", { count: activePicks.length })}
                 </span>
               </div>
               {activePicks.length > 0 && (
                 <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
                   <span className="text-xs font-semibold text-sky-400">
-                    {activePicks.filter((p) => p.is_premium).length} premium · {activePicks.filter((p) => !p.is_premium).length} gratuit{activePicks.filter((p) => !p.is_premium).length > 1 ? "s" : ""}
+                    {freeCount > 1
+                      ? t("badge_premium_plural", { premium: premiumCount, free: freeCount })
+                      : t("badge_premium", { premium: premiumCount, free: freeCount })}
                   </span>
                 </div>
               )}
@@ -82,8 +88,8 @@ export default async function PronosticsPage() {
       ) : (
         <div className="mt-4 flex flex-1 items-center justify-center rounded-xl border border-neutral-300 bg-neutral-100 text-center">
           <div>
-            <p className="text-base font-semibold text-neutral-600">Aucun prono en cours pour le moment</p>
-            <p className="mt-2 text-sm text-neutral-500">Activez les notifications dans votre espace perso<br />pour être alerté dès la publication d&apos;un nouveau prono</p>
+            <p className="text-base font-semibold text-neutral-600">{t("empty_title")}</p>
+            <p className="mt-2 text-sm text-neutral-500">{t("empty_desc")}</p>
           </div>
         </div>
       )}
@@ -93,35 +99,35 @@ export default async function PronosticsPage() {
         <div className="mt-8 overflow-hidden rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-6 text-center">
           <span className="text-3xl">🔓</span>
           <p className="mt-2 text-lg font-bold text-neutral-900">
-            Débloquez tous les pronostics
+            {t("cta_unlock")}
           </p>
           <p className="mt-1 text-sm text-neutral-500">
-            Accès complet aux sélections, analyses et screenshots du tipster
+            {t("cta_unlock_desc")}
           </p>
           <Link
-            href="/fr/abonnement"
+            href={`/${locale}/abonnement`}
             className="mt-4 inline-block cursor-pointer rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition hover:shadow-xl hover:-translate-y-0.5"
           >
-            Voir les offres Premium
+            {t("cta_unlock_btn")}
           </Link>
         </div>
       )}
     </div>
 
-      {/* Historique header — always visible at bottom of viewport */}
+      {/* Historique header */}
       {results.length > 0 && (
         <div
           className="border-y border-emerald-900/50 px-4 py-6"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">Historique récent</p>
-            <h2 className="mt-1 text-xl font-extrabold text-white">Derniers résultats</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">{t("recent_tag")}</p>
+            <h2 className="mt-1 text-xl font-extrabold text-white">{t("recent_title")}</h2>
             <Link
-              href="/fr/historique"
+              href={`/${locale}/historique`}
               className="mt-3 inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-bold text-white/70 transition hover:bg-white/15 hover:text-white"
             >
-              Voir tout →
+              {t("recent_see_all")}
             </Link>
           </div>
         </div>

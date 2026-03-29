@@ -4,34 +4,38 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import Link from "next/link";
 import EspaceHero from "@/components/layout/EspaceHero";
-
-const FREE_FEATURES = [
-  "Picks gratuits sélectionnés",
-  "Historique complet",
-  "Statistiques publiques",
-  "Gestion de bankroll",
-  "Stats perso en U et €",
-];
-
-const PREMIUM_FEATURES = [
-  "Tous les pronostics (50+/mois)",
-  "Groupe Telegram exclusif",
-  "Notifications prioritaires",
-  "Bilan mensuel par email",
-  "Tout ce qui est inclus en gratuit",
-  "Résiliable en 1 clic",
-];
+import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 
 export default function AbonnementPage() {
+  const t = useTranslations("subscription");
+  const locale = useLocale();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const isPremium = user?.subscription_status === "active";
 
+  const FREE_FEATURES = [
+    t("free_f1"),
+    t("free_f2"),
+    t("free_f3"),
+    t("free_f4"),
+    t("free_f5"),
+  ];
+
+  const PREMIUM_FEATURES = [
+    t("premium_f1"),
+    t("premium_f2"),
+    t("premium_f3"),
+    t("premium_f4"),
+    t("premium_f5"),
+    t("premium_f6"),
+  ];
+
   async function handleSubscribe() {
     if (!user) {
-      window.location.href = "/fr/login";
+      window.location.href = `/${locale}/login`;
       return;
     }
 
@@ -45,11 +49,11 @@ export default function AbonnementPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setError(data.error || "Une erreur est survenue");
+        setError(data.error || t("error_generic"));
         setLoading(false);
       }
     } catch {
-      setError("Impossible de contacter le serveur de paiement");
+      setError(t("error_server"));
       setLoading(false);
     }
   }
@@ -65,18 +69,18 @@ export default function AbonnementPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setError(data.error || "Impossible d'accéder au portail de gestion");
+        setError(data.error || t("error_portal"));
         setLoading(false);
       }
     } catch {
-      setError("Impossible de contacter le serveur de paiement");
+      setError(t("error_server"));
       setLoading(false);
     }
   }
 
   return (
     <>
-      <EspaceHero title="Mon Abonnement" />
+      <EspaceHero title={t("page_title")} />
 
       <main className="mx-auto max-w-3xl px-4 pb-16 pt-8">
 
@@ -88,13 +92,13 @@ export default function AbonnementPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-sm font-bold text-emerald-700">Abonnement Premium actif</span>
+              <span className="text-sm font-bold text-emerald-700">{t("status_active")}</span>
             </div>
             {user?.subscription_end && (
               <p className="mt-1 text-xs text-emerald-600/60">
                 {new Date(user.subscription_end).getTime() > Date.now() + 3650 * 86400000
-                  ? "Accès illimité"
-                  : `Renouvellement : ${new Date(user.subscription_end).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
+                  ? t("status_unlimited")
+                  : t("status_renewal", { date: new Date(user.subscription_end).toLocaleDateString(locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "en-US", { day: "numeric", month: "long", year: "numeric" }) })
                 }
               </p>
             )}
@@ -109,11 +113,11 @@ export default function AbonnementPage() {
             style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
           >
             <div className="text-center">
-              <span className="rounded-full bg-neutral-500/20 px-3 py-1 text-[10px] font-bold uppercase text-neutral-400">Gratuit</span>
+              <span className="rounded-full bg-neutral-500/20 px-3 py-1 text-[10px] font-bold uppercase text-neutral-400">{t("free_label")}</span>
               <div className="mt-4">
-                <span className="text-4xl font-extrabold text-white">0€</span>
+                <span className="text-4xl font-extrabold text-white">{t("free_price")}</span>
               </div>
-              <p className="mt-1 text-xs text-white/30">Pour toujours</p>
+              <p className="mt-1 text-xs text-white/30">{t("free_period")}</p>
             </div>
             <div className="mt-6 flex justify-center"><div className="space-y-2.5">
               {FREE_FEATURES.map((f) => (
@@ -128,10 +132,10 @@ export default function AbonnementPage() {
             {!user && (
               <div className="mt-6">
                 <Link
-                  href="/fr/login"
+                  href={`/${locale}/login`}
                   className="block w-full cursor-pointer rounded-xl border border-white/10 py-3 text-center text-sm font-bold text-white/50 transition hover:border-white/20 hover:text-white/70"
                 >
-                  Créer mon compte
+                  {t("free_cta")}
                 </Link>
               </div>
             )}
@@ -144,12 +148,12 @@ export default function AbonnementPage() {
           >
             <div className="absolute -top-px left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
             <div className="text-center">
-              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase text-emerald-400">Premium</span>
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase text-emerald-400">{t("premium_label")}</span>
               <div className="mt-4">
-                <span className="text-4xl font-extrabold text-white">20€</span>
-                <span className="text-lg text-white/30">/mois</span>
+                <span className="text-4xl font-extrabold text-white">{t("premium_price")}</span>
+                <span className="text-lg text-white/30">{t("premium_period")}</span>
               </div>
-              <p className="mt-1 text-xs text-white/30">Sans engagement</p>
+              <p className="mt-1 text-xs text-white/30">{t("premium_commitment")}</p>
             </div>
             <div className="mt-6 flex justify-center"><div className="space-y-2.5">
               {PREMIUM_FEATURES.map((f) => (
@@ -169,7 +173,7 @@ export default function AbonnementPage() {
                   disabled={loading}
                   className="w-full cursor-pointer rounded-xl border-2 border-white/10 py-3 text-sm font-bold text-white/70 transition hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
                 >
-                  {loading ? "Chargement..." : "Gérer mon abonnement"}
+                  {loading ? t("btn_loading") : t("btn_manage")}
                 </button>
               ) : (
                 <button
@@ -178,7 +182,7 @@ export default function AbonnementPage() {
                   className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
                 >
-                  {loading ? "Redirection vers Stripe..." : "S'abonner — 20€/mois"}
+                  {loading ? t("btn_redirect") : t("btn_subscribe")}
                 </button>
               )}
             </div>
@@ -196,42 +200,30 @@ export default function AbonnementPage() {
         <div className="mt-10 grid grid-cols-3 gap-4 text-center">
           <div>
             <span className="text-2xl">🔒</span>
-            <p className="mt-2 text-xs font-semibold text-neutral-600">Paiement sécurisé</p>
-            <p className="text-[10px] text-neutral-400">via Stripe</p>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">{t("trust_secure")}</p>
+            <p className="text-[10px] text-neutral-400">{t("trust_secure_sub")}</p>
           </div>
           <div>
             <span className="text-2xl">⚡</span>
-            <p className="mt-2 text-xs font-semibold text-neutral-600">Accès immédiat</p>
-            <p className="text-[10px] text-neutral-400">dès le paiement</p>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">{t("trust_instant")}</p>
+            <p className="text-[10px] text-neutral-400">{t("trust_instant_sub")}</p>
           </div>
           <div>
             <span className="text-2xl">🚫</span>
-            <p className="mt-2 text-xs font-semibold text-neutral-600">Sans engagement</p>
-            <p className="text-[10px] text-neutral-400">résiliable en 1 clic</p>
+            <p className="mt-2 text-xs font-semibold text-neutral-600">{t("trust_no_commit")}</p>
+            <p className="text-[10px] text-neutral-400">{t("trust_no_commit_sub")}</p>
           </div>
         </div>
 
         {/* FAQ */}
         <div className="mt-10">
-          <h2 className="text-center text-lg font-extrabold text-neutral-800">Questions fréquentes</h2>
+          <h2 className="text-center text-lg font-extrabold text-neutral-800">{t("faq_title")}</h2>
           <div className="mt-4 space-y-2">
             {[
-              {
-                q: "Comment fonctionne le paiement ?",
-                a: "Le paiement est sécurisé via Stripe. Votre carte est débitée de 20€ chaque mois à la date anniversaire de votre inscription. Aucune donnée bancaire n'est stockée sur notre site.",
-              },
-              {
-                q: "Puis-je résilier à tout moment ?",
-                a: "Oui. Cliquez sur 'Gérer mon abonnement', puis 'Résilier'. Vous conservez l'accès Premium jusqu'à la fin de la période payée. Aucun frais de résiliation.",
-              },
-              {
-                q: "Que se passe-t-il si je résilie ?",
-                a: "Votre compte repasse en version gratuite. Vos données sont conservées (historique, stats, bankroll). L'accès au groupe Telegram Premium est automatiquement retiré. Vous pouvez vous réabonner à tout moment.",
-              },
-              {
-                q: "Est-ce que les résultats sont garantis ?",
-                a: "Non. Les pronostics sont des opinions basées sur l'analyse sportive du tipster. Les paris sportifs comportent un risque de perte. Consultez notre page Jeu Responsable pour plus d'informations.",
-              },
+              { q: t("faq_q1"), a: t("faq_a1") },
+              { q: t("faq_q2"), a: t("faq_a2") },
+              { q: t("faq_q3"), a: t("faq_a3") },
+              { q: t("faq_q4"), a: t("faq_a4") },
             ].map((faq) => (
               <details
                 key={faq.q}
