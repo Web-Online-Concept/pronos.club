@@ -209,6 +209,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       )}
       </div>
 
+      {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
+      <section className="bg-neutral-950 px-4 py-16">
+        <div className="mx-auto max-w-4xl">
+          <div className="overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
+            <video
+              className="w-full"
+              controls
+              preload="metadata"
+              poster={`/video_accueil_${locale}-thumb.jpg`}
+            >
+              <source src={`/video_accueil_${locale}.mp4`} type="video/mp4" />
+            </video>
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════ DERNIERS RÉSULTATS (LIGHT) ═══════════ */}
       {recent.length > 0 && (
         <section className="bg-neutral-50 px-4 py-16">
