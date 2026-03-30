@@ -16,6 +16,8 @@ export default function AdminBlogEditorPage() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translateStatus, setTranslateStatus] = useState<"idle" | "success" | "error">("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [showSeo, setShowSeo] = useState(false);
 
@@ -70,7 +72,6 @@ export default function AdminBlogEditorPage() {
     } catch (e) { alert("Erreur upload : " + String(e)); }
   }, []);
 
-  // Convert YouTube links back to iframes (Quill bug workaround)
   const fixVideoEmbeds = (html: string): string => {
     return html.replace(
       /<a\s+href="(https?:\/\/www\.youtube\.com\/embed\/[^"]+)"[^>]*>[^<]*<\/a>/g,
@@ -100,6 +101,41 @@ export default function AdminBlogEditorPage() {
     setSaving(false);
   };
 
+  const handleTranslate = async () => {
+    if (!postId) {
+      alert("Sauvegardez l'article d'abord avant de traduire.");
+      return;
+    }
+    if (!confirm("Traduire cet article en anglais et espagnol via IA ?\n\nCela écrasera les traductions existantes.")) return;
+
+    setTranslating(true);
+    setTranslateStatus("idle");
+
+    try {
+      const res = await fetch("/api/blog/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setTranslateStatus("success");
+        setTimeout(() => setTranslateStatus("idle"), 5000);
+      } else {
+        setTranslateStatus("error");
+        alert("Erreur traduction : " + (data.error || "Inconnue"));
+        setTimeout(() => setTranslateStatus("idle"), 3000);
+      }
+    } catch (err) {
+      setTranslateStatus("error");
+      alert("Erreur réseau : " + String(err));
+      setTimeout(() => setTranslateStatus("idle"), 3000);
+    }
+
+    setTranslating(false);
+  };
+
   if (loading) return <main className="flex min-h-screen items-center justify-center bg-[#0a0a0f]"><div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-emerald-500" /></main>;
 
   return (
@@ -110,6 +146,30 @@ export default function AdminBlogEditorPage() {
           <button onClick={() => router.push(`/${locale}/admin/blog`)} className="cursor-pointer text-sm text-white/40 hover:text-white transition">← Retour</button>
           <div className="flex items-center gap-2">
             <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${status === "published" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>{status === "published" ? "Publié" : "Brouillon"}</span>
+
+            {/* Translate button */}
+            {postId && (
+              <button
+                onClick={handleTranslate}
+                disabled={translating}
+                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+                  translateStatus === "success"
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : translateStatus === "error"
+                    ? "bg-red-500/20 text-red-400"
+                    : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                }`}
+              >
+                {translating
+                  ? "⏳ Traduction..."
+                  : translateStatus === "success"
+                  ? "✅ Traduit !"
+                  : translateStatus === "error"
+                  ? "❌ Erreur"
+                  : "🌍 Traduire EN/ES"}
+              </button>
+            )}
+
             <button onClick={() => handleSave()} disabled={saving} className="cursor-pointer rounded-lg bg-white/10 px-4 py-1.5 text-sm font-medium hover:bg-white/20 transition disabled:opacity-50">{saving ? "..." : "Sauvegarder"}</button>
             {status !== "published" && <button onClick={() => handleSave(true)} disabled={saving} className="cursor-pointer rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold hover:bg-emerald-500 transition disabled:opacity-50">{saving ? "..." : "Publier"}</button>}
           </div>
