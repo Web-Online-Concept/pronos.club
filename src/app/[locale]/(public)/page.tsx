@@ -211,7 +211,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </div>
 
       {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
-      <section className="flex flex-col items-center justify-center bg-neutral-950 px-4 py-20">
+      <section
+        className="flex min-h-[calc(100vh-100px)] flex-col items-center justify-center bg-neutral-950 px-4"
+      >
         <p className="mb-8 text-sm font-bold uppercase tracking-[0.2em] text-emerald-400">{t("video_title")}</p>
         <div className="w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
           <HomeVideoPlayer
