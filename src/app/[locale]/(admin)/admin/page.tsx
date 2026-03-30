@@ -45,6 +45,7 @@ export default async function AdminDashboard() {
     { href: "/admin/seo", label: "SEO", icon: "🔍", accent: "#f59e0b", desc: "Référencement & stats" },
     { href: "/admin/paiements", label: "Paiements", icon: "💰", accent: "#10b981", desc: "Suivi Stripe" },
     { href: "/admin/comptabilite", label: "Comptabilité", icon: "📊", accent: "#ef4444", desc: "Revenus & stats" },
+    { href: "/admin/alertes", label: "Alertes Admin", icon: "🔔", accent: "#ef4444", desc: "Notifications inscription" },
   ];
 
   return (

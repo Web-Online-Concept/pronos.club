@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/emails";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 import { NextResponse } from "next/server";
 
 const VALID_LOCALES = ["fr", "en", "es"] as const;
@@ -47,6 +48,13 @@ export async function GET(request: Request) {
             const displayName = authUser.email.split("@")[0];
             await sendWelcomeEmail(authUser.email, displayName, locale).catch(() => {});
           }
+
+          // Alert admins
+          sendAdminAlert("new_signup", {
+            email: authUser.email ?? "inconnu",
+            name: authUser.email?.split("@")[0],
+            extra: `Langue : ${locale.toUpperCase()}`,
+          }).catch(() => {});
         }
       }
 

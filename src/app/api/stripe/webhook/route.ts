@@ -1,6 +1,7 @@
 import { stripe } from "@/lib/stripe/config";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
+import { sendAdminAlert } from "@/lib/admin-alerts";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -61,6 +62,19 @@ export async function POST(request: Request) {
         });
 
         onPremiumActivated(userId).catch(() => {});
+
+        // Alert admins — new premium
+        const { data: premiumUser } = await supabaseAdmin
+          .from("users")
+          .select("email, display_name")
+          .eq("id", userId)
+          .single();
+        if (premiumUser) {
+          sendAdminAlert("new_premium", {
+            email: premiumUser.email,
+            name: premiumUser.display_name,
+          }).catch(() => {});
+        }
       }
       break;
     }
@@ -116,6 +130,19 @@ export async function POST(request: Request) {
           .eq("stripe_subscription_id", subscription.id);
 
         onPremiumRevoked(userId).catch(() => {});
+
+        // Alert admins — cancellation
+        const { data: canceledUser } = await supabaseAdmin
+          .from("users")
+          .select("email, display_name")
+          .eq("id", userId)
+          .single();
+        if (canceledUser) {
+          sendAdminAlert("cancellation", {
+            email: canceledUser.email,
+            name: canceledUser.display_name,
+          }).catch(() => {});
+        }
       }
       break;
     }
