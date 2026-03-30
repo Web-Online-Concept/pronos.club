@@ -30,6 +30,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   const email = user?.email || admin?.email;
   const name = user?.pseudo || user?.display_name || email?.split("@")[0] || "Test";
+  const locale = (user?.locale as "fr" | "en" | "es") || "fr";
 
   if (!email) {
     return NextResponse.json({ error: "No email found" }, { status: 400 });
@@ -39,16 +40,16 @@ export async function POST(request: Request) {
 
   switch (type) {
     case "welcome":
-      success = await sendWelcomeEmail(email, name);
+      success = await sendWelcomeEmail(email, name, locale);
       break;
     case "welcome-premium":
-      success = await sendWelcomePremiumEmail(email, name, "https://t.me/+test_link_example");
+      success = await sendWelcomePremiumEmail(email, name, locale, "https://t.me/+test_link_example");
       break;
     case "new-pick":
-      success = await sendNewPickEmail(email, "Football", false);
+      success = await sendNewPickEmail(email, locale, "Football", false);
       break;
     case "bilan":
-      success = await sendBilanEmail(email, name, "Mars 2026", "2026-03", {
+      success = await sendBilanEmail(email, name, locale, "Mars 2026", "2026-03", {
         totalPicks: 67,
         winRate: 58,
         roi: 12,
@@ -56,19 +57,19 @@ export async function POST(request: Request) {
       });
       break;
     case "cancellation":
-      success = await sendCancellationEmail(email, name, "25 avril 2026");
+      success = await sendCancellationEmail(email, name, "25 avril 2026", locale);
       break;
     case "winback-7":
-      success = await sendWinbackDay7Email(email, name);
+      success = await sendWinbackDay7Email(email, name, locale);
       break;
     case "winback-30":
-      success = await sendWinbackDay30Email(email, name, 8.5, 58, 67);
+      success = await sendWinbackDay30Email(email, name, locale, 8.5, 58, 67);
       break;
     case "premium-expiring":
-      success = await sendPremiumExpiringEmail(email, name, "26 mars 2026");
+      success = await sendPremiumExpiringEmail(email, name, "26 mars 2026", locale);
       break;
     case "inactivity":
-      success = await sendInactivityEmail(email, name);
+      success = await sendInactivityEmail(email, name, locale);
       break;
     default:
       return NextResponse.json({ error: "Unknown email type" }, { status: 400 });
