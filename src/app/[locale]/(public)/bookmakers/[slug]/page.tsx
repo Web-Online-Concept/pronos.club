@@ -25,7 +25,7 @@ const BOOKMAKER_META: Record<string, {
   highlight_values: string[];
   section_icons: string[];
   section_images: (string | undefined)[];
-  video_files: string[];
+  video_files: (string | Record<string, string>)[];
 }> = {
   "1xbet": {
     vpn_required: true, vpn_countries_key: "1xbet_vpn_countries", has_access_info: false, code_bonus: "PRONOSCLUB",
@@ -40,7 +40,7 @@ const BOOKMAKER_META: Record<string, {
     highlight_values: ["2017", "Crypto", "VIP", "Oui"],
     section_icons: ["🏆", "🔒", "📝", "₿", "💎", "💰"],
     section_images: ["/bookmakers/stake/stake-interface.jpg", "/bookmakers/stake/stake-vpn.jpg", "/bookmakers/stake/stake-signup.jpg", "/bookmakers/stake/stake-coinbase.jpg", "/bookmakers/stake/stake-vip.jpg", "/bookmakers/stake/stake-rakeback.jpg"],
-    video_files: ["inscription.mp4"],
+    video_files: [{ fr: "inscription.mp4", en: "inscription-en.mp4", es: "inscription-es.mp4" }],
   },
   "ps3838": {
     vpn_required: false, has_access_info: true, code_bonus: null,
@@ -134,11 +134,14 @@ export default async function BookmakerSlugPage({
     image: meta.section_images[i],
   }));
 
-  const videos = meta.video_files.map((file, i) => ({
-    title: t(`${slug}_v${i + 1}_title`),
-    description: t(`${slug}_v${i + 1}_desc`),
-    file,
-  }));
+  const videos = meta.video_files.map((fileOrObj, i) => {
+    const file = typeof fileOrObj === "string" ? fileOrObj : (fileOrObj[locale] || fileOrObj.fr);
+    return {
+      title: t(`${slug}_v${i + 1}_title`),
+      description: t(`${slug}_v${i + 1}_desc`),
+      file,
+    };
+  });
 
   // Reusable CTA button
   function AffiliateButton({ text, full = false }: { text: string; full?: boolean }) {
