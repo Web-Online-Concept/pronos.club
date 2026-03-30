@@ -32,10 +32,10 @@ export async function POST(request: Request) {
 
   const { data: pushUsers } = await pushQuery;
 
-  // Get all users with email enabled
+  // Get all users with email enabled (+ locale)
   let emailQuery = supabaseAdmin
     .from("users")
-    .select("id, email")
+    .select("id, email, locale")
     .eq("notify_email", true);
 
   if (isPremium) {
@@ -77,12 +77,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Send emails via centralized template
+  // Send emails via centralized template (with user locale)
   if (emailUsers) {
     await Promise.allSettled(
       emailUsers.map(async (user) => {
         try {
-          const sent = await sendNewPickEmail(user.email, sport, isPremium);
+          const locale = (user.locale as "fr" | "en" | "es") || "fr";
+          const sent = await sendNewPickEmail(user.email, locale, sport, isPremium);
           if (sent) emailSent++;
         } catch {
           // Silent fail for individual emails

@@ -17,7 +17,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const calcMonth = searchParams.get("calc_month");
 
-  // If calc_month provided, return auto-calculated stats for that month
   if (calcMonth) {
     try {
       await requireAdmin();
@@ -73,8 +72,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Title and month required" }, { status: 400 });
   }
 
-  // Generate slug from month
-  const slug = month; // e.g. "2026-03"
+  const slug = month;
 
   const { data, error } = await supabaseAdmin
     .from("bilans")
@@ -137,7 +135,6 @@ export async function PUT(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Notify premium subscribers when publishing
   if (updates.is_published === true && data) {
     notifyPremiumSubscribers(data).catch(() => {});
   }
@@ -148,7 +145,7 @@ export async function PUT(request: Request) {
 async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
   const { data: premiumUsers } = await supabaseAdmin
     .from("users")
-    .select("email, pseudo, display_name")
+    .select("email, pseudo, display_name, locale")
     .eq("subscription_status", "active")
     .eq("notify_bilan", true)
     .not("email", "is", null);
@@ -166,7 +163,8 @@ async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
 
   for (const user of premiumUsers) {
     const name = user.pseudo || user.display_name || user.email.split("@")[0];
-    await sendBilanEmail(user.email, name, month, slug, stats).catch(() => {});
+    const locale = (user.locale as "fr" | "en" | "es") || "fr";
+    await sendBilanEmail(user.email, name, locale, month, slug, stats).catch(() => {});
   }
 }
 
@@ -182,7 +180,6 @@ export async function DELETE(request: Request) {
 
   if (!id) return NextResponse.json({ error: "Missing bilan id" }, { status: 400 });
 
-  // Get bilan to delete cover image from storage
   const { data: bilan } = await supabaseAdmin
     .from("bilans")
     .select("slug, cover_image")

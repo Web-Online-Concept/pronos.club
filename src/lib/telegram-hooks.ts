@@ -9,7 +9,7 @@ export async function onPremiumActivated(userId: string) {
   try {
     const { data: user } = await supabaseAdmin
       .from("users")
-      .select("email, pseudo, display_name, telegram_user_id")
+      .select("email, pseudo, display_name, telegram_user_id, locale")
       .eq("id", userId)
       .single();
 
@@ -30,9 +30,10 @@ export async function onPremiumActivated(userId: string) {
     }
 
     const displayName = user.pseudo || user.display_name || user.email.split("@")[0];
+    const locale = (user.locale as "fr" | "en" | "es") || "fr";
 
     // Send welcome premium email with Telegram link
-    await sendWelcomePremiumEmail(user.email, displayName, inviteLink);
+    await sendWelcomePremiumEmail(user.email, displayName, locale, inviteLink);
   } catch (err) {
     console.error("onPremiumActivated error:", err);
   }

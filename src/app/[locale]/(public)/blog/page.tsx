@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
+import { localized } from "@/lib/blog-i18n";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -10,7 +11,7 @@ async function getPosts(category?: string, page: number = 1) {
   const offset = (page - 1) * PER_PAGE;
 
   let query = supabaseAdmin.from("blog_posts")
-    .select("id, title, slug, excerpt, cover_image, category_id, tags, status, author_name, view_count, published_at, blog_categories(name, slug, color, icon)", { count: "exact" })
+    .select("id, title, title_en, title_es, slug, excerpt, excerpt_en, excerpt_es, cover_image, category_id, tags, status, author_name, view_count, published_at, blog_categories(name, name_en, name_es, slug, color, icon)", { count: "exact" })
     .eq("status", "published").order("published_at", { ascending: false })
     .range(offset, offset + PER_PAGE - 1);
 
@@ -24,7 +25,7 @@ async function getPosts(category?: string, page: number = 1) {
 }
 
 async function getCategories() {
-  const { data } = await supabaseAdmin.from("blog_categories").select("*").order("sort_order", { ascending: true });
+  const { data } = await supabaseAdmin.from("blog_categories").select("*, name_en, name_es").order("sort_order", { ascending: true });
   return (data || []) as any[];
 }
 
@@ -48,7 +49,6 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
   const dateFmt = locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR";
   const fmt = (d: string) => new Date(d).toLocaleDateString(dateFmt, { day: "numeric", month: "long", year: "numeric" });
 
-  // Build pagination URL helper
   const pageUrl = (p: number) => {
     const params = new URLSearchParams();
     if (category) params.set("category", category);
@@ -56,6 +56,9 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
     const qs = params.toString();
     return `/${locale}/blog${qs ? `?${qs}` : ""}`;
   };
+
+  // Helper for category name
+  const catName = (c: any) => localized(c, "name", locale);
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
@@ -66,7 +69,7 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
           <div className="mt-8 flex flex-wrap justify-center gap-2">
             <Link href={`/${locale}/blog`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${!category ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>{t("filter_all")}</Link>
             {categories.map((c: any) => (
-              <Link key={c.slug} href={`/${locale}/blog?category=${c.slug}`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${category === c.slug ? "text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`} style={category === c.slug ? { backgroundColor: c.color } : undefined}>{c.icon} {c.name}</Link>
+              <Link key={c.slug} href={`/${locale}/blog?category=${c.slug}`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${category === c.slug ? "text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`} style={category === c.slug ? { backgroundColor: c.color } : undefined}>{c.icon} {catName(c)}</Link>
             ))}
           </div>
         </div>
@@ -86,41 +89,27 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
                     {post.cover_image ? <img src={post.cover_image} alt="" className="h-full w-full object-cover group-hover:scale-105 transition" /> : <div className="flex h-full items-center justify-center text-3xl text-neutral-200">{post.blog_categories?.icon || "📄"}</div>}
                   </div>
                   <div className="p-3">
-                    {post.blog_categories && <span className="mb-1.5 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: post.blog_categories.color }}>{post.blog_categories.icon} {post.blog_categories.name}</span>}
-                    <h3 className="text-sm font-semibold leading-snug group-hover:text-emerald-600 transition line-clamp-2">{post.title}</h3>
-                    {post.excerpt && <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2">{post.excerpt}</p>}
+                    {post.blog_categories && <span className="mb-1.5 inline-flex rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: post.blog_categories.color }}>{post.blog_categories.icon} {catName(post.blog_categories)}</span>}
+                    <h3 className="text-sm font-semibold leading-snug group-hover:text-emerald-600 transition line-clamp-2">{localized(post, "title", locale)}</h3>
+                    {(localized(post, "excerpt", locale)) && <p className="mt-1.5 text-xs text-neutral-500 line-clamp-2">{localized(post, "excerpt", locale)}</p>}
                     <p className="mt-2 text-[10px] text-neutral-400">{fmt(post.published_at)} · {post.view_count} {t("views")}</p>
                   </div>
                 </Link>
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-10 flex items-center justify-center gap-2">
-                {/* Previous */}
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">{t("prev")}</Link>
                 ) : (
                   <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">{t("prev")}</span>
                 )}
 
-                {/* Page numbers */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <Link
-                    key={p}
-                    href={pageUrl(p)}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      p === currentPage
-                        ? "bg-neutral-900 text-white"
-                        : "border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                  >
-                    {p}
-                  </Link>
+                  <Link key={p} href={pageUrl(p)} className={`rounded-lg px-3 py-2 text-sm font-medium transition ${p === currentPage ? "bg-neutral-900 text-white" : "border border-neutral-200 text-neutral-600 hover:bg-neutral-100"}`}>{p}</Link>
                 ))}
 
-                {/* Next */}
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">{t("next")}</Link>
                 ) : (
