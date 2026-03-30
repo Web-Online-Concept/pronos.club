@@ -27,17 +27,19 @@ export async function sendAdminAlert(
   // Fetch admins who opted in for this alert type
   const { data: prefs } = await supabaseAdmin
     .from("admin_alert_prefs")
-    .select(`${config.column}, user:users(email)`)
-    .eq(config.column, true);
+    .select("user_id, alert_new_signup, alert_new_premium, alert_cancellation")
+    .eq(config.column as "alert_new_signup" | "alert_new_premium" | "alert_cancellation", true);
 
   if (!prefs || prefs.length === 0) return;
 
-  const recipients = prefs
-    .map((p) => {
-      const user = Array.isArray(p.user) ? p.user[0] : p.user;
-      return user?.email;
-    })
-    .filter(Boolean) as string[];
+  // Fetch emails for opted-in admins
+  const userIds = prefs.map((p) => p.user_id);
+  const { data: users } = await supabaseAdmin
+    .from("users")
+    .select("id, email")
+    .in("id", userIds);
+
+  const recipients = (users ?? []).map((u) => u.email).filter(Boolean) as string[];
 
   if (recipients.length === 0) return;
 
