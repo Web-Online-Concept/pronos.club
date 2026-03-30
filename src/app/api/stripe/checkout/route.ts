@@ -27,18 +27,21 @@ export async function POST() {
       .eq("id", user.id);
   }
 
+  const locale = user.locale || "fr";
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
     payment_method_types: ["card"],
+    allow_promotion_codes: true,
     line_items: [
       {
         price: PLAN.priceId,
         quantity: 1,
       },
     ],
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fr/espace/abonnement?success=true`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/fr/abonnement?canceled=true`,
+    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/espace/abonnement?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/${locale}/abonnement?canceled=true`,
     subscription_data: {
       metadata: { supabase_user_id: user.id },
     },
