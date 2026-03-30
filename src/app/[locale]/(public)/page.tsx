@@ -3,6 +3,7 @@ import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { getTranslations } from "next-intl/server";
+import HomeVideoPlayer from "@/components/ui/VideoPlayer";
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -213,14 +214,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 px-4 py-16">
         <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-emerald-400">{t("video_title")}</p>
         <div className="w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
-          <video
-            className="w-full"
-            controls
-            preload="metadata"
-            poster={`/video_accueil_${locale}-thumb.jpg`}
-          >
-            <source src={`/video_accueil_${locale}.mp4`} type="video/mp4" />
-          </video>
+          <HomeVideoPlayer
+            src={`/video_accueil_${locale}.mp4`}
+            thumbnail={`/video_accueil_${locale}-thumb.jpg`}
+            title={t("video_title")}
+          />
         </div>
       </section>
 
