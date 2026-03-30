@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
   const { data: winback7Users } = await supabaseAdmin
     .from("users")
-    .select("id, email, pseudo, display_name, subscription_status, subscription_end")
+    .select("id, email, pseudo, display_name, locale, subscription_status, subscription_end")
     .eq("subscription_status", "canceled")
     .eq("notify_email", true)
     .gte("subscription_end", day8Ago)
@@ -31,7 +31,8 @@ export async function GET(request: Request) {
     for (const user of winback7Users) {
       if (!user.email) continue;
       const name = user.pseudo || user.display_name || user.email.split("@")[0];
-      const sent = await sendWinbackDay7Email(user.email, name);
+      const locale = (user.locale as "fr" | "en" | "es") || "fr";
+      const sent = await sendWinbackDay7Email(user.email, name, locale);
       if (sent) winback7Sent++;
     }
   }
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
 
   const { data: winback30Users } = await supabaseAdmin
     .from("users")
-    .select("id, email, pseudo, display_name, subscription_status, subscription_end")
+    .select("id, email, pseudo, display_name, locale, subscription_status, subscription_end")
     .eq("subscription_status", "canceled")
     .eq("notify_email", true)
     .gte("subscription_end", day31Ago)
@@ -72,7 +73,8 @@ export async function GET(request: Request) {
     for (const user of winback30Users) {
       if (!user.email) continue;
       const name = user.pseudo || user.display_name || user.email.split("@")[0];
-      const sent = await sendWinbackDay30Email(user.email, name, profit, winRate, totalPicks);
+      const locale = (user.locale as "fr" | "en" | "es") || "fr";
+      const sent = await sendWinbackDay30Email(user.email, name, locale, profit, winRate, totalPicks);
       if (sent) winback30Sent++;
     }
   }
@@ -83,9 +85,9 @@ export async function GET(request: Request) {
 
   const { data: expiringUsers } = await supabaseAdmin
     .from("users")
-    .select("id, email, pseudo, display_name, subscription_status, subscription_end, stripe_customer_id")
+    .select("id, email, pseudo, display_name, locale, subscription_status, subscription_end, stripe_customer_id")
     .eq("subscription_status", "active")
-    .is("stripe_customer_id", null)  // Only gifted premiums (no Stripe = gifted by admin)
+    .is("stripe_customer_id", null)
     .eq("notify_email", true)
     .gte("subscription_end", tomorrow)
     .lt("subscription_end", dayAfter);
@@ -94,16 +96,17 @@ export async function GET(request: Request) {
     for (const user of expiringUsers) {
       if (!user.email) continue;
       const name = user.pseudo || user.display_name || user.email.split("@")[0];
-      const endDate = new Date(user.subscription_end!).toLocaleDateString("fr-FR", {
-        day: "numeric", month: "long", year: "numeric",
-      });
-      const sent = await sendPremiumExpiringEmail(user.email, name, endDate);
+      const locale = (user.locale as "fr" | "en" | "es") || "fr";
+      const endDate = new Date(user.subscription_end!).toLocaleDateString(
+        locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR",
+        { day: "numeric", month: "long", year: "numeric" }
+      );
+      const sent = await sendPremiumExpiringEmail(user.email, name, endDate, locale);
       if (sent) expiringSent++;
     }
   }
 
   // ═══════════ INACTIVITÉ — premium pas connecté depuis 15 jours ═══════════
-  // Note: requires a last_seen_at column on users. Skip if not available.
   // TODO: add last_seen_at tracking in middleware
 
   return NextResponse.json({
