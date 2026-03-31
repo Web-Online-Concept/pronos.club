@@ -123,7 +123,28 @@ export default function Navbar() {
         className="sticky top-0 z-50 border-b border-emerald-900/50 shadow-lg shadow-black/20"
         style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
       >
-        <nav className="mx-auto flex h-[100px] max-w-6xl items-center justify-between px-4">
+        <nav className="mx-auto flex h-[70px] max-w-6xl items-center justify-between px-4 lg:h-[100px]">
+          {/* Mobile hamburger — LEFT */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-neutral-300 transition hover:bg-neutral-800 lg:hidden"
+            aria-label="Menu"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              {menuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+
           {/* Logo */}
           <Link href={`/${locale}`} className="flex items-center">
             <Image
@@ -131,8 +152,8 @@ export default function Navbar() {
               alt="PRONOS.CLUB"
               width={200}
               height={160}
-              className="h-[100px] w-auto"
-              style={{ width: "auto", height: "100px" }}
+              className="h-[55px] w-auto lg:h-[100px]"
+              style={{ width: "auto" }}
               priority
             />
           </Link>
@@ -221,26 +242,8 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="flex h-12 w-12 items-center justify-center rounded-lg text-neutral-300 transition hover:bg-neutral-800 lg:hidden"
-            aria-label="Menu"
-          >
-            <svg
-              className="h-7 w-7"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          {/* Mobile spacer — keeps logo centered */}
+          <div className="w-10 lg:hidden" />
         </nav>
 
         {/* Mobile menu */}
