@@ -256,7 +256,7 @@ export default function Navbar() {
 
         {/* Mobile drawer — slide from left */}
         <div
-          className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-neutral-950 shadow-2xl shadow-black/50 transition-transform duration-300 ease-in-out lg:hidden ${
+          className={`fixed inset-y-0 left-0 z-50 w-[90vw] transform bg-neutral-950 shadow-2xl shadow-black/50 transition-transform duration-300 ease-in-out lg:hidden ${
             menuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
