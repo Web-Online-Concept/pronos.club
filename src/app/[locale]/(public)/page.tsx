@@ -212,7 +212,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
       <section
-        className="flex min-h-[calc(100vh-70px)] flex-col items-center justify-center bg-neutral-950 px-4 lg:min-h-[calc(100vh-100px)]"
+        className="flex flex-col items-center justify-center bg-neutral-950 px-4 py-8 lg:min-h-[calc(100vh-100px)]"
       >
         <div className="w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
           <HomeVideoPlayer
