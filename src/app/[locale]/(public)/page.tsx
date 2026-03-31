@@ -63,7 +63,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
-      <div className="flex min-h-[100dvh] flex-col">
+      <div className="relative flex min-h-[100dvh] flex-col lg:min-h-[calc(100vh-100px)]">
       {/* ═══════════ HERO (DARK) ═══════════ */}
       <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
@@ -82,15 +82,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           }}
         />
 
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center">
+        <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
           {/* Hero Logo */}
-          <div className="mx-auto mb-2 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
+          <div className="mx-auto mb-3 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
             <Image
               src="/pronos_club_hero.png"
               alt="PRONOS.CLUB"
               width={400}
               height={320}
-              className="mx-auto h-[70px] w-auto sm:h-[170px] lg:h-[200px]"
+              className="mx-auto h-[90px] w-auto sm:h-[170px] lg:h-[200px]"
               style={{ width: "auto" }}
               priority
             />
@@ -114,7 +114,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
 
-          <h1 className="mt-3 text-xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
+          <h1 className="mt-4 text-2xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
             <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
               {t("hero_title_line1")}
             </span>
@@ -180,7 +180,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* ═══════════ STATS BAR (DARK) ═══════════ */}
       {totalPicks > 0 && (
         <section
-          className="mt-auto border-t border-emerald-900/40"
+          className="sticky bottom-0 z-30 border-t border-emerald-900/40 lg:static lg:border-b lg:border-t-0"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
