@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [verifying, setVerifying] = useState(false);
 
   // Redirect to espace if already logged in
   useEffect(() => {
@@ -48,6 +50,70 @@ export default function LoginPage() {
     setLoading(false);
   }
 
+  async function handleVerifyOtp(code: string) {
+    setVerifying(true);
+    setError("");
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email",
+    });
+
+    if (error) {
+      setError("Code invalide ou expiré. Vérifiez et réessayez.");
+      setVerifying(false);
+    } else {
+      router.replace("/fr/espace");
+    }
+  }
+
+  function handleOtpChange(index: number, value: string) {
+    if (value.length > 1) {
+      // Handle paste — distribute digits across inputs
+      const digits = value.replace(/\D/g, "").slice(0, 6).split("");
+      const newOtp = [...otp];
+      digits.forEach((d, i) => {
+        if (index + i < 6) newOtp[index + i] = d;
+      });
+      setOtp(newOtp);
+      const nextIndex = Math.min(index + digits.length, 5);
+      const nextInput = document.getElementById(`otp-${nextIndex}`);
+      nextInput?.focus();
+      // Auto-submit if all 6 filled
+      if (newOtp.every((d) => d !== "")) {
+        handleVerifyOtp(newOtp.join(""));
+      }
+      return;
+    }
+
+    const digit = value.replace(/\D/g, "");
+    const newOtp = [...otp];
+    newOtp[index] = digit;
+    setOtp(newOtp);
+
+    if (digit && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+
+    // Auto-submit when all 6 digits entered
+    if (digit && newOtp.every((d) => d !== "")) {
+      handleVerifyOtp(newOtp.join(""));
+    }
+  }
+
+  function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+      const newOtp = [...otp];
+      newOtp[index - 1] = "";
+      setOtp(newOtp);
+    }
+  }
+
   if (sent) {
     return (
       <main className="relative flex min-h-[calc(100vh-100px)] items-center justify-center overflow-hidden px-4">
@@ -56,26 +122,67 @@ export default function LoginPage() {
         <div className="relative w-full max-w-sm text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20">
-              <svg className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              <svg className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
           </div>
 
           <h1 className="mt-6 text-2xl font-extrabold text-neutral-900">
-            Vérifiez votre boîte mail
+            Entrez votre code
           </h1>
-          <p className="mt-3 text-sm text-neutral-500">
-            Un lien de connexion a été envoyé à
+          <p className="mt-2 text-sm text-neutral-500">
+            Un code à 6 chiffres a été envoyé à
           </p>
           <p className="mt-1 rounded-lg bg-emerald-50 px-4 py-2 font-mono text-sm font-bold text-emerald-700">
             {email}
           </p>
+
+          {/* OTP Input */}
+          <div className="mt-6 flex justify-center gap-2">
+            {otp.map((digit, i) => (
+              <input
+                key={i}
+                id={`otp-${i}`}
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={digit}
+                onChange={(e) => handleOtpChange(i, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                disabled={verifying}
+                className="h-12 w-11 rounded-xl border-2 border-neutral-200 bg-white text-center text-lg font-bold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
+                autoFocus={i === 0}
+              />
+            ))}
+          </div>
+
+          {error && (
+            <p className="mt-3 text-sm text-red-500">{error}</p>
+          )}
+
+          {verifying && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-emerald-600">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Vérification...
+            </div>
+          )}
+
           <p className="mt-6 text-xs text-neutral-400">
-            Cliquez sur le lien dans l&apos;email pour accéder à vos pronostics.
+            Vous pouvez aussi cliquer sur le lien dans l&apos;email.
             <br />
-            Pensez à vérifier vos spams si vous ne le voyez pas.
+            Pensez à vérifier vos spams.
           </p>
+
+          <button
+            onClick={() => { setSent(false); setOtp(["", "", "", "", "", ""]); setError(""); }}
+            className="mt-4 text-xs font-semibold text-emerald-600 hover:text-emerald-500 transition cursor-pointer"
+          >
+            ← Changer d&apos;adresse email
+          </button>
         </div>
       </main>
     );
