@@ -63,7 +63,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main>
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
-      <div className="flex min-h-[calc(100vh-100px)] flex-col">
+      <div className="flex min-h-[calc(100vh-70px)] flex-col lg:min-h-[calc(100vh-100px)]">
       {/* ═══════════ HERO (DARK) ═══════════ */}
       <section className="relative flex-1 overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
@@ -82,15 +82,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           }}
         />
 
-        <div className="relative mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="relative mx-auto flex max-w-4xl flex-1 flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
           {/* Hero Logo */}
-          <div className="mx-auto mb-6 animate-[logoFloat_6s_ease-in-out_infinite]">
+          <div className="mx-auto mb-3 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
             <Image
               src="/pronos_club_hero.png"
               alt="PRONOS.CLUB"
               width={400}
               height={320}
-              className="mx-auto h-[140px] w-auto sm:h-[170px] lg:h-[200px]"
+              className="mx-auto h-[90px] w-auto sm:h-[170px] lg:h-[200px]"
               style={{ width: "auto" }}
               priority
             />
@@ -114,7 +114,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
 
-          <h1 className="mt-6 text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl">
+          <h1 className="mt-4 text-2xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
             <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
               {t("hero_title_line1")}
             </span>
@@ -124,14 +124,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </span>
           </h1>
 
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400 sm:mt-5 sm:text-lg">
             {t("hero_subtitle")}
           </p>
 
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:flex-row sm:gap-3 sm:justify-center">
             <Link
               href={`/${locale}/pronostics`}
-              className="w-full rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
+              className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
             >
               {t("cta_see_picks")}
             </Link>
@@ -160,7 +160,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
 
           {/* Trust indicators */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-neutral-500">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-neutral-500 sm:mt-10 sm:gap-x-6 sm:gap-y-2 sm:text-xs">
             <span className="flex items-center gap-1.5">
               <svg className="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
               {t("trust_screenshot")}
@@ -183,7 +183,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           className="border-b border-emerald-900/40"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
-          <div className="mx-auto grid max-w-4xl grid-cols-3 divide-x divide-neutral-800 px-4 py-6 sm:grid-cols-6">
+          <div className="mx-auto grid max-w-4xl grid-cols-3 divide-x divide-neutral-800 px-2 py-3 sm:grid-cols-6 sm:px-4 sm:py-6">
             {[
               { label: t("stats_picks"), value: totalPicks },
               { label: t("stats_winrate"), value: `${winRate}%`, green: winRate >= 50 },
@@ -192,8 +192,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               { label: t("stats_avg_odds"), value: avgOdds },
               { label: t("stats_streak"), value: currentStreak, green: streakType === "W" },
             ].map((stat) => (
-              <div key={stat.label} className="px-2 text-center">
-                <p className={`text-lg font-bold sm:text-xl ${
+              <div key={stat.label} className="px-1 text-center sm:px-2">
+                <p className={`text-base font-bold sm:text-xl ${
                   "green" in stat && stat.green !== undefined
                     ? stat.green ? "text-emerald-400" : "text-red-400"
                     : "text-white"
@@ -212,7 +212,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
       <section
-        className="flex min-h-[calc(100vh-100px)] flex-col items-center justify-center bg-neutral-950 px-4"
+        className="flex min-h-[calc(100vh-70px)] flex-col items-center justify-center bg-neutral-950 px-4 lg:min-h-[calc(100vh-100px)]"
       >
         <div className="w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
           <HomeVideoPlayer
