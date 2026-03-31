@@ -156,7 +156,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               >
                 {t("cta_go_premium")}
               </Link>
-            )}}
+            )}
           </div>
 
           {/* Trust indicators */}
