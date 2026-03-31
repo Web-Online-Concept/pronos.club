@@ -263,14 +263,17 @@ export default function Navbar() {
           <div className="flex h-full flex-col">
             {/* Drawer header */}
             <div className="flex items-center justify-between border-b border-neutral-800 px-5 py-4">
-              <Image
-                src="/pronos_club.png"
-                alt="PRONOS.CLUB"
-                width={120}
-                height={96}
-                className="h-[40px] w-auto"
-                style={{ width: "auto" }}
-              />
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/pronos_club.png"
+                  alt="PRONOS.CLUB"
+                  width={120}
+                  height={96}
+                  className="h-[40px] w-auto"
+                  style={{ width: "auto" }}
+                />
+                <span className="text-base font-extrabold text-white">PRONOS<span className="text-emerald-400">.CLUB</span></span>
+              </div>
               <button
                 onClick={() => setMenuOpen(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
@@ -281,7 +284,7 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Nav links — grid 3 columns */}
+            {/* Nav links + lang + CTA — all in scrollable area */}
             <div className="flex-1 overflow-y-auto px-3 py-4">
               <div className="grid grid-cols-3 gap-2">
                 {NAV_LINKS.map((link) => (
@@ -296,12 +299,9 @@ export default function Navbar() {
                   </Link>
                 ))}
               </div>
-            </div>
 
-            {/* Drawer footer — lang + CTA */}
-            <div className="border-t border-neutral-800 px-4 pb-5 pt-4">
-              {/* Lang selector */}
-              <div className="flex gap-2">
+              {/* Lang selector — inline after grid */}
+              <div className="mt-4 flex gap-2">
                 {LOCALES.map((loc) => (
                   <button
                     key={loc.code}
@@ -309,7 +309,7 @@ export default function Navbar() {
                       switchLocale(loc.code);
                       setMenuOpen(false);
                     }}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition ${
                       loc.code === locale
                         ? "border-emerald-600 bg-emerald-600/15 font-semibold text-emerald-400"
                         : "border-neutral-700 text-neutral-400 hover:border-emerald-600 hover:bg-neutral-800"
@@ -321,7 +321,7 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* CTA */}
+              {/* CTA — right after lang */}
               <div className="mt-3">
                 {authLoading ? (
                   <div className="h-12 animate-pulse rounded-xl bg-white/10" />
