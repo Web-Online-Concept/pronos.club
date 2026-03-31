@@ -253,8 +253,32 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile spacer — keeps logo centered */}
-          <div className="w-10 lg:hidden" />
+          {/* Mobile status indicator — RIGHT */}
+          <div className="lg:hidden">
+            {authLoading ? (
+              <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
+            ) : user ? (
+              <Link
+                href={`/${locale}/espace`}
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${
+                  user.subscription_status === "active"
+                    ? "bg-amber-500/20 ring-2 ring-amber-400 text-amber-400"
+                    : "bg-emerald-500/20 ring-2 ring-emerald-500 text-emerald-400"
+                }`}
+              >
+                {user.subscription_status === "active" ? "⭐" : (user.pseudo || user.email || "?").charAt(0).toUpperCase()}
+              </Link>
+            ) : (
+              <Link
+                href={`/${locale}/login`}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-neutral-400"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </Link>
+            )}
+          </div>
         </nav>
 
         {/* Mobile drawer overlay */}
