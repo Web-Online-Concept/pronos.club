@@ -225,17 +225,14 @@ export default function HistoriquePage() {
           <select
             value={sport}
             onChange={(e) => setSport(e.target.value)}
-            className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+            className="max-w-[120px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
           >
             <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
             {sports.map((s) => {
-              let name = s.name;
-              if (isMobile) {
-                name = name.replace("Américain", "Am.").replace("American", "Am.").replace("Americano", "Am.");
-              }
+              const shortName = isMobile && s.name.length > 10 ? s.name.slice(0, 10) + "." : s.name;
               return (
                 <option key={s.slug} value={s.slug}>
-                  {s.icon} {name}
+                  {s.icon} {shortName}
                 </option>
               );
             })}
