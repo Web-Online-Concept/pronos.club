@@ -168,43 +168,49 @@ export default function AdminSeoPage() {
             <CheckItem done label="Twitter Cards configurés" />
             <CheckItem done label="Schema.org sur les articles" />
             <CheckItem done label="Meta titles par page" />
-            <CheckItem done={false} label="Image OG personnalisée (og-image.jpg)" note="Créer une image 1200×630 dans /public/" />
-            <CheckItem done={false} label="Google Analytics" note="Ajouter G-XXXXXXXXXX au lancement" />
-            <CheckItem done={false} label="Google Search Console" note="Vérifier le domaine + soumettre le sitemap" />
+            <CheckItem done label="Image OG personnalisée (og-image.jpg)" note="1200×630 — en place" />
+            <CheckItem done label="Google Analytics" note="G-EH0DSCDKGR — actif" url="https://analytics.google.com" />
+            <CheckItem done label="Google Search Console" note="Propriété vérifiée — sitemap soumis" url="https://search.google.com/search-console" />
           </div>
         </section>
 
-        {/* ═══════ GOOGLE ANALYTICS — PLACEHOLDER ═══════ */}
+        {/* ═══════ GOOGLE ANALYTICS — ACTIF ═══════ */}
         <section>
           <h2 className="mb-4 text-sm font-semibold text-white/60">Google Analytics</h2>
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center">
             <p className="text-3xl">📊</p>
-            <p className="mt-3 text-sm font-medium text-amber-400">Non connecté</p>
+            <p className="mt-3 text-sm font-medium text-emerald-400">Connecté — G-EH0DSCDKGR</p>
             <p className="mt-1 text-xs text-white/40">
-              Les données de trafic (visiteurs, pages vues, sources) apparaîtront ici une fois Google Analytics configuré.
+              Les données de trafic sont collectées. Consultez le tableau de bord complet sur Google Analytics.
             </p>
-            <p className="mt-3 text-xs text-white/20">
-              1. Créer une propriété GA4 sur analytics.google.com<br />
-              2. Copier l&apos;ID de mesure (G-XXXXXXXXXX)<br />
-              3. L&apos;ajouter dans les variables d&apos;environnement Vercel
-            </p>
+            <a
+              href="https://analytics.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-5 py-2.5 text-sm font-bold text-emerald-400 transition hover:bg-emerald-500/30"
+            >
+              Ouvrir Google Analytics →
+            </a>
           </div>
         </section>
 
-        {/* ═══════ GOOGLE SEARCH CONSOLE — PLACEHOLDER ═══════ */}
+        {/* ═══════ GOOGLE SEARCH CONSOLE — ACTIF ═══════ */}
         <section>
           <h2 className="mb-4 text-sm font-semibold text-white/60">Google Search Console</h2>
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-center">
             <p className="text-3xl">🔍</p>
-            <p className="mt-3 text-sm font-medium text-amber-400">Non connecté</p>
+            <p className="mt-3 text-sm font-medium text-emerald-400">Propriété vérifiée — pronos.club</p>
             <p className="mt-1 text-xs text-white/40">
-              Les données d&apos;indexation (pages indexées, requêtes, positions, CTR) apparaîtront ici une fois Search Console configuré.
+              L&apos;indexation démarrera dès le retrait du mot de passe du site. Le sitemap est soumis.
             </p>
-            <p className="mt-3 text-xs text-white/20">
-              1. Ajouter le site sur search.google.com/search-console<br />
-              2. Vérifier la propriété (DNS ou balise meta)<br />
-              3. Soumettre le sitemap : https://pronos.club/sitemap.xml
-            </p>
+            <a
+              href="https://search.google.com/search-console"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-5 py-2.5 text-sm font-bold text-emerald-400 transition hover:bg-emerald-500/30"
+            >
+              Ouvrir Search Console →
+            </a>
           </div>
         </section>
 
