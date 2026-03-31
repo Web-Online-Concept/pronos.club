@@ -14,10 +14,6 @@ export default function VideoPlayer({ src, thumbnail, title }: VideoPlayerProps)
 
   function handlePlay() {
     setPlaying(true);
-    // Wait for video to render, then play
-    setTimeout(() => {
-      videoRef.current?.play();
-    }, 100);
   }
 
   function handleEnded() {
@@ -58,6 +54,8 @@ export default function VideoPlayer({ src, thumbnail, title }: VideoPlayerProps)
           ref={videoRef}
           src={src}
           controls
+          autoPlay
+          playsInline
           onEnded={handleEnded}
           className="h-full w-full object-cover"
         />
