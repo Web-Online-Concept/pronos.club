@@ -62,10 +62,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <main className="bg-neutral-950">
-      {/* ═══════════ HERO + STATS = viewport height on desktop ═══════════ */}
-      <div className="flex flex-col lg:min-h-[calc(100vh-100px)]">
+      {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
+      <div className="flex min-h-[100dvh] flex-col">
       {/* ═══════════ HERO (DARK) ═══════════ */}
-      <section className="relative overflow-hidden bg-neutral-950 text-white lg:flex-1">
+      <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-emerald-500/20 blur-[140px]" />
@@ -82,7 +82,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           }}
         />
 
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-6 text-center sm:py-8 lg:flex-1">
+        <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center">
           {/* Hero Logo */}
           <div className="mx-auto mb-2 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
             <Image
@@ -97,8 +97,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
 
           {/* Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 sm:gap-2 sm:px-4 sm:py-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -107,14 +107,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {activePronos > 1 ? t("badge_active_many", { count: activePronos }) : t("badge_active_one", { count: activePronos })}
               </span>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 sm:gap-2 sm:px-4 sm:py-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
               <span className="text-xs font-semibold text-sky-400">
                 {totalPicks > 1 ? t("badge_finished_many", { count: totalPicks }) : t("badge_finished_one", { count: totalPicks })}
               </span>
             </div>
           </div>
 
-          <h1 className="mt-4 text-2xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
+          <h1 className="mt-3 text-xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
             <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
               {t("hero_title_line1")}
             </span>
@@ -128,31 +128,31 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {t("hero_subtitle")}
           </p>
 
-          <div className="mt-4 flex flex-col items-center gap-2 sm:mt-8 sm:flex-row sm:gap-3 sm:justify-center">
+          <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:flex-row sm:gap-3 sm:justify-center">
             <Link
               href={`/${locale}/pronostics`}
-              className="w-full rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
+              className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
             >
               {t("cta_see_picks")}
             </Link>
             {isPremium ? (
               <Link
                 href={`/${locale}/espace`}
-                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-2.5 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
+                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
               >
                 ✅ {t("cta_my_space")}
               </Link>
             ) : isLoggedIn ? (
               <Link
                 href={`/${locale}/espace/abonnement`}
-                className="w-full rounded-xl border border-neutral-700 px-6 py-2.5 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
+                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
               >
                 {t("cta_go_premium")}
               </Link>
             ) : (
               <Link
                 href={`/${locale}/login`}
-                className="w-full rounded-xl border border-neutral-700 px-6 py-2.5 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
+                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
               >
                 {t("cta_go_premium")}
               </Link>
@@ -160,7 +160,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
 
           {/* Trust indicators */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-neutral-500 sm:mt-10 sm:gap-x-6 sm:gap-y-2 sm:text-xs">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-neutral-500 sm:mt-10 sm:gap-x-6 sm:gap-y-2 sm:text-xs">
             <span className="flex items-center gap-1.5">
               <svg className="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
               {t("trust_screenshot")}
@@ -180,7 +180,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* ═══════════ STATS BAR (DARK) ═══════════ */}
       {totalPicks > 0 && (
         <section
-          className="border-b border-emerald-900/40"
+          className="mt-auto border-t border-emerald-900/40"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
@@ -212,7 +212,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
       <section
-        className="flex flex-col items-center justify-center bg-neutral-950 px-4 py-12 lg:min-h-[calc(100vh-100px)]"
+        className="flex min-h-[calc(100vh-70px)] flex-col items-center justify-center bg-neutral-950 px-4 lg:min-h-[calc(100vh-100px)]"
       >
         <div className="w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl shadow-emerald-500/10">
           <HomeVideoPlayer
