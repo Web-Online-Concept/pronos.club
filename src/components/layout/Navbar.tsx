@@ -256,9 +256,10 @@ export default function Navbar() {
 
         {/* Mobile drawer — slide from left */}
         <div
-          className={`fixed inset-y-0 left-0 z-50 w-[90vw] transform bg-neutral-950 shadow-2xl shadow-black/50 transition-transform duration-300 ease-in-out lg:hidden ${
+          className={`fixed inset-y-0 left-0 z-50 w-[90vw] transform shadow-2xl shadow-black/50 transition-transform duration-300 ease-in-out lg:hidden ${
             menuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
+          style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="flex h-full flex-col">
             {/* Drawer header */}
