@@ -63,7 +63,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
-      <div className="flex flex-col" style={{ minHeight: "100vh", minHeight: "100svh" }}>
+      <div className="flex min-h-screen flex-col supports-[min-height:100svh]:min-h-[100svh]">
       {/* ═══════════ HERO (DARK) ═══════════ */}
       <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
