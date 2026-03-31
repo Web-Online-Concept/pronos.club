@@ -24,6 +24,9 @@ export default function RootLayout({
   return (
     <html>
       <head>
+        {/* Theme color — barre navigateur mobile */}
+        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         {/* Google Search Console */}
         <meta name="google-site-verification" content="iINiCbpros1aKuWwQVc0ug4xsIVR6PQtXGYCon_9bnY" />
         {/* Google Analytics */}
