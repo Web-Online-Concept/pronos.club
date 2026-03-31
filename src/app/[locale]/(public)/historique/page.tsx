@@ -21,6 +21,14 @@ export default function HistoriquePage() {
   const t = useTranslations("history");
   const MONTH_NAMES = t("months").split(",");
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   function formatMonth(ym: string) {
     const [y, m] = ym.split("-");
     return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
@@ -194,7 +202,7 @@ export default function HistoriquePage() {
           }}
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
-          <option value="all">{t("filter_all_dates")}</option>
+          <option value="all">{isMobile ? "Dates" : t("filter_all_dates")}</option>
           <option value="custom">{t("filter_custom")}</option>
           {years.length > 0 && (
             <optgroup label={t("filter_by_year")}>
@@ -219,7 +227,7 @@ export default function HistoriquePage() {
             onChange={(e) => setSport(e.target.value)}
             className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
           >
-            <option value="all">{t("filter_all_sports")}</option>
+            <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
             {sports.map((s) => (
               <option key={s.slug} value={s.slug}>
                 {s.icon} {s.name}
@@ -234,7 +242,7 @@ export default function HistoriquePage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
         >
-          <option value="all">{t("filter_all_results")}</option>
+          <option value="all">{isMobile ? "Résultats" : t("filter_all_results")}</option>
           <option value="awaiting">{t("filter_awaiting")}</option>
           <option value="won">{t("filter_won")}</option>
           <option value="lost">{t("filter_lost")}</option>
