@@ -59,7 +59,7 @@ export default function Navbar() {
     { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
     { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "🧠" },
+    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
   ];
@@ -266,7 +266,7 @@ export default function Navbar() {
           <div className="flex h-full flex-col">
             {/* Drawer header */}
             <div className="flex items-center justify-between border-b border-neutral-800 px-5 py-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-1 items-center justify-center gap-2">
                 <Image
                   src="/pronos_club.png"
                   alt="PRONOS.CLUB"
@@ -279,7 +279,7 @@ export default function Navbar() {
               </div>
               <button
                 onClick={() => setMenuOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
