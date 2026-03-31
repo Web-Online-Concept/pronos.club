@@ -146,7 +146,16 @@ export default function Navbar() {
           </button>
 
           {/* Logo — with PRONOS / .CLUB text on mobile */}
-          <Link href={`/${locale}`} className="flex items-center gap-1">
+          <Link
+            href={`/${locale}`}
+            onClick={(e) => {
+              if (pathname === `/${locale}` || pathname === `/${locale}/`) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="flex items-center gap-1"
+          >
             <span className="text-sm font-extrabold text-white lg:hidden">PRONOS</span>
             <Image
               src="/pronos_club.png"
