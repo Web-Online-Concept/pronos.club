@@ -228,11 +228,17 @@ export default function HistoriquePage() {
             className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
           >
             <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
-            {sports.map((s) => (
-              <option key={s.slug} value={s.slug}>
-                {s.icon} {s.name}
-              </option>
-            ))}
+            {sports.map((s) => {
+              let name = s.name;
+              if (isMobile) {
+                name = name.replace("Américain", "Am.").replace("American", "Am.").replace("Americano", "Am.");
+              }
+              return (
+                <option key={s.slug} value={s.slug}>
+                  {s.icon} {name}
+                </option>
+              );
+            })}
           </select>
         )}
 
