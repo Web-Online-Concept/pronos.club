@@ -65,7 +65,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
       <div className="flex min-h-[calc(100vh-70px)] flex-col lg:min-h-[calc(100vh-100px)]">
       {/* ═══════════ HERO (DARK) ═══════════ */}
-      <section className="relative flex-1 overflow-hidden bg-neutral-950 text-white">
+      <section className="relative overflow-hidden bg-neutral-950 text-white lg:flex-1">
         {/* Glow effects */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-emerald-500/20 blur-[140px]" />
@@ -138,25 +138,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {isPremium ? (
               <Link
                 href={`/${locale}/espace`}
-                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-8 py-4 text-sm font-bold text-emerald-400 sm:w-auto"
+                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
               >
                 ✅ {t("cta_my_space")}
               </Link>
             ) : isLoggedIn ? (
               <Link
                 href={`/${locale}/espace/abonnement`}
-                className="w-full rounded-xl border border-neutral-700 px-8 py-4 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto"
+                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
               >
                 {t("cta_go_premium")}
               </Link>
             ) : (
               <Link
                 href={`/${locale}/login`}
-                className="w-full rounded-xl border border-neutral-700 px-8 py-4 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto"
+                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
               >
                 {t("cta_go_premium")}
               </Link>
-            )}
+            )}}
           </div>
 
           {/* Trust indicators */}
@@ -183,7 +183,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           className="border-b border-emerald-900/40"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
-          <div className="mx-auto grid max-w-4xl grid-cols-3 divide-x divide-neutral-800 px-2 py-3 sm:grid-cols-6 sm:px-4 sm:py-6">
+          <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
             {[
               { label: t("stats_picks"), value: totalPicks },
               { label: t("stats_winrate"), value: `${winRate}%`, green: winRate >= 50 },
