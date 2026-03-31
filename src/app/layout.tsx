@@ -42,6 +42,14 @@ export default function RootLayout({
             gtag('config', '${GA_ID}');
           `}
         </Script>
+        {/* Service Worker registration */}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.register('/sw.js').catch(function() {});
+            }
+          `}
+        </Script>
       </head>
       <body className="antialiased">
         {children}
