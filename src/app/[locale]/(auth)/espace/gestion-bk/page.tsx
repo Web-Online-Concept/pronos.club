@@ -271,16 +271,16 @@ export default function GestionBKPage() {
                   {RECALC_OPTIONS.map((opt) => (
                     <button key={opt.value} onClick={() => setAutoRecalc(opt.value)} className={`cursor-pointer rounded-lg px-2 py-2.5 text-center transition ${autoRecalc === opt.value ? "bg-emerald-500/20 ring-1 ring-emerald-500/40" : "bg-white/[0.03] hover:bg-white/[0.06]"}`}>
                       <span className="text-base">{opt.icon}</span>
-                      <p className={`mt-0.5 text-[9px] font-bold ${autoRecalc === opt.value ? "text-emerald-400" : "text-white/30"}`}>{opt.label}</p>
+                      <p className={`mt-0.5 text-[9px] font-bold ${autoRecalc === opt.value ? "text-emerald-400" : "text-white"}`}>{opt.label}</p>
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-center text-[10px] text-white/20">{RECALC_OPTIONS.find((o) => o.value === autoRecalc)?.desc}</p>
+                <p className="mt-2 text-center text-[10px] text-white/70">{RECALC_OPTIONS.find((o) => o.value === autoRecalc)?.desc}</p>
               </div>
             )}
 
             {mode === "percent_bankroll" && (
-              <div className="rounded-xl border border-emerald-900/30 p-3" style={{ background: "rgba(6,46,31,0.5)" }}>
+              <div className="rounded-xl border border-white/[0.06] p-3" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
                 <p className="text-center text-xs text-emerald-300">{t("pct_info")}</p>
                 <p className="mt-1 text-center text-[10px] text-emerald-300/60">{t("pct_info2")}</p>
               </div>
