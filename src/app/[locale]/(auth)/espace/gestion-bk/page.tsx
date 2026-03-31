@@ -215,8 +215,8 @@ export default function GestionBKPage() {
             <div className="flex items-center gap-3"><div className="h-px flex-1 bg-white/[0.06]" /><span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">{t("config")}</span><div className="h-px flex-1 bg-white/[0.06]" /></div>
 
             <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{t("bk_start_label")}</label>
-              <p className="mb-2 text-[10px] text-white/15">{t("bk_start_desc")}</p>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("bk_start_label")}</label>
+              <p className="mb-2 text-[10px] text-white/35">{t("bk_start_desc")}</p>
               <div className="flex items-center gap-2">
                 <input type="number" step="0.01" min="0" value={bankroll} onChange={(e) => { setBankroll(e.target.value); setError(""); if (!currentBk || currentBk === bankroll) setCurrentBk(e.target.value); }} placeholder="1000" className={inputClass} inputMode="decimal" />
                 <span className="text-lg font-bold text-white/30">€</span>
@@ -224,8 +224,8 @@ export default function GestionBKPage() {
             </div>
 
             <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{t("bk_current_label")}</label>
-              <p className="mb-2 text-[10px] text-white/15">{t("bk_current_desc")}</p>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("bk_current_label")}</label>
+              <p className="mb-2 text-[10px] text-white/35">{t("bk_current_desc")}</p>
               <div className="flex items-center gap-2">
                 <input type="number" step="0.01" min="0" value={currentBk} onChange={(e) => { setCurrentBk(e.target.value); setError(""); }} placeholder={bankroll || "1000"} className={inputClass} inputMode="decimal" />
                 <span className="text-lg font-bold text-white/30">€</span>
@@ -237,8 +237,8 @@ export default function GestionBKPage() {
 
             {mode === "fixed_unit" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{t("unit_value_label")}</label>
-                <p className="mb-2 text-[10px] text-white/15">{t("unit_value_desc")}</p>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("unit_value_label")}</label>
+                <p className="mb-2 text-[10px] text-white/35">{t("unit_value_desc")}</p>
                 <div className="flex items-center gap-2">
                   <input type="number" step="0.01" min="0.01" value={unitValue} onChange={(e) => { setUnitValue(e.target.value); setError(""); }} placeholder="10" className={inputClass} inputMode="decimal" />
                   <span className="text-lg font-bold text-white/30">€</span>
@@ -251,8 +251,8 @@ export default function GestionBKPage() {
 
             {mode === "percent_bankroll" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{t("unit_pct_label")}</label>
-                <p className="mb-2 text-[10px] text-white/15">{t("unit_pct_desc")}</p>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("unit_pct_label")}</label>
+                <p className="mb-2 text-[10px] text-white/35">{t("unit_pct_desc")}</p>
                 <div className="flex items-center gap-2">
                   <input type="number" step="0.1" min="0.1" max="100" value={unitPercent} onChange={(e) => { setUnitPercent(e.target.value); setError(""); }} placeholder="1" className={inputClass} inputMode="decimal" />
                   <span className="text-lg font-bold text-white/30">%</span>
@@ -265,8 +265,8 @@ export default function GestionBKPage() {
 
             {mode === "fixed_unit" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{t("recalc_label")}</label>
-                <p className="mb-2 text-[10px] text-white/15">{t("recalc_desc")}</p>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("recalc_label")}</label>
+                <p className="mb-2 text-[10px] text-white/35">{t("recalc_desc")}</p>
                 <div className="grid grid-cols-4 gap-1.5">
                   {RECALC_OPTIONS.map((opt) => (
                     <button key={opt.value} onClick={() => setAutoRecalc(opt.value)} className={`cursor-pointer rounded-lg px-2 py-2.5 text-center transition ${autoRecalc === opt.value ? "bg-emerald-500/20 ring-1 ring-emerald-500/40" : "bg-white/[0.03] hover:bg-white/[0.06]"}`}>
