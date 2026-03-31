@@ -66,7 +66,28 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
         <div className="mx-auto max-w-6xl px-4 py-12 text-center">
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("heading")}</h1>
           <p className="mt-3 text-base text-neutral-500">{t("subtitle")}</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-2">
+          {/* Mobile: dropdown */}
+          <div className="mt-6 flex justify-center sm:hidden">
+            <select
+              id="mobile-category-select"
+              defaultValue={category || ""}
+              className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              <option value="">{t("filter_all")}</option>
+              {categories.map((c: any) => (
+                <option key={c.slug} value={c.slug}>{c.icon} {catName(c)}</option>
+              ))}
+            </select>
+            <script dangerouslySetInnerHTML={{ __html: `
+              document.getElementById('mobile-category-select').addEventListener('change', function() {
+                var val = this.value;
+                window.location.href = val ? '/${locale}/blog?category=' + val : '/${locale}/blog';
+              });
+            ` }} />
+          </div>
+
+          {/* Desktop: pills */}
+          <div className="mt-8 hidden flex-wrap justify-center gap-2 sm:flex">
             <Link href={`/${locale}/blog`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${!category ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>{t("filter_all")}</Link>
             {categories.map((c: any) => (
               <Link key={c.slug} href={`/${locale}/blog?category=${c.slug}`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${category === c.slug ? "text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`} style={category === c.slug ? { backgroundColor: c.color } : undefined}>{c.icon} {catName(c)}</Link>
