@@ -63,7 +63,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
-      <div className="relative flex min-h-[100dvh] flex-col lg:min-h-[calc(100vh-100px)]">
+      <div className="flex flex-col" style={{ minHeight: "100vh", minHeight: "100svh" }}>
       {/* ═══════════ HERO (DARK) ═══════════ */}
       <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
@@ -180,7 +180,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* ═══════════ STATS BAR (DARK) ═══════════ */}
       {totalPicks > 0 && (
         <section
-          className="sticky bottom-0 z-30 border-t border-emerald-900/40 lg:static lg:border-b lg:border-t-0"
+          className="border-t border-emerald-900/40"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
