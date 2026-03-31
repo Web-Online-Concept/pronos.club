@@ -54,20 +54,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Post-filter for "combines" — keep only picks with legs having different sports
   let filtered = data ?? [];
-  if (sportSlug === "combines") {
-    filtered = filtered.filter((pick) => {
-      const legs = Array.isArray(pick.legs) ? pick.legs : [];
-      if (legs.length < 2) return false;
-      const sportSlugs = new Set<string>();
-      legs.forEach((leg: any) => {
-        const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
-        if (legSport?.slug) sportSlugs.add(legSport.slug);
-      });
-      return sportSlugs.size > 1;
+
+  // Helper: check if a pick is a multi-sport combi
+  function isMultiSportCombi(pick: any): boolean {
+    const legs = Array.isArray(pick.legs) ? pick.legs : [];
+    if (legs.length < 2) return false;
+    const sportSlugs = new Set<string>();
+    legs.forEach((leg: any) => {
+      const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
+      if (legSport?.slug) sportSlugs.add(legSport.slug);
     });
+    return sportSlugs.size > 1;
   }
 
-  return NextResponse.json({ data: filtered, count: sportSlug === "combines" ? filtered.length : count });
+  if (sportSlug === "combines") {
+    // Only multi-sport combis
+    filtered = filtered.filter(isMultiSportCombi);
+  } else if (sportSlug && sportSlug !== "all") {
+    // Exclude multi-sport combis from individual sport filters
+    filtered = filtered.filter((pick) => !isMultiSportCombi(pick));
+  }
+
+  return NextResponse.json({ data: filtered, count: (sportSlug === "combines" || (sportSlug && sportSlug !== "all")) ? filtered.length : count });
 }
