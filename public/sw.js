@@ -24,9 +24,11 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch — network first, fallback to cache
+// Fetch — network first, fallback to cache (skip videos and range requests)
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  // Don't intercept video files or range requests — they break on mobile
+  if (event.request.url.match(/\.(mp4|webm|ogg|m4a)$/) || event.request.headers.get("range")) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -37,7 +39,7 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request).then((r) => r || fetch(event.request)))
   );
 });
 
