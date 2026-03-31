@@ -36,8 +36,8 @@ export async function GET(request: Request) {
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
   if (to) query = query.lte("event_date", `${to}T23:59:59Z`);
 
-  // Sport filter: lookup sport_id by slug
-  if (sportSlug && sportSlug !== "all") {
+  // Sport filter
+  if (sportSlug && sportSlug !== "all" && sportSlug !== "combines") {
     const { data: sportRow } = await supabase
       .from("sports")
       .select("id")
@@ -54,5 +54,20 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data, count });
+  // Post-filter for "combines" — keep only picks with legs having different sports
+  let filtered = data ?? [];
+  if (sportSlug === "combines") {
+    filtered = filtered.filter((pick) => {
+      const legs = Array.isArray(pick.legs) ? pick.legs : [];
+      if (legs.length < 2) return false;
+      const sportSlugs = new Set<string>();
+      legs.forEach((leg: any) => {
+        const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
+        if (legSport?.slug) sportSlugs.add(legSport.slug);
+      });
+      return sportSlugs.size > 1;
+    });
+  }
+
+  return NextResponse.json({ data: filtered, count: sportSlug === "combines" ? filtered.length : count });
 }
