@@ -215,7 +215,7 @@ export default function GestionBKPage() {
             <div className="flex items-center gap-3"><div className="h-px flex-1 bg-white/[0.06]" /><span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">{t("config")}</span><div className="h-px flex-1 bg-white/[0.06]" /></div>
 
             <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("bk_start_label")}</label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white">{t("bk_start_label")}</label>
               <p className="mb-2 text-[10px] text-white/35">{t("bk_start_desc")}</p>
               <div className="flex items-center gap-2">
                 <input type="number" step="0.01" min="0" value={bankroll} onChange={(e) => { setBankroll(e.target.value); setError(""); if (!currentBk || currentBk === bankroll) setCurrentBk(e.target.value); }} placeholder="1000" className={inputClass} inputMode="decimal" />
@@ -224,7 +224,7 @@ export default function GestionBKPage() {
             </div>
 
             <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("bk_current_label")}</label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white">{t("bk_current_label")}</label>
               <p className="mb-2 text-[10px] text-white/35">{t("bk_current_desc")}</p>
               <div className="flex items-center gap-2">
                 <input type="number" step="0.01" min="0" value={currentBk} onChange={(e) => { setCurrentBk(e.target.value); setError(""); }} placeholder={bankroll || "1000"} className={inputClass} inputMode="decimal" />
@@ -237,7 +237,7 @@ export default function GestionBKPage() {
 
             {mode === "fixed_unit" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("unit_value_label")}</label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white">{t("unit_value_label")}</label>
                 <p className="mb-2 text-[10px] text-white/35">{t("unit_value_desc")}</p>
                 <div className="flex items-center gap-2">
                   <input type="number" step="0.01" min="0.01" value={unitValue} onChange={(e) => { setUnitValue(e.target.value); setError(""); }} placeholder="10" className={inputClass} inputMode="decimal" />
@@ -251,7 +251,7 @@ export default function GestionBKPage() {
 
             {mode === "percent_bankroll" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("unit_pct_label")}</label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white">{t("unit_pct_label")}</label>
                 <p className="mb-2 text-[10px] text-white/35">{t("unit_pct_desc")}</p>
                 <div className="flex items-center gap-2">
                   <input type="number" step="0.1" min="0.1" max="100" value={unitPercent} onChange={(e) => { setUnitPercent(e.target.value); setError(""); }} placeholder="1" className={inputClass} inputMode="decimal" />
@@ -265,7 +265,7 @@ export default function GestionBKPage() {
 
             {mode === "fixed_unit" && (
               <div className="rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">{t("recalc_label")}</label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white">{t("recalc_label")}</label>
                 <p className="mb-2 text-[10px] text-white/35">{t("recalc_desc")}</p>
                 <div className="grid grid-cols-4 gap-1.5">
                   {RECALC_OPTIONS.map((opt) => (
@@ -280,9 +280,9 @@ export default function GestionBKPage() {
             )}
 
             {mode === "percent_bankroll" && (
-              <div className="rounded-xl border border-emerald-500/20 p-3" style={{ background: "rgba(16,185,129,0.05)" }}>
-                <p className="text-center text-xs text-emerald-400/70">{t("pct_info")}</p>
-                <p className="mt-1 text-center text-[10px] text-emerald-400/40">{t("pct_info2")}</p>
+              <div className="rounded-xl border border-emerald-500/20 p-3" style={{ background: "rgba(16,185,129,0.08)" }}>
+                <p className="text-center text-xs text-emerald-400">{t("pct_info")}</p>
+                <p className="mt-1 text-center text-[10px] text-emerald-400/60">{t("pct_info2")}</p>
               </div>
             )}
 
