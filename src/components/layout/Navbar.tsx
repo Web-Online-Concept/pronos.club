@@ -55,13 +55,13 @@ export default function Navbar() {
   const router = useRouter();
 
   const NAV_LINKS = [
-    { href: `/${locale}/pronostics`, label: t("pronos") },
-    { href: `/${locale}/historique`, label: t("history_short") },
-    { href: `/${locale}/statistiques`, label: t("stats_short") },
-    { href: `/${locale}/bilans`, label: t("bilans_short") },
-    { href: `/${locale}/tipster`, label: t("tipster_short") },
-    { href: `/${locale}/bookmakers`, label: t("books") },
-    { href: `/${locale}/blog`, label: t("blog_short") },
+    { href: `/${locale}/pronostics`, label: t("pronos"), icon: "🎯" },
+    { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
+    { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
+    { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "🧠" },
+    { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
@@ -281,17 +281,18 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Nav links */}
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <div className="flex flex-col gap-0.5">
+            {/* Nav links — grid 3 columns */}
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              <div className="grid grid-cols-3 gap-2">
                 {NAV_LINKS.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
-                    className="rounded-xl px-4 py-3 text-sm font-semibold text-neutral-300 transition hover:bg-emerald-600/20 hover:text-emerald-400"
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center transition hover:border-emerald-500/30 hover:bg-emerald-500/10"
                   >
-                    {link.label}
+                    <span className="text-2xl">{link.icon}</span>
+                    <span className="text-xs font-semibold text-neutral-300">{link.label}</span>
                   </Link>
                 ))}
               </div>
