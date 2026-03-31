@@ -145,17 +145,19 @@ export default function Navbar() {
             </svg>
           </button>
 
-          {/* Logo */}
-          <Link href={`/${locale}`} className="flex items-center">
+          {/* Logo — with PRONOS / .CLUB text on mobile */}
+          <Link href={`/${locale}`} className="flex items-center gap-1">
+            <span className="text-sm font-extrabold text-white lg:hidden">PRONOS</span>
             <Image
               src="/pronos_club.png"
               alt="PRONOS.CLUB"
               width={200}
               height={160}
-              className="h-[55px] w-auto lg:h-[100px]"
+              className="h-[40px] w-auto lg:h-[100px]"
               style={{ width: "auto" }}
               priority
             />
+            <span className="text-sm font-extrabold text-emerald-400 lg:hidden">.CLUB</span>
           </Link>
 
           {/* Desktop nav */}
