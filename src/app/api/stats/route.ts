@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
   let query = supabaseAdmin
     .from("picks")
-    .select("*, sport:sports(id, name_fr, icon, slug), bookmaker:bookmakers(id, name, slug)")
+    .select("*, sport:sports(id, name_fr, icon, slug), bookmaker:bookmakers(id, name, slug), legs:pick_legs(sport:sports(id, name_fr, icon, slug))")
     .neq("status", "pending")
     .order("result_entered_at", { ascending: true });
 
@@ -21,15 +21,27 @@ export async function GET(request: Request) {
 
   const allPicks = data ?? [];
 
-  // Sport list (before sport filter)
+  // Sport list (before sport filter) — include "Combinés" if any multi-sport combis exist
   const allSportMap = new Map<string, { name: string; icon: string; slug: string }>();
+  let hasMultiSportCombi = false;
   allPicks.forEach((p) => {
     const sport = Array.isArray(p.sport) ? p.sport[0] : p.sport;
     if (!sport) return;
     if (!allSportMap.has(sport.slug)) {
       allSportMap.set(sport.slug, { name: sport.name_fr, icon: sport.icon ?? "", slug: sport.slug });
     }
+    // Detect multi-sport combis
+    const legs = Array.isArray(p.legs) ? p.legs : [];
+    const legSportSlugs = new Set<string>();
+    legs.forEach((leg: any) => {
+      const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
+      if (legSport?.slug) legSportSlugs.add(legSport.slug);
+    });
+    if (legSportSlugs.size > 1) hasMultiSportCombi = true;
   });
+  if (hasMultiSportCombi) {
+    allSportMap.set("combines", { name: "Combinés", icon: "🔀", slug: "combines" });
+  }
   const allSports = Array.from(allSportMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   // Available months
@@ -46,9 +58,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ allSports, availableMonths });
   }
   
-  // Filter by sport
+  // Filter by sport — "combines" filters multi-sport combis
   const picks = sportSlug && sportSlug !== "all"
     ? allPicks.filter((p) => {
+        if (sportSlug === "combines") {
+          const legs = Array.isArray(p.legs) ? p.legs : [];
+          const legSportSlugs = new Set<string>();
+          legs.forEach((leg: any) => {
+            const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
+            if (legSport?.slug) legSportSlugs.add(legSport.slug);
+          });
+          return legSportSlugs.size > 1;
+        }
         const sport = Array.isArray(p.sport) ? p.sport[0] : p.sport;
         return sport?.slug === sportSlug;
       })
@@ -133,14 +154,27 @@ export async function GET(request: Request) {
     };
   });
 
-  // By sport
+  // By sport — combinés multi-sports go to "Combinés" category
   const sportMap = new Map<string, { name: string; icon: string; slug: string; won: number; lost: number; total: number; profit: number; staked: number }>();
   picks.forEach((p) => {
-    const sport = Array.isArray(p.sport) ? p.sport[0] : p.sport;
-    if (!sport) return;
-    const key = sport.slug;
+    const mainSport = Array.isArray(p.sport) ? p.sport[0] : p.sport;
+    if (!mainSport) return;
+
+    // Check if this is a multi-sport combi
+    const legs = Array.isArray(p.legs) ? p.legs : [];
+    const legSportSlugs = new Set<string>();
+    legs.forEach((leg: any) => {
+      const legSport = Array.isArray(leg.sport) ? leg.sport[0] : leg.sport;
+      if (legSport?.slug) legSportSlugs.add(legSport.slug);
+    });
+
+    const isMultiSportCombi = legSportSlugs.size > 1;
+    const key = isMultiSportCombi ? "combines" : mainSport.slug;
+    const name = isMultiSportCombi ? "Combinés" : mainSport.name_fr;
+    const icon = isMultiSportCombi ? "🔀" : (mainSport.icon ?? "");
+
     if (!sportMap.has(key)) {
-      sportMap.set(key, { name: sport.name_fr, icon: sport.icon ?? "", slug: key, won: 0, lost: 0, total: 0, profit: 0, staked: 0 });
+      sportMap.set(key, { name, icon, slug: key, won: 0, lost: 0, total: 0, profit: 0, staked: 0 });
     }
     const s = sportMap.get(key)!;
     s.total++;
