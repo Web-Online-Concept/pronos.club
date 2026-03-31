@@ -526,7 +526,6 @@ export default function NewPickPage() {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleScreenshot}
               className="hidden"
             />
@@ -540,7 +539,7 @@ export default function NewPickPage() {
               <span className="text-sm text-white/30">Upload en cours...</span>
             ) : (
               <span className="text-sm text-white/30">
-                📷 Prendre une photo ou choisir un fichier
+                📷 Choisir une image ou prendre une photo
               </span>
             )}
           </label>
