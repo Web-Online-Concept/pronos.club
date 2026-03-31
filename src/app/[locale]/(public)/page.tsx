@@ -63,9 +63,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
-      <div className="relative flex min-h-[100dvh] flex-col lg:min-h-[calc(100vh-100px)]">
+      <div className="flex min-h-[100dvh] flex-col">
       {/* ═══════════ HERO (DARK) ═══════════ */}
-      <section className="relative flex flex-1 flex-col justify-center overflow-hidden bg-neutral-950 text-white">
+      <section className="relative flex flex-1 flex-col overflow-hidden bg-neutral-950 text-white">
         {/* Glow effects */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-emerald-500/20 blur-[140px]" />
@@ -82,7 +82,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           }}
         />
 
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
+        <div className="relative mx-auto flex max-w-4xl flex-1 flex-col items-center justify-end px-4 pb-4 pt-2 text-center sm:justify-center sm:py-8">
           {/* Hero Logo */}
           <div className="mx-auto mb-3 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
             <Image
@@ -180,7 +180,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* ═══════════ STATS BAR (DARK) ═══════════ */}
       {totalPicks > 0 && (
         <section
-          className="sticky bottom-0 z-30 border-t border-emerald-900/40 lg:static lg:border-b lg:border-t-0"
+          className="border-t border-emerald-900/40 lg:border-b lg:border-t-0"
           style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
         >
           <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
