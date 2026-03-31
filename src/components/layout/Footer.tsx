@@ -41,17 +41,17 @@ export default async function Footer() {
   return (
     <footer className="border-t border-emerald-900/50 text-neutral-400" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}>
       <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Brand */}
-          <div>
-            <div className="flex justify-center">
+        <div className="grid gap-8 lg:grid-cols-4 lg:gap-10">
+          {/* Brand — full width on mobile */}
+          <div className="text-center lg:text-left">
+            <div className="flex justify-center lg:justify-start">
               <Image
                 src="/pronos_club.png"
                 alt="PRONOS.CLUB"
                 width={200}
                 height={160}
-                className="h-[100px] w-auto"
-                style={{ width: "auto", height: "100px" }}
+                className="h-[60px] w-auto lg:h-[100px]"
+                style={{ width: "auto" }}
               />
             </div>
             <p className="mt-3 text-sm leading-relaxed">
@@ -67,15 +67,21 @@ export default async function Footer() {
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-800 text-sm transition hover:bg-emerald-600"
-                    title={social.username}
+                    className={`flex items-center justify-center rounded-lg bg-neutral-800 text-sm transition hover:bg-emerald-600 ${
+                      social.platform === "twitter" ? "gap-1.5 px-3 h-9" : "h-9 w-9"
+                    }`}
+                    title={social.platform === "twitter" ? "Twitter X" : (social.username || social.platform)}
                   >
                     {SOCIAL_ICONS[social.platform] || "🔗"}
+                    {social.platform === "twitter" && <span className="text-xs font-semibold text-neutral-300">Twitter</span>}
                   </a>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Navigation / Compte / Légal — 3 colonnes même sur mobile */}
+          <div className="col-span-1 grid grid-cols-3 gap-4 lg:col-span-3 lg:gap-10">
 
           {/* Navigation */}
           <div className="text-center">
@@ -87,7 +93,7 @@ export default async function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm transition hover:text-emerald-400"
+                  className="text-[11px] transition hover:text-emerald-400 sm:text-sm"
                 >
                   {link.label}
                 </Link>
@@ -110,7 +116,7 @@ export default async function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm transition hover:text-emerald-400"
+                  className="text-[11px] transition hover:text-emerald-400 sm:text-sm"
                 >
                   {link.label}
                 </Link>
@@ -135,12 +141,13 @@ export default async function Footer() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm transition hover:text-emerald-400"
+                  className="text-[11px] transition hover:text-emerald-400 sm:text-sm"
                 >
                   {link.label}
                 </Link>
               ))}
             </div>
+          </div>
           </div>
         </div>
 
