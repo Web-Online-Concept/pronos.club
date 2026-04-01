@@ -140,7 +140,7 @@ export default function NewPickPage() {
   const leg1Odds = parseFloat(leg1.odds) || 0;
   const leg2Odds = parseFloat(leg2.odds) || 0;
   const combinedOdds = pickType === "combine" && leg1Odds > 0 && leg2Odds > 0
-    ? Math.round(leg1Odds * leg2Odds * 100) / 100
+    ? Math.round(leg1Odds * leg2Odds * 1000) / 1000
     : 0;
 
   function buildPreviewPick(): PickType {

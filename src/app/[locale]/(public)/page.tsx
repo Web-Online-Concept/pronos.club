@@ -34,7 +34,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 100) : 0;
   const totalStaked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
   const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100) : 0;
-  const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + p.odds, 0) / totalPicks).toFixed(2) : "0";
+  const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + p.odds, 0) / totalPicks).toFixed(3) : "0";
 
   // Current streak
   const sorted = [...picks].sort(
