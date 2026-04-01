@@ -66,7 +66,7 @@ function LegForm({ leg, setLeg, label, sports }: { leg: LegState; setLeg: (l: Le
         </div>
         <div>
           <label className={LABEL_CLASS}>Cote</label>
-          <input type="number" step="0.01" min="1.01" value={leg.odds} onChange={(e) => setLeg({ ...leg, odds: e.target.value })} placeholder="1.85" required className={INPUT_CLASS} inputMode="decimal" />
+          <input type="number" step="0.001" min="1.01" value={leg.odds} onChange={(e) => setLeg({ ...leg, odds: e.target.value })} placeholder="1.85" required className={INPUT_CLASS} inputMode="decimal" />
         </div>
       </div>
     </div>
@@ -454,7 +454,7 @@ export default function NewPickPage() {
           <label className={LABEL_CLASS}>Cote minimum (optionnel)</label>
           <input
             type="number"
-            step="0.01"
+            step="0.001"
             min="1.01"
             value={minOdds}
             onChange={(e) => setMinOdds(e.target.value)}
