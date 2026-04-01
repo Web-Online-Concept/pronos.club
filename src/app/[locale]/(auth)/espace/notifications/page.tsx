@@ -49,7 +49,7 @@ export default function NotificationsPage() {
               <p className="text-sm font-medium">{t("email_title")}</p>
               <p className="text-xs opacity-40">{emailEnabled ? t("email_on") : t("email_off")}</p>
             </div>
-            <button onClick={toggleEmail} disabled={saving} className={`relative h-7 w-12 rounded-full transition ${emailEnabled ? "bg-emerald-500" : "bg-neutral-300"}`}>
+            <button onClick={toggleEmail} disabled={saving} className={`relative h-7 w-12 cursor-pointer rounded-full transition ${emailEnabled ? "bg-emerald-500" : "bg-neutral-300"}`}>
               <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${emailEnabled ? "left-[22px]" : "left-0.5"}`} />
             </button>
           </div>
@@ -66,7 +66,7 @@ export default function NotificationsPage() {
                 {isPremium ? (bilanEnabled ? t("bilan_on") : t("bilan_off")) : t("bilan_locked")}
               </p>
             </div>
-            <button onClick={toggleBilan} disabled={saving || !isPremium} className={`relative h-7 w-12 rounded-full transition ${bilanEnabled && isPremium ? "bg-emerald-500" : "bg-neutral-300"} ${!isPremium ? "cursor-not-allowed" : ""}`}>
+            <button onClick={toggleBilan} disabled={saving || !isPremium} className={`relative h-7 w-12 cursor-pointer rounded-full transition ${bilanEnabled && isPremium ? "bg-emerald-500" : "bg-neutral-300"} ${!isPremium ? "cursor-not-allowed" : ""}`}>
               <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${bilanEnabled && isPremium ? "left-[22px]" : "left-0.5"}`} />
             </button>
           </div>
