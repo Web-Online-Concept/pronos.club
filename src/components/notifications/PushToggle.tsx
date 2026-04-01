@@ -87,7 +87,7 @@ export default function PushToggle() {
       <button
         onClick={subscribed ? unsubscribe : subscribe}
         disabled={loading}
-        className={`relative h-7 w-12 rounded-full transition ${
+        className={`relative h-7 w-12 cursor-pointer rounded-full transition ${
           subscribed ? "bg-emerald-500" : "bg-neutral-300"
         }`}
       >
