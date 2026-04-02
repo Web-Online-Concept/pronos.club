@@ -159,7 +159,6 @@ export async function POST(request: Request) {
         break;
       }
 
-      // Les deux événements exécutent le même code
       case "invoice.payment_succeeded":
       case "invoice.paid": {
         const invoice = event.data.object;
@@ -179,7 +178,6 @@ export async function POST(request: Request) {
           .single();
 
         if (user) {
-          // Upsert pour éviter les doublons si les deux events arrivent
           await supabaseAdmin.from("payments").upsert(
             {
               user_id: user.id,
@@ -189,7 +187,7 @@ export async function POST(request: Request) {
               currency: (invoiceAny.currency ?? "eur") as string,
               stripe_fee: stripeFee,
               net_amount: netAmount,
-              status: "paid",
+              status: "succeeded",
               paid_at: new Date().toISOString(),
             },
             { onConflict: "stripe_invoice_id" }
