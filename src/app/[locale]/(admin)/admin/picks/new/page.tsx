@@ -340,8 +340,19 @@ export default function NewPickPage() {
     }
 
     // 3. Send notifications (only if legs created successfully)
-    const selectedSport = sports.find((s) => s.id === leg1.sportId);
-    const sportLabel = selectedSport ? `${selectedSport.icon} ${selectedSport.name_fr}` : "";
+    let sportLabel = "";
+    if (pickType === "combine") {
+      const sport1 = sports.find((s) => s.id === leg1.sportId);
+      const sport2 = sports.find((s) => s.id === leg2.sportId);
+      if (sport1 && sport2 && sport1.id !== sport2.id) {
+        sportLabel = `Combiné ${sport1.icon} ${sport1.name_fr} + ${sport2.icon} ${sport2.name_fr}`;
+      } else if (sport1) {
+        sportLabel = `Combiné ${sport1.icon} ${sport1.name_fr}`;
+      }
+    } else {
+      const selectedSport = sports.find((s) => s.id === leg1.sportId);
+      sportLabel = selectedSport ? `Simple ${selectedSport.icon} ${selectedSport.name_fr}` : "";
+    }
 
     fetch("/api/notifications/send", {
       method: "POST",
