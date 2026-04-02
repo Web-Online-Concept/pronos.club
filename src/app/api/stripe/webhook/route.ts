@@ -4,6 +4,17 @@ import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { NextResponse } from "next/server";
 
+// Safe timestamp conversion — Stripe sends Unix seconds, can be null/undefined
+function toISO(timestamp: unknown): string | null {
+  if (timestamp == null) return null;
+  const num = typeof timestamp === "number" ? timestamp : Number(timestamp);
+  if (isNaN(num) || num <= 0) return null;
+  // Stripe timestamps are in seconds, JS needs milliseconds
+  const ms = num > 1e12 ? num : num * 1000;
+  const d = new Date(ms);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export async function POST(request: Request) {
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
@@ -24,196 +35,193 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      const customerId = session.customer as string;
-      const subscriptionId = session.subscription as string;
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
 
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const userId = subscription.metadata.supabase_user_id;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const userId = subscription.metadata.supabase_user_id;
 
-      if (userId) {
-        // trialing = essai gratuit via code promo, active = paiement direct
-        const subStatus = subscription.status === "trialing" ? "trialing" : "active";
+        if (userId) {
+          const sub = subscription as unknown as Record<string, unknown>;
+          const subStatus = subscription.status === "trialing" ? "trialing" : "active";
+          const periodEnd = toISO(sub.current_period_end);
+          const periodStart = toISO(sub.current_period_start);
 
-        await supabaseAdmin
-          .from("users")
-          .update({
-            subscription_status: subStatus,
-            subscription_end: new Date(
-              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-            ).toISOString(),
-            stripe_customer_id: customerId,
-          })
-          .eq("id", userId);
+          await supabaseAdmin
+            .from("users")
+            .update({
+              subscription_status: subStatus,
+              subscription_end: periodEnd,
+              stripe_customer_id: customerId,
+            })
+            .eq("id", userId);
 
-        await supabaseAdmin.from("subscriptions").insert({
-          user_id: userId,
-          stripe_subscription_id: subscriptionId,
-          stripe_price_id: subscription.items.data[0]?.price.id,
-          plan: "premium",
-          status: subStatus,
-          amount: 2000,
-          currency: "eur",
-          current_period_start: new Date(
-            (subscription as unknown as Record<string, unknown>).current_period_start as number * 1000
-          ).toISOString(),
-          current_period_end: new Date(
-            (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-          ).toISOString(),
-        });
+          await supabaseAdmin.from("subscriptions").insert({
+            user_id: userId,
+            stripe_subscription_id: subscriptionId,
+            stripe_price_id: subscription.items.data[0]?.price.id,
+            plan: "premium",
+            status: subStatus,
+            amount: 2000,
+            currency: "eur",
+            current_period_start: periodStart,
+            current_period_end: periodEnd,
+          });
 
-        // Telegram invite + email même en trial
-        onPremiumActivated(userId).catch(() => {});
+          // Telegram invite + email même en trial
+          onPremiumActivated(userId).catch(() => {});
 
-        // Alert admins — new premium
-        const { data: premiumUser } = await supabaseAdmin
-          .from("users")
-          .select("email, display_name")
-          .eq("id", userId)
-          .single();
-        if (premiumUser) {
-          sendAdminAlert("new_premium", {
-            email: premiumUser.email,
-            name: premiumUser.display_name,
-          }).catch(() => {});
+          // Alert admins — new premium
+          const { data: premiumUser } = await supabaseAdmin
+            .from("users")
+            .select("email, display_name")
+            .eq("id", userId)
+            .single();
+          if (premiumUser) {
+            sendAdminAlert("new_premium", {
+              email: premiumUser.email,
+              name: premiumUser.display_name,
+            }).catch(() => {});
+          }
         }
+        break;
       }
-      break;
-    }
 
-    case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      const userId = subscription.metadata.supabase_user_id;
+      case "customer.subscription.updated": {
+        const subscription = event.data.object;
+        const userId = subscription.metadata.supabase_user_id;
 
-      if (userId) {
-        // AJOUT: trialing supporté
-        const status =
-          subscription.status === "active" ? "active" :
-          subscription.status === "trialing" ? "trialing" :
-          subscription.status === "past_due" ? "past_due" : "canceled";
+        if (userId) {
+          const sub = subscription as unknown as Record<string, unknown>;
+          const status =
+            subscription.status === "active" ? "active" :
+            subscription.status === "trialing" ? "trialing" :
+            subscription.status === "past_due" ? "past_due" : "canceled";
 
-        await supabaseAdmin
-          .from("users")
-          .update({
-            subscription_status: status,
-            subscription_end: new Date(
-              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-            ).toISOString(),
-          })
-          .eq("id", userId);
+          const periodEnd = toISO(sub.current_period_end);
 
-        await supabaseAdmin
-          .from("subscriptions")
-          .update({
-            status,
-            current_period_end: new Date(
-              (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
-            ).toISOString(),
-            canceled_at: (subscription as unknown as Record<string, unknown>).canceled_at
-              ? new Date(((subscription as unknown as Record<string, unknown>).canceled_at as number) * 1000).toISOString()
-              : null,
-          })
-          .eq("stripe_subscription_id", subscription.id);
-      }
-      break;
-    }
+          await supabaseAdmin
+            .from("users")
+            .update({
+              subscription_status: status,
+              subscription_end: periodEnd,
+            })
+            .eq("id", userId);
 
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      const userId = subscription.metadata.supabase_user_id;
-
-      if (userId) {
-        await supabaseAdmin
-          .from("users")
-          .update({ subscription_status: "canceled" })
-          .eq("id", userId);
-
-        await supabaseAdmin
-          .from("subscriptions")
-          .update({ status: "canceled" })
-          .eq("stripe_subscription_id", subscription.id);
-
-        onPremiumRevoked(userId).catch(() => {});
-
-        // Alert admins — cancellation
-        const { data: canceledUser } = await supabaseAdmin
-          .from("users")
-          .select("email, display_name")
-          .eq("id", userId)
-          .single();
-        if (canceledUser) {
-          sendAdminAlert("cancellation", {
-            email: canceledUser.email,
-            name: canceledUser.display_name,
-          }).catch(() => {});
+          await supabaseAdmin
+            .from("subscriptions")
+            .update({
+              status,
+              current_period_end: periodEnd,
+              canceled_at: sub.canceled_at ? toISO(sub.canceled_at) : null,
+            })
+            .eq("stripe_subscription_id", subscription.id);
         }
+        break;
       }
-      break;
-    }
 
-    case "invoice.paid": {
-      const invoice = event.data.object;
-      const invoiceAny = invoice as unknown as Record<string, unknown>;
-      const customerId = invoiceAny.customer as string;
-      const amountPaid = (invoiceAny.amount_paid ?? 0) as number;
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const userId = subscription.metadata.supabase_user_id;
 
-      // Si amount = 0 (trial), pas de frais ni de payment à enregistrer
-      if (amountPaid === 0) break;
+        if (userId) {
+          await supabaseAdmin
+            .from("users")
+            .update({ subscription_status: "canceled" })
+            .eq("id", userId);
 
-      // Calculate Stripe fees: 1.5% + 0.25€ for EU cards (average)
-      const stripeFee = Math.round(amountPaid * 0.015 + 25);
-      const netAmount = amountPaid - stripeFee;
+          await supabaseAdmin
+            .from("subscriptions")
+            .update({ status: "canceled" })
+            .eq("stripe_subscription_id", subscription.id);
 
-      const { data: user } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("stripe_customer_id", customerId)
-        .single();
+          onPremiumRevoked(userId).catch(() => {});
 
-      if (user) {
-        await supabaseAdmin.from("payments").insert({
-          user_id: user.id,
-          stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
-          stripe_invoice_id: invoice.id,
-          amount: amountPaid,
-          currency: (invoiceAny.currency ?? "eur") as string,
-          stripe_fee: stripeFee,
-          net_amount: netAmount,
-          status: "paid",
-          paid_at: new Date().toISOString(),
-        });
+          // Alert admins — cancellation
+          const { data: canceledUser } = await supabaseAdmin
+            .from("users")
+            .select("email, display_name")
+            .eq("id", userId)
+            .single();
+          if (canceledUser) {
+            sendAdminAlert("cancellation", {
+              email: canceledUser.email,
+              name: canceledUser.display_name,
+            }).catch(() => {});
+          }
+        }
+        break;
       }
-      break;
-    }
 
-    case "invoice.payment_failed": {
-      const invoice = event.data.object;
-      const invoiceAny = invoice as unknown as Record<string, unknown>;
-      const customerId = invoiceAny.customer as string;
+      case "invoice.paid": {
+        const invoice = event.data.object;
+        const invoiceAny = invoice as unknown as Record<string, unknown>;
+        const customerId = invoiceAny.customer as string;
+        const amountPaid = (invoiceAny.amount_paid ?? 0) as number;
 
-      const { data: user } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("stripe_customer_id", customerId)
-        .single();
+        // Si amount = 0 (trial/coupon), pas de frais ni de payment à enregistrer
+        if (amountPaid === 0) break;
 
-      if (user) {
-        await supabaseAdmin.from("payments").insert({
-          user_id: user.id,
-          stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
-          stripe_invoice_id: invoice.id,
-          amount: (invoiceAny.amount_due ?? 0) as number,
-          currency: (invoiceAny.currency ?? "eur") as string,
-          stripe_fee: 0,
-          net_amount: 0,
-          status: "failed",
-          paid_at: new Date().toISOString(),
-        });
+        // Calculate Stripe fees: 1.5% + 0.25€ for EU cards (average)
+        const stripeFee = Math.round(amountPaid * 0.015 + 25);
+        const netAmount = amountPaid - stripeFee;
+
+        const { data: user } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("stripe_customer_id", customerId)
+          .single();
+
+        if (user) {
+          await supabaseAdmin.from("payments").insert({
+            user_id: user.id,
+            stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
+            stripe_invoice_id: invoice.id,
+            amount: amountPaid,
+            currency: (invoiceAny.currency ?? "eur") as string,
+            stripe_fee: stripeFee,
+            net_amount: netAmount,
+            status: "paid",
+            paid_at: new Date().toISOString(),
+          });
+        }
+        break;
       }
-      break;
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+        const invoiceAny = invoice as unknown as Record<string, unknown>;
+        const customerId = invoiceAny.customer as string;
+
+        const { data: user } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("stripe_customer_id", customerId)
+          .single();
+
+        if (user) {
+          await supabaseAdmin.from("payments").insert({
+            user_id: user.id,
+            stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
+            stripe_invoice_id: invoice.id,
+            amount: (invoiceAny.amount_due ?? 0) as number,
+            currency: (invoiceAny.currency ?? "eur") as string,
+            stripe_fee: 0,
+            net_amount: 0,
+            status: "failed",
+            paid_at: new Date().toISOString(),
+          });
+        }
+        break;
+      }
     }
+  } catch (err) {
+    console.error(`[webhook] Error processing ${event.type}:`, err);
+    return NextResponse.json({ error: "Webhook processing error" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
