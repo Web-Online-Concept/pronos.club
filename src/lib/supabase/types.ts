@@ -1,5 +1,5 @@
 export type PickStatus = "pending" | "won" | "lost" | "void" | "half_won" | "half_lost";
-export type SubscriptionStatus = "free" | "active" | "past_due" | "canceled";
+export type SubscriptionStatus = "free" | "active" | "trialing" | "past_due" | "canceled";
 export type NotificationChannel = "email" | "push";
 
 export interface User {

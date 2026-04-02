@@ -11,14 +11,14 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check user is premium
+  // Check user is premium (active or trialing)
   const { data: profile } = await supabaseAdmin
     .from("users")
     .select("subscription_status, telegram_user_id, telegram_invite_link")
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.subscription_status !== "active") {
+  if (!profile || !["active", "trialing"].includes(profile.subscription_status)) {
     return NextResponse.json({ error: "Premium subscription required" }, { status: 403 });
   }
 
