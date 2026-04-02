@@ -41,12 +41,9 @@ export async function POST(request: Request) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
-        // Retrieve LIVE subscription status from Stripe (not from the event payload)
-        // This prevents stale retries from reactivating a canceled subscription
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const userId = subscription.metadata.supabase_user_id;
 
-        // Guard: ignore if subscription is no longer active/trialing
         if (!userId || !["active", "trialing"].includes(subscription.status)) {
           console.log(`[webhook] checkout.session.completed ignored — sub status: ${subscription.status}, userId: ${userId}`);
           break;
@@ -66,7 +63,6 @@ export async function POST(request: Request) {
           })
           .eq("id", userId);
 
-        // Upsert to handle Stripe retries — if the subscription already exists, update it
         await supabaseAdmin.from("subscriptions").upsert(
           {
             user_id: userId,
@@ -82,10 +78,8 @@ export async function POST(request: Request) {
           { onConflict: "stripe_subscription_id" }
         );
 
-        // Telegram invite + email
         onPremiumActivated(userId).catch(() => {});
 
-        // Alert admins — new premium
         const { data: premiumUser } = await supabaseAdmin
           .from("users")
           .select("email, display_name")
@@ -150,7 +144,6 @@ export async function POST(request: Request) {
 
           onPremiumRevoked(userId).catch(() => {});
 
-          // Alert admins — cancellation
           const { data: canceledUser } = await supabaseAdmin
             .from("users")
             .select("email, display_name")
@@ -166,13 +159,14 @@ export async function POST(request: Request) {
         break;
       }
 
+      // Les deux événements exécutent le même code
+      case "invoice.payment_succeeded":
       case "invoice.paid": {
         const invoice = event.data.object;
         const invoiceAny = invoice as unknown as Record<string, unknown>;
         const customerId = invoiceAny.customer as string;
         const amountPaid = (invoiceAny.amount_paid ?? 0) as number;
 
-        // Si amount = 0 (trial/coupon), pas de frais ni de payment à enregistrer
         if (amountPaid === 0) break;
 
         const stripeFee = Math.round(amountPaid * 0.015 + 25);
@@ -185,17 +179,21 @@ export async function POST(request: Request) {
           .single();
 
         if (user) {
-          await supabaseAdmin.from("payments").insert({
-            user_id: user.id,
-            stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
-            stripe_invoice_id: invoice.id,
-            amount: amountPaid,
-            currency: (invoiceAny.currency ?? "eur") as string,
-            stripe_fee: stripeFee,
-            net_amount: netAmount,
-            status: "paid",
-            paid_at: new Date().toISOString(),
-          });
+          // Upsert pour éviter les doublons si les deux events arrivent
+          await supabaseAdmin.from("payments").upsert(
+            {
+              user_id: user.id,
+              stripe_payment_id: (invoiceAny.payment_intent ?? "") as string,
+              stripe_invoice_id: invoice.id,
+              amount: amountPaid,
+              currency: (invoiceAny.currency ?? "eur") as string,
+              stripe_fee: stripeFee,
+              net_amount: netAmount,
+              status: "paid",
+              paid_at: new Date().toISOString(),
+            },
+            { onConflict: "stripe_invoice_id" }
+          );
         }
         break;
       }
