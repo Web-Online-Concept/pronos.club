@@ -1,82 +1,72 @@
-import type { Metadata, Viewport } from 'next'
-import { NextIntlClientProvider } from 'next-intl'
-import { getMessages } from 'next-intl/server'
-import { Analytics } from './components/Analytics'
+import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { routing } from "@/i18n/routing";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 
-/** Metadata globale Valora */
-export const metadata: Metadata = {
-  title: {
-    default: 'Valora — Clarification, preuve et transmission pour décisions sensibles',
-    template: '%s | Valora',
-  },
-  description: 'Valora aide à clarifier une décision, un dossier ou un processus sensible sans remplacer votre manière de fonctionner.',
-  metadataBase: new URL('https://my-valora.com'),
-  manifest: '/manifest.json',
-  icons: {
-    icon: [
-      { url: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
-      { url: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/icons/icon-152.png', sizes: '152x152', type: 'image/png' },
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-    ],
-  },
-  openGraph: {
-    type: 'website',
-    siteName: 'Valora',
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/og-image.png'],
-  },
-  robots: { index: true, follow: true },
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "metadata" });
+
+  return {
+    title: t("title"),
+    description: t("description"),
+    icons: {
+      icon: [
+        { url: "/favicon.ico" },
+        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      ],
+      apple: "/apple-touch-icon.png",
+    },
+    manifest: "/site.webmanifest",
+    openGraph: {
+      ...defaultOpenGraph,
+      title: t("title"),
+      description: t("description"),
+    },
+    twitter: {
+      ...defaultTwitter,
+      title: t("title"),
+      description: t("description"),
+    },
+    metadataBase: new URL("https://pronos.club"),
+    alternates: {
+      canonical: `https://pronos.club/${locale}`,
+      languages: {
+        fr: "https://pronos.club/fr",
+        en: "https://pronos.club/en",
+        es: "https://pronos.club/es",
+      },
+    },
+  };
 }
 
-export const viewport: Viewport = {
-  themeColor: '#2C2418',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5,
-}
-
-/**
- * Layout racine pour toutes les pages localisées.
- * 
- * Usage : app/[locale]/layout.tsx
- * 
- * Inclut :
- * - Google Analytics (conditionnel NEXT_PUBLIC_GA_ID)
- * - Meta globales (OG, Twitter, manifest, icons)
- * - Font Georgia via system
- */
 export default async function LocaleLayout({
   children,
   params,
 }: {
-  children: React.ReactNode
-  params: Promise<{ locale: string }>
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
-  const { locale } = await params
-  const messages = await getMessages()
+  const { locale } = await params;
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
+  const messages = (await import(`../../../messages/${locale}.json`)).default;
+
   return (
-    <html lang={locale} style={{ scrollBehavior: 'smooth' }}>
-      <body style={{
-        margin: 0,
-        padding: 0,
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        background: '#F5F0EA',
-        color: '#2C2418',
-        WebkitFontSmoothing: 'antialiased',
-        MozOsxFontSmoothing: 'grayscale',
-      }}>
-        <NextIntlClientProvider messages={messages}>
-          <Analytics />
-          {children}
-        </NextIntlClientProvider>
-      </body>
-    </html>
-  )
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </NextIntlClientProvider>
+  );
 }
