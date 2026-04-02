@@ -32,11 +32,11 @@ export async function GET(request: Request) {
   }
 
   if (type === "accounting") {
-    // Get all paid payments
+    // Get all successful payments
     let query = supabaseAdmin
       .from("payments")
       .select("amount, stripe_fee, net_amount, paid_at, status")
-      .eq("status", "paid");
+      .in("status", ["paid", "succeeded"]);
 
     if (month) {
       const [y, m] = month.split("-");
