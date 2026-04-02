@@ -18,6 +18,10 @@ interface Payment {
   users: { email: string; pseudo: string | null; display_name: string | null } | null;
 }
 
+function isSuccessStatus(status: string) {
+  return status === "succeeded" || status === "paid";
+}
+
 export default function AdminPaiementsPage() {
   const { locale } = useParams();
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -41,9 +45,9 @@ export default function AdminPaiementsPage() {
   const fmt = (cents: number) => (cents / 100).toFixed(2) + " €";
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-  const totalBrut = payments.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
-  const totalFees = payments.filter(p => p.status === "paid").reduce((s, p) => s + (p.stripe_fee || 0), 0);
-  const totalNet = payments.filter(p => p.status === "paid").reduce((s, p) => s + (p.net_amount || 0), 0);
+  const totalBrut = payments.filter(p => isSuccessStatus(p.status)).reduce((s, p) => s + p.amount, 0);
+  const totalFees = payments.filter(p => isSuccessStatus(p.status)).reduce((s, p) => s + (p.stripe_fee || 0), 0);
+  const totalNet = payments.filter(p => isSuccessStatus(p.status)).reduce((s, p) => s + (p.net_amount || 0), 0);
 
   return (
     <main className="min-h-screen bg-[#0a0a0f] text-white">
@@ -118,10 +122,10 @@ export default function AdminPaiementsPage() {
                     <td className="px-4 py-3 text-right text-xs font-medium text-emerald-400">{fmt(p.net_amount || 0)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        p.status === "paid" ? "bg-emerald-500/20 text-emerald-400" :
+                        isSuccessStatus(p.status) ? "bg-emerald-500/20 text-emerald-400" :
                         p.status === "failed" ? "bg-red-500/20 text-red-400" :
                         "bg-amber-500/20 text-amber-400"
-                      }`}>{p.status === "paid" ? "Payé" : p.status === "failed" ? "Échoué" : p.status}</span>
+                      }`}>{isSuccessStatus(p.status) ? "Payé" : p.status === "failed" ? "Échoué" : p.status}</span>
                     </td>
                   </tr>
                 ))}
