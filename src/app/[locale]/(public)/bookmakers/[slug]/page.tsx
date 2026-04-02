@@ -355,13 +355,12 @@ export default async function BookmakerSlugPage({
             style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
           >
             <h3 className="text-xl font-extrabold text-white">{t("cta_title")}</h3>
-            <p className="mx-auto mt-3 max-w-md text-sm text-white/40"
-              dangerouslySetInnerHTML={{
-                __html: meta.code_bonus
-                  ? t("cta_desc_with_code", { name: book.name, code: meta.code_bonus })
-                  : t("cta_desc_no_code", { name: book.name })
-              }}
-            />
+            <p className="mx-auto mt-3 max-w-md text-sm text-white/40">
+              {meta.code_bonus
+                ? t("cta_desc_with_code", { name: book.name, code: meta.code_bonus })
+                : t("cta_desc_no_code", { name: book.name })
+              }
+            </p>
 
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <AffiliateButton text={t("cta_btn_signup", { name: book.name })} />

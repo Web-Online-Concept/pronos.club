@@ -598,7 +598,7 @@
     "videos_tag": "Tutorials",
     "videos_title": "Videos & guides",
     "cta_title": "Ready to start?",
-    "cta_desc_with_code": "Sign up on {name} with code <span class=\"font-bold text-emerald-400\">{code}</span> and start following our predictions with the best odds on the market.",
+    "cta_desc_with_code": "Sign up on {name} with code {code} and start following our predictions with the best odds on the market.",
     "cta_desc_no_code": "Sign up on {name} and start following our predictions with the best odds on the market.",
     "cta_btn_signup": "Sign up on {name}",
     "cta_other_books": "View other bookmakers",

@@ -598,7 +598,7 @@
     "videos_tag": "Tutoriales",
     "videos_title": "Vídeos y guías",
     "cta_title": "¿Listo para empezar?",
-    "cta_desc_with_code": "Regístrate en {name} con el código <span class=\"font-bold text-emerald-400\">{code}</span> y empieza a seguir nuestros pronósticos con las mejores cuotas del mercado.",
+    "cta_desc_with_code": "Regístrate en {name} con el código {code} y empieza a seguir nuestros pronósticos con las mejores cuotas del mercado.",
     "cta_desc_no_code": "Regístrate en {name} y empieza a seguir nuestros pronósticos con las mejores cuotas del mercado.",
     "cta_btn_signup": "Registrarse en {name}",
     "cta_other_books": "Ver otros bookmakers",
