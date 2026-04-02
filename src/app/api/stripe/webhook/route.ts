@@ -9,7 +9,6 @@ function toISO(timestamp: unknown): string | null {
   if (timestamp == null) return null;
   const num = typeof timestamp === "number" ? timestamp : Number(timestamp);
   if (isNaN(num) || num <= 0) return null;
-  // Stripe timestamps are in seconds, JS needs milliseconds
   const ms = num > 1e12 ? num : num * 1000;
   const d = new Date(ms);
   return isNaN(d.getTime()) ? null : d.toISOString();
@@ -42,25 +41,34 @@ export async function POST(request: Request) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
+        // Retrieve LIVE subscription status from Stripe (not from the event payload)
+        // This prevents stale retries from reactivating a canceled subscription
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const userId = subscription.metadata.supabase_user_id;
 
-        if (userId) {
-          const sub = subscription as unknown as Record<string, unknown>;
-          const subStatus = subscription.status === "trialing" ? "trialing" : "active";
-          const periodEnd = toISO(sub.current_period_end);
-          const periodStart = toISO(sub.current_period_start);
+        // Guard: ignore if subscription is no longer active/trialing
+        if (!userId || !["active", "trialing"].includes(subscription.status)) {
+          console.log(`[webhook] checkout.session.completed ignored — sub status: ${subscription.status}, userId: ${userId}`);
+          break;
+        }
 
-          await supabaseAdmin
-            .from("users")
-            .update({
-              subscription_status: subStatus,
-              subscription_end: periodEnd,
-              stripe_customer_id: customerId,
-            })
-            .eq("id", userId);
+        const sub = subscription as unknown as Record<string, unknown>;
+        const subStatus = subscription.status === "trialing" ? "trialing" : "active";
+        const periodEnd = toISO(sub.current_period_end);
+        const periodStart = toISO(sub.current_period_start);
 
-          await supabaseAdmin.from("subscriptions").insert({
+        await supabaseAdmin
+          .from("users")
+          .update({
+            subscription_status: subStatus,
+            subscription_end: periodEnd,
+            stripe_customer_id: customerId,
+          })
+          .eq("id", userId);
+
+        // Upsert to handle Stripe retries — if the subscription already exists, update it
+        await supabaseAdmin.from("subscriptions").upsert(
+          {
             user_id: userId,
             stripe_subscription_id: subscriptionId,
             stripe_price_id: subscription.items.data[0]?.price.id,
@@ -70,23 +78,24 @@ export async function POST(request: Request) {
             currency: "eur",
             current_period_start: periodStart,
             current_period_end: periodEnd,
-          });
+          },
+          { onConflict: "stripe_subscription_id" }
+        );
 
-          // Telegram invite + email même en trial
-          onPremiumActivated(userId).catch(() => {});
+        // Telegram invite + email
+        onPremiumActivated(userId).catch(() => {});
 
-          // Alert admins — new premium
-          const { data: premiumUser } = await supabaseAdmin
-            .from("users")
-            .select("email, display_name")
-            .eq("id", userId)
-            .single();
-          if (premiumUser) {
-            sendAdminAlert("new_premium", {
-              email: premiumUser.email,
-              name: premiumUser.display_name,
-            }).catch(() => {});
-          }
+        // Alert admins — new premium
+        const { data: premiumUser } = await supabaseAdmin
+          .from("users")
+          .select("email, display_name")
+          .eq("id", userId)
+          .single();
+        if (premiumUser) {
+          sendAdminAlert("new_premium", {
+            email: premiumUser.email,
+            name: premiumUser.display_name,
+          }).catch(() => {});
         }
         break;
       }
@@ -166,7 +175,6 @@ export async function POST(request: Request) {
         // Si amount = 0 (trial/coupon), pas de frais ni de payment à enregistrer
         if (amountPaid === 0) break;
 
-        // Calculate Stripe fees: 1.5% + 0.25€ for EU cards (average)
         const stripeFee = Math.round(amountPaid * 0.015 + 25);
         const netAmount = amountPaid - stripeFee;
 
