@@ -86,7 +86,7 @@ export async function GET(request: Request) {
   const { data: expiringUsers } = await supabaseAdmin
     .from("users")
     .select("id, email, pseudo, display_name, locale, subscription_status, subscription_end, stripe_customer_id")
-    .eq("subscription_status", "active")
+    .in("subscription_status", ["active", "trialing"])
     .is("stripe_customer_id", null)
     .eq("notify_email", true)
     .gte("subscription_end", tomorrow)

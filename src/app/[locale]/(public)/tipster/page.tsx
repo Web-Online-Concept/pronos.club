@@ -8,7 +8,7 @@ export default async function TipsterPage({ params }: { params: Promise<{ locale
   const t = await getTranslations({ locale, namespace: "tipster" });
   const user = await getCurrentUser();
   const isLoggedIn = !!user;
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   // Fetch real stats
   const { data: allPicks } = await supabaseAdmin

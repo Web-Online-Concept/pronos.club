@@ -9,7 +9,7 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
   const t = await getTranslations({ locale, namespace: "pronostics" });
   const supabase = await createClient();
   const user = await getCurrentUser();
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   const { data: pendingPicks } = await supabase
     .from("picks")

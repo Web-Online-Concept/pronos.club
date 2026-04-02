@@ -21,6 +21,10 @@ const GIFT_OPTIONS = [
   { label: "Illimité", days: 0 },
 ];
 
+function isPremiumStatus(status: string) {
+  return status === "active" || status === "trialing";
+}
+
 export default function AbonnesPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +45,7 @@ export default function AbonnesPage() {
   }
 
   async function togglePremium(user: UserRow) {
-    const isActive = user.subscription_status === "active";
+    const isActive = isPremiumStatus(user.subscription_status);
 
     if (isActive) {
       // Remove premium
@@ -121,7 +125,7 @@ export default function AbonnesPage() {
     );
   });
 
-  const premiumCount = users.filter((u) => u.subscription_status === "active").length;
+  const premiumCount = users.filter((u) => isPremiumStatus(u.subscription_status)).length;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -162,7 +166,8 @@ export default function AbonnesPage() {
       ) : (
         <div className="mt-4 space-y-2">
           {filtered.map((user) => {
-            const isActive = user.subscription_status === "active";
+            const isActive = isPremiumStatus(user.subscription_status);
+            const isTrial = user.subscription_status === "trialing";
             const endInfo = isActive ? formatEnd(user.subscription_end) : null;
             const isUpdating = updating === user.id;
 
@@ -191,8 +196,12 @@ export default function AbonnesPage() {
                         {user.pseudo ?? user.email.split("@")[0]}
                       </p>
                       {isActive ? (
-                        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                          Premium
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                          isTrial
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-emerald-500/20 text-emerald-400"
+                        }`}>
+                          {isTrial ? "Essai" : "Premium"}
                         </span>
                       ) : (
                         <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/30">

@@ -43,8 +43,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Must be premium
-  if (user.subscription_status !== "active") {
+  // Must be premium (active or trialing)
+  if (!["active", "trialing"].includes(user.subscription_status)) {
     return NextResponse.json({ error: "Premium subscription required" }, { status: 403 });
   }
 

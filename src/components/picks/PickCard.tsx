@@ -148,7 +148,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
-  const isPremiumUser = user?.subscription_status === "active";
+  const isPremiumUser = user?.subscription_status === "active" || user?.subscription_status === "trialing";
   const isCombi = pick.pick_type === "combine" && (pick.legs?.length ?? 0) > 1;
   const legs = (pick.legs ?? []).sort((a, b) => a.leg_number - b.leg_number);
   const colors = getPickColors(pick, legs);

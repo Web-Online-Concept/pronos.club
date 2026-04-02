@@ -18,7 +18,7 @@ export default async function AdminDashboard() {
   const { count: activeSubscribers } = await supabaseAdmin
     .from("users")
     .select("*", { count: "exact", head: true })
-    .eq("subscription_status", "active");
+    .in("subscription_status", ["active", "trialing"]);
 
   const stats = [
     { label: "Picks publiés", value: totalPicks ?? 0, accent: "#10b981" },

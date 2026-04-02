@@ -17,7 +17,7 @@ export default function AvisPage() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   useEffect(() => {
     fetch("/api/reviews?admin=false")

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         .select("id, telegram_invite_link")
         .is("telegram_user_id", null)
         .not("telegram_invite_link", "is", null)
-        .eq("subscription_status", "active");
+        .in("subscription_status", ["active", "trialing"]);
 
       if (pendingUsers && pendingUsers.length > 0) {
         // Take the most recent pending user (FIFO)

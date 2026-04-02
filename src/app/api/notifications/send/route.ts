@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     .not("push_subscription", "is", null);
 
   if (isPremium) {
-    pushQuery = pushQuery.eq("subscription_status", "active");
+    // trialing = essai gratuit, doit recevoir les notifs premium aussi
+    pushQuery = pushQuery.in("subscription_status", ["active", "trialing"]);
   }
 
   const { data: pushUsers } = await pushQuery;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     .eq("notify_email", true);
 
   if (isPremium) {
-    emailQuery = emailQuery.eq("subscription_status", "active");
+    emailQuery = emailQuery.in("subscription_status", ["active", "trialing"]);
   }
 
   const { data: emailUsers } = await emailQuery;

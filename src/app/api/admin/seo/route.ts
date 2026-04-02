@@ -46,7 +46,7 @@ export async function GET() {
   const { count: premiumUsers } = await supabaseAdmin
     .from("users")
     .select("id", { count: "exact" })
-    .eq("subscription_status", "active");
+    .in("subscription_status", ["active", "trialing"]);
 
   // Bookmakers pages (static = 6)
   const bookmakerPages = 6;

@@ -12,11 +12,11 @@ export async function GET(request: Request) {
 
   const now = new Date().toISOString();
 
-  // Find all active users whose subscription_end has passed
+  // Find all active OR trialing users whose subscription_end has passed
   const { data: expiredUsers, error: fetchError } = await supabaseAdmin
     .from("users")
     .select("id, email, subscription_end")
-    .eq("subscription_status", "active")
+    .in("subscription_status", ["active", "trialing"])
     .not("subscription_end", "is", null)
     .lt("subscription_end", now);
 

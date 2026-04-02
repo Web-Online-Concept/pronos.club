@@ -14,7 +14,7 @@ export default function AbonnementPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   const FREE_FEATURES = [
     t("free_f1"),

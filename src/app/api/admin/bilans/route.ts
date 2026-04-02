@@ -146,7 +146,7 @@ async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
   const { data: premiumUsers } = await supabaseAdmin
     .from("users")
     .select("email, pseudo, display_name, locale")
-    .eq("subscription_status", "active")
+    .in("subscription_status", ["active", "trialing"])
     .eq("notify_bilan", true)
     .not("email", "is", null);
 

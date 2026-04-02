@@ -10,7 +10,7 @@ interface EspaceHeroProps {
 export default function EspaceHero({ title }: EspaceHeroProps) {
   const { user } = useAuth();
 
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   function formatRenewal(end: string | null | undefined) {
     if (!end) return null;

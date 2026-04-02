@@ -34,10 +34,13 @@ export async function POST(request: Request) {
       const userId = subscription.metadata.supabase_user_id;
 
       if (userId) {
+        // trialing = essai gratuit via code promo, active = paiement direct
+        const subStatus = subscription.status === "trialing" ? "trialing" : "active";
+
         await supabaseAdmin
           .from("users")
           .update({
-            subscription_status: "active",
+            subscription_status: subStatus,
             subscription_end: new Date(
               (subscription as unknown as Record<string, unknown>).current_period_end as number * 1000
             ).toISOString(),
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
           stripe_subscription_id: subscriptionId,
           stripe_price_id: subscription.items.data[0]?.price.id,
           plan: "premium",
-          status: "active",
+          status: subStatus,
           amount: 2000,
           currency: "eur",
           current_period_start: new Date(
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
           ).toISOString(),
         });
 
+        // Telegram invite + email même en trial
         onPremiumActivated(userId).catch(() => {});
 
         // Alert admins — new premium
@@ -84,8 +88,10 @@ export async function POST(request: Request) {
       const userId = subscription.metadata.supabase_user_id;
 
       if (userId) {
+        // AJOUT: trialing supporté
         const status =
           subscription.status === "active" ? "active" :
+          subscription.status === "trialing" ? "trialing" :
           subscription.status === "past_due" ? "past_due" : "canceled";
 
         await supabaseAdmin
@@ -153,9 +159,11 @@ export async function POST(request: Request) {
       const customerId = invoiceAny.customer as string;
       const amountPaid = (invoiceAny.amount_paid ?? 0) as number;
 
+      // Si amount = 0 (trial), pas de frais ni de payment à enregistrer
+      if (amountPaid === 0) break;
+
       // Calculate Stripe fees: 1.5% + 0.25€ for EU cards (average)
-      // Stripe actual fee can be retrieved from balance transaction if needed
-      const stripeFee = Math.round(amountPaid * 0.015 + 25); // 1.5% + 0.25€ in cents
+      const stripeFee = Math.round(amountPaid * 0.015 + 25);
       const netAmount = amountPaid - stripeFee;
 
       const { data: user } = await supabaseAdmin

@@ -8,7 +8,7 @@ export default async function BookmakersPage({ params }: { params: Promise<{ loc
   const t = await getTranslations({ locale, namespace: "bookmakers_page" });
   const user = await getCurrentUser();
   const isLoggedIn = !!user;
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   const { data: bookmakers } = await supabaseAdmin
     .from("bookmakers")

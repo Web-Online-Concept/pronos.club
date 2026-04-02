@@ -13,7 +13,7 @@ export default function NotificationsPage() {
   const [bilanEnabled, setBilanEnabled] = useState(user?.notify_bilan ?? true);
   const [saving, setSaving] = useState(false);
 
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   async function toggleEmail() {
     setSaving(true);

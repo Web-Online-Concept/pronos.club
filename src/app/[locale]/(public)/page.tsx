@@ -10,7 +10,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = await getTranslations({ locale, namespace: "home" });
   const user = await getCurrentUser();
   const isLoggedIn = !!user;
-  const isPremium = user?.subscription_status === "active";
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   // ─── Fetch real stats ───
   const { data: allPicks } = await supabaseAdmin

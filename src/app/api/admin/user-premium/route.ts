@@ -37,9 +37,9 @@ export async function POST(request: Request) {
     .eq("id", targetId)
     .single();
 
-  const wasActive = currentUser?.subscription_status === "active";
+  const wasActive = ["active", "trialing"].includes(currentUser?.subscription_status);
   const newStatus = subscription_status ?? "active";
-  const willBeActive = newStatus === "active";
+  const willBeActive = ["active", "trialing"].includes(newStatus);
 
   const { data, error } = await supabaseAdmin
     .from("users")
