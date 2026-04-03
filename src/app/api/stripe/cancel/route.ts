@@ -24,23 +24,22 @@ export async function POST() {
   try {
     const subs = await stripe.subscriptions.list({
       customer: profile.stripe_customer_id,
-      status: "active",
-      limit: 1,
+      limit: 10,
     });
 
-    if (subs.data.length === 0) {
+    const activeSub = subs.data.find(s => s.status === "active" || s.status === "trialing");
+
+    if (!activeSub) {
       return NextResponse.json({ error: "No active subscription" }, { status: 400 });
     }
 
-    const sub = subs.data[0];
-
     // Cancel at period end
-    await stripe.subscriptions.update(sub.id, {
+    await stripe.subscriptions.update(activeSub.id, {
       cancel_at_period_end: true,
     });
 
     // Format end date
-    const subAny = sub as unknown as Record<string, unknown>;
+    const subAny = activeSub as unknown as Record<string, unknown>;
     const periodEnd = (subAny.current_period_end ?? subAny.currentPeriodEnd ?? 0) as number;
     const endDate = new Date(periodEnd * 1000).toLocaleDateString("fr-FR", {
       day: "numeric",
