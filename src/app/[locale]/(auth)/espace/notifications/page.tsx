@@ -12,8 +12,12 @@ export default function NotificationsPage() {
   const [emailEnabled, setEmailEnabled] = useState(user?.notify_email ?? true);
   const [bilanEnabled, setBilanEnabled] = useState(user?.notify_bilan ?? true);
   const [saving, setSaving] = useState(false);
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramLink, setTelegramLink] = useState<string | null>(null);
+  const [telegramError, setTelegramError] = useState("");
 
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
+  const isInTelegramGroup = !!user?.telegram_user_id;
 
   async function toggleEmail() {
     setSaving(true);
@@ -29,6 +33,26 @@ export default function NotificationsPage() {
     await fetch("/api/user/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notify_bilan: newValue }) });
     setBilanEnabled(newValue);
     setSaving(false);
+  }
+
+  async function requestTelegramInvite() {
+    setTelegramLoading(true);
+    setTelegramError("");
+    try {
+      const res = await fetch("/api/telegram/invite", { method: "POST" });
+      const data = await res.json();
+      if (data.invite_link) {
+        setTelegramLink(data.invite_link);
+        window.open(data.invite_link, "_blank");
+      } else if (data.error === "Already in the Telegram group") {
+        setTelegramError("Vous êtes déjà dans le groupe Telegram !");
+      } else {
+        setTelegramError(data.error || "Erreur lors de la génération du lien");
+      }
+    } catch {
+      setTelegramError("Erreur réseau");
+    }
+    setTelegramLoading(false);
   }
 
   return (
@@ -72,6 +96,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
+        {/* Telegram notifications — canal public */}
         <div className="rounded-xl border border-sky-200 bg-gradient-to-r from-sky-50 to-sky-100/50 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -84,6 +109,55 @@ export default function NotificationsPage() {
             </a>
           </div>
         </div>
+
+        {/* Telegram Premium group */}
+        {isPremium && (
+          <div className="rounded-xl border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-purple-100/50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">Groupe Telegram Premium</p>
+                  <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-600">PREMIUM</span>
+                </div>
+                <p className="text-xs opacity-40">
+                  {isInTelegramGroup
+                    ? "Vous êtes dans le groupe — échangez avec la communauté"
+                    : "Rejoignez le groupe exclusif des abonnés Premium"
+                  }
+                </p>
+              </div>
+              {isInTelegramGroup ? (
+                <span className="flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  Connecté
+                </span>
+              ) : (
+                <button
+                  onClick={requestTelegramInvite}
+                  disabled={telegramLoading}
+                  className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:opacity-50 cursor-pointer"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" /></svg>
+                  {telegramLoading ? "..." : "Rejoindre le groupe"}
+                </button>
+              )}
+            </div>
+            {telegramLink && !isInTelegramGroup && (
+              <div className="mt-3 rounded-lg bg-purple-100 p-3 text-center">
+                <p className="text-xs text-purple-700">Lien généré ! Si la page ne s'est pas ouverte :</p>
+                <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm font-bold text-purple-600 underline">
+                  Cliquer ici pour rejoindre
+                </a>
+              </div>
+            )}
+            {telegramError && (
+              <p className="mt-2 text-xs text-red-500">{telegramError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-10">
