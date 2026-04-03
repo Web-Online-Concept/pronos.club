@@ -261,12 +261,12 @@ export default function Navbar() {
               <Link
                 href={`/${locale}/espace`}
                 className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${
-                  user.subscription_status === "active"
+                  (user.subscription_status === "active" || user.subscription_status === "trialing")
                     ? "bg-amber-500/20 ring-2 ring-amber-400 text-amber-400"
                     : "bg-emerald-500/20 ring-2 ring-emerald-500 text-emerald-400"
                 }`}
               >
-                {user.subscription_status === "active" ? "⭐" : (user.pseudo || user.email || "?").charAt(0).toUpperCase()}
+                {(user.subscription_status === "active" || user.subscription_status === "trialing") ? "⭐" : (user.pseudo || user.email || "?").charAt(0).toUpperCase()}
               </Link>
             ) : (
               <Link
