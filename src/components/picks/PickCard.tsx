@@ -160,7 +160,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
       .then((r) => r.json())
       .then((d) => {
         setFollowed(d.followed ?? false);
-        if (d.user_odds) setUserOdds(String(d.user_odds));
+        if (d.user_odds) setUserOdds(Number(d.user_odds).toFixed(3));
         if (d.user_bookmaker_id) setUserBookmakerId(d.user_bookmaker_id);
         if (d.user_bookmaker_other) {
           setUserBookOther(d.user_bookmaker_other);
