@@ -39,6 +39,13 @@ function setCachedUser(user: User | null) {
   } catch {}
 }
 
+// Detect locale from current URL
+function detectLocale(): "fr" | "en" | "es" {
+  if (typeof window === "undefined") return "fr";
+  const match = window.location.pathname.match(/^\/(fr|en|es)(\/|$)/);
+  return (match?.[1] as "fr" | "en" | "es") ?? "fr";
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -69,20 +76,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCachedUser(newUser);
   }, []);
 
-  // Fetch user profile from DB
-  const fetchUserProfile = useCallback(async (userId: string) => {
+  // Fetch user profile from DB — auto-create if missing
+  const fetchOrCreateUserProfile = useCallback(async (authUser: { id: string; email?: string }) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
     try {
-      const { data } = await supabaseRef.current
+      const supabase = supabaseRef.current;
+
+      // Try to fetch existing profile
+      const { data } = await supabase
         .from("users")
         .select("*")
-        .eq("id", userId)
+        .eq("id", authUser.id)
         .single();
 
       if (data) {
         updateUser(data as User);
+      } else {
+        // Profile doesn't exist — auto-create it
+        const locale = detectLocale();
+        const displayName = authUser.email?.split("@")[0] ?? "User";
+
+        const { data: newUser } = await supabase
+          .from("users")
+          .insert({
+            id: authUser.id,
+            email: authUser.email,
+            display_name: displayName,
+            locale,
+          })
+          .select("*")
+          .single();
+
+        if (newUser) {
+          updateUser(newUser as User);
+        }
       }
     } catch {
       // Silent fail — keep cached user
@@ -107,16 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cached && cached.id === session.user.id) {
           // Cache hit — user already displayed, refresh silently
           setLoading(false);
-          fetchUserProfile(session.user.id);
+          fetchOrCreateUserProfile(session.user);
         } else {
-          // Cache miss or different user — fetch and wait
-          const { data } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", session.user.id)
-            .single();
-
-          updateUser(data as User | null);
+          // Cache miss or different user — fetch/create and wait
+          await fetchOrCreateUserProfile(session.user);
           setLoading(false);
         }
       } else {
@@ -141,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         // Don't set loading to true — keep showing cached user
-        fetchUserProfile(session.user.id);
+        fetchOrCreateUserProfile(session.user);
       } else {
         updateUser(null);
       }
@@ -150,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchUserProfile, updateUser]);
+  }, [fetchOrCreateUserProfile, updateUser]);
 
   async function signOut() {
     await supabaseRef.current.auth.signOut();
@@ -163,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentSession = session;
     if (!currentSession?.user) return;
     // Background refresh — never set user to null
-    fetchUserProfile(currentSession.user.id);
+    fetchOrCreateUserProfile(currentSession.user);
   }
 
   return (
