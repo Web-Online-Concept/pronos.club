@@ -1,10 +1,51 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import EspaceHero from "@/components/layout/EspaceHero";
 import { useTranslations } from "next-intl";
 
+// Type for the beforeinstallprompt event
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function AppMobilePage() {
   const t = useTranslations("app_mobile");
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setInstalled(true);
+      return;
+    }
+
+    function handlePrompt(e: Event) {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    }
+
+    window.addEventListener("beforeinstallprompt", handlePrompt);
+
+    window.addEventListener("appinstalled", () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+    });
+
+    return () => window.removeEventListener("beforeinstallprompt", handlePrompt);
+  }, []);
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") {
+      setInstalled(true);
+    }
+    setInstallPrompt(null);
+  }
 
   const WHY_ICONS = ["🔔", "📱", "⚡", "🚫", "🆓"];
 
@@ -14,6 +55,29 @@ export default function AppMobilePage() {
 
       <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
         <p className="text-sm text-neutral-500">{t("intro")}</p>
+
+        {/* Install button — visible on Android Chrome when PWA is available */}
+        {installPrompt && !installed && (
+          <div className="mt-6 overflow-hidden rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 text-center shadow-lg shadow-emerald-500/20">
+            <p className="text-2xl">📲</p>
+            <p className="mt-2 text-lg font-extrabold text-white">Installer PRONOS.CLUB</p>
+            <p className="mt-1 text-sm text-emerald-100">En un clic, ajoutez l'application à votre écran d'accueil</p>
+            <button
+              onClick={handleInstall}
+              className="mt-4 w-full cursor-pointer rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-emerald-700 shadow-md transition hover:bg-emerald-50 active:scale-[0.98]"
+            >
+              Installer l'application →
+            </button>
+          </div>
+        )}
+
+        {installed && (
+          <div className="mt-6 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-5 text-center">
+            <p className="text-2xl">✅</p>
+            <p className="mt-2 text-sm font-bold text-emerald-700">Application installée !</p>
+            <p className="mt-1 text-xs text-emerald-600">Ouvrez PRONOS.CLUB depuis votre écran d'accueil pour profiter de l'expérience complète.</p>
+          </div>
+        )}
 
         <div className="mt-8 space-y-6">
 
@@ -27,6 +91,17 @@ export default function AppMobilePage() {
               </div>
             </div>
             <div className="px-5 py-5">
+              {installPrompt && !installed && (
+                <div className="mb-4 rounded-xl bg-emerald-100 p-3 text-center">
+                  <button
+                    onClick={handleInstall}
+                    className="cursor-pointer rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500"
+                  >
+                    📲 Installer en 1 clic
+                  </button>
+                  <p className="mt-1.5 text-[10px] text-emerald-600">Ou suivez les étapes ci-dessous</p>
+                </div>
+              )}
               <div className="space-y-4">
                 {[1, 2, 3, 4].map((n) => (
                   <div key={n} className="flex gap-3">
