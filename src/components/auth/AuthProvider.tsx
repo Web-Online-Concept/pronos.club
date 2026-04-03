@@ -39,13 +39,6 @@ function setCachedUser(user: User | null) {
   } catch {}
 }
 
-// Detect locale from current URL
-function detectLocale(): "fr" | "en" | "es" {
-  if (typeof window === "undefined") return "fr";
-  const match = window.location.pathname.match(/^\/(fr|en|es)(\/|$)/);
-  return (match?.[1] as "fr" | "en" | "es") ?? "fr";
-}
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -76,8 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setCachedUser(newUser);
   }, []);
 
-  // Fetch user profile from DB — auto-create if missing
-  const fetchOrCreateUserProfile = useCallback(async (authUser: { id: string; email?: string }) => {
+  // Fetch user profile from DB — auto-create via API if missing
+  const fetchOrCreateUserProfile = useCallback(async (authUserId: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
@@ -88,29 +81,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = await supabase
         .from("users")
         .select("*")
-        .eq("id", authUser.id)
+        .eq("id", authUserId)
         .single();
 
       if (data) {
         updateUser(data as User);
       } else {
-        // Profile doesn't exist — auto-create it
-        const locale = detectLocale();
-        const displayName = authUser.email?.split("@")[0] ?? "User";
-
-        const { data: newUser } = await supabase
-          .from("users")
-          .insert({
-            id: authUser.id,
-            email: authUser.email,
-            display_name: displayName,
-            locale,
-          })
-          .select("*")
-          .single();
-
-        if (newUser) {
-          updateUser(newUser as User);
+        // Profile doesn't exist — create via API (uses service role, bypasses RLS)
+        const res = await fetch("/api/user/ensure-profile", { method: "POST" });
+        if (res.ok) {
+          const newUser = await res.json();
+          if (newUser && newUser.id) {
+            updateUser(newUser as User);
+          }
         }
       }
     } catch {
@@ -136,10 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cached && cached.id === session.user.id) {
           // Cache hit — user already displayed, refresh silently
           setLoading(false);
-          fetchOrCreateUserProfile(session.user);
+          fetchOrCreateUserProfile(session.user.id);
         } else {
           // Cache miss or different user — fetch/create and wait
-          await fetchOrCreateUserProfile(session.user);
+          await fetchOrCreateUserProfile(session.user.id);
           setLoading(false);
         }
       } else {
@@ -164,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         // Don't set loading to true — keep showing cached user
-        fetchOrCreateUserProfile(session.user);
+        fetchOrCreateUserProfile(session.user.id);
       } else {
         updateUser(null);
       }
@@ -185,8 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function refreshUser() {
     const currentSession = session;
     if (!currentSession?.user) return;
-    // Background refresh — never set user to null
-    fetchOrCreateUserProfile(currentSession.user);
+    fetchOrCreateUserProfile(currentSession.user.id);
   }
 
   return (
