@@ -627,7 +627,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           ✓ Ajouté à vos stats
                           {(userOdds || userBookName) && (
                             <span className="text-[10px] font-normal text-emerald-400/60">
-                              {userOdds ? `@${userOdds}` : ""}{userOdds && userBookName ? " sur " : ""}{userBookName || ""}
+                              {userOdds ? `@${parseFloat(userOdds).toFixed(3)}` : ""}{userOdds && userBookName ? " sur " : ""}{userBookName || ""}
                             </span>
                           )}
                         </span>
