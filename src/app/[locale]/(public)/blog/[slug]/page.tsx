@@ -7,6 +7,15 @@ import { localized } from "@/lib/blog-i18n";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
+// Proxy Supabase images through our domain for Twitter/X card compatibility
+function proxyImage(url: string | null): string {
+  if (!url) return "https://pronos.club/og-image.jpg";
+  if (url.startsWith("https://gcbgghuxxskxlknhmpaz.supabase.co/")) {
+    return `https://pronos.club/api/og/image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 async function getPost(slug: string) {
   const { data: post } = await supabaseAdmin.from("blog_posts")
     .select("*, blog_categories(name, name_en, name_es, slug, color, icon)")
@@ -35,6 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
   const title = localized(post, "meta_title", locale) || localized(post, "title", locale);
   const description = localized(post, "meta_description", locale) || localized(post, "excerpt", locale) || "";
+  const ogImage = proxyImage(post.cover_image);
 
   return {
     title: `${title} — PRONOS.CLUB`,
@@ -42,11 +52,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     openGraph: {
       title,
       description,
-      images: post.cover_image ? [{ url: post.cover_image }] : [],
+      images: [{ url: ogImage, width: 1200, height: 630 }],
       type: "article",
       publishedTime: post.published_at,
     },
-    twitter: { card: "summary_large_image", title, description },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
   };
 }
 
