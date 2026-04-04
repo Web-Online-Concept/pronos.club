@@ -466,7 +466,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                               legEventName={leg.event_name}
                               legEventDate={leg.event_date ?? pick.event_date}
                               legSportSlug={leg.sport?.slug ?? pick.sport?.slug}
-                              legCompetition={leg.competition ?? pick.competition}
+                              legCompetition={leg.competition ?? pick.competition ?? undefined}
                             />
                           </div>
                         );
