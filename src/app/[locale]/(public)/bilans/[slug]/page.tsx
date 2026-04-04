@@ -52,9 +52,9 @@ export default async function BilanSlugPage({
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               {[
                 { label: t("kpi_picks"), value: bilan.total_picks.toString(), color: "text-white" },
-                { label: t("kpi_winrate"), value: `${bilan.win_rate}%`, color: bilan.win_rate >= 50 ? "text-emerald-400" : "text-red-400" },
-                { label: t("kpi_roi"), value: `${bilan.roi >= 0 ? "+" : ""}${bilan.roi}%`, color: bilan.roi >= 0 ? "text-emerald-400" : "text-red-400" },
-                { label: t("kpi_profit"), value: `${bilan.profit >= 0 ? "+" : ""}${bilan.profit}U`, color: bilan.profit >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("kpi_winrate"), value: `${Number(bilan.win_rate).toFixed(2)}%`, color: bilan.win_rate >= 50 ? "text-emerald-400" : "text-red-400" },
+                { label: t("kpi_roi"), value: `${bilan.roi >= 0 ? "+" : ""}${Number(bilan.roi).toFixed(2)}%`, color: bilan.roi >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("kpi_profit"), value: `${bilan.profit >= 0 ? "+" : ""}${Number(bilan.profit).toFixed(3)}U`, color: bilan.profit >= 0 ? "text-emerald-400" : "text-red-400" },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <p className={`text-xl font-extrabold ${stat.color}`}>{stat.value}</p>

@@ -28,10 +28,10 @@ export default async function TipsterPage({ params }: { params: Promise<{ locale
   const lostPicks = picks.filter((p) => p.status === "lost" || p.status === "half_lost").length;
   const voidPicks = picks.filter((p) => p.status === "void").length;
   const resolvedPicks = picks.filter((p) => p.status !== "void").length;
-  const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 100) : 0;
+  const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 10000) / 100 : 0;
   const totalStaked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
-  const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100) : 0;
-  const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + (p.odds ?? 0), 0) / totalPicks).toFixed(2) : "0";
+  const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 10000) / 100 : 0;
+  const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + (p.odds ?? 0), 0) / totalPicks).toFixed(3) : "0";
   const activePronos = pendingCount ?? 0;
 
   return (
@@ -58,9 +58,9 @@ export default async function TipsterPage({ params }: { params: Promise<{ locale
             <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-6">
               {[
                 { label: t("kpi_picks"), value: totalPicks.toString() },
-                { label: t("kpi_winrate"), value: `${winRate}%`, green: winRate >= 50 },
-                { label: t("kpi_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, green: roi >= 0 },
-                { label: t("kpi_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, green: totalProfit >= 0 },
+                { label: t("kpi_winrate"), value: `${Number(winRate).toFixed(2)}%`, green: winRate >= 50 },
+                { label: t("kpi_roi"), value: `${roi >= 0 ? "+" : ""}${Number(roi).toFixed(2)}%`, green: roi >= 0 },
+                { label: t("kpi_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, green: totalProfit >= 0 },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
                   <p className={`text-xl font-extrabold ${
@@ -148,9 +148,9 @@ export default async function TipsterPage({ params }: { params: Promise<{ locale
                 { label: t("dashboard_won"), value: wonPicks.toString(), color: "text-emerald-400" },
                 { label: t("dashboard_lost"), value: lostPicks.toString(), color: "text-red-400" },
                 { label: t("dashboard_void"), value: voidPicks.toString(), color: "text-neutral-400" },
-                { label: t("dashboard_winrate"), value: `${winRate}%`, color: winRate >= 50 ? "text-emerald-400" : "text-red-400" },
-                { label: t("dashboard_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, color: roi >= 0 ? "text-emerald-400" : "text-red-400" },
-                { label: t("dashboard_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, color: totalProfit >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_winrate"), value: `${Number(winRate).toFixed(2)}%`, color: winRate >= 50 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_roi"), value: `${roi >= 0 ? "+" : ""}${Number(roi).toFixed(2)}%`, color: roi >= 0 ? "text-emerald-400" : "text-red-400" },
+                { label: t("dashboard_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, color: totalProfit >= 0 ? "text-emerald-400" : "text-red-400" },
                 { label: t("dashboard_avg_odds"), value: avgOdds, color: "text-white" },
               ].map((stat) => (
                 <div key={stat.label} className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">

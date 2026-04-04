@@ -72,17 +72,17 @@ export default async function BilansPage({ params }: { params: Promise<{ locale:
                         {bilan.total_picks} picks
                       </span>
                       <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-bold text-white/50">
-                        WR {bilan.win_rate}%
+                        WR {Number(bilan.win_rate).toFixed(2)}%
                       </span>
                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                         bilan.roi >= 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
                       }`}>
-                        ROI {bilan.roi >= 0 ? "+" : ""}{bilan.roi}%
+                        ROI {bilan.roi >= 0 ? "+" : ""}{Number(bilan.roi).toFixed(2)}%
                       </span>
                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                         bilan.profit >= 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
                       }`}>
-                        {bilan.profit >= 0 ? "+" : ""}{bilan.profit}U
+                        {bilan.profit >= 0 ? "+" : ""}{Number(bilan.profit).toFixed(3)}U
                       </span>
                     </div>
 
