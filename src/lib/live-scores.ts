@@ -1,8 +1,9 @@
 /**
  * Live Scores utility for PRONOS.CLUB
- * Uses API-Sports (api-sports.io) — covers 12+ sports, 1200+ football leagues
+ * Uses ESPN hidden API — FREE, no key, no rate limit, all sports
  * 
- * If no match is found, returns null — the PickCard displays normally.
+ * URL: https://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard
+ * If no match is found, returns null — PickCard displays normally.
  */
 
 // ═══════════════════════════════════════════════
@@ -14,30 +15,131 @@ export interface LiveScoreResult {
   awayTeam: string;
   homeScore: number;
   awayScore: number;
-  matchStatus: "scheduled" | "live" | "halftime" | "final" | "postponed" | "extra_time" | "penalties";
+  matchStatus: "scheduled" | "live" | "halftime" | "final" | "postponed";
   minute?: string;
-  fixtureId?: number;
+  fixtureId?: string;
 }
 
 // ═══════════════════════════════════════════════
-// API-SPORTS ENDPOINTS PER SPORT
+// ESPN LEAGUE SLUGS
 // ═══════════════════════════════════════════════
 
-export const SPORT_API_MAP: Record<string, string> = {
-  "football": "https://v3.football.api-sports.io",
-  "basketball": "https://v1.basketball.api-sports.io",
-  "hockey": "https://v1.hockey.api-sports.io",
-  "baseball": "https://v1.baseball.api-sports.io",
-  "handball": "https://v1.handball.api-sports.io",
-  "volleyball": "https://v1.volleyball.api-sports.io",
-  "rugby": "https://v1.rugby.api-sports.io",
-  "mma": "https://v1.mma.api-sports.io",
-  "football-americain": "https://v1.american-football.api-sports.io",
-  "formule-1": "https://v1.formula-1.api-sports.io",
+const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
+
+// Competition name (from Jérôme) → ESPN sport/league slug
+const COMPETITION_TO_ESPN: Record<string, string[]> = {
+  // Football — by country/competition name
+  "premier league": ["soccer/eng.1"],
+  "epl": ["soccer/eng.1"],
+  "angleterre": ["soccer/eng.1"],
+  "england": ["soccer/eng.1"],
+  "la liga": ["soccer/esp.1"],
+  "liga": ["soccer/esp.1"],
+  "espagne": ["soccer/esp.1"],
+  "serie a": ["soccer/ita.1"],
+  "italie": ["soccer/ita.1"],
+  "bundesliga": ["soccer/ger.1"],
+  "allemagne": ["soccer/ger.1"],
+  "ligue 1": ["soccer/fra.1"],
+  "france": ["soccer/fra.1"],
+  "ligue 2": ["soccer/fra.2"],
+  "champions league": ["soccer/uefa.champions"],
+  "ldc": ["soccer/uefa.champions"],
+  "europa league": ["soccer/uefa.europa"],
+  "conference league": ["soccer/uefa.europa.conf"],
+  "mls": ["soccer/usa.1"],
+  "belgique": ["soccer/bel.1"],
+  "belgium": ["soccer/bel.1"],
+  "pays-bas": ["soccer/ned.1"],
+  "eredivisie": ["soccer/ned.1"],
+  "portugal": ["soccer/por.1"],
+  "liga portugal": ["soccer/por.1"],
+  "turquie": ["soccer/tur.1"],
+  "ecosse": ["soccer/sco.1"],
+  "coree 2": ["soccer/kor.2"],
+  "coree": ["soccer/kor.1"],
+  "k league": ["soccer/kor.1"],
+  "finlande": ["soccer/fin.1"],
+  "suede": ["soccer/swe.1"],
+  "norvege": ["soccer/nor.1"],
+  "danemark": ["soccer/den.1"],
+  "autriche": ["soccer/aut.1"],
+  "suisse": ["soccer/sui.1"],
+  "grece": ["soccer/gre.1"],
+  "pologne": ["soccer/pol.1"],
+  "russie": ["soccer/rus.1"],
+  "ukraine": ["soccer/ukr.1"],
+  "croatie": ["soccer/cro.1"],
+  "serbie": ["soccer/srb.1"],
+  "roumanie": ["soccer/rou.1"],
+  "tcheque": ["soccer/cze.1"],
+  "bresil": ["soccer/bra.1"],
+  "argentine": ["soccer/arg.1"],
+  "mexique": ["soccer/mex.1"],
+  "japon": ["soccer/jpn.1"],
+  "j league": ["soccer/jpn.1"],
+  "australie": ["soccer/aus.1"],
+  "chine": ["soccer/chn.1"],
+  "arabie saoudite": ["soccer/ksa.1"],
+  "copa libertadores": ["soccer/conmebol.libertadores"],
+  // Tennis
+  "atp": ["tennis/atp"],
+  "atp marrakech": ["tennis/atp"],
+  "atp bucarest": ["tennis/atp"],
+  "atp monte carlo": ["tennis/atp"],
+  "wta": ["tennis/wta"],
+  // US sports
+  "nba": ["basketball/nba"],
+  "nhl": ["hockey/nhl"],
+  "mlb": ["baseball/mlb"],
+  "nfl": ["football/nfl"],
+  // MMA
+  "ufc": ["mma/ufc"],
 };
 
+// Sport slug (from Supabase) → default ESPN slugs to try
+const SPORT_TO_ESPN: Record<string, string[]> = {
+  "football": [
+    "soccer/eng.1", "soccer/esp.1", "soccer/ita.1", "soccer/ger.1",
+    "soccer/fra.1", "soccer/uefa.champions", "soccer/bel.1", "soccer/ned.1",
+    "soccer/por.1", "soccer/tur.1", "soccer/usa.1",
+  ],
+  "tennis": ["tennis/atp", "tennis/wta"],
+  "basketball": ["basketball/nba"],
+  "hockey": ["hockey/nhl"],
+  "baseball": ["baseball/mlb"],
+  "football-americain": ["football/nfl"],
+  "mma": ["mma/ufc"],
+  "rugby": ["rugby/super-rugby"],
+  "handball": [],
+  "volleyball": [],
+};
+
+/**
+ * Get ESPN league slugs to search based on competition + sport.
+ */
+export function getEspnSlugs(sportSlug: string, competition: string | null): string[] {
+  // Try competition first (most precise)
+  if (competition) {
+    const normalized = competition.toLowerCase().trim();
+
+    // Exact match
+    if (COMPETITION_TO_ESPN[normalized]) return COMPETITION_TO_ESPN[normalized];
+
+    // Partial match
+    for (const [key, slugs] of Object.entries(COMPETITION_TO_ESPN)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return slugs;
+      }
+    }
+  }
+
+  // Fall back to sport slug
+  return SPORT_TO_ESPN[sportSlug] || [];
+}
+
 // ═══════════════════════════════════════════════
-// FUZZY TEAM MATCHING
+// FUZZY TEAM / PLAYER MATCHING
 // ═══════════════════════════════════════════════
 
 function normalize(name: string): string {
@@ -75,7 +177,7 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
     if (apiWords.some(aw => {
       if (aw === pw) return true;
       if (aw.startsWith(pw) || pw.startsWith(aw)) return true;
-      // Language variant: compare first 4+ chars (parme/parma, lyon/lyonnais, etc.)
+      // Language variants: compare first 4+ chars (parme/parma, etc.)
       if (pw.length >= 4 && aw.length >= 4 && pw.slice(0, 4) === aw.slice(0, 4)) return true;
       return false;
     })) {
@@ -113,11 +215,11 @@ export function setCache(key: string, data: unknown): void {
 }
 
 // ═══════════════════════════════════════════════
-// PARSE API-SPORTS RESPONSES
+// PARSE ESPN RESPONSE
 // ═══════════════════════════════════════════════
 
 export interface ParsedGame {
-  fixtureId: number;
+  fixtureId: string;
   homeTeam: string;
   awayTeam: string;
   homeScore: number;
@@ -127,152 +229,72 @@ export interface ParsedGame {
   startTime: string;
 }
 
-export function parseFootballFixtures(data: Record<string, unknown>): ParsedGame[] {
-  const response = (data.response || []) as Array<Record<string, unknown>>;
+export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[] {
+  const events = (data.events || []) as Array<Record<string, unknown>>;
   const games: ParsedGame[] = [];
 
-  for (const item of response) {
-    const fixture = (item.fixture || {}) as Record<string, unknown>;
-    const teams = (item.teams || {}) as Record<string, unknown>;
-    const goals = (item.goals || {}) as Record<string, unknown>;
+  for (const event of events) {
+    const competitions = (event.competitions || []) as Array<Record<string, unknown>>;
+    if (competitions.length === 0) continue;
 
-    const home = (teams.home || {}) as Record<string, unknown>;
-    const away = (teams.away || {}) as Record<string, unknown>;
-    const statusObj = (fixture.status || {}) as Record<string, unknown>;
+    const comp = competitions[0];
+    const competitors = (comp.competitors || []) as Array<Record<string, unknown>>;
+    if (competitors.length < 2) continue;
 
-    const statusShort = String(statusObj.short || "NS");
-    let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
-
-    if (["1H", "2H", "ET"].includes(statusShort)) gameStatus = "live";
-    else if (statusShort === "HT") gameStatus = "halftime";
-    else if (statusShort === "P") gameStatus = "penalties";
-    else if (statusShort === "AET") gameStatus = "extra_time";
-    else if (["FT", "AET", "PEN"].includes(statusShort)) gameStatus = "final";
-    else if (["PST", "CANC", "ABD", "AWD", "WO"].includes(statusShort)) gameStatus = "postponed";
-
-    const elapsed = statusObj.elapsed;
-    const minute = elapsed != null ? `${elapsed}'` : undefined;
-
-    games.push({
-      fixtureId: Number(fixture.id || 0),
-      homeTeam: String(home.name || ""),
-      awayTeam: String(away.name || ""),
-      homeScore: Number(goals.home ?? 0),
-      awayScore: Number(goals.away ?? 0),
-      status: gameStatus,
-      minute,
-      startTime: String(fixture.date || ""),
-    });
-  }
-
-  return games;
-}
-
-export function parseGenericFixtures(data: Record<string, unknown>): ParsedGame[] {
-  const response = (data.response || []) as Array<Record<string, unknown>>;
-  const games: ParsedGame[] = [];
-
-  for (const item of response) {
-    const teams = (item.teams || {}) as Record<string, unknown>;
-    const scores = (item.scores || {}) as Record<string, unknown>;
-
-    const home = (teams.home || {}) as Record<string, unknown>;
-    const away = (teams.away || {}) as Record<string, unknown>;
-    const homeScores = (scores.home || {}) as Record<string, unknown>;
-    const awayScores = (scores.away || {}) as Record<string, unknown>;
-
-    const statusObj = (item.status || item.game || {}) as Record<string, unknown>;
-    const statusShort = String(statusObj.short || statusObj.status || "NS");
+    const statusObj = (comp.status || event.status || {}) as Record<string, unknown>;
+    const statusType = (statusObj.type || {}) as Record<string, unknown>;
+    const state = String(statusType.state || "pre");
+    const description = String(statusType.description || statusType.detail || "");
 
     let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
-    if (["Q1", "Q2", "Q3", "Q4", "OT", "BT", "P1", "P2", "P3", "1H", "2H", "ET"].includes(statusShort)) gameStatus = "live";
-    else if (statusShort === "HT") gameStatus = "halftime";
-    else if (["FT", "AOT", "AP", "POST"].includes(statusShort)) gameStatus = "final";
-    else if (["PST", "CANC"].includes(statusShort)) gameStatus = "postponed";
+    if (state === "in") {
+      gameStatus = description.toLowerCase().includes("halftime") ? "halftime" : "live";
+    } else if (state === "post") {
+      gameStatus = "final";
+    } else if (state === "pre") {
+      gameStatus = "scheduled";
+    }
 
-    const homeTotal = Number(homeScores.total ?? home.score ?? home.goals ?? 0);
-    const awayTotal = Number(awayScores.total ?? away.score ?? away.goals ?? 0);
+    // Check for postponed
+    const statusName = String(statusType.name || "").toLowerCase();
+    if (statusName.includes("postponed") || statusName.includes("canceled")) {
+      gameStatus = "postponed";
+    }
 
-    const timer = statusObj.timer || statusObj.elapsed || statusObj.clock;
-    const minute = timer != null ? `${timer}'` : undefined;
+    // Find home and away
+    const home = competitors.find(c => c.homeAway === "home") || competitors[0];
+    const away = competitors.find(c => c.homeAway === "away") || competitors[1];
 
-    const gameObj = (item.game || item.fixture || {}) as Record<string, unknown>;
-    const gameId = Number(gameObj.id || item.id || 0);
+    const homeTeamObj = (home.team || home.athlete || {}) as Record<string, unknown>;
+    const awayTeamObj = (away.team || away.athlete || {}) as Record<string, unknown>;
 
-    games.push({
-      fixtureId: gameId,
-      homeTeam: String(home.name || ""),
-      awayTeam: String(away.name || ""),
-      homeScore: homeTotal,
-      awayScore: awayTotal,
-      status: gameStatus,
-      minute,
-      startTime: String(item.date || gameObj.date || ""),
-    });
-  }
+    // For tennis, ESPN uses "athlete" instead of "team"
+    const homeName = String(homeTeamObj.displayName || homeTeamObj.shortDisplayName || homeTeamObj.name || "");
+    const awayName = String(awayTeamObj.displayName || awayTeamObj.shortDisplayName || awayTeamObj.name || "");
 
-  return games;
-}
+    const homeScore = Number(home.score || 0);
+    const awayScore = Number(away.score || 0);
 
-/**
- * Parse tennis games from API-Sports Tennis
- * Tennis uses "players" instead of "teams" and "sets" for scoring
- */
-export function parseTennisFixtures(data: Record<string, unknown>): ParsedGame[] {
-  const response = (data.response || []) as Array<Record<string, unknown>>;
-  const games: ParsedGame[] = [];
-
-  for (const item of response) {
-    const game = (item.game || {}) as Record<string, unknown>;
-    const players = (item.players || {}) as Record<string, unknown>;
-    const scores = (item.scores || {}) as Record<string, unknown>;
-
-    const home = (players.home || {}) as Record<string, unknown>;
-    const away = (players.away || {}) as Record<string, unknown>;
-
-    const statusObj = (game.status || {}) as Record<string, unknown>;
-    const statusShort = String(statusObj.short || "NS");
-
-    let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
-    if (["S1", "S2", "S3", "S4", "S5"].includes(statusShort)) gameStatus = "live";
-    else if (statusShort === "LIVE" || statusShort === "IP") gameStatus = "live";
-    else if (statusShort === "FT" || statusShort === "AO") gameStatus = "final";
-    else if (["PST", "CANC", "ABD", "WO"].includes(statusShort)) gameStatus = "postponed";
-
-    // Tennis: count sets won
-    const homeScoreObj = (scores.home || {}) as Record<string, unknown>;
-    const awayScoreObj = (scores.away || {}) as Record<string, unknown>;
-    
-    // Count total sets won by each player
-    let homeSets = 0;
-    let awaySets = 0;
-    for (const key of ["set1", "set2", "set3", "set4", "set5"]) {
-      const hVal = Number((homeScoreObj as Record<string, unknown>)[key] ?? 0);
-      const aVal = Number((awayScoreObj as Record<string, unknown>)[key] ?? 0);
-      if (hVal > 0 || aVal > 0) {
-        if (hVal > aVal) homeSets++;
-        else if (aVal > hVal) awaySets++;
+    // Minute / clock
+    const displayClock = statusObj.displayClock as string | undefined;
+    let minute: string | undefined;
+    if (state === "in") {
+      if (displayClock && displayClock !== "0:00") {
+        minute = displayClock;
+      } else if (description) {
+        minute = description;
       }
     }
 
-    // Build minute/status string for tennis
-    let minute: string | undefined;
-    if (gameStatus === "live") {
-      const currentSet = statusShort.startsWith("S") ? `Set ${statusShort[1]}` : "En cours";
-      minute = currentSet;
-    }
-
-    const gameId = Number(game.id || 0);
-
     games.push({
-      fixtureId: gameId,
-      homeTeam: String(home.name || ""),
-      awayTeam: String(away.name || ""),
-      homeScore: homeSets,
-      awayScore: awaySets,
+      fixtureId: String(event.id || ""),
+      homeTeam: homeName,
+      awayTeam: awayName,
+      homeScore,
+      awayScore,
       status: gameStatus,
       minute,
-      startTime: String(game.date || item.date || ""),
+      startTime: String(event.date || comp.date || ""),
     });
   }
 
