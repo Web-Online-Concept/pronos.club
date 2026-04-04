@@ -111,7 +111,7 @@ export async function GET(request: Request) {
   let cumProfit = 0;
   const profitTimeline = picks.map((p) => {
     cumProfit += p.profit ?? 0;
-    return { date: p.result_entered_at?.split("T")[0] ?? "", profit: Math.round(cumProfit * 100) / 100, event: p.event_name };
+    return { date: p.result_entered_at?.split("T")[0] ?? "", profit: Math.round(cumProfit * 1000) / 1000, event: p.event_name };
   });
 
   // ROI timeline
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
     if (cumDD > peak) peak = cumDD;
     const dd = peak - cumDD;
     if (dd > maxDrawdown) maxDrawdown = dd;
-    return { date: p.result_entered_at?.split("T")[0] ?? "", drawdown: -Math.round(dd * 100) / 100 };
+    return { date: p.result_entered_at?.split("T")[0] ?? "", drawdown: -Math.round(dd * 1000) / 1000 };
   });
 
   // By sport
@@ -146,7 +146,7 @@ export async function GET(request: Request) {
     s.profit += p.profit ?? 0;
   });
   const bySport = Array.from(sportMap.values())
-    .map((s) => ({ ...s, roi: s.staked > 0 ? Math.round((s.profit / s.staked) * 10000) / 100 : 0, winRate: (s.won + s.lost) > 0 ? Math.round((s.won / (s.won + s.lost)) * 10000) / 100 : 0, profit: Math.round(s.profit * 100) / 100 }))
+    .map((s) => ({ ...s, roi: s.staked > 0 ? Math.round((s.profit / s.staked) * 10000) / 100 : 0, winRate: (s.won + s.lost) > 0 ? Math.round((s.won / (s.won + s.lost)) * 10000) / 100 : 0, profit: Math.round(s.profit * 1000) / 1000 }))
     .sort((a, b) => b.profit - a.profit);
 
   // By month
@@ -162,7 +162,7 @@ export async function GET(request: Request) {
     m.profit += p.profit ?? 0;
   });
   const byMonth = Array.from(monthMap.values())
-    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 100) / 100 }))
+    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 1000) / 1000 }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
   // Odds distribution
@@ -178,22 +178,22 @@ export async function GET(request: Request) {
     const w = inRange.filter((p) => p.status === "won" || p.status === "half_won").length;
     const total = inRange.length;
     const pr = inRange.reduce((s, p) => s + (p.profit ?? 0), 0);
-    return { label: range.label, total, won: w, winRate: total > 0 ? Math.round((w / total) * 100) : 0, profit: Math.round(pr * 100) / 100 };
+    return { label: range.label, total, won: w, winRate: total > 0 ? Math.round((w / total) * 100) : 0, profit: Math.round(pr * 1000) / 1000 };
   });
 
   return NextResponse.json({
     overview: {
       totalFollowed, won, lost, voidPicks,
-      profit: Math.round(profit * 100) / 100,
-      staked: Math.round(staked * 100) / 100,
+      profit: Math.round(profit * 1000) / 1000,
+      staked: Math.round(staked * 1000) / 1000,
       roi: Math.round(roi * 100) / 100,
       winRate: Math.round(winRate * 100) / 100,
-      avgOdds: Math.round(avgOdds * 100) / 100,
-      avgOddsWon: Math.round(avgOddsWon * 100) / 100,
-      avgOddsLost: Math.round(avgOddsLost * 100) / 100,
+      avgOdds: Math.round(avgOdds * 1000) / 1000,
+      avgOddsWon: Math.round(avgOddsWon * 1000) / 1000,
+      avgOddsLost: Math.round(avgOddsLost * 1000) / 1000,
       maxWinStreak, maxLoseStreak,
       currentStreak: streakType ? `${streakType}${streakCount}` : "-",
-      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+      maxDrawdown: Math.round(maxDrawdown * 1000) / 1000,
       bestPick: bestPick ? { event: bestPick.event_name, profit: bestPick.profit, odds: bestPick.odds } : null,
       worstPick: worstPick ? { event: worstPick.event_name, profit: worstPick.profit, odds: worstPick.odds } : null,
     },

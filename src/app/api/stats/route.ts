@@ -122,7 +122,7 @@ export async function GET(request: Request) {
     cumProfit += p.profit ?? 0;
     return {
       date: p.result_entered_at?.split("T")[0] ?? "",
-      profit: Math.round(cumProfit * 100) / 100,
+      profit: Math.round(cumProfit * 1000) / 1000,
       event: p.event_name,
     };
   });
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
     if (dd > maxDrawdown) maxDrawdown = dd;
     return {
       date: p.result_entered_at?.split("T")[0] ?? "",
-      drawdown: -Math.round(dd * 100) / 100,
+      drawdown: -Math.round(dd * 1000) / 1000,
     };
   });
 
@@ -203,7 +203,7 @@ export async function GET(request: Request) {
     m.profit += p.profit ?? 0;
   });
   const byMonth = Array.from(monthMap.values())
-    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 100) / 100 }))
+    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 1000) / 1000 }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
   // By bookmaker
@@ -223,7 +223,7 @@ export async function GET(request: Request) {
     b.profit += p.profit ?? 0;
   });
   const byBookmaker = Array.from(bookmakerMap.values())
-    .map((b) => ({ ...b, roi: b.staked > 0 ? Math.round((b.profit / b.staked) * 10000) / 100 : 0, winRate: (b.won + b.lost) > 0 ? Math.round((b.won / (b.won + b.lost)) * 10000) / 100 : 0, profit: Math.round(b.profit * 100) / 100 }))
+    .map((b) => ({ ...b, roi: b.staked > 0 ? Math.round((b.profit / b.staked) * 10000) / 100 : 0, winRate: (b.won + b.lost) > 0 ? Math.round((b.won / (b.won + b.lost)) * 10000) / 100 : 0, profit: Math.round(b.profit * 1000) / 1000 }))
     .sort((a, b) => b.profit - a.profit);
 
   // Odds distribution
@@ -239,7 +239,7 @@ export async function GET(request: Request) {
     const won = inRange.filter((p) => p.status === "won" || p.status === "half_won").length;
     const total = inRange.length;
     const profit = inRange.reduce((s, p) => s + (p.profit ?? 0), 0);
-    return { label: range.label, total, won, winRate: total > 0 ? Math.round((won / total) * 100) : 0, profit: Math.round(profit * 100) / 100 };
+    return { label: range.label, total, won, winRate: total > 0 ? Math.round((won / total) * 100) : 0, profit: Math.round(profit * 1000) / 1000 };
   });
 
   // Fetch tipster bankroll config
@@ -254,8 +254,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     overview: {
       totalPicks, wonPicks, lostPicks, voidPicks,
-      totalProfit: Math.round(totalProfit * 100) / 100,
-      totalStaked: Math.round(totalStaked * 100) / 100,
+      totalProfit: Math.round(totalProfit * 1000) / 1000,
+      totalStaked: Math.round(totalStaked * 1000) / 1000,
       roi: Math.round(roi * 100) / 100,
       winRate: Math.round(winRate * 100) / 100,
       avgOdds: Math.round(avgOdds * 1000) / 1000,
@@ -264,7 +264,7 @@ export async function GET(request: Request) {
       maxWinStreak,
       maxLoseStreak,
       currentStreak: currentStreakType ? `${currentStreakType}${currentStreakCount}` : "-",
-      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+      maxDrawdown: Math.round(maxDrawdown * 1000) / 1000,
       bestPick: bestPick ? { event: bestPick.event_name, profit: bestPick.profit, odds: bestPick.odds } : null,
       worstPick: worstPick ? { event: worstPick.event_name, profit: worstPick.profit, odds: worstPick.odds } : null,
     },

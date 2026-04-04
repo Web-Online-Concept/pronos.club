@@ -52,7 +52,7 @@ export async function GET() {
     won,
     lost,
     voidPicks,
-    profit: Math.round(profit * 100) / 100,
+    profit: Math.round(profit * 1000) / 1000,
     roi: Math.round(roi * 100) / 100,
     winRate: Math.round(winRate * 100) / 100,
   });
