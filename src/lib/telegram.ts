@@ -9,7 +9,7 @@ export async function createInviteLink(userId: string): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: GROUP_ID,
-        member_limit: 1, // Single use
+        creates_join_request: true, // User must be approved — webhook gets the invite link info
         expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 48, // 48h
         name: `premium-${userId.slice(0, 8)}`,
       }),
