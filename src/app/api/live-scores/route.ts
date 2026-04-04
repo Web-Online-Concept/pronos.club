@@ -14,6 +14,7 @@ import {
 import { NextResponse } from "next/server";
 
 const API_KEY = process.env.API_SPORTS_KEY || "";
+const API_TENNIS_KEY = process.env.API_TENNIS_KEY || "";
 
 /**
  * GET /api/live-scores?active=true
@@ -142,8 +143,9 @@ async function findScore(
   eventDate: string,
   sportSlug: string
 ): Promise<LiveScoreResult | null> {
-  const apiBase = SPORT_API_MAP[sportSlug];
-  if (!apiBase) return null;
+  // Tennis uses separate API, no need for apiBase
+  const apiBase = SPORT_API_MAP[sportSlug] || "";
+  if (!apiBase && sportSlug !== "tennis") return null;
 
   const teams = extractTeams(eventName);
   if (teams.length === 0) return null;
@@ -186,6 +188,11 @@ async function fetchGames(apiBase: string, sportSlug: string, dateStr: string): 
   if (cached) return cached as ParsedGame[];
 
   try {
+    // Tennis uses a completely separate API (api-tennis.com)
+    if (sportSlug === "tennis") {
+      return fetchTennisGames(dateStr, cacheKey);
+    }
+
     // Football uses /fixtures?date=YYYY-MM-DD
     // Other sports use /games?date=YYYY-MM-DD
     const endpoint = sportSlug === "football"
@@ -207,19 +214,96 @@ async function fetchGames(apiBase: string, sportSlug: string, dateStr: string): 
 
     const data = await res.json();
 
-    let games: ParsedGame[];
-    if (sportSlug === "football") {
-      games = parseFootballFixtures(data);
-    } else if (sportSlug === "tennis") {
-      games = parseTennisFixtures(data);
-    } else {
-      games = parseGenericFixtures(data);
-    }
+    const games = sportSlug === "football"
+      ? parseFootballFixtures(data)
+      : parseGenericFixtures(data);
 
     setCache(cacheKey, games);
     return games;
   } catch (err) {
     console.error(`[live-scores] Fetch error for ${sportSlug}:`, err);
+    setCache(cacheKey, []);
+    return [];
+  }
+}
+
+// ═══════════════════════════════════════════════
+// TENNIS: Separate API (api-tennis.com)
+// ═══════════════════════════════════════════════
+
+async function fetchTennisGames(dateStr: string, cacheKey: string): Promise<ParsedGame[]> {
+  if (!API_TENNIS_KEY) {
+    setCache(cacheKey, []);
+    return [];
+  }
+
+  try {
+    const url = `https://api.api-tennis.com/tennis/?method=get_fixtures&APIkey=${API_TENNIS_KEY}&date_start=${dateStr}&date_stop=${dateStr}`;
+
+    const res = await fetch(url, {
+      headers: { "Accept": "application/json" },
+    });
+
+    if (!res.ok) {
+      console.error(`[live-scores] API-Tennis error: ${res.status}`);
+      setCache(cacheKey, []);
+      return [];
+    }
+
+    const data = await res.json();
+
+    if (!data.success || !data.result) {
+      setCache(cacheKey, []);
+      return [];
+    }
+
+    const games: ParsedGame[] = [];
+
+    for (const item of data.result as Array<Record<string, unknown>>) {
+      const p1 = String(item.event_first_player || "");
+      const p2 = String(item.event_second_player || "");
+      const finalResult = String(item.event_final_result || "-");
+      const status = String(item.event_status || "");
+      const isLive = item.event_live === "1";
+
+      let gameStatus: ParsedGame["status"] = "scheduled";
+      if (isLive) gameStatus = "live";
+      else if (status === "Finished" || (finalResult !== "-" && finalResult !== "")) gameStatus = "final";
+      else if (status === "Postponed" || status === "Cancelled") gameStatus = "postponed";
+
+      // Parse score: "2 - 1" → home 2, away 1 (sets)
+      let homeScore = 0;
+      let awayScore = 0;
+      if (finalResult && finalResult !== "-") {
+        const parts = finalResult.split(" - ");
+        if (parts.length === 2) {
+          homeScore = parseInt(parts[0]) || 0;
+          awayScore = parseInt(parts[1]) || 0;
+        }
+      }
+
+      // For live: build minute from current set
+      let minute: string | undefined;
+      if (isLive && status) {
+        minute = status; // e.g. "Set 2"
+      }
+
+      games.push({
+        fixtureId: Number(item.event_key || 0),
+        homeTeam: p1,
+        awayTeam: p2,
+        homeScore,
+        awayScore,
+        status: gameStatus,
+        minute,
+        startTime: `${item.event_date}T${item.event_time || "00:00"}:00`,
+      });
+    }
+
+    setCache(cacheKey, games);
+    return games;
+  } catch (err) {
+    console.error(`[live-scores] API-Tennis fetch error:`, err);
     setCache(cacheKey, []);
     return [];
   }

@@ -34,7 +34,6 @@ export const SPORT_API_MAP: Record<string, string> = {
   "mma": "https://v1.mma.api-sports.io",
   "football-americain": "https://v1.american-football.api-sports.io",
   "formule-1": "https://v1.formula-1.api-sports.io",
-  "tennis": "https://v1.tennis.api-sports.io",
 };
 
 // ═══════════════════════════════════════════════
