@@ -7,15 +7,15 @@ export function calculateProfit(
 ): number {
   switch (status) {
     case "won":
-      return parseFloat(((odds - 1) * stake).toFixed(2));
+      return parseFloat(((odds - 1) * stake).toFixed(3));
     case "lost":
       return -stake;
     case "void":
       return 0;
     case "half_won":
-      return parseFloat((((odds - 1) * stake) / 2).toFixed(2));
+      return parseFloat((((odds - 1) * stake) / 2).toFixed(3));
     case "half_lost":
-      return parseFloat((-stake / 2).toFixed(2));
+      return parseFloat((-stake / 2).toFixed(3));
     case "pending":
       return 0;
     default:
@@ -51,7 +51,7 @@ export function calculateCombinedResult(
   // All won (or half_won)
   if (statuses.every((s) => s === "won" || s === "half_won")) {
     const combinedOdds = legs.reduce((acc, l) => acc * l.odds, 1);
-    const profit = parseFloat(((combinedOdds - 1) * stake).toFixed(2));
+    const profit = parseFloat(((combinedOdds - 1) * stake).toFixed(3));
     return { status: "won", profit };
   }
 
@@ -61,7 +61,7 @@ export function calculateCombinedResult(
     return { status: "void", profit: 0 };
   }
   const activeOdds = activLegs.reduce((acc, l) => acc * l.odds, 1);
-  const profit = parseFloat(((activeOdds - 1) * stake).toFixed(2));
+  const profit = parseFloat(((activeOdds - 1) * stake).toFixed(3));
   return { status: "won", profit };
 
   // Any pending = still pending (shouldn't reach here normally)

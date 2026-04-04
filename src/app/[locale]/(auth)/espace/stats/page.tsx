@@ -26,8 +26,8 @@ interface StatsData {
     maxWinStreak: number; maxLoseStreak: number; currentStreak: string;
     maxDrawdown: number;
     profit: number; won: number; lost: number; staked: number;
-    bestPick: { event: string; profit: number; odds: number } | null;
-    worstPick: { event: string; profit: number; odds: number } | null;
+    bestPick: { event: string; profit: number; odds: number; pickNumber?: number } | null;
+    worstPick: { event: string; profit: number; odds: number; pickNumber?: number } | null;
   };
   profitTimeline: { date: string; profit: number; event: string }[];
   roiTimeline: { date: string; roi: number }[];
@@ -204,8 +204,8 @@ export default function MesStatsPage() {
 
           {(o.bestPick || o.worstPick) && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {o.bestPick && (<div className="overflow-hidden rounded-2xl border-l-4 border-emerald-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{t("best_pick")}</p><p className="mt-1 font-bold text-white">{o.bestPick.event}</p><p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.bestPick.odds} → <span className="font-bold text-emerald-400">+{displayVal(o.bestPick.profit)}</span></p></div>)}
-              {o.worstPick && (<div className="overflow-hidden rounded-2xl border-l-4 border-red-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #2e0606 100%)" }}><p className="text-[10px] font-bold uppercase tracking-wider text-red-400">{t("worst_pick")}</p><p className="mt-1 font-bold text-white">{o.worstPick.event}</p><p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.worstPick.odds} → <span className="font-bold text-red-400">{displayVal(o.worstPick.profit)}</span></p></div>)}
+              {o.bestPick && (<div className="overflow-hidden rounded-2xl border-l-4 border-emerald-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">{t("best_pick")}</p><p className="mt-1 font-bold text-white">{o.bestPick.pickNumber ? `#${o.bestPick.pickNumber} ` : ""}{o.bestPick.event}</p><p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.bestPick.odds} → <span className="font-bold text-emerald-400">+{displayVal(o.bestPick.profit)}</span></p></div>)}
+              {o.worstPick && (<div className="overflow-hidden rounded-2xl border-l-4 border-red-500 p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #2e0606 100%)" }}><p className="text-[10px] font-bold uppercase tracking-wider text-red-400">{t("worst_pick")}</p><p className="mt-1 font-bold text-white">{o.worstPick.pickNumber ? `#${o.worstPick.pickNumber} ` : ""}{o.worstPick.event}</p><p className="mt-1 text-sm text-white/50">{t("odds_label")} {o.worstPick.odds} → <span className="font-bold text-red-400">{displayVal(o.worstPick.profit)}</span></p></div>)}
             </div>
           )}
 
