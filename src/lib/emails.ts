@@ -350,18 +350,19 @@ export async function sendWelcomePremiumEmail(email: string, displayName: string
 // 3. NOUVEAU PICK
 // ═══════════════════════════════════════════════
 
-export async function sendNewPickEmail(email: string, locale: Locale = "fr", sport?: string, isPremium?: boolean) {
+export async function sendNewPickEmail(email: string, locale: Locale = "fr", sport?: string, isPremium?: boolean, pickNumber?: number) {
   const accessLabel = isPremium ? t(locale, "pick_premium") : t(locale, "pick_free");
   const sportLabel = sport ? ` — ${sport}` : "";
+  const pickLabel = pickNumber ? `#${pickNumber} ` : "";
 
   const html = emailWrapper(`
-    <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "pick_title")}</h2>
+    <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${pickLabel}${t(locale, "pick_title")}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 4px;">${accessLabel}${sportLabel}</p>
     <p style="text-align: center; color: #999; font-size: 13px;">${t(locale, "pick_desc")}</p>
     ${greenButton(t(locale, "pick_btn"), localeUrl(locale, "pronostics"))}
     <p style="text-align: center; color: #bbb; font-size: 11px;">${t(locale, "pick_footer")}</p>
   `, t(locale, "pick_preheader", { sport: sportLabel }), locale);
-  return sendEmail(email, t(locale, "pick_subject", { sport: sportLabel }), html);
+  return sendEmail(email, `${pickLabel}${t(locale, "pick_subject", { sport: sportLabel })}`, html);
 }
 
 // ═══════════════════════════════════════════════

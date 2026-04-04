@@ -52,8 +52,8 @@ export async function POST(request: Request) {
   // Send push notifications
   if (pushUsers) {
     const payload = JSON.stringify({
-      title: "🔔 Nouveau pronostic disponible",
-      body: "Un nouveau pick vient d'être publié. Consultez-le sur PRONOS.CLUB",
+      title: pickNumber ? `🔔 #${pickNumber} Nouveau pronostic` : "🔔 Nouveau pronostic disponible",
+      body: sport ? `${sport} — Consultez-le sur PRONOS.CLUB` : "Un nouveau pick vient d'être publié. Consultez-le sur PRONOS.CLUB",
       url: "/fr/pronostics",
     });
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       emailUsers.map(async (user) => {
         try {
           const locale = (user.locale as "fr" | "en" | "es") || "fr";
-          const sent = await sendNewPickEmail(user.email, locale, sport, isPremium);
+          const sent = await sendNewPickEmail(user.email, locale, sport, isPremium, pickNumber);
           if (sent) emailSent++;
         } catch {
           // Silent fail for individual emails
