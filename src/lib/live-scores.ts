@@ -10,6 +10,13 @@
 // TYPES
 // ═══════════════════════════════════════════════
 
+export interface SetScore {
+  home: number;
+  away: number;
+  homeTiebreak?: number;
+  awayTiebreak?: number;
+}
+
 export interface LiveScoreResult {
   homeTeam: string;
   awayTeam: string;
@@ -18,6 +25,8 @@ export interface LiveScoreResult {
   matchStatus: "scheduled" | "live" | "halftime" | "final" | "postponed";
   minute?: string;
   fixtureId?: string;
+  isTennis?: boolean;
+  sets?: SetScore[];
 }
 
 // ═══════════════════════════════════════════════
@@ -227,6 +236,8 @@ export interface ParsedGame {
   status: LiveScoreResult["matchStatus"];
   minute: string | undefined;
   startTime: string;
+  isTennis: boolean;
+  sets?: SetScore[];
 }
 
 export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[] {
@@ -300,48 +311,49 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
       // Skip TBD matches
       if (homeName === "TBD" || awayName === "TBD") continue;
 
-      // Tennis score: sum of sets won (from linescores)
+      // Detect tennis by presence of linescores (set-by-set) and athlete (not team)
       const homeLinescores = (home.linescores || []) as Array<Record<string, unknown>>;
       const awayLinescores = (away.linescores || []) as Array<Record<string, unknown>>;
+      const isTennis = homeLinescores.length > 0 && !!home.athlete;
 
       let homeScore: number;
       let awayScore: number;
+      let sets: SetScore[] | undefined;
 
-      if (homeLinescores.length > 0) {
+      if (isTennis) {
         // Tennis: count sets won
         homeScore = homeLinescores.filter(s => s.winner === true).length;
         awayScore = awayLinescores.filter(s => s.winner === true).length;
+
+        // Build detailed set scores
+        sets = homeLinescores.map((hs, i) => {
+          const as = awayLinescores[i];
+          const setScore: SetScore = {
+            home: Number(hs.value || 0),
+            away: Number(as?.value || 0),
+          };
+          // Tiebreak scores
+          if (hs.tiebreak !== undefined) setScore.homeTiebreak = Number(hs.tiebreak);
+          if (as?.tiebreak !== undefined) setScore.awayTiebreak = Number(as.tiebreak);
+          return setScore;
+        });
       } else {
         // Football/basketball: simple score
         homeScore = Number(home.score || 0);
         awayScore = Number(away.score || 0);
       }
 
-      // Minute / clock / set info
+      // Minute / clock
       let minute: string | undefined;
-      if (state === "in") {
-        // For tennis, show current set detail
-        if (homeLinescores.length > 0) {
-          const setScores = homeLinescores.map((hs, i) => {
-            const as = awayLinescores[i];
-            return `${Number(hs.value || 0)}-${Number(as?.value || 0)}`;
-          }).join(" ");
-          minute = setScores || description;
-        } else {
-          const displayClock = statusObj.displayClock as string | undefined;
-          if (displayClock && displayClock !== "0:00") {
-            minute = displayClock;
-          } else if (description) {
-            minute = description;
-          }
+      if (state === "in" && !isTennis) {
+        const displayClock = statusObj.displayClock as string | undefined;
+        if (displayClock && displayClock !== "0:00") {
+          minute = displayClock;
+        } else if (description) {
+          minute = description;
         }
-      } else if (state === "post" && homeLinescores.length > 0) {
-        // For finished tennis matches, show set scores
-        const setScores = homeLinescores.map((hs, i) => {
-          const as = awayLinescores[i];
-          return `${Number(hs.value || 0)}-${Number(as?.value || 0)}`;
-        }).join(" ");
-        minute = setScores;
+      } else if (state === "in" && isTennis) {
+        minute = description; // "1st Set", "2nd Set", etc.
       }
 
       games.push({
@@ -353,6 +365,8 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
         status: gameStatus,
         minute,
         startTime: String(comp.date || event.date || ""),
+        isTennis,
+        sets,
       });
     }
   }

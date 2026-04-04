@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 
+interface SetScore {
+  home: number;
+  away: number;
+  homeTiebreak?: number;
+  awayTiebreak?: number;
+}
+
 interface LiveScoreData {
   homeTeam: string;
   awayTeam: string;
@@ -10,6 +17,8 @@ interface LiveScoreData {
   matchStatus: string;
   minute?: string;
   found?: boolean;
+  isTennis?: boolean;
+  sets?: SetScore[];
 }
 
 interface LiveScoreProps {
@@ -80,6 +89,19 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
   const isPenalties = score.matchStatus === "penalties";
   const isPlaying = isLive || isHalftime || isExtraTime || isPenalties;
 
+  // Tennis gets its own display
+  if (score.isTennis && score.sets && score.sets.length > 0) {
+    return (
+      <TennisScore
+        score={score}
+        isPlaying={isPlaying}
+        isFinal={isFinal}
+        isPostponed={isPostponed}
+      />
+    );
+  }
+
+  // Football / other sports — original display
   return (
     <div className={`mt-2 flex items-center justify-center gap-3 rounded-lg px-3 py-2 ${
       isPlaying
@@ -122,14 +144,113 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
   );
 }
 
+// ═══════════════════════════════════════════════
+// TENNIS DISPLAY
+// Format: "Navone  6/4  3/6  6/4  Van de Zandschulp"
+// ═══════════════════════════════════════════════
+
+function getLastName(fullName: string): string {
+  const parts = fullName.trim().split(" ");
+  if (parts.length <= 1) return fullName;
+  return parts.slice(1).join(" ");
+}
+
+function TennisScore({
+  score,
+  isPlaying,
+  isFinal,
+  isPostponed,
+}: {
+  score: LiveScoreData;
+  isPlaying: boolean;
+  isFinal: boolean;
+  isPostponed: boolean;
+}) {
+  const sets = score.sets || [];
+  const homeName = getLastName(score.homeTeam);
+  const awayName = getLastName(score.awayTeam);
+
+  const homeWon = isFinal && score.homeScore > score.awayScore;
+  const awayWon = isFinal && score.awayScore > score.homeScore;
+
+  return (
+    <div className={`mt-2 rounded-lg px-3 py-2 ${
+      isPlaying
+        ? "bg-red-500/10 border border-red-500/20"
+        : isFinal
+        ? "bg-white/5 border border-white/10"
+        : "bg-amber-500/10 border border-amber-500/20"
+    }`}>
+      {/* Status line */}
+      <div className="flex items-center justify-center gap-2 mb-1.5">
+        {isPlaying && (
+          <span className="relative flex h-2 w-2 flex-shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+        )}
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+          isPlaying ? "text-red-400"
+          : isFinal ? "text-white/40"
+          : "text-amber-400"
+        }`}>
+          {isPlaying ? "LIVE" : isFinal ? "TERMINÉ" : isPostponed ? "REPORTÉ" : ""}
+          {isPlaying && score.minute ? ` · ${score.minute}` : ""}
+        </span>
+      </div>
+
+      {/* Tennis score line: Name  6/4  3/6  7/5  Name */}
+      <div className="flex items-center justify-center gap-2">
+        {/* Home player name */}
+        <span className={`text-xs font-bold truncate max-w-[90px] text-right ${
+          homeWon ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
+        }`}>
+          {homeName}
+        </span>
+
+        {/* Set scores */}
+        <div className="flex items-center gap-1">
+          {sets.map((set, i) => {
+            const isHomeSetWin = set.home > set.away;
+            return (
+              <span
+                key={i}
+                className={`font-mono text-sm font-bold px-1 ${
+                  isPlaying
+                    ? "text-white"
+                    : isHomeSetWin
+                    ? "text-white/70"
+                    : "text-white/40"
+                }`}
+              >
+                {set.home}/{set.away}
+                {(set.homeTiebreak !== undefined || set.awayTiebreak !== undefined) && (
+                  <sup className="text-[8px] text-white/30 ml-px">
+                    {Math.min(set.homeTiebreak ?? 99, set.awayTiebreak ?? 99)}
+                  </sup>
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Away player name */}
+        <span className={`text-xs font-bold truncate max-w-[90px] text-left ${
+          awayWon ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
+        }`}>
+          {awayName}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function isRecentEvent(eventDate: string): boolean {
   const now = new Date();
   const event = new Date(eventDate);
   const diffMs = now.getTime() - event.getTime();
 
-  // Too far in the future (more than 6h before)
   if (diffMs < -6 * 60 * 60 * 1000) return false;
-  // Too old (more than 12h after)
   if (diffMs > 12 * 60 * 60 * 1000) return false;
 
   return true;

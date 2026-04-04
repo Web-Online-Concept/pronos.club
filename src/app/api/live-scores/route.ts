@@ -165,6 +165,8 @@ async function findScore(
         matchStatus: game.status,
         minute: game.minute,
         fixtureId: game.fixtureId,
+        isTennis: game.isTennis || false,
+        sets: game.sets,
       };
     }
   }
