@@ -359,11 +359,12 @@ export default function NewPickPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: pickType === "combine"
-          ? `🎯 Nouveau combiné : ${finalEventName}`
-          : `🎯 Nouveau pick : ${finalEventName}`,
+          ? `🎯 #${pick.pick_number} Nouveau combiné`
+          : `🎯 #${pick.pick_number} Nouveau pick`,
         body: `${finalSelection} @ ${finalOdds} (${stake}U)`,
         url: "/fr/pronostics",
         pickId: pick.id,
+        pickNumber: pick.pick_number,
         sport: sportLabel,
         isPremium,
       }),

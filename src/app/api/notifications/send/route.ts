@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { title, body, url, pickId, sport, isPremium } = await request.json();
+  const { title, body, url, pickId, pickNumber, sport, isPremium } = await request.json();
 
   // Get all users with push enabled
   let pushQuery = supabaseAdmin
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     try {
       const sportLabel = sport ? ` — ${sport}` : "";
       const accessLabel = isPremium ? "🔒 Premium" : "🆓 Gratuit";
-      const telegramMessage = `🔔 Nouveau pronostic publié sur PRONOS.CLUB${sportLabel}\n${accessLabel}\n\n👉 ${process.env.NEXT_PUBLIC_SITE_URL}/fr/pronostics`;
+      const pickLabel = pickNumber ? `#${pickNumber} ` : ""; const telegramMessage = `🔔 ${pickLabel}Nouveau pronostic publié sur PRONOS.CLUB${sportLabel}\n${accessLabel}\n\n👉 ${process.env.NEXT_PUBLIC_SITE_URL}/fr/pronostics`;
 
       const tgRes = await fetch(
         `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
