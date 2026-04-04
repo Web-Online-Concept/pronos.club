@@ -68,18 +68,21 @@ async function getActivePicksScores() {
   const searchJobs: { key: string; eventName: string; eventDate: string; sportSlug: string }[] = [];
 
   for (const pick of picks) {
-    const sportSlug = (Array.isArray(pick.sport) ? pick.sport[0]?.slug : pick.sport?.slug) || "football";
-    const legs = (pick.legs || []) as Array<Record<string, unknown>>;
+    const pickAny = pick as Record<string, unknown>;
+    const sportObj = pickAny.sport as Record<string, unknown> | Array<Record<string, unknown>> | null;
+    const sportSlug = (Array.isArray(sportObj) ? sportObj[0]?.slug : sportObj?.slug) as string || "football";
+    const legs = (pickAny.legs || []) as Array<Record<string, unknown>>;
 
     if (pick.pick_type === "combine" && legs.length > 1) {
       // Combined: search each leg
       for (const leg of legs) {
-        const legSport = (Array.isArray(leg.sport) ? (leg.sport as Array<Record<string, unknown>>)[0]?.slug : (leg.sport as Record<string, unknown>)?.slug) || sportSlug;
+        const legSportObj = leg.sport as Record<string, unknown> | Array<Record<string, unknown>> | null;
+        const legSport = (Array.isArray(legSportObj) ? legSportObj[0]?.slug : legSportObj?.slug) as string || sportSlug;
         searchJobs.push({
           key: `${pick.id}_leg${leg.leg_number}`,
           eventName: String(leg.event_name),
           eventDate: String(leg.event_date || pick.event_date),
-          sportSlug: String(legSport),
+          sportSlug: legSport,
         });
       }
     } else {
@@ -117,7 +120,9 @@ async function getPickScore(pickId: string) {
     return NextResponse.json({ found: false });
   }
 
-  const sportSlug = (Array.isArray(pick.sport) ? pick.sport[0]?.slug : pick.sport?.slug) || "football";
+  const pickAny = pick as Record<string, unknown>;
+  const sportObj = pickAny.sport as Record<string, unknown> | Array<Record<string, unknown>> | null;
+  const sportSlug = (Array.isArray(sportObj) ? sportObj[0]?.slug : sportObj?.slug) as string || "football";
   const result = await findScore(pick.event_name, pick.event_date, sportSlug);
 
   if (!result) {
