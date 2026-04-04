@@ -31,9 +31,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const totalProfit = picks.reduce((s, p) => s + (p.profit ?? 0), 0);
   const wonPicks = picks.filter((p) => p.status === "won" || p.status === "half_won").length;
   const resolvedPicks = picks.filter((p) => p.status !== "void").length;
-  const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 100) : 0;
+  const winRate = resolvedPicks > 0 ? Math.round((wonPicks / resolvedPicks) * 10000) / 100 : 0;
   const totalStaked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
-  const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100) : 0;
+  const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 10000) / 100 : 0;
   const avgOdds = totalPicks > 0 ? (picks.reduce((s, p) => s + p.odds, 0) / totalPicks).toFixed(3) : "0";
 
   // Current streak
@@ -186,8 +186,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="mx-auto grid max-w-4xl grid-cols-3 gap-y-2 px-2 py-3 sm:grid-cols-6 sm:gap-y-0 sm:divide-x sm:divide-neutral-800 sm:px-4 sm:py-6">
             {[
               { label: t("stats_picks"), value: totalPicks },
-              { label: t("stats_winrate"), value: `${winRate}%`, green: winRate >= 50 },
-              { label: t("stats_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, green: roi >= 0 },
+              { label: t("stats_winrate"), value: `${Number(winRate).toFixed(2)}%`, green: winRate >= 50 },
+              { label: t("stats_roi"), value: `${roi >= 0 ? "+" : ""}${Number(roi).toFixed(2)}%`, green: roi >= 0 },
               { label: t("stats_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, green: totalProfit >= 0 },
               { label: t("stats_avg_odds"), value: avgOdds },
               { label: t("stats_streak"), value: currentStreak, green: streakType === "W" },
