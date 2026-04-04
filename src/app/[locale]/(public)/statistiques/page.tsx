@@ -109,9 +109,9 @@ export default function StatistiquesPage() {
     return (units * uv).toFixed(2);
   }
   const isEuroMode = showEuro && displayMode === "euros";
-  function displayVal(units: number, suffix = true) {
+  function displayVal(units: number, suffix = true, decimals = 3) {
     if (isEuroMode) return `${suffix ? "" : ""}${toEuro(units)}${suffix ? "€" : ""}`;
-    return `${suffix ? "" : ""}${(Math.round(units * 1000) / 1000).toFixed(3)}${suffix ? "U" : ""}`;
+    return `${suffix ? "" : ""}${(Math.round(units * Math.pow(10, decimals)) / Math.pow(10, decimals)).toFixed(decimals)}${suffix ? "U" : ""}`;
   }
 
   return (
@@ -330,7 +330,7 @@ export default function StatistiquesPage() {
             </div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" />
-              <p className="mt-1 text-2xl font-extrabold text-neutral-900">{displayVal(o.totalStaked)}</p>
+              <p className="mt-1 text-2xl font-extrabold text-neutral-900">{displayVal(o.totalStaked, true, 2)}</p>
               <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_total_staked")}</p>
             </div>
           </div>

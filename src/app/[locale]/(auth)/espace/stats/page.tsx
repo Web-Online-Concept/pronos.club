@@ -115,9 +115,9 @@ export default function MesStatsPage() {
     return (units * userUnitValue).toFixed(2);
   }
   const isEuroMode = showEuro && displayMode === "euros" && userUnitValue > 0;
-  function displayVal(units: number) {
+  function displayVal(units: number, decimals = 3) {
     if (isEuroMode) return `${toEuro(units)}€`;
-    return `${(Math.round(units * 1000) / 1000).toFixed(3)}U`;
+    return `${(Math.round(units * Math.pow(10, decimals)) / Math.pow(10, decimals)).toFixed(decimals)}U`;
   }
 
   return (
@@ -199,7 +199,7 @@ export default function MesStatsPage() {
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md"><div className={`absolute inset-x-0 top-0 h-1 ${(o.currentStreak ?? "").startsWith("W") ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-red-500"}`} /><p className={`mt-1 text-2xl font-extrabold ${(o.currentStreak ?? "").startsWith("W") ? "text-emerald-600" : "text-red-500"}`}>{o.currentStreak ?? "-"}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_current_streak")}</p></div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md"><div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-500" /><p className="mt-1 text-2xl font-extrabold text-emerald-600">{o.maxWinStreak}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_max_win_streak")}</p></div>
             <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md"><div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-400 to-red-500" /><p className="mt-1 text-2xl font-extrabold text-red-500">{o.maxLoseStreak}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_max_lose_streak")}</p></div>
-            <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md"><div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" /><p className="mt-1 text-2xl font-extrabold text-neutral-900">{displayVal(o.staked)}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_total_staked")}</p></div>
+            <div className="group relative overflow-hidden rounded-2xl border border-neutral-100 bg-white p-4 text-center shadow-sm transition hover:shadow-md"><div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-amber-500" /><p className="mt-1 text-2xl font-extrabold text-neutral-900">{displayVal(o.staked, 2)}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">{t("kpi_total_staked")}</p></div>
           </div>
 
           {(o.bestPick || o.worstPick) && (

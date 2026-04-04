@@ -185,7 +185,7 @@ export async function GET(request: Request) {
     overview: {
       totalFollowed, won, lost, voidPicks,
       profit: Math.round(profit * 1000) / 1000,
-      staked: Math.round(staked * 1000) / 1000,
+      staked: Math.round(staked * 100) / 100,
       roi: Math.round(roi * 100) / 100,
       winRate: Math.round(winRate * 100) / 100,
       avgOdds: Math.round(avgOdds * 1000) / 1000,
