@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
+import LiveScore from "@/components/picks/LiveScore";
 import type { Pick, PickLeg, Bookmaker } from "@/lib/supabase/types";
 
 // Module-level cache for tipster bankroll — shared across all PickCard instances
@@ -502,6 +503,13 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                       {pick.analysis_fr}
                     </p>
                   )}
+
+                  {/* Row 4b: Live Score */}
+                  <LiveScore
+                    pickId={pick.id}
+                    eventDate={pick.event_date}
+                    pickStatus={pick.status}
+                  />
 
                   {/* Row 5: bottom bar — cote | mise | bookmaker */}
                   <div className="mt-3 flex flex-wrap items-stretch gap-2">
