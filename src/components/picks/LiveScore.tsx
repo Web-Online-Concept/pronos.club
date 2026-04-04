@@ -23,7 +23,9 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
   const [loaded, setLoaded] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const shouldFetch = pickStatus === "pending" && isRecentEvent(eventDate);
+  const isPending = pickStatus === "pending";
+  const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(pickStatus);
+  const shouldFetch = isRecentEvent(eventDate) && (isPending || isResolved);
 
   useEffect(() => {
     if (!shouldFetch) {
@@ -33,8 +35,10 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
 
     fetchScore();
 
-    // Poll every 60s
-    intervalRef.current = setInterval(fetchScore, 60000);
+    // Poll every 60s only for pending picks (live matches)
+    if (isPending) {
+      intervalRef.current = setInterval(fetchScore, 60000);
+    }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

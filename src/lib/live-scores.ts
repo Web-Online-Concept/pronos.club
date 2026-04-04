@@ -73,7 +73,13 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
 
   let matches = 0;
   for (const pw of pickWords) {
-    if (apiWords.some(aw => aw === pw || aw.startsWith(pw) || pw.startsWith(aw))) {
+    if (apiWords.some(aw => {
+      if (aw === pw) return true;
+      if (aw.startsWith(pw) || pw.startsWith(aw)) return true;
+      // Language variant: compare first 4+ chars (parme/parma, lyon/lyonnais, etc.)
+      if (pw.length >= 4 && aw.length >= 4 && pw.slice(0, 4) === aw.slice(0, 4)) return true;
+      return false;
+    })) {
       matches++;
     }
   }

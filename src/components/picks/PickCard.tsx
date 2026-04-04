@@ -458,6 +458,12 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                                 : "bg-white/5 text-white/60 ring-1 ring-white/10"
                               }`}>@{leg.odds}</span>
                             </div>
+                            {/* Live Score per leg */}
+                            <LiveScore
+                              pickId={pick.id}
+                              eventDate={leg.event_date ?? pick.event_date}
+                              pickStatus={pick.status}
+                            />
                           </div>
                         );
                       })}
