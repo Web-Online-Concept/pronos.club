@@ -580,8 +580,8 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           <span className="text-[11px] font-extrabold text-emerald-950">{status.label}</span>
                           {displayProfit !== null && displayProfit !== 0 && (
                             <span className="text-[11px] font-extrabold text-emerald-950">
-                              +{displayProfit}U
-                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-emerald-950/60">({(displayProfit * tipsterUnitEuro).toFixed(0)}€)</span>}
+                              +{Number(displayProfit).toFixed(3)}U
+                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-emerald-950/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>}
                             </span>
                           )}
                         </div>
@@ -591,8 +591,8 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           <span className="text-[11px] font-extrabold text-white">{status.label}</span>
                           {displayProfit !== null && displayProfit !== 0 && (
                             <span className="text-[11px] font-extrabold text-white/90">
-                              {displayProfit}U
-                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-white/60">({(displayProfit * tipsterUnitEuro).toFixed(0)}€)</span>}
+                              {Number(displayProfit).toFixed(3)}U
+                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-white/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>}
                             </span>
                           )}
                         </div>
