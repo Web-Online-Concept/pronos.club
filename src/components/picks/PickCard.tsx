@@ -503,74 +503,73 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                     </p>
                   )}
 
-                  {/* Row 5: bottom bar — cote | mise | bookmaker ... status */}
-                  <div className="mt-3 flex items-stretch gap-2">
-                    {/* Left: cote + mise + bookmaker */}
-                    <div className="flex items-stretch gap-2">
-                      {/* Cote */}
-                      <div className="flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5">
-                        <span
-                          className="font-mono text-sm font-extrabold"
-                          style={{ color: colors.accent }}
-                        >
-                          {pick.odds}
+                  {/* Row 5: bottom bar — cote | mise | bookmaker */}
+                  <div className="mt-3 flex flex-wrap items-stretch gap-2">
+                    {/* Cote */}
+                    <div className="flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5">
+                      <span
+                        className="font-mono text-sm font-extrabold"
+                        style={{ color: colors.accent }}
+                      >
+                        {pick.odds}
+                      </span>
+                      {pick.min_odds && (
+                        <span className="text-[9px] font-bold text-white/30" title="Cote minimum">
+                          min {pick.min_odds}
                         </span>
-                        {pick.min_odds && (
-                          <span className="text-[9px] font-bold text-white/30" title="Cote minimum">
-                            min {pick.min_odds}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Mise */}
-                      <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2.5">
-                        <span className="text-[11px] font-bold text-white/60">{pick.stake}U</span>
-                        {tipsterUnitEuro > 0 && (
-                          <span className="text-[10px] text-white/30">({(pick.stake * tipsterUnitEuro).toFixed(0)}€)</span>
-                        )}
-                      </div>
-
-                      {/* Bookmaker */}
-                      {pick.bookmaker && (
-                        <Link
-                          href={`/fr/bookmakers/${pick.bookmaker.slug ?? pick.bookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                          className="flex items-center rounded-lg bg-white/5 px-2.5 transition hover:bg-white/10"
-                          title={pick.bookmaker.name}
-                        >
-                          <span className="text-[11px] font-semibold text-white/60">{pick.bookmaker.name}</span>
-                        </Link>
-                      )}
-
-                      {/* Bet link */}
-                      {pick.bet_url && (
-                        <a
-                          href={pick.bet_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 rounded-lg px-2.5 transition hover:opacity-80"
-                          style={{ backgroundColor: `${colors.accent}25` }}
-                        >
-                          <span className="text-xs">🔗</span>
-                          <span
-                            className="text-[11px] font-bold"
-                            style={{ color: colors.accent }}
-                          >
-                            Lien Prono
-                          </span>
-                        </a>
                       )}
                     </div>
 
-                    {/* Right: status + profit (use userProfit in personal history, else tipster profit) */}
+                    {/* Mise */}
+                    <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2.5">
+                      <span className="text-[11px] font-bold text-white/60">{pick.stake}U</span>
+                      {tipsterUnitEuro > 0 && (
+                        <span className="text-[10px] text-white/30">({(pick.stake * tipsterUnitEuro).toFixed(0)}€)</span>
+                      )}
+                    </div>
+
+                    {/* Bookmaker */}
+                    {pick.bookmaker && (
+                      <Link
+                        href={`/fr/bookmakers/${pick.bookmaker.slug ?? pick.bookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        className="flex items-center rounded-lg bg-white/5 px-2.5 transition hover:bg-white/10"
+                        title={pick.bookmaker.name}
+                      >
+                        <span className="text-[11px] font-semibold text-white/60">{pick.bookmaker.name}</span>
+                      </Link>
+                    )}
+
+                    {/* Bet link */}
+                    {pick.bet_url && (
+                      <a
+                        href={pick.bet_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 rounded-lg px-2.5 transition hover:opacity-80"
+                        style={{ backgroundColor: `${colors.accent}25` }}
+                      >
+                        <span className="text-xs">🔗</span>
+                        <span
+                          className="text-[11px] font-bold"
+                          style={{ color: colors.accent }}
+                        >
+                          Lien Prono
+                        </span>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Row 6: status + profit — separate row for mobile */}
+                  <div className="mt-2 flex items-center">
                     {(() => {
                       const displayProfit = userProfit !== undefined && userProfit !== null ? userProfit : pick.profit;
                       return isAwaitingResult ? (
-                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5">
+                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
                           <span className="text-xs">⏳</span>
                           <span className="text-[11px] font-bold text-blue-400">En attente</span>
                         </div>
                       ) : pick.status === "pending" ? (
-                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5">
+                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
                           <span className="text-xs">{status.icon}</span>
                           <span className="text-[11px] font-bold text-white/50">{status.label}</span>
                         </div>
@@ -581,8 +580,10 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           {displayProfit !== null && displayProfit !== 0 && (
                             <span className="text-[11px] font-extrabold text-emerald-950">
                               +{Number(displayProfit).toFixed(3)}U
-                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-emerald-950/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>}
                             </span>
+                          )}
+                          {displayProfit !== null && displayProfit !== 0 && tipsterUnitEuro > 0 && (
+                            <span className="text-[9px] font-bold text-emerald-950/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>
                           )}
                         </div>
                       ) : pick.status === "lost" || pick.status === "half_lost" ? (
@@ -592,8 +593,10 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           {displayProfit !== null && displayProfit !== 0 && (
                             <span className="text-[11px] font-extrabold text-white/90">
                               {Number(displayProfit).toFixed(3)}U
-                              {tipsterUnitEuro > 0 && <span className="ml-0.5 text-[9px] font-bold text-white/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>}
                             </span>
+                          )}
+                          {displayProfit !== null && displayProfit !== 0 && tipsterUnitEuro > 0 && (
+                            <span className="text-[9px] font-bold text-white/60">({(displayProfit * tipsterUnitEuro).toFixed(2)}€)</span>
                           )}
                         </div>
                       ) : (
