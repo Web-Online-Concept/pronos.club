@@ -160,13 +160,49 @@ function normalize(name: string): string {
 }
 
 export function extractTeams(eventName: string): string[] {
-  const separators = [" - ", " vs ", " v ", " – ", " — ", " contre "];
-  for (const sep of separators) {
-    if (eventName.toLowerCase().includes(sep.toLowerCase())) {
-      return eventName.split(new RegExp(sep, "i")).map(normalize).filter(Boolean);
+  // Handle sloppy separators: "Darderi -Trungelletti", "maroszan- merida aguilar"
+  // Match: optional spaces around -, vs, –, —
+  const sepRegex = /\s*[-–—]\s*|\s+vs\.?\s+|\s+v\s+|\s+contre\s+/i;
+  const parts = eventName.split(sepRegex).map(normalize).filter(Boolean);
+  if (parts.length >= 2) return parts;
+  return [normalize(eventName)];
+}
+
+/**
+ * Simple Levenshtein distance for short strings
+ */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
     }
   }
-  return [normalize(eventName)];
+  return dp[m][n];
+}
+
+function wordsMatch(apiWord: string, pickWord: string): boolean {
+  if (apiWord === pickWord) return true;
+  if (apiWord.startsWith(pickWord) || pickWord.startsWith(apiWord)) return true;
+
+  // Levenshtein: allow 1 typo for words >= 5 chars, 2 for >= 8 chars
+  const maxDist = pickWord.length >= 8 ? 2 : pickWord.length >= 5 ? 1 : 0;
+  if (maxDist > 0 && levenshtein(apiWord, pickWord) <= maxDist) return true;
+
+  // First 4 chars match (language variants: parme/parma, maroszan/marozsan)
+  if (pickWord.length >= 4 && apiWord.length >= 4 && pickWord.slice(0, 4) === apiWord.slice(0, 4)) {
+    // But require similar length to avoid false positives
+    if (Math.abs(apiWord.length - pickWord.length) <= 3) return true;
+  }
+
+  return false;
 }
 
 export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
@@ -181,20 +217,18 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
 
   if (pickWords.length === 0) return false;
 
+  // For tennis players, matching ANY significant word from pick in API name is enough
+  // "merida aguilar" should match "Daniel Merida" (merida matches)
+  // "trungelletti" should match "Marco Trungelliti" (1 edit distance)
   let matches = 0;
   for (const pw of pickWords) {
-    if (apiWords.some(aw => {
-      if (aw === pw) return true;
-      if (aw.startsWith(pw) || pw.startsWith(aw)) return true;
-      // Language variants: compare first 4+ chars (parme/parma, etc.)
-      if (pw.length >= 4 && aw.length >= 4 && pw.slice(0, 4) === aw.slice(0, 4)) return true;
-      return false;
-    })) {
+    if (apiWords.some(aw => wordsMatch(aw, pw))) {
       matches++;
     }
   }
 
-  return matches >= Math.max(1, Math.ceil(pickWords.length * 0.5));
+  // At least 1 significant word must match
+  return matches >= 1;
 }
 
 // ═══════════════════════════════════════════════
