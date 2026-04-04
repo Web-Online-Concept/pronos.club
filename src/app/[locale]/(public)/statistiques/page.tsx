@@ -111,7 +111,7 @@ export default function StatistiquesPage() {
   const isEuroMode = showEuro && displayMode === "euros";
   function displayVal(units: number, suffix = true) {
     if (isEuroMode) return `${suffix ? "" : ""}${toEuro(units)}${suffix ? "€" : ""}`;
-    return `${suffix ? "" : ""}${Math.round(units * 100) / 100}${suffix ? "U" : ""}`;
+    return `${suffix ? "" : ""}${(Math.round(units * 1000) / 1000).toFixed(3)}${suffix ? "U" : ""}`;
   }
 
   return (

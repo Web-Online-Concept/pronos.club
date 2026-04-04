@@ -188,7 +188,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               { label: t("stats_picks"), value: totalPicks },
               { label: t("stats_winrate"), value: `${winRate}%`, green: winRate >= 50 },
               { label: t("stats_roi"), value: `${roi >= 0 ? "+" : ""}${roi}%`, green: roi >= 0 },
-              { label: t("stats_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(1)}U`, green: totalProfit >= 0 },
+              { label: t("stats_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, green: totalProfit >= 0 },
               { label: t("stats_avg_odds"), value: avgOdds },
               { label: t("stats_streak"), value: currentStreak, green: streakType === "W" },
             ].map((stat) => (
@@ -276,7 +276,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                         {pick.profit !== null && (
                           <span>
                             {(pick.profit ?? 0) >= 0 ? "+" : ""}
-                            {pick.profit}U
+                            {Number(pick.profit).toFixed(3)}U
                           </span>
                         )}
                       </span>

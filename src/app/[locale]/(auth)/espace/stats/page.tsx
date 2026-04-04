@@ -117,7 +117,7 @@ export default function MesStatsPage() {
   const isEuroMode = showEuro && displayMode === "euros" && userUnitValue > 0;
   function displayVal(units: number) {
     if (isEuroMode) return `${toEuro(units)}€`;
-    return `${Math.round(units * 100) / 100}U`;
+    return `${(Math.round(units * 1000) / 1000).toFixed(3)}U`;
   }
 
   return (
