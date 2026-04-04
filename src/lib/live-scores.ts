@@ -214,3 +214,68 @@ export function parseGenericFixtures(data: Record<string, unknown>): ParsedGame[
 
   return games;
 }
+
+/**
+ * Parse tennis games from API-Sports Tennis
+ * Tennis uses "players" instead of "teams" and "sets" for scoring
+ */
+export function parseTennisFixtures(data: Record<string, unknown>): ParsedGame[] {
+  const response = (data.response || []) as Array<Record<string, unknown>>;
+  const games: ParsedGame[] = [];
+
+  for (const item of response) {
+    const game = (item.game || {}) as Record<string, unknown>;
+    const players = (item.players || {}) as Record<string, unknown>;
+    const scores = (item.scores || {}) as Record<string, unknown>;
+
+    const home = (players.home || {}) as Record<string, unknown>;
+    const away = (players.away || {}) as Record<string, unknown>;
+
+    const statusObj = (game.status || {}) as Record<string, unknown>;
+    const statusShort = String(statusObj.short || "NS");
+
+    let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
+    if (["S1", "S2", "S3", "S4", "S5"].includes(statusShort)) gameStatus = "live";
+    else if (statusShort === "LIVE" || statusShort === "IP") gameStatus = "live";
+    else if (statusShort === "FT" || statusShort === "AO") gameStatus = "final";
+    else if (["PST", "CANC", "ABD", "WO"].includes(statusShort)) gameStatus = "postponed";
+
+    // Tennis: count sets won
+    const homeScoreObj = (scores.home || {}) as Record<string, unknown>;
+    const awayScoreObj = (scores.away || {}) as Record<string, unknown>;
+    
+    // Count total sets won by each player
+    let homeSets = 0;
+    let awaySets = 0;
+    for (const key of ["set1", "set2", "set3", "set4", "set5"]) {
+      const hVal = Number((homeScoreObj as Record<string, unknown>)[key] ?? 0);
+      const aVal = Number((awayScoreObj as Record<string, unknown>)[key] ?? 0);
+      if (hVal > 0 || aVal > 0) {
+        if (hVal > aVal) homeSets++;
+        else if (aVal > hVal) awaySets++;
+      }
+    }
+
+    // Build minute/status string for tennis
+    let minute: string | undefined;
+    if (gameStatus === "live") {
+      const currentSet = statusShort.startsWith("S") ? `Set ${statusShort[1]}` : "En cours";
+      minute = currentSet;
+    }
+
+    const gameId = Number(game.id || 0);
+
+    games.push({
+      fixtureId: gameId,
+      homeTeam: String(home.name || ""),
+      awayTeam: String(away.name || ""),
+      homeScore: homeSets,
+      awayScore: awaySets,
+      status: gameStatus,
+      minute,
+      startTime: String(game.date || item.date || ""),
+    });
+  }
+
+  return games;
+}

@@ -7,6 +7,7 @@ import {
   setCache,
   parseFootballFixtures,
   parseGenericFixtures,
+  parseTennisFixtures,
   type LiveScoreResult,
   type ParsedGame,
 } from "@/lib/live-scores";
@@ -206,9 +207,14 @@ async function fetchGames(apiBase: string, sportSlug: string, dateStr: string): 
 
     const data = await res.json();
 
-    const games = sportSlug === "football"
-      ? parseFootballFixtures(data)
-      : parseGenericFixtures(data);
+    let games: ParsedGame[];
+    if (sportSlug === "football") {
+      games = parseFootballFixtures(data);
+    } else if (sportSlug === "tennis") {
+      games = parseTennisFixtures(data);
+    } else {
+      games = parseGenericFixtures(data);
+    }
 
     setCache(cacheKey, games);
     return games;
