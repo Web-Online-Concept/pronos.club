@@ -25,16 +25,33 @@ interface LiveScoreProps {
   pickId: string;
   eventDate: string;
   pickStatus: string;
+  /** For combined legs: pass event info directly instead of pick_id lookup */
+  legEventName?: string;
+  legEventDate?: string;
+  legSportSlug?: string;
+  legCompetition?: string;
 }
 
-export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScoreProps) {
+export default function LiveScore({
+  pickId,
+  eventDate,
+  pickStatus,
+  legEventName,
+  legEventDate,
+  legSportSlug,
+  legCompetition,
+}: LiveScoreProps) {
   const [score, setScore] = useState<LiveScoreData | null>(null);
   const [loaded, setLoaded] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isPending = pickStatus === "pending";
   const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(pickStatus);
-  const shouldFetch = isRecentEvent(eventDate) && (isPending || isResolved);
+  const checkDate = legEventDate || eventDate;
+  const shouldFetch = isRecentEvent(checkDate) && (isPending || isResolved);
+
+  // Build the fetch URL
+  const isLegMode = !!legEventName;
 
   useEffect(() => {
     if (!shouldFetch) {
@@ -44,7 +61,6 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
 
     fetchScore();
 
-    // Poll every 60s only for pending picks (live matches)
     if (isPending) {
       intervalRef.current = setInterval(fetchScore, 60000);
     }
@@ -52,9 +68,8 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [pickId, shouldFetch]);
+  }, [pickId, legEventName, shouldFetch]);
 
-  // Stop polling when match is final
   useEffect(() => {
     if (score?.matchStatus === "final" && intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -64,7 +79,22 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
 
   async function fetchScore() {
     try {
-      const res = await fetch(`/api/live-scores?pick_id=${pickId}`);
+      let url: string;
+      if (isLegMode) {
+        // Combined leg: search by event details directly
+        const params = new URLSearchParams({
+          event: legEventName!,
+          date: legEventDate || eventDate,
+          sport: legSportSlug || "football",
+        });
+        if (legCompetition) params.set("competition", legCompetition);
+        url = `/api/live-scores?${params.toString()}`;
+      } else {
+        // Simple pick: search by pick_id
+        url = `/api/live-scores?pick_id=${pickId}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) { setLoaded(true); return; }
       const data = await res.json();
       if (data.found === false || !data.homeTeam) {
@@ -110,7 +140,6 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
         ? "bg-white/5 border border-white/10"
         : "bg-amber-500/10 border border-amber-500/20"
     }`}>
-      {/* Live pulse */}
       {isPlaying && (
         <span className="relative flex h-2 w-2 flex-shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
@@ -118,7 +147,6 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
         </span>
       )}
 
-      {/* Status */}
       <span className={`text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
         isPlaying ? "text-red-400"
         : isFinal ? "text-white/40"
@@ -127,14 +155,12 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
         {isLive ? "LIVE" : isHalftime ? "MI-TEMPS" : isExtraTime ? "PROL." : isPenalties ? "TIRS AU BUT" : isFinal ? "TERMINÉ" : isPostponed ? "REPORTÉ" : ""}
       </span>
 
-      {/* Score */}
       <span className={`font-mono text-lg font-extrabold ${
         isPlaying ? "text-white" : "text-white/60"
       }`}>
         {score.homeScore} - {score.awayScore}
       </span>
 
-      {/* Minute */}
       {isPlaying && score.minute && (
         <span className="text-[10px] font-bold text-red-400/70 flex-shrink-0">
           {score.minute}
@@ -146,7 +172,7 @@ export default function LiveScore({ pickId, eventDate, pickStatus }: LiveScorePr
 
 // ═══════════════════════════════════════════════
 // TENNIS DISPLAY
-// Format: "Navone  6/4  3/6  6/4  Van de Zandschulp"
+// Format: "Navone  6/4  3/6  6/4  Van De Zandschulp"
 // ═══════════════════════════════════════════════
 
 function getLastName(fullName: string): string {
@@ -201,14 +227,12 @@ function TennisScore({
 
       {/* Tennis score line: Name  6/4  3/6  7/5  Name */}
       <div className="flex items-center justify-center gap-2">
-        {/* Home player name */}
         <span className={`text-xs font-bold truncate max-w-[90px] text-right ${
           homeWon ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
         }`}>
           {homeName}
         </span>
 
-        {/* Set scores */}
         <div className="flex items-center gap-1">
           {sets.map((set, i) => {
             const isHomeSetWin = set.home > set.away;
@@ -234,7 +258,6 @@ function TennisScore({
           })}
         </div>
 
-        {/* Away player name */}
         <span className={`text-xs font-bold truncate max-w-[90px] text-left ${
           awayWon ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
         }`}>

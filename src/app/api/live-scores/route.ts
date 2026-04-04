@@ -33,7 +33,18 @@ export async function GET(request: Request) {
     return getPickScore(pickId);
   }
 
-  return NextResponse.json({ error: "Use ?active=true or ?pick_id=xxx" }, { status: 400 });
+  // Direct event search (used by combined legs)
+  const eventName = searchParams.get("event");
+  const eventDate = searchParams.get("date");
+  const sportSlug = searchParams.get("sport") || "football";
+  const competition = searchParams.get("competition") || null;
+  if (eventName && eventDate) {
+    const result = await findScore(eventName, eventDate, sportSlug, competition);
+    if (!result) return NextResponse.json({ found: false });
+    return NextResponse.json(result);
+  }
+
+  return NextResponse.json({ error: "Use ?active=true or ?pick_id=xxx or ?event=xxx&date=xxx&sport=xxx" }, { status: 400 });
 }
 
 // ═══════════════════════════════════════════════

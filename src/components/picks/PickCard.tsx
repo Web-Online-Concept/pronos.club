@@ -462,7 +462,11 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                             <LiveScore
                               pickId={pick.id}
                               eventDate={leg.event_date ?? pick.event_date}
-                              pickStatus={pick.status}
+                              pickStatus={leg.status ?? pick.status}
+                              legEventName={leg.event_name}
+                              legEventDate={leg.event_date ?? pick.event_date}
+                              legSportSlug={leg.sport?.slug ?? pick.sport?.slug}
+                              legCompetition={leg.competition ?? pick.competition}
                             />
                           </div>
                         );
