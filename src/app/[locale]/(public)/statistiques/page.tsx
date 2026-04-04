@@ -274,11 +274,11 @@ export default function StatistiquesPage() {
               <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_picks")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
-              <p className={`text-3xl font-extrabold ${o.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{o.winRate}%</p>
+              <p className={`text-3xl font-extrabold ${o.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{Number(o.winRate).toFixed(2)}%</p>
               <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_winrate")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
-              <p className={`text-3xl font-extrabold ${o.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{o.roi >= 0 ? "+" : ""}{o.roi}%</p>
+              <p className={`text-3xl font-extrabold ${o.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{o.roi >= 0 ? "+" : ""}{Number(o.roi).toFixed(2)}%</p>
               <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{t("kpi_roi")}</p>
             </div>
             <div className="relative overflow-hidden rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}>
@@ -465,7 +465,7 @@ export default function StatistiquesPage() {
                         <td className="py-2 font-medium">{formatMonth(m.month)}</td>
                         <td className="py-2 text-center">{m.total}</td>
                         <td className="py-2 text-center">{m.won}W {m.lost}L</td>
-                        <td className="py-2 text-center">{m.roi}%</td>
+                        <td className="py-2 text-center">{Number(m.roi).toFixed(2)}%</td>
                         <td className={`py-2 text-right font-bold ${m.profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                           {m.profit >= 0 ? "+" : ""}{displayVal(m.profit)}
                         </td>
@@ -521,11 +521,11 @@ export default function StatistiquesPage() {
                         <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_record")}</p>
                       </div>
                       <div className="text-center">
-                        <p className={`text-sm font-extrabold ${s.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{s.winRate}%</p>
+                        <p className={`text-sm font-extrabold ${s.winRate >= 50 ? "text-emerald-400" : "text-red-400"}`}>{Number(s.winRate).toFixed(2)}%</p>
                         <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_winrate")}</p>
                       </div>
                       <div className="text-center">
-                        <p className={`text-sm font-extrabold ${s.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{s.roi}%</p>
+                        <p className={`text-sm font-extrabold ${s.roi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{Number(s.roi).toFixed(2)}%</p>
                         <p className="text-[9px] font-semibold uppercase tracking-wider text-white/30">{t("sport_roi")}</p>
                       </div>
                     </div>
@@ -565,8 +565,8 @@ export default function StatistiquesPage() {
                         <td className="py-2 font-medium">{b.name}</td>
                         <td className="py-2 text-center">{b.total}</td>
                         <td className="py-2 text-center">{b.won}W {b.lost}L</td>
-                        <td className="py-2 text-center">{b.winRate}%</td>
-                        <td className="py-2 text-center">{b.roi}%</td>
+                        <td className="py-2 text-center">{Number(b.winRate).toFixed(2)}%</td>
+                        <td className="py-2 text-center">{Number(b.roi).toFixed(2)}%</td>
                         <td className={`py-2 text-right font-bold ${b.profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                           {b.profit >= 0 ? "+" : ""}{displayVal(b.profit)}
                         </td>
@@ -608,7 +608,7 @@ export default function StatistiquesPage() {
                     <span className="text-sm font-medium">{d.label}</span>
                     <div className="flex gap-4 text-xs">
                       <span className="opacity-50">{d.total} picks</span>
-                      <span className="opacity-50">WR {d.winRate}%</span>
+                      <span className="opacity-50">WR {Number(d.winRate).toFixed(2)}%</span>
                       <span className={`font-bold ${d.profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                         {d.profit >= 0 ? "+" : ""}{displayVal(d.profit)}
                       </span>
