@@ -234,68 +234,127 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
   const games: ParsedGame[] = [];
 
   for (const event of events) {
-    const competitions = (event.competitions || []) as Array<Record<string, unknown>>;
-    if (competitions.length === 0) continue;
+    // Collect all competitions from the event
+    // Football: event.competitions[] (flat)
+    // Tennis: event.groupings[].competitions[] (nested under groupings)
+    const allCompetitions: Array<Record<string, unknown>> = [];
 
-    const comp = competitions[0];
-    const competitors = (comp.competitors || []) as Array<Record<string, unknown>>;
-    if (competitors.length < 2) continue;
+    // Direct competitions (football, basketball, etc.)
+    const directComps = (event.competitions || []) as Array<Record<string, unknown>>;
+    allCompetitions.push(...directComps);
 
-    const statusObj = (comp.status || event.status || {}) as Record<string, unknown>;
-    const statusType = (statusObj.type || {}) as Record<string, unknown>;
-    const state = String(statusType.state || "pre");
-    const description = String(statusType.description || statusType.detail || "");
+    // Grouped competitions (tennis: groupings → competitions)
+    const groupings = (event.groupings || []) as Array<Record<string, unknown>>;
+    for (const grouping of groupings) {
+      // Only take Men's Singles (skip doubles)
+      const grpInfo = (grouping.grouping || {}) as Record<string, unknown>;
+      const slug = String(grpInfo.slug || "");
+      if (slug && slug.includes("doubles")) continue;
 
-    let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
-    if (state === "in") {
-      gameStatus = description.toLowerCase().includes("halftime") ? "halftime" : "live";
-    } else if (state === "post") {
-      gameStatus = "final";
-    } else if (state === "pre") {
-      gameStatus = "scheduled";
+      const grpComps = (grouping.competitions || []) as Array<Record<string, unknown>>;
+      allCompetitions.push(...grpComps);
     }
 
-    // Check for postponed
-    const statusName = String(statusType.name || "").toLowerCase();
-    if (statusName.includes("postponed") || statusName.includes("canceled")) {
-      gameStatus = "postponed";
-    }
+    // Parse each competition
+    for (const comp of allCompetitions) {
+      const competitors = (comp.competitors || []) as Array<Record<string, unknown>>;
+      if (competitors.length < 2) continue;
 
-    // Find home and away
-    const home = competitors.find(c => c.homeAway === "home") || competitors[0];
-    const away = competitors.find(c => c.homeAway === "away") || competitors[1];
+      const statusObj = (comp.status || event.status || {}) as Record<string, unknown>;
+      const statusType = (statusObj.type || {}) as Record<string, unknown>;
+      const state = String(statusType.state || "pre");
+      const description = String(statusType.description || statusType.detail || "");
 
-    const homeTeamObj = (home.team || home.athlete || {}) as Record<string, unknown>;
-    const awayTeamObj = (away.team || away.athlete || {}) as Record<string, unknown>;
-
-    // For tennis, ESPN uses "athlete" instead of "team"
-    const homeName = String(homeTeamObj.displayName || homeTeamObj.shortDisplayName || homeTeamObj.name || "");
-    const awayName = String(awayTeamObj.displayName || awayTeamObj.shortDisplayName || awayTeamObj.name || "");
-
-    const homeScore = Number(home.score || 0);
-    const awayScore = Number(away.score || 0);
-
-    // Minute / clock
-    const displayClock = statusObj.displayClock as string | undefined;
-    let minute: string | undefined;
-    if (state === "in") {
-      if (displayClock && displayClock !== "0:00") {
-        minute = displayClock;
-      } else if (description) {
-        minute = description;
+      let gameStatus: LiveScoreResult["matchStatus"] = "scheduled";
+      if (state === "in") {
+        gameStatus = description.toLowerCase().includes("halftime") ? "halftime" : "live";
+      } else if (state === "post") {
+        gameStatus = "final";
+      } else if (state === "pre") {
+        gameStatus = "scheduled";
       }
-    }
 
-    games.push({
-      fixtureId: String(event.id || ""),
-      homeTeam: homeName,
-      awayTeam: awayName,
-      homeScore,
-      awayScore,
-      status: gameStatus,
-      minute,
-      startTime: String(event.date || comp.date || ""),
-    });
+      // Check for postponed / retired / walkover
+      const statusName = String(statusType.name || "").toLowerCase();
+      if (statusName.includes("postponed") || statusName.includes("canceled")) {
+        gameStatus = "postponed";
+      }
+      // Tennis: retired and walkover count as final
+      if (statusName.includes("retired") || statusName.includes("walkover")) {
+        gameStatus = "final";
+      }
+
+      // Find home and away
+      const home = competitors.find(c => c.homeAway === "home") || competitors[0];
+      const away = competitors.find(c => c.homeAway === "away") || competitors[1];
+
+      // Football: competitor.team.displayName
+      // Tennis singles: competitor.athlete.displayName
+      // Tennis doubles: competitor.roster.displayName (skip these via grouping filter above)
+      const homeTeamObj = (home.team || home.athlete || {}) as Record<string, unknown>;
+      const awayTeamObj = (away.team || away.athlete || {}) as Record<string, unknown>;
+
+      const homeName = String(homeTeamObj.displayName || homeTeamObj.shortDisplayName || homeTeamObj.name || "");
+      const awayName = String(awayTeamObj.displayName || awayTeamObj.shortDisplayName || awayTeamObj.name || "");
+
+      // Skip TBD matches
+      if (homeName === "TBD" || awayName === "TBD") continue;
+
+      // Tennis score: sum of sets won (from linescores)
+      const homeLinescores = (home.linescores || []) as Array<Record<string, unknown>>;
+      const awayLinescores = (away.linescores || []) as Array<Record<string, unknown>>;
+
+      let homeScore: number;
+      let awayScore: number;
+
+      if (homeLinescores.length > 0) {
+        // Tennis: count sets won
+        homeScore = homeLinescores.filter(s => s.winner === true).length;
+        awayScore = awayLinescores.filter(s => s.winner === true).length;
+      } else {
+        // Football/basketball: simple score
+        homeScore = Number(home.score || 0);
+        awayScore = Number(away.score || 0);
+      }
+
+      // Minute / clock / set info
+      let minute: string | undefined;
+      if (state === "in") {
+        // For tennis, show current set detail
+        if (homeLinescores.length > 0) {
+          const setScores = homeLinescores.map((hs, i) => {
+            const as = awayLinescores[i];
+            return `${Number(hs.value || 0)}-${Number(as?.value || 0)}`;
+          }).join(" ");
+          minute = setScores || description;
+        } else {
+          const displayClock = statusObj.displayClock as string | undefined;
+          if (displayClock && displayClock !== "0:00") {
+            minute = displayClock;
+          } else if (description) {
+            minute = description;
+          }
+        }
+      } else if (state === "post" && homeLinescores.length > 0) {
+        // For finished tennis matches, show set scores
+        const setScores = homeLinescores.map((hs, i) => {
+          const as = awayLinescores[i];
+          return `${Number(hs.value || 0)}-${Number(as?.value || 0)}`;
+        }).join(" ");
+        minute = setScores;
+      }
+
+      games.push({
+        fixtureId: String(comp.id || event.id || ""),
+        homeTeam: homeName,
+        awayTeam: awayName,
+        homeScore,
+        awayScore,
+        status: gameStatus,
+        minute,
+        startTime: String(comp.date || event.date || ""),
+      });
+    }
   }
 
   return games;
