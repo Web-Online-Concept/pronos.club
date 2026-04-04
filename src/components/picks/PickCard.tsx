@@ -514,12 +514,14 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                     </p>
                   )}
 
-                  {/* Row 4b: Live Score */}
-                  <LiveScore
-                    pickId={pick.id}
-                    eventDate={pick.event_date}
-                    pickStatus={pick.status}
-                  />
+                  {/* Row 4b: Live Score (simple picks only — combinés have per-leg scores) */}
+                  {!isCombi && (
+                    <LiveScore
+                      pickId={pick.id}
+                      eventDate={pick.event_date}
+                      pickStatus={pick.status}
+                    />
+                  )}
 
                   {/* Row 5: bottom bar — cote | mise | bookmaker */}
                   <div className="mt-3 flex flex-wrap items-stretch gap-2">
