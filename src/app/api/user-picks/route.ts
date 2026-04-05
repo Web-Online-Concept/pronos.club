@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (pickId) {
     const { data } = await supabase
       .from("user_picks")
-      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
+      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value, user_stake_euro")
       .eq("user_id", user.id)
       .eq("pick_id", pickId)
       .single();
@@ -27,12 +27,13 @@ export async function GET(request: Request) {
       user_bookmaker_other: data?.user_bookmaker_other ?? null,
       user_leg_odds: data?.user_leg_odds ?? null,
       user_unit_value: data?.user_unit_value ?? null,
+      user_stake_euro: data?.user_stake_euro ?? null,
     });
   }
 
   const { data } = await supabase
     .from("user_picks")
-    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
+    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value, user_stake_euro")
     .eq("user_id", user.id)
     .eq("followed", true);
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { pick_id, followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds } = await request.json();
+  const { pick_id, followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_stake_euro } = await request.json();
 
   if (!pick_id || typeof followed !== "boolean") {
     return NextResponse.json({ error: "Missing pick_id or followed" }, { status: 400 });
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
     if (user_bookmaker_id !== undefined) row.user_bookmaker_id = user_bookmaker_id || null;
     if (user_bookmaker_other !== undefined) row.user_bookmaker_other = user_bookmaker_other || null;
     if (user_leg_odds !== undefined) row.user_leg_odds = user_leg_odds || null;
+    if (user_stake_euro !== undefined && user_stake_euro !== null) row.user_stake_euro = user_stake_euro;
 
     // Freeze user's unit value at the time of follow
     try {
@@ -83,10 +85,22 @@ export async function POST(request: Request) {
 
         if (unitValue > 0) {
           row.user_unit_value = unitValue;
+          // If user_stake_euro not explicitly provided, auto-calculate
+          if (user_stake_euro === undefined || user_stake_euro === null) {
+            // Fetch pick stake to calculate default
+            const { data: pickData } = await supabase
+              .from("picks")
+              .select("stake")
+              .eq("id", pick_id)
+              .single();
+            if (pickData) {
+              row.user_stake_euro = Math.round(pickData.stake * unitValue * 100) / 100;
+            }
+          }
         }
       }
     } catch {
-      // Bankroll not configured — user_unit_value stays null
+      // Bankroll not configured — stays null
     }
   }
 

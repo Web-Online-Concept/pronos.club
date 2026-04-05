@@ -157,6 +157,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
   const [userBookName, setUserBookName] = useState("");
   const [bookmakers, setBookmakers] = useState<Bookmaker[]>([]);
   const [userLegOdds, setUserLegOdds] = useState<Record<number, string>>({});
+  const [userStakeEuro, setUserStakeEuro] = useState("");
   const [bkConfig, setBkConfig] = useState<{ mode: string; current_bankroll: number; unit_value: number; unit_percent: number } | null>(null);
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
@@ -179,6 +180,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
           setUserBookOther(d.user_bookmaker_other);
           setUserBookName(d.user_bookmaker_other);
         }
+        if (d.user_stake_euro) setUserStakeEuro(Number(d.user_stake_euro).toFixed(2));
         // Resolve bookmaker name if followed with a bookmaker_id
         if (d.followed && d.user_bookmaker_id && !d.user_bookmaker_other) {
           fetch("/api/bookmakers").then((r) => r.json()).then((books: Bookmaker[]) => {
@@ -200,18 +202,11 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
 
   function openFollowModal() {
     if (!user || followLoading) return;
-    if (followed) {
-      // Already followed — clicking removes
-      toggleFollow(false);
-      return;
-    }
     // Pre-fill with pick values
     if (isCombi) {
-      // For combined: pre-fill each leg's odds
       const legOdds: Record<number, string> = {};
       legs.forEach((l) => { legOdds[l.leg_number] = String(l.odds); });
       setUserLegOdds(legOdds);
-      // Combined odds = product of legs
       const combined = legs.reduce((acc, l) => acc * l.odds, 1);
       setUserOdds(String(Math.round(combined * 100) / 100));
     } else {
@@ -224,7 +219,45 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     if (bookmakers.length === 0) {
       fetch("/api/bookmakers").then((r) => r.json()).then(setBookmakers).catch(() => {});
     }
-    // Fetch bankroll config
+    // Fetch bankroll config + pre-fill stake euro
+    if (!bkConfig) {
+      fetch("/api/user-bankroll").then((r) => r.json()).then((cfg: { mode: string; current_bankroll: number; unit_value: number; unit_percent: number }) => {
+        setBkConfig(cfg);
+        if (cfg && cfg.mode !== "units_only") {
+          const uv = cfg.mode === "fixed_unit" ? cfg.unit_value : (cfg.current_bankroll * cfg.unit_percent) / 100;
+          if (uv > 0) setUserStakeEuro((pick.stake * uv).toFixed(2));
+        }
+      }).catch(() => {});
+    } else if (bkConfig.mode !== "units_only") {
+      const uv = bkConfig.mode === "fixed_unit" ? bkConfig.unit_value : (bkConfig.current_bankroll * bkConfig.unit_percent) / 100;
+      if (uv > 0) setUserStakeEuro((pick.stake * uv).toFixed(2));
+    }
+    setShowFollowModal(true);
+  }
+
+  function openEditModal() {
+    if (!user || followLoading) return;
+    // Keep current user values (already loaded from API)
+    // If no user odds set, pre-fill with pick values
+    if (!userOdds) {
+      if (isCombi) {
+        const legOdds: Record<number, string> = {};
+        legs.forEach((l) => { legOdds[l.leg_number] = String(l.odds); });
+        setUserLegOdds(legOdds);
+        const combined = legs.reduce((acc, l) => acc * l.odds, 1);
+        setUserOdds(String(Math.round(combined * 100) / 100));
+      } else {
+        setUserOdds(String(pick.odds));
+      }
+    }
+    if (!userBookmakerId) {
+      setUserBookmakerId(pick.bookmaker?.id ?? "");
+    }
+    // Fetch bookmakers if not loaded
+    if (bookmakers.length === 0) {
+      fetch("/api/bookmakers").then((r) => r.json()).then(setBookmakers).catch(() => {});
+    }
+    // Fetch bankroll config if not loaded
     if (!bkConfig) {
       fetch("/api/user-bankroll").then((r) => r.json()).then(setBkConfig).catch(() => {});
     }
@@ -271,6 +304,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
           user_bookmaker_id: userBookmakerId === "other" ? null : (userBookmakerId || null),
           user_bookmaker_other: userBookmakerId === "other" ? userBookOther : null,
           user_leg_odds: legOddsPayload,
+          user_stake_euro: userStakeEuro ? parseFloat(userStakeEuro) : null,
         }),
       });
       if (!res.ok) setFollowed(false);
@@ -650,33 +684,42 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                         <span>🔒</span>
                         Réservé aux membres Premium
                       </div>
+                    ) : followed ? (
+                      <div className="mt-3 flex w-full items-stretch gap-2">
+                        <button
+                          onClick={() => toggleFollow(false)}
+                          disabled={followLoading}
+                          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-500/20 py-2.5 text-[11px] font-bold text-emerald-400 transition hover:bg-emerald-500/30"
+                        >
+                          <span className="flex items-center gap-2">
+                            ✓ Ajouté à vos stats
+                            {(userOdds || userBookName) && (
+                              <span className="text-[10px] font-normal text-emerald-400/60">
+                                {userOdds ? `@${parseFloat(userOdds).toFixed(3)}` : ""}{userOdds && userBookName ? " sur " : ""}{userBookName || ""}
+                                {userStakeEuro ? ` · ${parseFloat(userStakeEuro).toFixed(2)}€` : ""}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                        <button
+                          onClick={openEditModal}
+                          disabled={followLoading}
+                          className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/5 px-3 py-2.5 text-[11px] font-bold text-white/40 transition hover:bg-white/10 hover:text-white/60"
+                          title="Modifier ma cote / mise / bookmaker"
+                        >
+                          ✏️
+                        </button>
+                      </div>
                     ) : (
                     <button
                       onClick={openFollowModal}
                       disabled={followLoading}
-                      className={`mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg py-2.5 text-[11px] font-bold transition ${
-                        followed
-                          ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                          : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70"
-                      }`}
+                      className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-white/5 py-2.5 text-[11px] font-bold text-white/50 transition hover:bg-white/10 hover:text-white/70"
                     >
-                      {followed ? (
-                        <span className="flex items-center gap-2">
-                          ✓ Ajouté à vos stats
-                          {(userOdds || userBookName) && (
-                            <span className="text-[10px] font-normal text-emerald-400/60">
-                              {userOdds ? `@${parseFloat(userOdds).toFixed(3)}` : ""}{userOdds && userBookName ? " sur " : ""}{userBookName || ""}
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <>
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                          Prono suivi ? Cliquez ici pour l&apos;ajouter à vos stats persos
-                        </>
-                      )}
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Prono suivi ? Cliquez ici pour l&apos;ajouter à vos stats persos
                     </button>
                     )
                   )}
@@ -736,28 +779,30 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5 text-center">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">Ajouter à mes stats</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400">{followed ? "Modifier mon suivi" : "Ajouter à mes stats"}</p>
               <p className="mt-2 text-sm font-bold text-white">{pick.event_name}</p>
               <p className="mt-0.5 text-xs text-white/40">{pick.selection}</p>
             </div>
 
             <div className="space-y-4 px-5 pb-5">
-              {/* Monetary mise info — if bankroll configured */}
+              {/* Monetary mise — editable field */}
               {bkConfig && bkConfig.mode !== "units_only" && (
-                <div className="rounded-lg bg-white/5 px-3 py-2.5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Votre mise à jouer</p>
-                  <p className="mt-1 text-sm font-bold text-white">
-                    {pick.stake}U soit{" "}
-                    <span className="text-emerald-400">
-                      {(pick.stake * (
-                        bkConfig.mode === "fixed_unit"
-                          ? bkConfig.unit_value
-                          : (bkConfig.current_bankroll * bkConfig.unit_percent) / 100
-                      )).toFixed(2)}€
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-white/20">
-                    Bankroll : {bkConfig.current_bankroll.toLocaleString("fr-FR")}€
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
+                    Votre mise (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={userStakeEuro}
+                    onChange={(e) => setUserStakeEuro(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center font-mono text-lg font-bold text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                  />
+                  <p className="mt-1 text-center text-[10px] text-white/20">
+                    Mise tipster : {pick.stake}U — Bankroll : {bkConfig.current_bankroll.toLocaleString("fr-FR")}€
                   </p>
                 </div>
               )}
@@ -865,7 +910,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   boxShadow: "0 4px 14px rgba(16,185,129,0.3)",
                 }}
               >
-                ✅ Valider
+                {followed ? "✅ Mettre à jour" : "✅ Valider"}
               </button>
 
               <button

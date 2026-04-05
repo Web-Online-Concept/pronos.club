@@ -19,10 +19,10 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") ?? "20");
   const offset = parseInt(searchParams.get("offset") ?? "0");
 
-  // Get followed picks WITH user_odds and frozen unit value
+  // Get followed picks WITH user data
   const { data: followedRows } = await supabase
     .from("user_picks")
-    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
+    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value, user_stake_euro")
     .eq("user_id", user.id)
     .eq("followed", true);
 
@@ -72,12 +72,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Enrich picks with user_odds, user_profit, and frozen unit value
+  // Enrich picks with user data
   const enriched = (data ?? []).map((pick) => {
     const userInfo = followedMap.get(pick.id);
     const userOdds = userInfo?.user_odds ?? null;
     const userLegOdds: { leg_number: number; odds: number }[] = userInfo?.user_leg_odds ?? null;
     const userUnitValue = userInfo?.user_unit_value ?? null;
+    const userStakeEuro = userInfo?.user_stake_euro ?? null;
 
     let userProfit: number | null = null;
 
@@ -124,6 +125,7 @@ export async function GET(request: Request) {
       user_leg_odds: userLegOdds,
       user_profit: userProfit,
       user_unit_value: userUnitValue,
+      user_stake_euro: userStakeEuro,
       user_bookmaker_id: userInfo?.user_bookmaker_id ?? null,
       user_bookmaker_other: userInfo?.user_bookmaker_other ?? null,
     };

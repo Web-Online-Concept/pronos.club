@@ -103,7 +103,6 @@ export default function MesStatsPage() {
   const months = data.availableMonths ?? [];
   const years = [...new Set(months.map((m) => m.slice(0, 4)))].sort();
 
-  // Show euro toggle only if user has bankroll configured
   const showEuro = bkConfig && bkConfig.mode !== "units_only";
   const userUnitValue = bkConfig
     ? bkConfig.mode === "fixed_unit"
@@ -112,13 +111,15 @@ export default function MesStatsPage() {
       ? (bkConfig.current_bankroll * bkConfig.unit_percent) / 100
       : 0
     : 0;
+  function toEuro(units: number) {
+    return (units * userUnitValue).toFixed(2);
+  }
   const isEuroMode = showEuro && displayMode === "euros" && userUnitValue > 0;
-
-  // Display value: in euro mode, use pre-calculated euro values from API (frozen per pick)
-  // No more dynamic multiplication — euros are calculated server-side with frozen unit values
+  // In euro mode, use pre-calculated profitEuro from API (frozen per pick)
+  // Fallback to dynamic conversion only when no pre-calculated value available
   function displayVal(units: number, decimals = 3, euroValue?: number) {
     if (isEuroMode && euroValue !== undefined) return `${euroValue.toFixed(2)}€`;
-    if (isEuroMode) return `${(units * userUnitValue).toFixed(2)}€`;
+    if (isEuroMode) return `${toEuro(units)}€`;
     return `${(Math.round(units * Math.pow(10, decimals)) / Math.pow(10, decimals)).toFixed(decimals)}U`;
   }
 
