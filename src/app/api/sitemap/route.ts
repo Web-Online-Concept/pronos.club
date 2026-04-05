@@ -7,6 +7,9 @@ const supabaseAdmin = createClient(
 
 const BASE_URL = "https://pronos.club";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   // Static pages
   const staticPages = [
@@ -49,24 +52,25 @@ export async function GET() {
   const locales = ["fr", "en", "es"];
   const now = new Date().toISOString().split("T")[0];
 
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
-`;
+  const urls: string[] = [];
 
   // Static pages for each locale
   for (const page of staticPages) {
     for (const locale of locales) {
-      xml += `  <url>
+      const alternates = locales
+        .map(
+          (alt) =>
+            `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}${page.path}" />`
+        )
+        .join("\n");
+
+      urls.push(`  <url>
     <loc>${BASE_URL}/${locale}${page.path}</loc>
     <lastmod>${now}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
-`;
-      for (const alt of locales) {
-        xml += `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}${page.path}" />\n`;
-      }
-      xml += `  </url>\n`;
+${alternates}
+  </url>`);
     }
   }
 
@@ -74,16 +78,20 @@ export async function GET() {
   if (posts) {
     for (const post of posts) {
       for (const locale of locales) {
-        xml += `  <url>
+        const alternates = locales
+          .map(
+            (alt) =>
+              `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/blog/${post.slug}" />`
+          )
+          .join("\n");
+
+        urls.push(`  <url>
     <loc>${BASE_URL}/${locale}/blog/${post.slug}</loc>
     <lastmod>${post.updated_at ? post.updated_at.split("T")[0] : now}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
-`;
-        for (const alt of locales) {
-          xml += `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/blog/${post.slug}" />\n`;
-        }
-        xml += `  </url>\n`;
+${alternates}
+  </url>`);
       }
     }
   }
@@ -92,23 +100,32 @@ export async function GET() {
   if (bilans) {
     for (const bilan of bilans) {
       for (const locale of locales) {
-        xml += `  <url>
+        const alternates = locales
+          .map(
+            (alt) =>
+              `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/bilans/${bilan.slug}" />`
+          )
+          .join("\n");
+
+        urls.push(`  <url>
     <loc>${BASE_URL}/${locale}/bilans/${bilan.slug}</loc>
     <lastmod>${bilan.updated_at ? bilan.updated_at.split("T")[0] : now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
-`;
-        for (const alt of locales) {
-          xml += `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/bilans/${bilan.slug}" />\n`;
-        }
-        xml += `  </url>\n`;
+${alternates}
+  </url>`);
       }
     }
   }
 
-  xml += `</urlset>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls.join("\n")}
+</urlset>`;
 
   return new Response(xml, {
+    status: 200,
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
       "Cache-Control": "public, max-age=3600, s-maxage=3600",
