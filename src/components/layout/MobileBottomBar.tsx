@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const NAV_ITEMS = [
-  { href: "/pronostics", label: "Pronos", icon: "🎯" },
-  { href: "/historique", label: "Histo", icon: "📋" },
-  { href: "/statistiques", label: "Stats", icon: "📊" },
-  { href: "/espace", label: "Espace", icon: "👤" },
-  { href: "/blog", label: "Blog", icon: "✍️" },
+  { href: "/pronostics", labelKey: "pronos", icon: "🎯" },
+  { href: "/historique", labelKey: "history", icon: "📋" },
+  { href: "/statistiques", labelKey: "stats", icon: "📊" },
+  { href: "/espace", labelKey: "account", icon: "👤" },
+  { href: "/blog", labelKey: "blog", icon: "✍️" },
 ];
 
 export default function MobileBottomBar() {
   const pathname = usePathname();
+  const t = useTranslations("bottombar");
 
   // Extract locale from pathname (e.g. /fr/pronostics → fr)
   const segments = pathname.split("/").filter(Boolean);
@@ -56,7 +58,7 @@ export default function MobileBottomBar() {
                 <span className={`text-[10px] font-semibold ${
                   isActive ? "text-emerald-400" : "text-white/80"
                 }`}>
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 {isActive && (
                   <span className="mt-0.5 h-0.5 w-4 rounded-full bg-emerald-400" />

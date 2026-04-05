@@ -1209,5 +1209,12 @@
     "btn_sending": "Envoi en cours...",
     "btn_submit": "Soumettre mon avis",
     "footer_note": "Votre avis sera vérifié avant publication. Pseudo et avatar seront affichés publiquement."
+  },
+  "bottombar": {
+    "pronos": "Pronos",
+    "history": "Histo",
+    "stats": "Stats",
+    "account": "Compte",
+    "blog": "Blog"
   }
 }

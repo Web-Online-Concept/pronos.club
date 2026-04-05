@@ -1209,5 +1209,12 @@
     "btn_sending": "Sending...",
     "btn_submit": "Submit my review",
     "footer_note": "Your review will be verified before publication. Username and avatar will be displayed publicly."
+  },
+  "bottombar": {
+    "pronos": "Picks",
+    "history": "History",
+    "stats": "Stats",
+    "account": "Account",
+    "blog": "Blog"
   }
 }

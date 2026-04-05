@@ -1209,5 +1209,12 @@
     "btn_sending": "Enviando...",
     "btn_submit": "Enviar mi opinión",
     "footer_note": "Tu opinión será verificada antes de su publicación. El seudónimo y avatar se mostrarán públicamente."
+  },
+  "bottombar": {
+    "pronos": "Pronos",
+    "history": "Histo",
+    "stats": "Stats",
+    "account": "Cuenta",
+    "blog": "Blog"
   }
 }
