@@ -117,7 +117,7 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
         <div className="mt-8 mb-2 text-center">
           <Link
             href={`/${locale}/historique`}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.08] hover:text-white hover:border-white/20"
+            className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-8 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-neutral-800 hover:-translate-y-0.5 hover:shadow-xl"
           >
             Consulter l&apos;historique des pronostics →
           </Link>
