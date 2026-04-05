@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { href: "/pronostics", label: "Pronos", icon: "🎯" },
   { href: "/historique", label: "Histo", icon: "📋" },
   { href: "/statistiques", label: "Stats", icon: "📊" },
-  { href: "/bookmakers", label: "Books", icon: "📚" },
+  { href: "/espace", label: "Espace", icon: "👤" },
   { href: "/blog", label: "Blog", icon: "✍️" },
 ];
 
