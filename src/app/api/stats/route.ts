@@ -86,8 +86,23 @@ export async function GET(request: Request) {
   const winRate = resolvedPicks > 0 ? (wonPicks / resolvedPicks) * 100 : 0;
   const avgOdds = totalPicks > 0 ? picks.reduce((s, p) => s + p.odds, 0) / totalPicks : 0;
 
-  const bestPick = picks.reduce((best, p) => ((p.profit ?? 0) > (best?.profit ?? -Infinity) ? p : best), picks[0]);
-  const worstPick = picks.reduce((worst, p) => ((p.profit ?? 0) < (worst?.profit ?? Infinity) ? p : worst), picks[0]);
+  // Best pick: highest profit, tiebreaker = highest odds (bigger upset = more impressive)
+  const bestPick = picks.reduce((best, p) => {
+    const pProfit = p.profit ?? 0;
+    const bProfit = best?.profit ?? -Infinity;
+    if (pProfit > bProfit) return p;
+    if (pProfit === bProfit && p.odds > (best?.odds ?? -Infinity)) return p;
+    return best;
+  }, picks[0]);
+
+  // Worst pick: lowest profit, tiebreaker = lowest odds (losing a big favorite = worst)
+  const worstPick = picks.reduce((worst, p) => {
+    const pProfit = p.profit ?? 0;
+    const wProfit = worst?.profit ?? Infinity;
+    if (pProfit < wProfit) return p;
+    if (pProfit === wProfit && p.odds < (worst?.odds ?? Infinity)) return p;
+    return worst;
+  }, picks[0]);
 
   // Streaks
   let maxWinStreak = 0, maxLoseStreak = 0, currentWinStreak = 0, currentLoseStreak = 0;
