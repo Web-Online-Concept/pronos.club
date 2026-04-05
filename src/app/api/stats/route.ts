@@ -116,41 +116,47 @@ export async function GET(request: Request) {
   const avgOddsWon = wonOdds.length > 0 ? wonOdds.reduce((s, p) => s + p.odds, 0) / wonOdds.length : 0;
   const avgOddsLost = lostOddsArr.length > 0 ? lostOddsArr.reduce((s, p) => s + p.odds, 0) / lostOddsArr.length : 0;
 
-  // Profit timeline
+  // Profit timeline — each pick is a unique point (index-based, not date-based)
   let cumProfit = 0;
-  const profitTimeline = picks.map((p) => {
+  const profitTimeline = picks.map((p, i) => {
     cumProfit += p.profit ?? 0;
     return {
+      idx: i + 1,
       date: p.result_entered_at?.split("T")[0] ?? "",
       profit: Math.round(cumProfit * 1000) / 1000,
       event: p.event_name,
+      pickNumber: p.pick_number ?? i + 1,
     };
   });
 
-  // ROI timeline
+  // ROI timeline — each pick is a unique point
   let cumStaked = 0;
   let cumProfitRoi = 0;
-  const roiTimeline = picks.map((p) => {
+  const roiTimeline = picks.map((p, i) => {
     cumStaked += p.stake ?? 0;
     cumProfitRoi += p.profit ?? 0;
     return {
+      idx: i + 1,
       date: p.result_entered_at?.split("T")[0] ?? "",
       roi: cumStaked > 0 ? Math.round((cumProfitRoi / cumStaked) * 10000) / 100 : 0,
+      pickNumber: p.pick_number ?? i + 1,
     };
   });
 
-  // Drawdown
+  // Drawdown timeline — each pick is a unique point
   let peak = 0;
   let maxDrawdown = 0;
   let cumDD = 0;
-  const drawdownTimeline = picks.map((p) => {
+  const drawdownTimeline = picks.map((p, i) => {
     cumDD += p.profit ?? 0;
     if (cumDD > peak) peak = cumDD;
     const dd = peak - cumDD;
     if (dd > maxDrawdown) maxDrawdown = dd;
     return {
+      idx: i + 1,
       date: p.result_entered_at?.split("T")[0] ?? "",
       drawdown: -Math.round(dd * 1000) / 1000,
+      pickNumber: p.pick_number ?? i + 1,
     };
   });
 

@@ -27,9 +27,9 @@ interface StatsData {
     bestPick: { event: string; profit: number; odds: number; pickNumber?: number } | null;
     worstPick: { event: string; profit: number; odds: number; pickNumber?: number } | null;
   };
-  profitTimeline: { date: string; profit: number; event: string }[];
-  roiTimeline: { date: string; roi: number }[];
-  drawdownTimeline: { date: string; drawdown: number }[];
+  profitTimeline: { idx: number; date: string; profit: number; event: string; pickNumber: number }[];
+  roiTimeline: { idx: number; date: string; roi: number; pickNumber: number }[];
+  drawdownTimeline: { idx: number; date: string; drawdown: number; pickNumber: number }[];
   allSports: { name: string; icon: string; slug: string }[];
   availableMonths: string[];
   bySport: { name: string; icon: string; slug: string; won: number; lost: number; total: number; profit: number; roi: number; winRate: number }[];
@@ -382,9 +382,21 @@ export default function StatistiquesPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={isEuroMode ? data.profitTimeline.map((p) => ({ ...p, profit: Math.round(p.profit * uv * 100) / 100 })) : data.profitTimeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="idx" tick={{ fontSize: 11 }} label={{ value: "Pick #", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "#999" }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => isEuroMode ? `${v}€` : `${v}U`} />
-                  <Tooltip formatter={(value) => [isEuroMode ? `${value}€` : `${value}U`, t("chart_profit_tooltip")]} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg">
+                        <p className="font-bold text-neutral-700">#{d.pickNumber} — {d.date}</p>
+                        <p className="mt-0.5 text-neutral-500">{d.event}</p>
+                        <p className={`mt-1 font-extrabold ${d.profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {d.profit >= 0 ? "+" : ""}{isEuroMode ? `${d.profit}€` : `${d.profit}U`}
+                        </p>
+                      </div>
+                    );
+                  }} />
                   <defs>
                     <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={GREEN} stopOpacity={0.3} />
@@ -412,9 +424,18 @@ export default function StatistiquesPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data.roiTimeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="idx" tick={{ fontSize: 11 }} label={{ value: "Pick #", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "#999" }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(value) => [`${value}%`, "ROI"]} />
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg">
+                        <p className="font-bold text-neutral-700">#{d.pickNumber} — {d.date}</p>
+                        <p className="mt-1 font-extrabold text-blue-600">{d.roi}%</p>
+                      </div>
+                    );
+                  }} />
                   <Line type="monotone" dataKey="roi" stroke="#2563eb" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
