@@ -143,40 +143,58 @@ export default function LiveScore({
   }
 
   // Football / other sports
+  // Extract short team names (last word or short version)
+  const homeShort = getShortTeamName(score.homeTeam);
+  const awayShort = getShortTeamName(score.awayTeam);
+  const homeWins = isFinal && score.homeScore > score.awayScore;
+  const awayWins = isFinal && score.awayScore > score.homeScore;
+
   return (
-    <div className={`mt-2 flex items-center justify-center gap-3 rounded-lg px-3 py-2 ${
+    <div className={`mt-2 rounded-lg px-3 py-2 ${
       isPlaying
         ? "bg-red-500/10 border border-red-500/20"
         : isFinal
         ? "bg-white/5 border border-white/10"
         : "bg-amber-500/10 border border-amber-500/20"
     }`}>
-      {isPlaying && (
-        <span className="relative flex h-2 w-2 flex-shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+      {/* Status line */}
+      <div className="flex items-center justify-center gap-2 mb-1.5">
+        {isPlaying && (
+          <span className="relative flex h-2 w-2 flex-shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+        )}
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+          isPlaying ? "text-red-400"
+          : isFinal ? "text-white/40"
+          : "text-amber-400"
+        }`}>
+          {isLive ? "LIVE" : isHalftime ? "MI-TEMPS" : isExtraTime ? "PROL." : isPenalties ? "TIRS AU BUT" : isFinal ? "TERMINÉ" : isPostponed ? "REPORTÉ" : ""}
+          {isPlaying && score.minute ? ` · ${score.minute}` : ""}
         </span>
-      )}
+      </div>
 
-      <span className={`text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
-        isPlaying ? "text-red-400"
-        : isFinal ? "text-white/40"
-        : "text-amber-400"
-      }`}>
-        {isLive ? "LIVE" : isHalftime ? "MI-TEMPS" : isExtraTime ? "PROL." : isPenalties ? "TIRS AU BUT" : isFinal ? "TERMINÉ" : isPostponed ? "REPORTÉ" : ""}
-      </span>
-
-      <span className={`font-mono text-lg font-extrabold ${
-        isPlaying ? "text-white" : "text-white/60"
-      }`}>
-        {score.homeScore} - {score.awayScore}
-      </span>
-
-      {isPlaying && score.minute && (
-        <span className="text-[10px] font-bold text-red-400/70 flex-shrink-0">
-          {score.minute}
+      {/* Score line: Team1  4 - 3  Team2 */}
+      <div className="flex items-center justify-center gap-2">
+        <span className={`text-xs font-bold truncate max-w-[100px] text-right ${
+          homeWins ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
+        }`}>
+          {homeShort}
         </span>
-      )}
+
+        <span className={`font-mono text-lg font-extrabold ${
+          isPlaying ? "text-white" : "text-white/60"
+        }`}>
+          {score.homeScore} - {score.awayScore}
+        </span>
+
+        <span className={`text-xs font-bold truncate max-w-[100px] text-left ${
+          awayWins ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
+        }`}>
+          {awayShort}
+        </span>
+      </div>
     </div>
   );
 }
@@ -189,6 +207,16 @@ function getLastName(fullName: string): string {
   const parts = fullName.trim().split(" ");
   if (parts.length <= 1) return fullName;
   return parts.slice(1).join(" ");
+}
+
+function getShortTeamName(fullName: string): string {
+  // For football teams, ESPN returns full names like "PSV Eindhoven", "FC Utrecht"
+  // We keep it as-is but truncate via CSS max-w
+  // Remove common prefixes/suffixes that add noise
+  return fullName
+    .replace(/^FC\s+/i, "")
+    .replace(/\s+FC$/i, "")
+    .trim() || fullName;
 }
 
 function TennisScore({
