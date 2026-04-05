@@ -475,7 +475,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                               pickId={pick.id}
                               eventDate={leg.event_date ?? pick.event_date}
                               pickStatus={leg.status ?? pick.status}
-                              savedScore={(leg as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
+                              savedScore={(leg as unknown as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
                               legEventName={leg.event_name}
                               legEventDate={leg.event_date ?? pick.event_date}
                               legSportSlug={leg.sport?.slug ?? pick.sport?.slug}
@@ -534,7 +534,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                       pickId={pick.id}
                       eventDate={pick.event_date}
                       pickStatus={pick.status}
-                      savedScore={(pick as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
+                      savedScore={(pick as unknown as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
                     />
                   )}
 
