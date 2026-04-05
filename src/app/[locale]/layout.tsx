@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
+import MobileBottomBar from "@/components/layout/MobileBottomBar";
 
 export async function generateMetadata({
   params,
@@ -66,6 +67,7 @@ export default async function LocaleLayout({
     <NextIntlClientProvider locale={locale} messages={messages}>
       <AuthProvider>
         {children}
+        <MobileBottomBar />
       </AuthProvider>
     </NextIntlClientProvider>
   );
