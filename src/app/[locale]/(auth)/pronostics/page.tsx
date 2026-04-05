@@ -114,12 +114,12 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
         )}
 
         {/* Link to full history — always visible */}
-        <div className="mt-6 text-center">
+        <div className="mt-8 mb-2 text-center">
           <Link
             href={`/${locale}/historique`}
-            className="inline-block rounded-full bg-white/10 px-6 py-2.5 text-xs font-bold text-white/60 transition hover:bg-white/15 hover:text-white"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.08] hover:text-white hover:border-white/20"
           >
-            📋 {t("recent_see_all")}
+            Consulter l&apos;historique des pronostics →
           </Link>
         </div>
       </div>
