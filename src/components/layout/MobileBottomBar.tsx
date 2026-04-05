@@ -47,14 +47,14 @@ export default function MobileBottomBar() {
                 className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 transition-colors ${
                   isActive
                     ? "text-emerald-400"
-                    : "text-white/40 active:text-white/70"
+                    : "text-white/80 active:text-white"
                 }`}
               >
                 <span className={`text-xl leading-none ${isActive ? "scale-110" : ""} transition-transform`}>
                   {item.icon}
                 </span>
                 <span className={`text-[10px] font-semibold ${
-                  isActive ? "text-emerald-400" : "text-white/40"
+                  isActive ? "text-emerald-400" : "text-white/80"
                 }`}>
                   {item.label}
                 </span>
