@@ -14,7 +14,7 @@ const MARKET_TYPES = [
   { id: "4simple", label: "4 Simple", desc: "BTTS + Over, combinaisons sur 1 match", fields: 4 },
   { id: "4combi", label: "4 Combiné", desc: "2 matchs ML×ML (Basket, Tennis, HP -0.5)", fields: 0 },
   { id: "6simple", label: "6 Poss.", desc: "1X2 × BTTS, Score correct groupé", fields: 6 },
-  { id: "6dc", label: "DC 6 Poss.", desc: "Double Chance + BTTS (ex: Real ou Nul ET BTTS)", fields: 6 },
+  { id: "6dc", label: "DC 6P.", desc: "Double Chance + BTTS (ex: Real ou Nul ET BTTS)", fields: 6 },
   { id: "9simple", label: "9 Poss.", desc: "HT/FT (Mi-temps/Fin de match = 3×3)", fields: 9 },
   { id: "9combi", label: "9 Combiné", desc: "2 matchs 1X2×1X2 (2 équipes Win)", fields: 0 },
 ] as const;
@@ -49,12 +49,10 @@ function calcValue(
 
   let fairOdd: number;
   if (marketType === "dc") {
-    // Double Chance: combine probabilities of first 2 outcomes
     const prob1 = (1 / ps3838Odds[0]) / sumProb;
     const prob2 = (1 / ps3838Odds[1]) / sumProb;
     fairOdd = 1 / (prob1 + prob2);
   } else {
-    // Simple: first odd is the studied outcome
     const probFair = (1 / ps3838Odds[0]) / sumProb;
     fairOdd = 1 / probFair;
   }
@@ -118,7 +116,7 @@ function OddInput({
 }) {
   return (
     <div className="flex-1">
-      <label className={`mb-1 block text-center text-[10px] font-bold uppercase tracking-[0.15em] ${highlight ? "text-blue-600" : "text-neutral-400"}`}>
+      <label className={`mb-1.5 block text-center text-[10px] font-extrabold uppercase tracking-[0.15em] ${highlight ? "text-indigo-600" : "text-slate-400"}`}>
         {label}
       </label>
       <input
@@ -129,10 +127,10 @@ function OddInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode="decimal"
-        className={`w-full rounded-lg border px-3 py-2.5 text-center font-mono text-sm font-bold text-neutral-900 placeholder-neutral-300 outline-none transition focus:ring-2 ${
+        className={`w-full rounded-xl border-2 px-3 py-3 text-center font-mono text-base font-extrabold outline-none transition-all focus:ring-4 ${
           highlight
-            ? "border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-500/20"
-            : "border-neutral-200 bg-neutral-50 focus:border-neutral-400 focus:ring-neutral-200"
+            ? "border-indigo-400 bg-indigo-50 text-indigo-700 placeholder-indigo-300 shadow-sm shadow-indigo-100 focus:border-indigo-500 focus:ring-indigo-100"
+            : "border-slate-200 bg-white text-slate-800 placeholder-slate-300 focus:border-slate-400 focus:ring-slate-100"
         }`}
       />
     </div>
@@ -144,23 +142,29 @@ function ResultCard({
   value,
   suffix,
   color,
+  icon,
 }: {
   label: string;
   value: number;
   suffix: string;
   color: "green" | "red" | "amber" | "neutral";
+  icon: string;
 }) {
-  const colorMap = {
-    green: "border-emerald-200 bg-emerald-50 text-emerald-600",
-    red: "border-red-200 bg-red-50 text-red-600",
-    amber: "border-amber-200 bg-amber-50 text-amber-600",
-    neutral: "border-neutral-200 bg-neutral-50 text-neutral-600",
+  const styles = {
+    green: { bg: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)", border: "#6ee7b7", text: "#059669", iconBg: "#d1fae5" },
+    red: { bg: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)", border: "#fca5a5", text: "#dc2626", iconBg: "#fee2e2" },
+    amber: { bg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)", border: "#fcd34d", text: "#d97706", iconBg: "#fef3c7" },
+    neutral: { bg: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", border: "#cbd5e1", text: "#475569", iconBg: "#f1f5f9" },
   };
+  const s = styles[color];
 
   return (
-    <div className={`rounded-xl border p-4 text-center transition-all ${colorMap[color]}`}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">{label}</p>
-      <p className="mt-1 font-mono text-xl font-extrabold">
+    <div className="overflow-hidden rounded-2xl border-2 p-4 text-center shadow-sm" style={{ background: s.bg, borderColor: s.border }}>
+      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full text-base" style={{ background: s.iconBg }}>
+        {icon}
+      </div>
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: s.text }}>{label}</p>
+      <p className="mt-1 font-mono text-2xl font-black" style={{ color: s.text }}>
         {value.toFixed(2)}{suffix}
       </p>
     </div>
@@ -170,24 +174,24 @@ function ResultCard({
 function VerdictBanner({ verdict }: { verdict: CalcResult["verdict"] }) {
   if (verdict === "play") {
     return (
-      <div className="mt-4 rounded-xl px-6 py-4 text-center" style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)" }}>
-        <p className="text-lg font-extrabold text-white">✅ JOUER</p>
-        <p className="mt-0.5 text-xs text-white/60">EV et TRJ au-dessus des seuils — Value confirmée</p>
+      <div className="mt-5 overflow-hidden rounded-2xl px-6 py-5 text-center shadow-lg shadow-emerald-200" style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)" }}>
+        <p className="text-2xl font-black text-white">✅ JOUER</p>
+        <p className="mt-1 text-xs font-semibold text-white/70">EV et TRJ au-dessus des seuils — Value confirmée</p>
       </div>
     );
   }
   if (verdict === "play_margin") {
     return (
-      <div className="mt-4 rounded-xl px-6 py-4 text-center" style={{ background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)" }}>
-        <p className="text-lg font-extrabold text-white">⚠️ JOUER (EV+TRJ &gt; 100%)</p>
-        <p className="mt-0.5 text-xs text-white/60">TRJ sous le seuil mais règle de secours validée</p>
+      <div className="mt-5 overflow-hidden rounded-2xl px-6 py-5 text-center shadow-lg shadow-amber-200" style={{ background: "linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%)" }}>
+        <p className="text-2xl font-black text-white">⚠️ JOUER (EV+TRJ &gt; 100%)</p>
+        <p className="mt-1 text-xs font-semibold text-white/70">TRJ sous le seuil mais règle de secours validée</p>
       </div>
     );
   }
   return (
-    <div className="mt-4 rounded-xl px-6 py-4 text-center" style={{ background: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)" }}>
-      <p className="text-lg font-extrabold text-white">❌ NE PAS JOUER</p>
-      <p className="mt-0.5 text-xs text-white/60">Value insuffisante — passer ce pari</p>
+    <div className="mt-5 overflow-hidden rounded-2xl px-6 py-5 text-center shadow-lg shadow-red-200" style={{ background: "linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)" }}>
+      <p className="text-2xl font-black text-white">❌ NE PAS JOUER</p>
+      <p className="mt-1 text-xs font-semibold text-white/70">Value insuffisante — passer ce pari</p>
     </div>
   );
 }
@@ -222,11 +226,7 @@ export default function ValueCalculatorPage() {
   const [evMin, setEvMin] = useState("2.5");
   const [trjMin, setTrjMin] = useState("99");
   const [betOdd, setBetOdd] = useState("");
-
-  // Simple markets: array of odds strings
   const [odds, setOdds] = useState<string[]>(Array(9).fill(""));
-
-  // Combi markets: 2 arrays
   const [match1Odds, setMatch1Odds] = useState<string[]>(Array(3).fill(""));
   const [match2Odds, setMatch2Odds] = useState<string[]>(Array(3).fill(""));
 
@@ -234,7 +234,6 @@ export default function ValueCalculatorPage() {
   const isCombi = market === "4combi" || market === "9combi";
   const isDC = market === "6dc";
 
-  // Reset odds when market changes
   function switchMarket(id: MarketId) {
     setMarket(id);
     setBetOdd("");
@@ -243,7 +242,6 @@ export default function ValueCalculatorPage() {
     setMatch2Odds(Array(3).fill(""));
   }
 
-  // Calculation
   const result = useMemo((): CalcResult | null => {
     const ev = parseFloat(evMin) || 2.5;
     const trj = parseFloat(trjMin) || 99;
@@ -264,7 +262,6 @@ export default function ValueCalculatorPage() {
     return calcValue(ps, cb, ev, trj, isDC ? "dc" : "simple");
   }, [odds, match1Odds, match2Odds, betOdd, evMin, trjMin, market, isCombi, isDC, marketConfig.fields]);
 
-  // Color helpers
   function trjColor(trj: number): "green" | "amber" | "red" {
     const threshold = parseFloat(trjMin) || 99;
     if (trj >= threshold) return "green";
@@ -278,23 +275,24 @@ export default function ValueCalculatorPage() {
     return evTrj > 100 ? "green" : "red";
   }
 
-  // Render simple form
   function renderSimpleForm() {
     const labels = SIMPLE_LABELS[market] ?? [];
     const fieldCount = marketConfig.fields;
     return (
       <div>
         {isDC && (
-          <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-center text-[11px] text-blue-600">
-            Les 2 premières cotes correspondent aux issues couvertes par la Double Chance
-          </p>
+          <div className="mb-4 flex items-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 px-4 py-3">
+            <span className="text-lg">💡</span>
+            <p className="text-[11px] font-semibold text-indigo-600">Les 2 premières cotes correspondent aux issues couvertes par la Double Chance</p>
+          </div>
         )}
         {market === "9simple" && (
-          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-600">
-            Si PS3838 n&apos;affiche que 8 cotes, mettre 100 pour la 9ème
-          </p>
+          <div className="mb-4 flex items-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
+            <span className="text-lg">⚠️</span>
+            <p className="text-[11px] font-semibold text-amber-600">Si PS3838 n&apos;affiche que 8 cotes, mettre 100 pour la 9ème</p>
+          </div>
         )}
-        <div className={`grid gap-3 ${fieldCount <= 2 ? "mx-auto max-w-sm grid-cols-2" : fieldCount <= 3 ? "mx-auto max-w-lg grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`}>
+        <div className={`grid gap-3 ${fieldCount <= 2 ? "mx-auto max-w-xs grid-cols-2" : fieldCount <= 3 ? "mx-auto max-w-md grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`}>
           {labels.slice(0, fieldCount).map((label, i) => (
             <OddInput
               key={i}
@@ -313,15 +311,17 @@ export default function ValueCalculatorPage() {
     );
   }
 
-  // Render combi form
   function renderCombiForm() {
     const labels = COMBI_LABELS[market] ?? [];
     const fieldsPerMatch = market === "4combi" ? 2 : 3;
     return (
-      <div className="space-y-4">
-        <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600">Match 1 — Cotes PS3838</p>
-          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-sm grid-cols-2" : "mx-auto max-w-lg grid-cols-3"}`}>
+      <div className="space-y-5">
+        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">1</span>
+            <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">Match 1 — Cotes PS3838</p>
+          </div>
+          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-xs grid-cols-2" : "grid-cols-3"}`}>
             {labels.slice(0, fieldsPerMatch).map((label, i) => (
               <OddInput
                 key={`m1-${i}`}
@@ -337,14 +337,18 @@ export default function ValueCalculatorPage() {
             ))}
           </div>
           {result?.trj1 !== undefined && (
-            <p className="mt-1 text-center text-[10px] text-neutral-400">
-              TRJ Match 1 : <span className={result.trj1 >= 95 ? "text-emerald-600" : "text-red-500"}>{result.trj1.toFixed(2)}%</span>
+            <p className="mt-2 text-center text-[11px] font-bold text-slate-400">
+              TRJ : <span className={`font-extrabold ${result.trj1 >= 95 ? "text-emerald-600" : "text-red-500"}`}>{result.trj1.toFixed(2)}%</span>
             </p>
           )}
         </div>
-        <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600">Match 2 — Cotes PS3838</p>
-          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-sm grid-cols-2" : "mx-auto max-w-lg grid-cols-3"}`}>
+
+        <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/50 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white">2</span>
+            <p className="text-xs font-extrabold uppercase tracking-wider text-blue-700">Match 2 — Cotes PS3838</p>
+          </div>
+          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-xs grid-cols-2" : "grid-cols-3"}`}>
             {labels.slice(0, fieldsPerMatch).map((label, i) => (
               <OddInput
                 key={`m2-${i}`}
@@ -360,8 +364,8 @@ export default function ValueCalculatorPage() {
             ))}
           </div>
           {result?.trj2 !== undefined && (
-            <p className="mt-1 text-center text-[10px] text-neutral-400">
-              TRJ Match 2 : <span className={result.trj2 >= 95 ? "text-emerald-600" : "text-red-500"}>{result.trj2.toFixed(2)}%</span>
+            <p className="mt-2 text-center text-[11px] font-bold text-slate-400">
+              TRJ : <span className={`font-extrabold ${result.trj2 >= 95 ? "text-emerald-600" : "text-red-500"}`}>{result.trj2.toFixed(2)}%</span>
             </p>
           )}
         </div>
@@ -369,14 +373,14 @@ export default function ValueCalculatorPage() {
     );
   }
 
-  // Admin guard — block access for non-admins
+  // Admin guard
   if (!isAdmin) {
     return (
       <>
         <EspaceHero title="Accès refusé" />
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <p className="text-4xl">🔒</p>
-          <p className="mt-4 text-sm font-bold text-white/50">Cette page est réservée aux administrateurs.</p>
+          <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux administrateurs.</p>
         </main>
       </>
     );
@@ -388,16 +392,16 @@ export default function ValueCalculatorPage() {
 
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
 
-        {/* Market selector */}
-        <div className="flex flex-wrap justify-center gap-1.5">
+        {/* Market selector — scrollable on mobile */}
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0">
           {MARKET_TYPES.map((m) => (
             <button
               key={m.id}
               onClick={() => switchMarket(m.id)}
-              className={`cursor-pointer rounded-lg px-3 py-2 text-[11px] font-bold transition ${
+              className={`flex-shrink-0 cursor-pointer rounded-xl px-3.5 py-2.5 text-[11px] font-bold transition-all ${
                 market === m.id
-                  ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
-                  : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
               }`}
             >
               {m.label}
@@ -406,47 +410,53 @@ export default function ValueCalculatorPage() {
         </div>
 
         {/* Market description */}
-        <div className="mt-3 rounded-lg bg-neutral-50 px-4 py-2.5 text-center">
-          <p className="text-xs text-neutral-500">{marketConfig.desc}</p>
+        <div className="mt-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-slate-500">{marketConfig.desc}</p>
         </div>
 
         {/* Criteria */}
-        <div className="mt-4 flex items-center justify-center gap-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">⚙️ Critères</span>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3 rounded-2xl border-2 border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100/50 px-5 py-3.5">
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">⚙️ Critères</span>
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] font-bold text-neutral-500">EV min</label>
+            <label className="text-[11px] font-bold text-slate-500">EV min</label>
             <input
               type="number"
               step="0.1"
               value={evMin}
               onChange={(e) => setEvMin(e.target.value)}
-              className="w-16 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-neutral-900 outline-none focus:border-blue-500"
+              className="w-16 rounded-lg border-2 border-slate-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
-            <span className="text-[10px] text-neutral-400">%</span>
+            <span className="text-[11px] font-bold text-slate-400">%</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] font-bold text-neutral-500">TRJ min</label>
+            <label className="text-[11px] font-bold text-slate-500">TRJ min</label>
             <input
               type="number"
               step="0.5"
               value={trjMin}
               onChange={(e) => setTrjMin(e.target.value)}
-              className="w-16 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-neutral-900 outline-none focus:border-blue-500"
+              className="w-16 rounded-lg border-2 border-slate-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
-            <span className="text-[10px] text-neutral-400">%</span>
+            <span className="text-[11px] font-bold text-slate-400">%</span>
           </div>
         </div>
 
-        {/* PS3838 Odds inputs */}
-        <div className="mt-6">
-          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">📊 Cotes PS3838</p>
+        {/* PS3838 Odds */}
+        <div className="mt-8">
+          <div className="mb-4 flex items-center justify-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-sm">📊</span>
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-indigo-600">Cotes PS3838 (Pinnacle)</p>
+          </div>
           {isCombi ? renderCombiForm() : renderSimpleForm()}
         </div>
 
         {/* CB input */}
-        <div className="mt-6">
-          <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">🎯 Côte du Book (CB)</p>
-          <div className="mx-auto max-w-[200px]">
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-sm">🎯</span>
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-orange-600">Côte du Book (CB)</p>
+          </div>
+          <div className="mx-auto max-w-[220px]">
             <input
               type="number"
               step="0.01"
@@ -455,46 +465,45 @@ export default function ValueCalculatorPage() {
               onChange={(e) => setBetOdd(e.target.value)}
               placeholder="Ex: 2.20"
               inputMode="decimal"
-              className="w-full rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 text-center font-mono text-lg font-extrabold text-neutral-900 placeholder-neutral-300 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-2xl border-3 border-orange-400 bg-orange-50 px-4 py-4 text-center font-mono text-xl font-black text-orange-700 placeholder-orange-300 shadow-lg shadow-orange-100 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
             />
           </div>
         </div>
 
         {/* Results */}
         {result && (
-          <div className="mt-8 animate-[fadeIn_0.3s_ease-out]">
+          <div className="mt-10">
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-sm">📈</span>
+              <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-emerald-600">Résultats</p>
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <ResultCard label="Fair Odd" value={result.fairOdd} suffix="" color="neutral" />
-              <ResultCard label="TRJ" value={result.trj} suffix="%" color={trjColor(result.trj)} />
-              <ResultCard label="EV" value={result.ev} suffix="%" color={evColor(result.ev)} />
-              <ResultCard label="EV + TRJ" value={result.evPlusTrj} suffix="%" color={evTrjColor(result.evPlusTrj)} />
+              <ResultCard label="Fair Odd" value={result.fairOdd} suffix="" color="neutral" icon="⚖️" />
+              <ResultCard label="TRJ" value={result.trj} suffix="%" color={trjColor(result.trj)} icon="📐" />
+              <ResultCard label="EV" value={result.ev} suffix="%" color={evColor(result.ev)} icon="💰" />
+              <ResultCard label="EV + TRJ" value={result.evPlusTrj} suffix="%" color={evTrjColor(result.evPlusTrj)} icon="🔥" />
             </div>
             <VerdictBanner verdict={result.verdict} />
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-10 space-y-2 rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Méthode & Conseils</p>
-          <div className="space-y-1 text-[11px] leading-relaxed text-neutral-500">
-            <p>• Comparaison mathématique avec PS3838 (Pinnacle), référence mondiale</p>
-            <p>• Ne jouer en value que sur des cotes ≤ 2.50</p>
-            <p>• Mise très faible : ~0.25% de la bankroll</p>
-            <p>• TRJ bien meilleur sur ML/1X2 que sur marchés annexes (Over, BTTS, buteurs)</p>
-            <p>• Combiné de 2 matchs maximum, jamais 3+ (TRJ se dégrade : 99%×99% = 98%)</p>
-            <p>• Une value est value à l&apos;instant T, elle peut changer</p>
-            <p>• Value MATHÉMATIQUE (basée sur PS3838), pas subjective</p>
+        <div className="mt-12 overflow-hidden rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/50">
+          <div className="border-b border-slate-200 px-5 py-3">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-slate-400">📚 Méthode & Conseils</p>
+          </div>
+          <div className="space-y-2 px-5 py-4 text-[12px] leading-relaxed text-slate-500">
+            <p>📌 Comparaison mathématique avec <span className="font-bold text-indigo-600">PS3838 (Pinnacle)</span>, référence mondiale</p>
+            <p>📌 Ne jouer en value que sur des cotes <span className="font-bold text-slate-700">≤ 2.50</span></p>
+            <p>📌 Mise très faible : <span className="font-bold text-slate-700">~0.25%</span> de la bankroll</p>
+            <p>📌 TRJ bien meilleur sur <span className="font-bold text-slate-700">ML/1X2</span> que sur marchés annexes</p>
+            <p>📌 Combiné de <span className="font-bold text-red-500">2 matchs maximum</span>, jamais 3+ (TRJ 99%×99% = 98%)</p>
+            <p>📌 Une value est value à l&apos;instant T, elle peut changer</p>
+            <p>📌 Value <span className="font-bold text-slate-700">MATHÉMATIQUE</span> (PS3838), pas subjective</p>
           </div>
         </div>
 
       </main>
-
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </>
   );
 }
