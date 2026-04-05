@@ -118,7 +118,7 @@ function OddInput({
 }) {
   return (
     <div className="flex-1">
-      <label className={`mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] ${highlight ? "text-blue-400" : "text-white/30"}`}>
+      <label className={`mb-1 block text-center text-[10px] font-bold uppercase tracking-[0.15em] ${highlight ? "text-blue-600" : "text-neutral-400"}`}>
         {label}
       </label>
       <input
@@ -129,10 +129,10 @@ function OddInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode="decimal"
-        className={`w-full rounded-lg border px-3 py-2.5 text-center font-mono text-sm font-bold text-white placeholder-white/20 outline-none transition focus:ring-2 ${
+        className={`w-full rounded-lg border px-3 py-2.5 text-center font-mono text-sm font-bold text-neutral-900 placeholder-neutral-300 outline-none transition focus:ring-2 ${
           highlight
-            ? "border-blue-500/50 bg-blue-500/10 focus:border-blue-500 focus:ring-blue-500/20"
-            : "border-white/10 bg-white/[0.05] focus:border-white/30 focus:ring-white/10"
+            ? "border-blue-500 bg-blue-50 focus:border-blue-500 focus:ring-blue-500/20"
+            : "border-neutral-200 bg-neutral-50 focus:border-neutral-400 focus:ring-neutral-200"
         }`}
       />
     </div>
@@ -151,15 +151,15 @@ function ResultCard({
   color: "green" | "red" | "amber" | "neutral";
 }) {
   const colorMap = {
-    green: "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-400",
-    red: "border-red-500/30 bg-red-500/[0.06] text-red-400",
-    amber: "border-amber-500/30 bg-amber-500/[0.06] text-amber-400",
-    neutral: "border-white/10 bg-white/[0.04] text-white/70",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-600",
+    red: "border-red-200 bg-red-50 text-red-600",
+    amber: "border-amber-200 bg-amber-50 text-amber-600",
+    neutral: "border-neutral-200 bg-neutral-50 text-neutral-600",
   };
 
   return (
     <div className={`rounded-xl border p-4 text-center transition-all ${colorMap[color]}`}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">{label}</p>
       <p className="mt-1 font-mono text-xl font-extrabold">
         {value.toFixed(2)}{suffix}
       </p>
@@ -285,16 +285,16 @@ export default function ValueCalculatorPage() {
     return (
       <div>
         {isDC && (
-          <p className="mb-3 rounded-lg bg-blue-500/10 px-3 py-2 text-center text-[11px] text-blue-400">
+          <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-center text-[11px] text-blue-600">
             Les 2 premières cotes correspondent aux issues couvertes par la Double Chance
           </p>
         )}
         {market === "9simple" && (
-          <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-center text-[11px] text-amber-400">
+          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-[11px] text-amber-600">
             Si PS3838 n&apos;affiche que 8 cotes, mettre 100 pour la 9ème
           </p>
         )}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className={`grid gap-3 ${fieldCount <= 2 ? "mx-auto max-w-sm grid-cols-2" : fieldCount <= 3 ? "mx-auto max-w-lg grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`}>
           {labels.slice(0, fieldCount).map((label, i) => (
             <OddInput
               key={i}
@@ -320,8 +320,8 @@ export default function ValueCalculatorPage() {
     return (
       <div className="space-y-4">
         <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-400">Match 1 — Cotes PS3838</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600">Match 1 — Cotes PS3838</p>
+          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-sm grid-cols-2" : "mx-auto max-w-lg grid-cols-3"}`}>
             {labels.slice(0, fieldsPerMatch).map((label, i) => (
               <OddInput
                 key={`m1-${i}`}
@@ -337,14 +337,14 @@ export default function ValueCalculatorPage() {
             ))}
           </div>
           {result?.trj1 !== undefined && (
-            <p className="mt-1 text-center text-[10px] text-white/30">
-              TRJ Match 1 : <span className={result.trj1 >= 95 ? "text-emerald-400" : "text-red-400"}>{result.trj1.toFixed(2)}%</span>
+            <p className="mt-1 text-center text-[10px] text-neutral-400">
+              TRJ Match 1 : <span className={result.trj1 >= 95 ? "text-emerald-600" : "text-red-500"}>{result.trj1.toFixed(2)}%</span>
             </p>
           )}
         </div>
         <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-400">Match 2 — Cotes PS3838</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600">Match 2 — Cotes PS3838</p>
+          <div className={`grid gap-3 ${fieldsPerMatch <= 2 ? "mx-auto max-w-sm grid-cols-2" : "mx-auto max-w-lg grid-cols-3"}`}>
             {labels.slice(0, fieldsPerMatch).map((label, i) => (
               <OddInput
                 key={`m2-${i}`}
@@ -360,8 +360,8 @@ export default function ValueCalculatorPage() {
             ))}
           </div>
           {result?.trj2 !== undefined && (
-            <p className="mt-1 text-center text-[10px] text-white/30">
-              TRJ Match 2 : <span className={result.trj2 >= 95 ? "text-emerald-400" : "text-red-400"}>{result.trj2.toFixed(2)}%</span>
+            <p className="mt-1 text-center text-[10px] text-neutral-400">
+              TRJ Match 2 : <span className={result.trj2 >= 95 ? "text-emerald-600" : "text-red-500"}>{result.trj2.toFixed(2)}%</span>
             </p>
           )}
         </div>
@@ -383,7 +383,7 @@ export default function ValueCalculatorPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#0a0e17" }}>
+    <>
       <EspaceHero title="Value Bet Calculator" />
 
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
@@ -397,7 +397,7 @@ export default function ValueCalculatorPage() {
               className={`cursor-pointer rounded-lg px-3 py-2 text-[11px] font-bold transition ${
                 market === m.id
                   ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
-                  : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
+                  : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
               }`}
             >
               {m.label}
@@ -406,46 +406,46 @@ export default function ValueCalculatorPage() {
         </div>
 
         {/* Market description */}
-        <div className="mt-3 rounded-lg bg-white/[0.03] px-4 py-2.5 text-center">
-          <p className="text-xs text-white/50">{marketConfig.desc}</p>
+        <div className="mt-3 rounded-lg bg-neutral-50 px-4 py-2.5 text-center">
+          <p className="text-xs text-neutral-500">{marketConfig.desc}</p>
         </div>
 
         {/* Criteria */}
-        <div className="mt-4 flex items-center justify-center gap-4 rounded-xl border border-white/[0.06] px-4 py-3" style={{ background: "linear-gradient(135deg, #111 0%, #0a2a1f 100%)" }}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-white/30">⚙️ Critères</span>
+        <div className="mt-4 flex items-center justify-center gap-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">⚙️ Critères</span>
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] font-bold text-white/40">EV min</label>
+            <label className="text-[10px] font-bold text-neutral-500">EV min</label>
             <input
               type="number"
               step="0.1"
               value={evMin}
               onChange={(e) => setEvMin(e.target.value)}
-              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white placeholder-white/20 outline-none focus:border-blue-500"
+              className="w-16 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-neutral-900 outline-none focus:border-blue-500"
             />
-            <span className="text-[10px] text-white/30">%</span>
+            <span className="text-[10px] text-neutral-400">%</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] font-bold text-white/40">TRJ min</label>
+            <label className="text-[10px] font-bold text-neutral-500">TRJ min</label>
             <input
               type="number"
               step="0.5"
               value={trjMin}
               onChange={(e) => setTrjMin(e.target.value)}
-              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white placeholder-white/20 outline-none focus:border-blue-500"
+              className="w-16 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-center font-mono text-xs font-bold text-neutral-900 outline-none focus:border-blue-500"
             />
-            <span className="text-[10px] text-white/30">%</span>
+            <span className="text-[10px] text-neutral-400">%</span>
           </div>
         </div>
 
         {/* PS3838 Odds inputs */}
         <div className="mt-6">
-          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-white/30">📊 Cotes PS3838</p>
+          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">📊 Cotes PS3838</p>
           {isCombi ? renderCombiForm() : renderSimpleForm()}
         </div>
 
         {/* CB input */}
         <div className="mt-6">
-          <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-blue-400">🎯 Côte du Book (CB)</p>
+          <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">🎯 Côte du Book (CB)</p>
           <div className="mx-auto max-w-[200px]">
             <input
               type="number"
@@ -455,7 +455,7 @@ export default function ValueCalculatorPage() {
               onChange={(e) => setBetOdd(e.target.value)}
               placeholder="Ex: 2.20"
               inputMode="decimal"
-              className="w-full rounded-xl border-2 border-blue-500/50 bg-blue-500/10 px-4 py-3 text-center font-mono text-lg font-extrabold text-white placeholder-white/20 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-xl border-2 border-blue-500 bg-blue-50 px-4 py-3 text-center font-mono text-lg font-extrabold text-neutral-900 placeholder-neutral-300 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
         </div>
@@ -474,9 +474,9 @@ export default function ValueCalculatorPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-10 space-y-2 rounded-xl border border-white/[0.06] px-5 py-4" style={{ background: "linear-gradient(135deg, #111 0%, #0a1a14 100%)" }}>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">Méthode & Conseils</p>
-          <div className="space-y-1 text-[11px] leading-relaxed text-white/30">
+        <div className="mt-10 space-y-2 rounded-xl border border-neutral-200 bg-neutral-50 px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Méthode & Conseils</p>
+          <div className="space-y-1 text-[11px] leading-relaxed text-neutral-500">
             <p>• Comparaison mathématique avec PS3838 (Pinnacle), référence mondiale</p>
             <p>• Ne jouer en value que sur des cotes ≤ 2.50</p>
             <p>• Mise très faible : ~0.25% de la bankroll</p>
@@ -495,6 +495,6 @@ export default function ValueCalculatorPage() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </div>
+    </>
   );
 }
