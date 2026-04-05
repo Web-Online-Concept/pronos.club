@@ -129,7 +129,7 @@ function OddInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         inputMode="decimal"
-        className={`w-full rounded-lg border px-3 py-2.5 text-center font-mono text-sm font-bold text-white outline-none transition focus:ring-2 ${
+        className={`w-full rounded-lg border px-3 py-2.5 text-center font-mono text-sm font-bold text-white placeholder-white/20 outline-none transition focus:ring-2 ${
           highlight
             ? "border-blue-500/50 bg-blue-500/10 focus:border-blue-500 focus:ring-blue-500/20"
             : "border-white/10 bg-white/[0.05] focus:border-white/30 focus:ring-white/10"
@@ -383,7 +383,7 @@ export default function ValueCalculatorPage() {
   }
 
   return (
-    <>
+    <div className="min-h-screen" style={{ background: "#0a0e17" }}>
       <EspaceHero title="Value Bet Calculator" />
 
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
@@ -420,7 +420,7 @@ export default function ValueCalculatorPage() {
               step="0.1"
               value={evMin}
               onChange={(e) => setEvMin(e.target.value)}
-              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white outline-none focus:border-blue-500"
+              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white placeholder-white/20 outline-none focus:border-blue-500"
             />
             <span className="text-[10px] text-white/30">%</span>
           </div>
@@ -431,7 +431,7 @@ export default function ValueCalculatorPage() {
               step="0.5"
               value={trjMin}
               onChange={(e) => setTrjMin(e.target.value)}
-              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white outline-none focus:border-blue-500"
+              className="w-16 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1.5 text-center font-mono text-xs font-bold text-white placeholder-white/20 outline-none focus:border-blue-500"
             />
             <span className="text-[10px] text-white/30">%</span>
           </div>
@@ -455,7 +455,7 @@ export default function ValueCalculatorPage() {
               onChange={(e) => setBetOdd(e.target.value)}
               placeholder="Ex: 2.20"
               inputMode="decimal"
-              className="w-full rounded-xl border-2 border-blue-500/50 bg-blue-500/10 px-4 py-3 text-center font-mono text-lg font-extrabold text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-xl border-2 border-blue-500/50 bg-blue-500/10 px-4 py-3 text-center font-mono text-lg font-extrabold text-white placeholder-white/20 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
         </div>
@@ -495,6 +495,6 @@ export default function ValueCalculatorPage() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </>
+    </div>
   );
 }
