@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (pickId) {
     const { data } = await supabase
       .from("user_picks")
-      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds")
+      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
       .eq("user_id", user.id)
       .eq("pick_id", pickId)
       .single();
@@ -26,12 +26,13 @@ export async function GET(request: Request) {
       user_bookmaker_id: data?.user_bookmaker_id ?? null,
       user_bookmaker_other: data?.user_bookmaker_other ?? null,
       user_leg_odds: data?.user_leg_odds ?? null,
+      user_unit_value: data?.user_unit_value ?? null,
     });
   }
 
   const { data } = await supabase
     .from("user_picks")
-    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds")
+    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
     .eq("user_id", user.id)
     .eq("followed", true);
 
@@ -64,6 +65,29 @@ export async function POST(request: Request) {
     if (user_bookmaker_id !== undefined) row.user_bookmaker_id = user_bookmaker_id || null;
     if (user_bookmaker_other !== undefined) row.user_bookmaker_other = user_bookmaker_other || null;
     if (user_leg_odds !== undefined) row.user_leg_odds = user_leg_odds || null;
+
+    // Freeze user's unit value at the time of follow
+    try {
+      const { data: bankrollData } = await supabase
+        .from("user_bankroll")
+        .select("mode, unit_value, unit_percent, current_bankroll")
+        .eq("user_id", user.id)
+        .single();
+
+      if (bankrollData && bankrollData.mode !== "units_only") {
+        const unitValue = bankrollData.mode === "fixed_unit"
+          ? bankrollData.unit_value ?? 0
+          : bankrollData.mode === "percent_bankroll"
+          ? ((bankrollData.current_bankroll ?? 0) * (bankrollData.unit_percent ?? 0)) / 100
+          : 0;
+
+        if (unitValue > 0) {
+          row.user_unit_value = unitValue;
+        }
+      }
+    } catch {
+      // Bankroll not configured — user_unit_value stays null
+    }
   }
 
   const { error } = await supabase

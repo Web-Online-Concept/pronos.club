@@ -14,18 +14,21 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  // Get followed pick IDs
+  // Get followed pick IDs WITH frozen unit value
   const { data: followedRows } = await supabase
     .from("user_picks")
-    .select("pick_id")
+    .select("pick_id, user_unit_value")
     .eq("user_id", user.id)
     .eq("followed", true);
 
-  const followedIds = (followedRows ?? []).map((r) => r.pick_id);
+  const followedMap = new Map(
+    (followedRows ?? []).map((r) => [r.pick_id, r])
+  );
+  const followedIds = [...followedMap.keys()];
 
   if (followedIds.length === 0) {
     return NextResponse.json({
-      overview: { totalFollowed: 0, won: 0, lost: 0, voidPicks: 0, profit: 0, staked: 0, roi: 0, winRate: 0, avgOdds: 0, avgOddsWon: 0, avgOddsLost: 0, maxWinStreak: 0, maxLoseStreak: 0, currentStreak: "-", maxDrawdown: 0, bestPick: null, worstPick: null },
+      overview: { totalFollowed: 0, won: 0, lost: 0, voidPicks: 0, profit: 0, profitEuro: 0, staked: 0, stakedEuro: 0, roi: 0, winRate: 0, avgOdds: 0, avgOddsWon: 0, avgOddsLost: 0, maxWinStreak: 0, maxLoseStreak: 0, currentStreak: "-", maxDrawdown: 0, maxDrawdownEuro: 0, bestPick: null, worstPick: null },
       profitTimeline: [], roiTimeline: [], drawdownTimeline: [], allSports: [], availableMonths: [], bySport: [], byMonth: [], oddsDist: [],
     });
   }
@@ -72,19 +75,46 @@ export async function GET(request: Request) {
       })
     : allPicks;
 
+  // Helper: get frozen unit value for a pick
+  function getUnitValue(pickId: string): number {
+    const row = followedMap.get(pickId);
+    return row?.user_unit_value ? Number(row.user_unit_value) : 0;
+  }
+
+  // Helper: convert units to euros using frozen unit value
+  function toEuro(pickId: string, units: number): number {
+    return units * getUnitValue(pickId);
+  }
+
   const totalFollowed = picks.length;
   const won = picks.filter((p) => p.status === "won" || p.status === "half_won").length;
   const lost = picks.filter((p) => p.status === "lost" || p.status === "half_lost").length;
   const voidPicks = picks.filter((p) => p.status === "void").length;
   const resolved = totalFollowed - voidPicks;
   const profit = picks.reduce((s, p) => s + (p.profit ?? 0), 0);
+  const profitEuro = picks.reduce((s, p) => s + toEuro(p.id, p.profit ?? 0), 0);
   const staked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
+  const stakedEuro = picks.reduce((s, p) => s + toEuro(p.id, p.stake ?? 0), 0);
   const roi = staked > 0 ? (profit / staked) * 100 : 0;
   const winRate = resolved > 0 ? (won / resolved) * 100 : 0;
   const avgOdds = totalFollowed > 0 ? picks.reduce((s, p) => s + p.odds, 0) / totalFollowed : 0;
 
-  const bestPick = picks.reduce((best, p) => ((p.profit ?? 0) > (best?.profit ?? -Infinity) ? p : best), picks[0]);
-  const worstPick = picks.reduce((worst, p) => ((p.profit ?? 0) < (worst?.profit ?? Infinity) ? p : worst), picks[0]);
+  // Best/worst pick with tiebreaker on odds
+  const bestPick = picks.reduce((best, p) => {
+    const pProfit = p.profit ?? 0;
+    const bProfit = best?.profit ?? -Infinity;
+    if (pProfit > bProfit) return p;
+    if (pProfit === bProfit && p.odds > (best?.odds ?? -Infinity)) return p;
+    return best;
+  }, picks[0]);
+
+  const worstPick = picks.reduce((worst, p) => {
+    const pProfit = p.profit ?? 0;
+    const wProfit = worst?.profit ?? Infinity;
+    if (pProfit < wProfit) return p;
+    if (pProfit === wProfit && p.odds < (worst?.odds ?? Infinity)) return p;
+    return worst;
+  }, picks[0]);
 
   // Avg odds won vs lost
   const wonOdds = picks.filter((p) => p.status === "won" || p.status === "half_won");
@@ -107,11 +137,18 @@ export async function GET(request: Request) {
     }
   });
 
-  // Profit timeline
+  // Profit timeline — with euro values pre-calculated
   let cumProfit = 0;
+  let cumProfitEuro = 0;
   const profitTimeline = picks.map((p) => {
     cumProfit += p.profit ?? 0;
-    return { date: p.result_entered_at?.split("T")[0] ?? "", profit: Math.round(cumProfit * 1000) / 1000, event: p.event_name };
+    cumProfitEuro += toEuro(p.id, p.profit ?? 0);
+    return {
+      date: p.result_entered_at?.split("T")[0] ?? "",
+      profit: Math.round(cumProfit * 1000) / 1000,
+      profitEuro: Math.round(cumProfitEuro * 100) / 100,
+      event: p.event_name,
+    };
   });
 
   // ROI timeline
@@ -122,50 +159,60 @@ export async function GET(request: Request) {
     return { date: p.result_entered_at?.split("T")[0] ?? "", roi: cumStaked > 0 ? Math.round((cumProfitRoi / cumStaked) * 10000) / 100 : 0 };
   });
 
-  // Drawdown
-  let peak = 0, maxDrawdown = 0, cumDD = 0;
+  // Drawdown — with euro values pre-calculated
+  let peak = 0, peakEuro = 0, maxDrawdown = 0, maxDrawdownEuro = 0, cumDD = 0, cumDDEuro = 0;
   const drawdownTimeline = picks.map((p) => {
     cumDD += p.profit ?? 0;
+    cumDDEuro += toEuro(p.id, p.profit ?? 0);
     if (cumDD > peak) peak = cumDD;
+    if (cumDDEuro > peakEuro) peakEuro = cumDDEuro;
     const dd = peak - cumDD;
+    const ddEuro = peakEuro - cumDDEuro;
     if (dd > maxDrawdown) maxDrawdown = dd;
-    return { date: p.result_entered_at?.split("T")[0] ?? "", drawdown: -Math.round(dd * 1000) / 1000 };
+    if (ddEuro > maxDrawdownEuro) maxDrawdownEuro = ddEuro;
+    return {
+      date: p.result_entered_at?.split("T")[0] ?? "",
+      drawdown: -Math.round(dd * 1000) / 1000,
+      drawdownEuro: -Math.round(ddEuro * 100) / 100,
+    };
   });
 
-  // By sport
-  const sportMap = new Map<string, { name: string; icon: string; slug: string; won: number; lost: number; total: number; profit: number; staked: number }>();
+  // By sport — with euro profit pre-calculated
+  const sportMap = new Map<string, { name: string; icon: string; slug: string; won: number; lost: number; total: number; profit: number; profitEuro: number; staked: number }>();
   picks.forEach((p) => {
     const sport = Array.isArray(p.sport) ? p.sport[0] : p.sport;
     if (!sport) return;
     const key = sport.slug;
-    if (!sportMap.has(key)) sportMap.set(key, { name: sport.name_fr, icon: sport.icon ?? "", slug: key, won: 0, lost: 0, total: 0, profit: 0, staked: 0 });
+    if (!sportMap.has(key)) sportMap.set(key, { name: sport.name_fr, icon: sport.icon ?? "", slug: key, won: 0, lost: 0, total: 0, profit: 0, profitEuro: 0, staked: 0 });
     const s = sportMap.get(key)!;
     s.total++; s.staked += p.stake ?? 0;
     if (p.status === "won" || p.status === "half_won") s.won++;
     if (p.status === "lost" || p.status === "half_lost") s.lost++;
     s.profit += p.profit ?? 0;
+    s.profitEuro += toEuro(p.id, p.profit ?? 0);
   });
   const bySport = Array.from(sportMap.values())
-    .map((s) => ({ ...s, roi: s.staked > 0 ? Math.round((s.profit / s.staked) * 10000) / 100 : 0, winRate: (s.won + s.lost) > 0 ? Math.round((s.won / (s.won + s.lost)) * 10000) / 100 : 0, profit: Math.round(s.profit * 1000) / 1000 }))
+    .map((s) => ({ ...s, roi: s.staked > 0 ? Math.round((s.profit / s.staked) * 10000) / 100 : 0, winRate: (s.won + s.lost) > 0 ? Math.round((s.won / (s.won + s.lost)) * 10000) / 100 : 0, profit: Math.round(s.profit * 1000) / 1000, profitEuro: Math.round(s.profitEuro * 100) / 100 }))
     .sort((a, b) => b.profit - a.profit);
 
-  // By month
-  const monthMap = new Map<string, { month: string; won: number; lost: number; total: number; profit: number; staked: number }>();
+  // By month — with euro profit pre-calculated
+  const monthMap = new Map<string, { month: string; won: number; lost: number; total: number; profit: number; profitEuro: number; staked: number }>();
   picks.forEach((p) => {
     const date = p.result_entered_at?.split("T")[0] ?? "";
     const month = date.slice(0, 7);
-    if (!monthMap.has(month)) monthMap.set(month, { month, won: 0, lost: 0, total: 0, profit: 0, staked: 0 });
+    if (!monthMap.has(month)) monthMap.set(month, { month, won: 0, lost: 0, total: 0, profit: 0, profitEuro: 0, staked: 0 });
     const m = monthMap.get(month)!;
     m.total++; m.staked += p.stake ?? 0;
     if (p.status === "won" || p.status === "half_won") m.won++;
     if (p.status === "lost" || p.status === "half_lost") m.lost++;
     m.profit += p.profit ?? 0;
+    m.profitEuro += toEuro(p.id, p.profit ?? 0);
   });
   const byMonth = Array.from(monthMap.values())
-    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 1000) / 1000 }))
+    .map((m) => ({ ...m, roi: m.staked > 0 ? Math.round((m.profit / m.staked) * 10000) / 100 : 0, profit: Math.round(m.profit * 1000) / 1000, profitEuro: Math.round(m.profitEuro * 100) / 100 }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  // Odds distribution
+  // Odds distribution — with euro profit pre-calculated
   const oddsRanges = [
     { label: "1.00-1.50", min: 1, max: 1.5 },
     { label: "1.50-2.00", min: 1.5, max: 2 },
@@ -178,14 +225,17 @@ export async function GET(request: Request) {
     const w = inRange.filter((p) => p.status === "won" || p.status === "half_won").length;
     const total = inRange.length;
     const pr = inRange.reduce((s, p) => s + (p.profit ?? 0), 0);
-    return { label: range.label, total, won: w, winRate: total > 0 ? Math.round((w / total) * 100) : 0, profit: Math.round(pr * 1000) / 1000 };
+    const prEuro = inRange.reduce((s, p) => s + toEuro(p.id, p.profit ?? 0), 0);
+    return { label: range.label, total, won: w, winRate: total > 0 ? Math.round((w / total) * 100) : 0, profit: Math.round(pr * 1000) / 1000, profitEuro: Math.round(prEuro * 100) / 100 };
   });
 
   return NextResponse.json({
     overview: {
       totalFollowed, won, lost, voidPicks,
       profit: Math.round(profit * 1000) / 1000,
+      profitEuro: Math.round(profitEuro * 100) / 100,
       staked: Math.round(staked * 100) / 100,
+      stakedEuro: Math.round(stakedEuro * 100) / 100,
       roi: Math.round(roi * 100) / 100,
       winRate: Math.round(winRate * 100) / 100,
       avgOdds: Math.round(avgOdds * 1000) / 1000,
@@ -194,8 +244,9 @@ export async function GET(request: Request) {
       maxWinStreak, maxLoseStreak,
       currentStreak: streakType ? `${streakType}${streakCount}` : "-",
       maxDrawdown: Math.round(maxDrawdown * 1000) / 1000,
-      bestPick: bestPick ? { event: bestPick.event_name, profit: bestPick.profit, odds: bestPick.odds, pickNumber: bestPick.pick_number } : null,
-      worstPick: worstPick ? { event: worstPick.event_name, profit: worstPick.profit, odds: worstPick.odds, pickNumber: worstPick.pick_number } : null,
+      maxDrawdownEuro: Math.round(maxDrawdownEuro * 100) / 100,
+      bestPick: bestPick ? { event: bestPick.event_name, profit: bestPick.profit, profitEuro: Math.round(toEuro(bestPick.id, bestPick.profit) * 100) / 100, odds: bestPick.odds, pickNumber: bestPick.pick_number } : null,
+      worstPick: worstPick ? { event: worstPick.event_name, profit: worstPick.profit, profitEuro: Math.round(toEuro(worstPick.id, worstPick.profit) * 100) / 100, odds: worstPick.odds, pickNumber: worstPick.pick_number } : null,
     },
     profitTimeline,
     roiTimeline,

@@ -19,10 +19,10 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") ?? "20");
   const offset = parseInt(searchParams.get("offset") ?? "0");
 
-  // Get followed picks WITH user_odds
+  // Get followed picks WITH user_odds and frozen unit value
   const { data: followedRows } = await supabase
     .from("user_picks")
-    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds")
+    .select("pick_id, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value")
     .eq("user_id", user.id)
     .eq("followed", true);
 
@@ -51,7 +51,6 @@ export async function GET(request: Request) {
       query = query.eq("status", status);
     }
   }
-  // No filter when "all" → show everything the user has followed
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
   if (to) query = query.lte("event_date", `${to}T23:59:59Z`);
@@ -73,11 +72,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Enrich picks with user_odds and user_profit
+  // Enrich picks with user_odds, user_profit, and frozen unit value
   const enriched = (data ?? []).map((pick) => {
     const userInfo = followedMap.get(pick.id);
     const userOdds = userInfo?.user_odds ?? null;
     const userLegOdds: { leg_number: number; odds: number }[] = userInfo?.user_leg_odds ?? null;
+    const userUnitValue = userInfo?.user_unit_value ?? null;
 
     let userProfit: number | null = null;
 
@@ -90,14 +90,11 @@ export async function GET(request: Request) {
         const allResolved = allLegs.every((l: { status: string }) => l.status !== "pending");
 
         if (allResolved && allLegs.length > 0) {
-          // Check if any leg lost → whole pick lost
           const anyLost = allLegs.some((l: { status: string }) => l.status === "lost" || l.status === "half_lost");
 
           if (anyLost) {
             userProfit = -pick.stake;
           } else if (userLegOdds && userLegOdds.length > 0) {
-            // Use per-leg user odds for accurate calculation
-            // Only include non-void legs
             const activeUserOdds: number[] = allLegs
               .filter((l: { status: string }) => l.status !== "void")
               .map((l: { leg_number: number }) => {
@@ -107,14 +104,12 @@ export async function GET(request: Request) {
               .filter((o: number) => o > 0);
 
             if (activeUserOdds.length === 0) {
-              // All void
               userProfit = 0;
             } else {
               const effectiveOdds = activeUserOdds.reduce((acc: number, o: number) => acc * o, 1);
               userProfit = parseFloat(((effectiveOdds - 1) * pick.stake).toFixed(2));
             }
           } else {
-            // Fallback: no per-leg odds, use global user_odds
             userProfit = calculateProfit(pick.status as PickStatus, userOdds, pick.stake);
           }
         }
@@ -128,6 +123,7 @@ export async function GET(request: Request) {
       user_odds: userOdds,
       user_leg_odds: userLegOdds,
       user_profit: userProfit,
+      user_unit_value: userUnitValue,
       user_bookmaker_id: userInfo?.user_bookmaker_id ?? null,
       user_bookmaker_other: userInfo?.user_bookmaker_other ?? null,
     };
