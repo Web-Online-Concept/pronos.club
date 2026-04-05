@@ -63,7 +63,6 @@ export async function GET() {
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
 `;
-      // Alternate language links
       for (const alt of locales) {
         xml += `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}${page.path}" />\n`;
       }
@@ -111,7 +110,7 @@ export async function GET() {
 
   return new Response(xml, {
     headers: {
-      "Content-Type": "application/xml",
+      "Content-Type": "application/xml; charset=utf-8",
       "Cache-Control": "public, max-age=3600, s-maxage=3600",
     },
   });

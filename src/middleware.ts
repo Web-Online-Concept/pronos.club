@@ -7,7 +7,6 @@ import { routing } from "@/i18n/routing";
 const intlMiddleware = createMiddleware(routing);
 
 async function updateSupabaseSession(request: NextRequest, response: NextResponse) {
-  // Create a Supabase client that reads/writes cookies on the request/response
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,10 +31,15 @@ async function updateSupabaseSession(request: NextRequest, response: NextRespons
     }
   );
 
-  // This refreshes the session if expired — MUST be called
   await supabase.auth.getUser();
 
   return response;
+}
+
+// Known search engine bots that should bypass SITE_PASSWORD
+function isSearchBot(request: NextRequest): boolean {
+  const ua = request.headers.get("user-agent") || "";
+  return /Googlebot|bingbot|Baiduspider|YandexBot|DuckDuckBot|Slurp|facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp/i.test(ua);
 }
 
 export async function middleware(request: NextRequest) {
@@ -61,11 +65,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Search bots bypass SITE_PASSWORD (SEO indexing) ──
+  if (isSearchBot(request)) {
+    const response = intlMiddleware(request);
+    return updateSupabaseSession(request, response);
+  }
+
   // ── Check site password cookie ──
   const accessCookie = request.cookies.get("site_access");
   if (accessCookie?.value === "granted") {
-    // Authenticated for site → run i18n + refresh Supabase session + noindex
     const response = intlMiddleware(request);
+    // noindex tant que le site est protégé par mot de passe
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return updateSupabaseSession(request, response);
   }
