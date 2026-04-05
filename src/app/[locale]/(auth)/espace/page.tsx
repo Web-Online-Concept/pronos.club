@@ -53,6 +53,18 @@ export default function MemberDashboard() {
 
         {isAdmin && (
           <Link
+            href={`/${locale}/espace/value-calculator`}
+            className="overflow-hidden rounded-xl border-2 border-blue-500 p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, #111111 0%, #0a1e3d 100%)" }}
+          >
+            <span className="text-2xl">🧮</span>
+            <h3 className="mt-2 font-bold text-blue-400">Value Calculator</h3>
+            <p className="mt-1 text-sm text-blue-400/60">Calculateur de Value Bet PS3838</p>
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link
             href={`/${locale}/admin`}
             className="overflow-hidden rounded-xl border-2 border-emerald-500 p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
             style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
