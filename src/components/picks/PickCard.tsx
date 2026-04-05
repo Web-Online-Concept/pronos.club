@@ -6,6 +6,18 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import LiveScore from "@/components/picks/LiveScore";
 import type { Pick, PickLeg, Bookmaker } from "@/lib/supabase/types";
 
+// Type for live_score_data from DB (matches LiveScore component's interface)
+type LiveScoreData = {
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  matchStatus: string;
+  minute?: string;
+  isTennis?: boolean;
+  sets?: { home: number; away: number; homeTiebreak?: number; awayTiebreak?: number }[];
+} | null;
+
 // Module-level cache for tipster bankroll — shared across all PickCard instances
 type TipsterBkType = { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null;
 let _tipsterBkCache: TipsterBkType | undefined = undefined;
@@ -463,10 +475,12 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                               pickId={pick.id}
                               eventDate={leg.event_date ?? pick.event_date}
                               pickStatus={leg.status ?? pick.status}
+                              savedScore={(leg as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
                               legEventName={leg.event_name}
                               legEventDate={leg.event_date ?? pick.event_date}
                               legSportSlug={leg.sport?.slug ?? pick.sport?.slug}
                               legCompetition={leg.competition ?? pick.competition ?? undefined}
+                              legNumber={leg.leg_number}
                             />
                           </div>
                         );
@@ -520,6 +534,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                       pickId={pick.id}
                       eventDate={pick.event_date}
                       pickStatus={pick.status}
+                      savedScore={(pick as Record<string, unknown>).live_score_data as LiveScoreData | undefined ?? undefined}
                     />
                   )}
 

@@ -15,11 +15,12 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
 
 /**
  * GET /api/live-scores
- * 
- * ?active=true → scores for all pending picks (today)
- * ?pick_id=xxx → score for one pick
- * 
- * Uses ESPN hidden API — free, no key, all sports
+ *
+ * ?active=true        → scores for all pending picks (today)
+ * ?pick_id=xxx        → score for one pick (auto-saves if resolved)
+ * ?event=xxx&date=xxx → direct search (combined legs)
+ *    &sport=xxx&competition=xxx
+ *    &save_pick_id=xxx&save_leg=N  → optional: save result to DB
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -41,6 +42,14 @@ export async function GET(request: Request) {
   if (eventName && eventDate) {
     const result = await findScore(eventName, eventDate, sportSlug, competition);
     if (!result) return NextResponse.json({ found: false });
+
+    // Auto-save for resolved leg if save params provided
+    const saveLegPickId = searchParams.get("save_pick_id");
+    const saveLegNum = searchParams.get("save_leg");
+    if (saveLegPickId && saveLegNum && result.matchStatus === "final") {
+      await saveLegScore(saveLegPickId, Number(saveLegNum), result);
+    }
+
     return NextResponse.json(result);
   }
 
@@ -114,14 +123,20 @@ async function getActivePicksScores() {
 // ═══════════════════════════════════════════════
 
 async function getPickScore(pickId: string) {
+  // First check if score is already saved in DB
   const { data: pick } = await supabaseAdmin
     .from("picks")
-    .select("id, event_name, event_date, competition, sport:sports(slug)")
+    .select("id, event_name, event_date, competition, status, live_score_data, sport:sports(slug)")
     .eq("id", pickId)
     .single();
 
   if (!pick) {
     return NextResponse.json({ found: false });
+  }
+
+  // If already saved, return it directly
+  if (pick.live_score_data) {
+    return NextResponse.json(pick.live_score_data);
   }
 
   const pickAny = pick as Record<string, unknown>;
@@ -133,7 +148,32 @@ async function getPickScore(pickId: string) {
     return NextResponse.json({ found: false });
   }
 
+  // Auto-save if pick is resolved and match is final
+  const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(pick.status);
+  if (isResolved && result.matchStatus === "final") {
+    await supabaseAdmin
+      .from("picks")
+      .update({ live_score_data: result })
+      .eq("id", pickId);
+  }
+
   return NextResponse.json(result);
+}
+
+// ═══════════════════════════════════════════════
+// SAVE LEG SCORE
+// ═══════════════════════════════════════════════
+
+async function saveLegScore(pickId: string, legNumber: number, scoreData: LiveScoreResult) {
+  try {
+    await supabaseAdmin
+      .from("pick_legs")
+      .update({ live_score_data: scoreData })
+      .eq("pick_id", pickId)
+      .eq("leg_number", legNumber);
+  } catch {
+    // Silent — non-critical
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -152,33 +192,48 @@ async function findScore(
   const teams = extractTeams(eventName);
   if (teams.length === 0) return null;
 
-  const dateStr = new Date(eventDate).toISOString().split("T")[0].replace(/-/g, "");
+  const eventDt = new Date(eventDate);
+  const dateStr = eventDt.toISOString().split("T")[0].replace(/-/g, "");
 
-  // Search each ESPN league until we find a match
+  // For tennis, ESPN groups all matches under the tournament event
+  // Try: exact date, then no date (current tournaments), then previous day
+  const isTennisSport = sportSlug === "tennis"
+    || (competition?.toLowerCase().includes("atp") ?? false)
+    || (competition?.toLowerCase().includes("wta") ?? false);
+
+  const datesToTry = [dateStr];
+  if (isTennisSport) {
+    datesToTry.push(""); // no date = current scoreboard
+    const prevDay = new Date(eventDt.getTime() - 24 * 60 * 60 * 1000);
+    datesToTry.push(prevDay.toISOString().split("T")[0].replace(/-/g, ""));
+  }
+
   for (const slug of espnSlugs) {
-    const games = await fetchEspnScoreboard(slug, dateStr);
-    if (!games || games.length === 0) continue;
+    for (const tryDate of datesToTry) {
+      const games = await fetchEspnScoreboard(slug, tryDate);
+      if (!games || games.length === 0) continue;
 
-    for (const game of games) {
-      if (teams.length >= 2) {
-        const match1 = teamsMatch(game.homeTeam, teams[0]) && teamsMatch(game.awayTeam, teams[1]);
-        const match2 = teamsMatch(game.homeTeam, teams[1]) && teamsMatch(game.awayTeam, teams[0]);
-        if (!match1 && !match2) continue;
-      } else {
-        if (!teamsMatch(game.homeTeam, teams[0]) && !teamsMatch(game.awayTeam, teams[0])) continue;
+      for (const game of games) {
+        if (teams.length >= 2) {
+          const match1 = teamsMatch(game.homeTeam, teams[0]) && teamsMatch(game.awayTeam, teams[1]);
+          const match2 = teamsMatch(game.homeTeam, teams[1]) && teamsMatch(game.awayTeam, teams[0]);
+          if (!match1 && !match2) continue;
+        } else {
+          if (!teamsMatch(game.homeTeam, teams[0]) && !teamsMatch(game.awayTeam, teams[0])) continue;
+        }
+
+        return {
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+          matchStatus: game.status,
+          minute: game.minute,
+          fixtureId: game.fixtureId,
+          isTennis: game.isTennis || false,
+          sets: game.sets,
+        };
       }
-
-      return {
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-        homeScore: game.homeScore,
-        awayScore: game.awayScore,
-        matchStatus: game.status,
-        minute: game.minute,
-        fixtureId: game.fixtureId,
-        isTennis: game.isTennis || false,
-        sets: game.sets,
-      };
     }
   }
 
@@ -190,12 +245,14 @@ async function findScore(
 // ═══════════════════════════════════════════════
 
 async function fetchEspnScoreboard(espnSlug: string, dateStr: string): Promise<ParsedGame[]> {
-  const cacheKey = `espn:${espnSlug}:${dateStr}`;
+  const cacheKey = `espn:${espnSlug}:${dateStr || "current"}`;
   const cached = getCached(cacheKey);
   if (cached) return cached as ParsedGame[];
 
   try {
-    const url = `${ESPN_BASE}/${espnSlug}/scoreboard?dates=${dateStr}`;
+    const url = dateStr
+      ? `${ESPN_BASE}/${espnSlug}/scoreboard?dates=${dateStr}`
+      : `${ESPN_BASE}/${espnSlug}/scoreboard`;
 
     const res = await fetch(url, {
       headers: { "Accept": "application/json" },

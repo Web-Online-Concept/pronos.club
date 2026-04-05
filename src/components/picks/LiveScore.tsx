@@ -25,36 +25,44 @@ interface LiveScoreProps {
   pickId: string;
   eventDate: string;
   pickStatus: string;
+  /** Pre-loaded score from DB (picks.live_score_data or pick_legs.live_score_data) */
+  savedScore?: LiveScoreData | null;
   /** For combined legs: pass event info directly instead of pick_id lookup */
   legEventName?: string;
   legEventDate?: string;
   legSportSlug?: string;
   legCompetition?: string;
+  /** For combined legs: save params */
+  legNumber?: number;
 }
 
 export default function LiveScore({
   pickId,
   eventDate,
   pickStatus,
+  savedScore,
   legEventName,
   legEventDate,
   legSportSlug,
   legCompetition,
+  legNumber,
 }: LiveScoreProps) {
-  const [score, setScore] = useState<LiveScoreData | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [score, setScore] = useState<LiveScoreData | null>(savedScore ?? null);
+  const [loaded, setLoaded] = useState(!!savedScore);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isPending = pickStatus === "pending";
   const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(pickStatus);
   const checkDate = legEventDate || eventDate;
-  const shouldFetch = isRecentEvent(checkDate) && (isPending || isResolved);
 
-  // Build the fetch URL
+  // If we have a saved score from DB, no need to fetch at all
+  const hasSavedScore = !!savedScore;
+  const shouldFetch = !hasSavedScore && isRecentEvent(checkDate, isResolved) && (isPending || isResolved);
+
   const isLegMode = !!legEventName;
 
   useEffect(() => {
-    if (!shouldFetch) {
+    if (hasSavedScore || !shouldFetch) {
       setLoaded(true);
       return;
     }
@@ -68,7 +76,7 @@ export default function LiveScore({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [pickId, legEventName, shouldFetch]);
+  }, [pickId, legEventName, shouldFetch, hasSavedScore]);
 
   useEffect(() => {
     if (score?.matchStatus === "final" && intervalRef.current) {
@@ -81,16 +89,19 @@ export default function LiveScore({
     try {
       let url: string;
       if (isLegMode) {
-        // Combined leg: search by event details directly
         const params = new URLSearchParams({
           event: legEventName!,
           date: legEventDate || eventDate,
           sport: legSportSlug || "football",
         });
         if (legCompetition) params.set("competition", legCompetition);
+        // Pass save params so the API auto-saves when match is final
+        if (isResolved && legNumber !== undefined) {
+          params.set("save_pick_id", pickId);
+          params.set("save_leg", String(legNumber));
+        }
         url = `/api/live-scores?${params.toString()}`;
       } else {
-        // Simple pick: search by pick_id
         url = `/api/live-scores?pick_id=${pickId}`;
       }
 
@@ -108,7 +119,7 @@ export default function LiveScore({
     setLoaded(true);
   }
 
-  if (!shouldFetch || !loaded || !score) return null;
+  if (!loaded || !score) return null;
   if (score.matchStatus === "scheduled") return null;
 
   const isLive = score.matchStatus === "live";
@@ -131,7 +142,7 @@ export default function LiveScore({
     );
   }
 
-  // Football / other sports — original display
+  // Football / other sports
   return (
     <div className={`mt-2 flex items-center justify-center gap-3 rounded-lg px-3 py-2 ${
       isPlaying
@@ -172,7 +183,6 @@ export default function LiveScore({
 
 // ═══════════════════════════════════════════════
 // TENNIS DISPLAY
-// Format: "Navone  6/4  3/6  6/4  Van De Zandschulp"
 // ═══════════════════════════════════════════════
 
 function getLastName(fullName: string): string {
@@ -207,7 +217,6 @@ function TennisScore({
         ? "bg-white/5 border border-white/10"
         : "bg-amber-500/10 border border-amber-500/20"
     }`}>
-      {/* Status line */}
       <div className="flex items-center justify-center gap-2 mb-1.5">
         {isPlaying && (
           <span className="relative flex h-2 w-2 flex-shrink-0">
@@ -225,7 +234,6 @@ function TennisScore({
         </span>
       </div>
 
-      {/* Tennis score line: Name  6/4  3/6  7/5  Name */}
       <div className="flex items-center justify-center gap-2">
         <span className={`text-xs font-bold truncate max-w-[90px] text-right ${
           homeWon ? "text-green-400" : isPlaying ? "text-white" : "text-white/60"
@@ -268,13 +276,17 @@ function TennisScore({
   );
 }
 
-function isRecentEvent(eventDate: string): boolean {
+function isRecentEvent(eventDate: string, isResolved = false): boolean {
   const now = new Date();
   const event = new Date(eventDate);
   const diffMs = now.getTime() - event.getTime();
 
   if (diffMs < -6 * 60 * 60 * 1000) return false;
-  if (diffMs > 12 * 60 * 60 * 1000) return false;
+
+  // Resolved picks: 48h window (score should be saved by then)
+  // Pending picks: 12h window
+  const maxAge = isResolved ? 48 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
+  if (diffMs > maxAge) return false;
 
   return true;
 }

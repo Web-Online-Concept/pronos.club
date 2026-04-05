@@ -65,10 +65,8 @@ const COMPETITION_TO_ESPN: Record<string, string[]> = {
   "liga portugal": ["soccer/por.1"],
   "turquie": ["soccer/tur.1"],
   "ecosse": ["soccer/sco.1"],
-  "coree 2": ["soccer/kor.2"],
   "coree": ["soccer/kor.1"],
   "k league": ["soccer/kor.1"],
-  "finlande": ["soccer/fin.1"],
   "suede": ["soccer/swe.1"],
   "norvege": ["soccer/nor.1"],
   "danemark": ["soccer/den.1"],
@@ -76,8 +74,6 @@ const COMPETITION_TO_ESPN: Record<string, string[]> = {
   "suisse": ["soccer/sui.1"],
   "grece": ["soccer/gre.1"],
   "pologne": ["soccer/pol.1"],
-  "russie": ["soccer/rus.1"],
-  "ukraine": ["soccer/ukr.1"],
   "croatie": ["soccer/cro.1"],
   "serbie": ["soccer/srb.1"],
   "roumanie": ["soccer/rou.1"],
@@ -96,6 +92,7 @@ const COMPETITION_TO_ESPN: Record<string, string[]> = {
   "atp marrakech": ["tennis/atp"],
   "atp bucarest": ["tennis/atp"],
   "atp monte carlo": ["tennis/atp"],
+  "atp houston": ["tennis/atp"],
   "wta": ["tennis/wta"],
   // US sports
   "nba": ["basketball/nba"],
@@ -128,22 +125,15 @@ const SPORT_TO_ESPN: Record<string, string[]> = {
  * Get ESPN league slugs to search based on competition + sport.
  */
 export function getEspnSlugs(sportSlug: string, competition: string | null): string[] {
-  // Try competition first (most precise)
   if (competition) {
     const normalized = competition.toLowerCase().trim();
-
-    // Exact match
     if (COMPETITION_TO_ESPN[normalized]) return COMPETITION_TO_ESPN[normalized];
-
-    // Partial match
     for (const [key, slugs] of Object.entries(COMPETITION_TO_ESPN)) {
       if (normalized.includes(key) || key.includes(normalized)) {
         return slugs;
       }
     }
   }
-
-  // Fall back to sport slug
   return SPORT_TO_ESPN[sportSlug] || [];
 }
 
@@ -160,17 +150,12 @@ function normalize(name: string): string {
 }
 
 export function extractTeams(eventName: string): string[] {
-  // Handle sloppy separators: "Darderi -Trungelletti", "maroszan- merida aguilar"
-  // Match: optional spaces around -, vs, –, —
   const sepRegex = /\s*[-–—]\s*|\s+vs\.?\s+|\s+v\s+|\s+contre\s+/i;
   const parts = eventName.split(sepRegex).map(normalize).filter(Boolean);
   if (parts.length >= 2) return parts;
   return [normalize(eventName)];
 }
 
-/**
- * Simple Levenshtein distance for short strings
- */
 function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
   if (m === 0) return n;
@@ -191,17 +176,11 @@ function levenshtein(a: string, b: string): number {
 function wordsMatch(apiWord: string, pickWord: string): boolean {
   if (apiWord === pickWord) return true;
   if (apiWord.startsWith(pickWord) || pickWord.startsWith(apiWord)) return true;
-
-  // Levenshtein: allow 1 typo for words >= 5 chars, 2 for >= 8 chars
   const maxDist = pickWord.length >= 8 ? 2 : pickWord.length >= 5 ? 1 : 0;
   if (maxDist > 0 && levenshtein(apiWord, pickWord) <= maxDist) return true;
-
-  // First 4 chars match (language variants: parme/parma, maroszan/marozsan)
   if (pickWord.length >= 4 && apiWord.length >= 4 && pickWord.slice(0, 4) === apiWord.slice(0, 4)) {
-    // But require similar length to avoid false positives
     if (Math.abs(apiWord.length - pickWord.length) <= 3) return true;
   }
-
   return false;
 }
 
@@ -217,9 +196,6 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
 
   if (pickWords.length === 0) return false;
 
-  // For tennis players, matching ANY significant word from pick in API name is enough
-  // "merida aguilar" should match "Daniel Merida" (merida matches)
-  // "trungelletti" should match "Marco Trungelliti" (1 edit distance)
   let matches = 0;
   for (const pw of pickWords) {
     if (apiWords.some(aw => wordsMatch(aw, pw))) {
@@ -227,7 +203,6 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
     }
   }
 
-  // At least 1 significant word must match
   return matches >= 1;
 }
 
@@ -279,28 +254,20 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
   const games: ParsedGame[] = [];
 
   for (const event of events) {
-    // Collect all competitions from the event
-    // Football: event.competitions[] (flat)
-    // Tennis: event.groupings[].competitions[] (nested under groupings)
     const allCompetitions: Array<Record<string, unknown>> = [];
 
-    // Direct competitions (football, basketball, etc.)
     const directComps = (event.competitions || []) as Array<Record<string, unknown>>;
     allCompetitions.push(...directComps);
 
-    // Grouped competitions (tennis: groupings → competitions)
     const groupings = (event.groupings || []) as Array<Record<string, unknown>>;
     for (const grouping of groupings) {
-      // Only take Men's Singles (skip doubles)
       const grpInfo = (grouping.grouping || {}) as Record<string, unknown>;
       const slug = String(grpInfo.slug || "");
       if (slug && slug.includes("doubles")) continue;
-
       const grpComps = (grouping.competitions || []) as Array<Record<string, unknown>>;
       allCompetitions.push(...grpComps);
     }
 
-    // Parse each competition
     for (const comp of allCompetitions) {
       const competitors = (comp.competitors || []) as Array<Record<string, unknown>>;
       if (competitors.length < 2) continue;
@@ -319,33 +286,25 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
         gameStatus = "scheduled";
       }
 
-      // Check for postponed / retired / walkover
       const statusName = String(statusType.name || "").toLowerCase();
       if (statusName.includes("postponed") || statusName.includes("canceled")) {
         gameStatus = "postponed";
       }
-      // Tennis: retired and walkover count as final
       if (statusName.includes("retired") || statusName.includes("walkover")) {
         gameStatus = "final";
       }
 
-      // Find home and away
       const home = competitors.find(c => c.homeAway === "home") || competitors[0];
       const away = competitors.find(c => c.homeAway === "away") || competitors[1];
 
-      // Football: competitor.team.displayName
-      // Tennis singles: competitor.athlete.displayName
-      // Tennis doubles: competitor.roster.displayName (skip these via grouping filter above)
       const homeTeamObj = (home.team || home.athlete || {}) as Record<string, unknown>;
       const awayTeamObj = (away.team || away.athlete || {}) as Record<string, unknown>;
 
       const homeName = String(homeTeamObj.displayName || homeTeamObj.shortDisplayName || homeTeamObj.name || "");
       const awayName = String(awayTeamObj.displayName || awayTeamObj.shortDisplayName || awayTeamObj.name || "");
 
-      // Skip TBD matches
       if (homeName === "TBD" || awayName === "TBD") continue;
 
-      // Detect tennis by presence of linescores (set-by-set) and athlete (not team)
       const homeLinescores = (home.linescores || []) as Array<Record<string, unknown>>;
       const awayLinescores = (away.linescores || []) as Array<Record<string, unknown>>;
       const isTennis = homeLinescores.length > 0 && !!home.athlete;
@@ -355,29 +314,24 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
       let sets: SetScore[] | undefined;
 
       if (isTennis) {
-        // Tennis: count sets won
         homeScore = homeLinescores.filter(s => s.winner === true).length;
         awayScore = awayLinescores.filter(s => s.winner === true).length;
 
-        // Build detailed set scores
         sets = homeLinescores.map((hs, i) => {
           const as = awayLinescores[i];
           const setScore: SetScore = {
             home: Number(hs.value || 0),
             away: Number(as?.value || 0),
           };
-          // Tiebreak scores
           if (hs.tiebreak !== undefined) setScore.homeTiebreak = Number(hs.tiebreak);
           if (as?.tiebreak !== undefined) setScore.awayTiebreak = Number(as.tiebreak);
           return setScore;
         });
       } else {
-        // Football/basketball: simple score
         homeScore = Number(home.score || 0);
         awayScore = Number(away.score || 0);
       }
 
-      // Minute / clock
       let minute: string | undefined;
       if (state === "in" && !isTennis) {
         const displayClock = statusObj.displayClock as string | undefined;
@@ -387,7 +341,7 @@ export function parseEspnScoreboard(data: Record<string, unknown>): ParsedGame[]
           minute = description;
         }
       } else if (state === "in" && isTennis) {
-        minute = description; // "1st Set", "2nd Set", etc.
+        minute = description;
       }
 
       games.push({
