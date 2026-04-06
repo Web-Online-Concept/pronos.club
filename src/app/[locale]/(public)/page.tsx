@@ -60,6 +60,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const monthSet = new Set(picks.map((p) => (p.result_entered_at ?? "").slice(0, 7)));
   const monthsActive = monthSet.size;
 
+  // Fetch approved reviews for homepage
+  const { data: reviewsData } = await supabaseAdmin
+    .from("reviews")
+    .select("id, pseudo, avatar_url, rating, content, created_at")
+    .eq("status", "approved")
+    .order("approved_at", { ascending: false })
+    .limit(6);
+  const reviews = reviewsData ?? [];
+
   return (
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
@@ -613,6 +622,79 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </div>
       </section>
+
+      {/* ═══════════ AVIS (DARK) — style Google Reviews ═══════════ */}
+      {reviews.length > 0 && (
+        <section
+          className="relative overflow-hidden px-4 py-16 text-white"
+          style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+        >
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -right-32 top-0 h-[300px] w-[300px] rounded-full bg-amber-500/10 blur-[120px]" />
+          </div>
+
+          <div className="relative mx-auto max-w-5xl">
+            <div className="text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">⭐ {t("reviews_tag")}</p>
+              <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">{t("reviews_title")}</h2>
+
+              {/* Average rating */}
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <span key={s} className="text-xl" style={{ color: s <= Math.round(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) ? "#f59e0b" : "#4b5563" }}>★</span>
+                  ))}
+                </div>
+                <span className="text-xl font-extrabold">{(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}</span>
+                <span className="text-sm text-white/30">({reviews.length} {t("reviews_count")})</span>
+              </div>
+            </div>
+
+            {/* Reviews grid */}
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="overflow-hidden rounded-2xl border border-white/[0.06] p-5"
+                  style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-sm font-bold text-emerald-400">
+                      {review.avatar_url ? (
+                        <img src={review.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
+                      ) : (
+                        review.pseudo.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-white">{review.pseudo}</p>
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <span key={s} className="text-xs" style={{ color: s <= review.rating ? "#f59e0b" : "#4b5563" }}>★</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-white/50">{review.content}</p>
+                  <p className="mt-3 text-[10px] text-white/20">
+                    {new Date(review.created_at).toLocaleDateString(locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Link to all reviews */}
+            <div className="mt-8 text-center">
+              <Link
+                href={`/${locale}/avis`}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/60 transition hover:border-white/20 hover:text-white"
+              >
+                {t("reviews_see_all")} →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══════════ CTA FINAL (DARK) ═══════════ */}
       <section

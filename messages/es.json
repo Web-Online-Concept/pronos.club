@@ -144,7 +144,11 @@
     "cta_logged_btn": "Hazte Premium",
     "cta_guest_btn": "Crear mi cuenta gratis",
     "cta_see_stats": "Ver estadísticas",
-    "video_title": "Presentación de PRONOS.CLUB en vídeo"
+    "video_title": "Presentación de PRONOS.CLUB en vídeo",
+    "reviews_tag": "OPINIONES DE NUESTROS SUSCRIPTORES",
+    "reviews_title": "Lo que dicen nuestros suscriptores",
+    "reviews_count": "opiniones",
+    "reviews_see_all": "Ver todas las opiniones"
   },
   "picks": {
     "title": "Pronósticos",

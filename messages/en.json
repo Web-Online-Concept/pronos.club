@@ -144,7 +144,11 @@
     "cta_logged_btn": "Go Premium",
     "cta_guest_btn": "Create my free account",
     "cta_see_stats": "View statistics",
-    "video_title": "PRONOS.CLUB video presentation"
+    "video_title": "PRONOS.CLUB video presentation",
+    "reviews_tag": "SUBSCRIBER REVIEWS",
+    "reviews_title": "What our subscribers say",
+    "reviews_count": "reviews",
+    "reviews_see_all": "See all reviews"
   },
   "picks": {
     "title": "Predictions",
