@@ -1,8 +1,23 @@
 export async function GET() {
   const robots = `User-agent: *
 Allow: /
-Allow: /api/og
-Disallow: /api/
+
+Disallow: /api/auth/
+Disallow: /api/user/
+Disallow: /api/user-picks/
+Disallow: /api/picks/
+Disallow: /api/stats/
+Disallow: /api/stats-full/
+Disallow: /api/stripe/
+Disallow: /api/admin/
+Disallow: /api/blog/
+Disallow: /api/contact/
+Disallow: /api/cron/
+Disallow: /api/telegram/
+Disallow: /api/notifications/
+Disallow: /api/bookmakers/
+Disallow: /api/reviews/
+Disallow: /api/ensure-profile/
 Disallow: /fr/admin/
 Disallow: /en/admin/
 Disallow: /es/admin/
