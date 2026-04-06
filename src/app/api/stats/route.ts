@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     .from("picks")
     .select("*, sport:sports(id, name_fr, icon, slug), bookmaker:bookmakers(id, name, slug), legs:pick_legs(sport:sports(id, name_fr, icon, slug))")
     .neq("status", "pending")
-    .order("result_entered_at", { ascending: true });
+    .order("pick_number", { ascending: true });
 
   if (from) query = query.gte("result_entered_at", `${from}T00:00:00Z`);
   if (to) query = query.lte("result_entered_at", `${to}T23:59:59Z`);
