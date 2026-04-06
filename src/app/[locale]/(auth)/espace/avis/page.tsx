@@ -15,21 +15,24 @@ export default function AvisPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [existingReview, setExistingReview] = useState<{ rating: number; content: string; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   useEffect(() => {
-    fetch("/api/reviews?admin=false")
-      .then(() => {
-        if (user?.id) {
-          fetch(`/api/reviews/check`)
-            .then((r) => r.json())
-            .then((d) => { if (d.exists) setAlreadySubmitted(true); })
-            .catch(() => {});
-        }
-      })
-      .catch(() => {});
+    if (user?.id) {
+      fetch("/api/reviews/check")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.exists) {
+            setAlreadySubmitted(true);
+            setExistingReview({ rating: d.rating, content: d.content, status: d.status });
+          }
+        })
+        .catch(() => {});
+    }
     setLoading(false);
   }, [user]);
 
@@ -44,19 +47,34 @@ export default function AvisPage() {
 
     try {
       const res = await fetch("/api/reviews", {
-        method: "POST",
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating, content: content.trim() }),
       });
 
       const data = await res.json();
-      if (res.ok) setSent(true);
-      else setError(data.error || t("err_send"));
+      if (res.ok) {
+        setSent(true);
+        setEditing(false);
+        setAlreadySubmitted(true);
+        setExistingReview({ rating, content: content.trim(), status: "pending" });
+      } else {
+        setError(data.error || t("err_send"));
+      }
     } catch {
       setError(t("err_network"));
     }
 
     setSending(false);
+  }
+
+  function startEditing() {
+    if (existingReview) {
+      setRating(existingReview.rating);
+      setContent(existingReview.content);
+    }
+    setEditing(true);
+    setSent(false);
   }
 
   return (
@@ -71,7 +89,7 @@ export default function AvisPage() {
             <h2 className="mt-4 text-lg font-extrabold text-neutral-800">{t("locked_title")}</h2>
             <p className="mt-2 text-sm text-neutral-500">{t("locked_desc")}</p>
           </div>
-        ) : sent || alreadySubmitted ? (
+        ) : (sent || alreadySubmitted) && !editing ? (
           <div className="mt-4 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
               <span className="text-3xl">✅</span>
@@ -82,6 +100,31 @@ export default function AvisPage() {
             <p className="mt-2 text-sm text-neutral-500">
               {sent ? t("sent_desc") : t("already_desc")}
             </p>
+
+            {/* Show existing review */}
+            {existingReview && (
+              <div className="mt-6 rounded-xl border border-neutral-100 bg-neutral-50 p-4 text-left">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <span key={s} className="text-sm" style={{ color: s <= existingReview.rating ? "#f59e0b" : "#d1d5db" }}>★</span>
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                    {existingReview.status === "approved" ? t("status_approved") : existingReview.status === "pending" ? t("status_pending") : t("status_rejected")}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-neutral-600">{existingReview.content}</p>
+              </div>
+            )}
+
+            {/* Edit button */}
+            <button
+              onClick={startEditing}
+              className="mt-4 cursor-pointer rounded-xl border border-neutral-200 px-6 py-2.5 text-sm font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50"
+            >
+              ✏️ {t("btn_edit")}
+            </button>
           </div>
         ) : (
           <>

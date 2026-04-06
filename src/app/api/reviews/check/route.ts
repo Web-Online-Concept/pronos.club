@@ -1,5 +1,5 @@
-import { requireAuth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -12,9 +12,18 @@ export async function GET() {
 
   const { data } = await supabaseAdmin
     .from("reviews")
-    .select("id")
+    .select("id, rating, content, status")
     .eq("user_id", user.id)
     .single();
 
-  return NextResponse.json({ exists: !!data });
+  if (!data) {
+    return NextResponse.json({ exists: false });
+  }
+
+  return NextResponse.json({
+    exists: true,
+    rating: data.rating,
+    content: data.content,
+    status: data.status,
+  });
 }

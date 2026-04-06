@@ -1212,7 +1212,11 @@
     "err_network": "Network error",
     "btn_sending": "Sending...",
     "btn_submit": "Submit my review",
-    "footer_note": "Your review will be verified before publication. Username and avatar will be displayed publicly."
+    "footer_note": "Your review will be verified before publication. Username and avatar will be displayed publicly.",
+    "btn_edit": "Edit my review",
+    "status_approved": "Published",
+    "status_pending": "Pending approval",
+    "status_rejected": "Not published"
   },
   "bottombar": {
     "pronos": "Picks",

@@ -1212,7 +1212,11 @@
     "err_network": "Error de red",
     "btn_sending": "Enviando...",
     "btn_submit": "Enviar mi opinión",
-    "footer_note": "Tu opinión será verificada antes de su publicación. El seudónimo y avatar se mostrarán públicamente."
+    "footer_note": "Tu opinión será verificada antes de su publicación. El seudónimo y avatar se mostrarán públicamente.",
+    "btn_edit": "Modificar mi opinión",
+    "status_approved": "Publicado",
+    "status_pending": "Pendiente de validación",
+    "status_rejected": "No publicado"
   },
   "bottombar": {
     "pronos": "Pronos",

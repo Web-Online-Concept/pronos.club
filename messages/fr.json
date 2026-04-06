@@ -1212,7 +1212,11 @@
     "err_network": "Erreur réseau",
     "btn_sending": "Envoi en cours...",
     "btn_submit": "Soumettre mon avis",
-    "footer_note": "Votre avis sera vérifié avant publication. Pseudo et avatar seront affichés publiquement."
+    "footer_note": "Votre avis sera vérifié avant publication. Pseudo et avatar seront affichés publiquement.",
+    "btn_edit": "Modifier mon avis",
+    "status_approved": "Publié",
+    "status_pending": "En attente de validation",
+    "status_rejected": "Non publié"
   },
   "bottombar": {
     "pronos": "Pronos",

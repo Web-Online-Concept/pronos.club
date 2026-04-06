@@ -86,6 +86,52 @@ export async function POST(request: Request) {
   return NextResponse.json(data);
 }
 
+// PATCH — user updates their own review
+export async function PATCH(request: Request) {
+  let user;
+  try {
+    user = await requireAuth();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { rating, content } = await request.json();
+
+  if (!rating || !content || rating < 1 || rating > 5) {
+    return NextResponse.json({ error: "Note et contenu requis" }, { status: 400 });
+  }
+
+  if (content.length > 1000) {
+    return NextResponse.json({ error: "Avis trop long (1000 caractères max)" }, { status: 400 });
+  }
+
+  // Find user's existing review
+  const { data: existing } = await supabaseAdmin
+    .from("reviews")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!existing) {
+    return NextResponse.json({ error: "Aucun avis trouvé" }, { status: 404 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("reviews")
+    .update({
+      rating,
+      content,
+      status: "pending",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 // PUT — admin approve/reject/edit
 export async function PUT(request: Request) {
   try {
