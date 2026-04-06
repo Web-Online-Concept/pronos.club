@@ -85,4 +85,28 @@ export const pageSEO: Record<string, { title: string; description: string }> = {
     title: "Jeu Responsable — PRONOS.CLUB",
     description: "Les paris sportifs comportent des risques. Informations sur le jeu responsable, numéros d'aide et ressources.",
   },
+  "mentions-legales": {
+    title: "Mentions Légales — PRONOS.CLUB",
+    description: "Mentions légales, éditeur du site, hébergement et informations juridiques de PRONOS.CLUB.",
+  },
+  cgu: {
+    title: "Conditions Générales d'Utilisation — PRONOS.CLUB",
+    description: "CGU de PRONOS.CLUB. Règles d'utilisation du site, responsabilités et droits des utilisateurs.",
+  },
+  cgv: {
+    title: "Conditions Générales de Vente — PRONOS.CLUB",
+    description: "CGV de PRONOS.CLUB. Abonnement Premium, paiement, résiliation et droit de rétractation.",
+  },
+  confidentialite: {
+    title: "Politique de Confidentialité — PRONOS.CLUB",
+    description: "Protection de vos données personnelles. RGPD, cookies, droits des utilisateurs.",
+  },
+  avis: {
+    title: "Avis des Abonnés — PRONOS.CLUB",
+    description: "Témoignages et avis vérifiés des abonnés Premium PRONOS.CLUB.",
+  },
+  login: {
+    title: "Connexion — PRONOS.CLUB",
+    description: "Connectez-vous ou créez votre compte PRONOS.CLUB. Accédez à vos pronostics et votre espace personnel.",
+  },
 };
