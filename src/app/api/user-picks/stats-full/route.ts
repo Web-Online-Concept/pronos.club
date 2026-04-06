@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     .select("*, sport:sports(id, name_fr, icon, slug)")
     .in("id", followedIds)
     .neq("status", "pending")
-    .order("result_entered_at", { ascending: true });
+    .order("pick_number", { ascending: true });
 
   if (from) query = query.gte("result_entered_at", `${from}T00:00:00Z`);
   if (to) query = query.lte("result_entered_at", `${to}T23:59:59Z`);
@@ -88,10 +88,11 @@ export async function GET(request: Request) {
   // Helper: calculate euro profit for a pick using user's real stake
   function getEuroProfit(pick: { id: string; profit: number; stake: number; status: string }): number {
     const stakeEuro = getUserStakeEuro(pick.id, pick.stake);
-    if (stakeEuro === 0 || pick.stake === 0) return 0;
+    const stake = pick.stake ?? 0;
+    if (stakeEuro === 0 || stake === 0) return 0;
     // profit in units / stake in units = ratio, then × stakeEuro
     // This preserves half_won/half_lost/void nuances
-    return (pick.profit / pick.stake) * stakeEuro;
+    return ((pick.profit ?? 0) / stake) * stakeEuro;
   }
 
   const totalFollowed = picks.length;
