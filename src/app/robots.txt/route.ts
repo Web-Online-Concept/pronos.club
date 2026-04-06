@@ -1,6 +1,7 @@
 export async function GET() {
   const robots = `User-agent: *
 Allow: /
+Allow: /api/og
 Disallow: /api/
 Disallow: /fr/admin/
 Disallow: /en/admin/
