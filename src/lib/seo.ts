@@ -9,7 +9,7 @@ export function ogImageUrl(params: {
   cover?: string;
   logo?: string;
 }): string {
-  const url = new URL("/api/og", BASE_URL);
+  const url = new URL("/og-image", BASE_URL);
   url.searchParams.set("title", params.title);
   if (params.subtitle) url.searchParams.set("subtitle", params.subtitle);
   if (params.cover) url.searchParams.set("cover", params.cover);
