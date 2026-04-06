@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import VideoPlayer from "@/components/ui/VideoPlayer";
 import { getTranslations } from "next-intl/server";
+import { Metadata } from "next";
+import { ogImageUrl } from "@/lib/seo";
 
 // Brand colors per bookmaker (from their logos)
 const BRAND_COLORS: Record<string, { primary: string; gradient: string; shadow: string; glow: string }> = {
@@ -85,6 +87,50 @@ const HIGHLIGHT_KEYS: Record<string, string[]> = {
   "betclic": ["betclic_h_founded", "betclic_h_license", "betclic_h_bonus", "betclic_h_app"],
   "unibet": ["unibet_h_founded", "unibet_h_license", "unibet_h_bonus", "unibet_h_streaming"],
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; locale: string }>;
+}): Promise<Metadata> {
+  const { slug, locale } = await params;
+  const t = await getTranslations({ locale, namespace: "bookmaker_slug" });
+
+  const { data: book } = await supabaseAdmin
+    .from("bookmakers")
+    .select("name, logo_url")
+    .eq("slug", slug)
+    .single();
+
+  if (!book) return { title: "Bookmaker — PRONOS.CLUB" };
+
+  const title = `${book.name} — Guide Complet`;
+  const description = t(`${slug}_tagline`);
+  const image = ogImageUrl({
+    title,
+    subtitle: description,
+    logo: book.logo_url || undefined,
+  });
+
+  return {
+    title: `${book.name} — PRONOS.CLUB`,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: image, width: 1200, height: 630 }],
+      type: "website",
+      siteName: "PRONOS.CLUB",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@pronos_club_",
+      title,
+      description,
+      images: [image],
+    },
+  };
+}
 
 export default async function BookmakerSlugPage({
   params,
