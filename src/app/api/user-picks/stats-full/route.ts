@@ -106,7 +106,7 @@ export async function GET(request: Request) {
   const stakedEuro = picks.reduce((s, p) => s + getUserStakeEuro(p.id, p.stake), 0);
   const roi = staked > 0 ? (profit / staked) * 100 : 0;
   const winRate = resolved > 0 ? (won / resolved) * 100 : 0;
-  const avgOdds = totalFollowed > 0 ? picks.reduce((s, p) => s + p.odds, 0) / totalFollowed : 0;
+  const avgOdds = resolved > 0 ? picks.filter((p) => p.status !== "void").reduce((s, p) => s + p.odds, 0) / resolved : 0;
 
   // Best/worst pick with tiebreaker on odds
   const bestPick = picks.reduce((best, p) => {

@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   const totalStaked = picks.reduce((s, p) => s + (p.stake ?? 0), 0);
   const roi = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
   const winRate = resolvedPicks > 0 ? (wonPicks / resolvedPicks) * 100 : 0;
-  const avgOdds = totalPicks > 0 ? picks.reduce((s, p) => s + p.odds, 0) / totalPicks : 0;
+  const avgOdds = resolvedPicks > 0 ? picks.filter((p) => p.status !== "void").reduce((s, p) => s + p.odds, 0) / resolvedPicks : 0;
 
   // Best pick: highest profit, tiebreaker = highest odds (bigger upset = more impressive)
   const bestPick = picks.reduce((best, p) => {
