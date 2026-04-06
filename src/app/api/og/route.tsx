@@ -26,7 +26,8 @@ export async function GET(req: NextRequest) {
   let bookLogoSrc = "";
   if (logoUrl) {
     try {
-      const res = await fetch(logoUrl);
+      const fullLogoUrl = logoUrl.startsWith("/") ? `${new URL(req.url).origin}${logoUrl}` : logoUrl;
+      const res = await fetch(fullLogoUrl);
       if (res.ok) {
         const buf = await res.arrayBuffer();
         const base64 = Buffer.from(buf).toString("base64");
