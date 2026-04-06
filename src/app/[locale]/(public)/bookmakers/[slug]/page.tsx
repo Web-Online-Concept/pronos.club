@@ -4,8 +4,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import VideoPlayer from "@/components/ui/VideoPlayer";
 import { getTranslations } from "next-intl/server";
-import { Metadata } from "next";
-import { ogImageUrl } from "@/lib/seo";
 
 // Brand colors per bookmaker (from their logos)
 const BRAND_COLORS: Record<string, { primary: string; gradient: string; shadow: string; glow: string }> = {
@@ -88,58 +86,6 @@ const HIGHLIGHT_KEYS: Record<string, string[]> = {
   "unibet": ["unibet_h_founded", "unibet_h_license", "unibet_h_bonus", "unibet_h_streaming"],
 };
 
-// ═══════════════════════════════════════════════════════════════
-// GENERATE METADATA — Dynamic OG image per bookmaker
-// ═══════════════════════════════════════════════════════════════
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string; locale: string }>;
-}): Promise<Metadata> {
-  const { slug, locale } = await params;
-  const t = await getTranslations({ locale, namespace: "bookmaker_slug" });
-
-  const { data: book } = await supabaseAdmin
-    .from("bookmakers")
-    .select("name, logo_url")
-    .eq("slug", slug)
-    .single();
-
-  if (!book) return { title: "Bookmaker — PRONOS.CLUB" };
-
-  const title = `${book.name} — Guide Complet`;
-  const description = t(`${slug}_tagline`);
-  const image = ogImageUrl({
-    title,
-    subtitle: description,
-    logo: book.logo_url || undefined,
-  });
-
-  return {
-    title: `${book.name} — PRONOS.CLUB`,
-    description,
-    openGraph: {
-      title,
-      description,
-      images: [{ url: image, width: 1200, height: 630 }],
-      type: "website",
-      siteName: "PRONOS.CLUB",
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@pronos_club_",
-      title,
-      description,
-      images: [image],
-    },
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PAGE COMPONENT
-// ═══════════════════════════════════════════════════════════════
-
 export default async function BookmakerSlugPage({
   params,
 }: {
@@ -218,49 +164,61 @@ export default async function BookmakerSlugPage({
 
   return (
     <>
-      {/* Hero */}
+      {/* ═══════════ HERO — COMPACT ═══════════ */}
       <section
-        className="border-b border-white/[0.06]"
-        style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${colors.glow} 50%, #0a0a0a 100%)` }}
+        className="relative overflow-hidden border-b border-emerald-900/50"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
       >
-        <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            {/* Left */}
-            <div>
-              <div className="flex items-center gap-3">
-                {book.logo_url && (
-                  <img src={book.logo_url} alt={book.name} className="h-14 w-14 rounded-xl object-contain" />
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-extrabold text-white sm:text-3xl">{book.name}</h1>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.badge_class}`}>
-                      {badgeLabelFinal}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-white/40">{tagline}</p>
-                </div>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px]" style={{ background: colors.glow }} />
+        </div>
+
+        <div className="relative mx-auto max-w-4xl px-4 pb-10 pt-6">
+          <Link href={`/${locale}/bookmakers`} className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white/30 transition hover:text-white/60">
+            {t("back")}
+          </Link>
+
+          <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+            {/* Logo */}
+            {affiliateUrl ? (
+              <a href={affiliateUrl} target="_blank" rel="noopener noreferrer" className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08] transition hover:bg-white/[0.12]">
+                <img src={book.logo_url || `/bookmakers/${book.slug}.png`} alt={book.name} className="h-full w-full object-cover" />
+              </a>
+            ) : (
+              <div className="flex h-24 w-40 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.08]">
+                <img src={book.logo_url || `/bookmakers/${book.slug}.png`} alt={book.name} className="h-full w-full object-cover" />
               </div>
+            )}
 
-              {/* VPN notice */}
-              {vpnLabel && (
-                <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-400">
-                  <span>🔒</span> {vpnLabel}
-                  {vpnCountries && <span className="text-amber-400/60">({vpnCountries})</span>}
-                </div>
+            {/* Info */}
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <h1 className="text-2xl font-extrabold text-white sm:text-3xl">{book.name}</h1>
+                <span className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${meta.badge_class}`}>
+                  {badgeLabelFinal}
+                </span>
+                {vpnLabel && (
+                  <span className="rounded-full border border-red-500/50 bg-red-500/20 px-3 py-1 text-[10px] font-bold text-red-300">
+                    {vpnLabel}
+                  </span>
+                )}
+                {accessInfo && (
+                  <span className="rounded-full border border-blue-500/50 bg-blue-500/20 px-3 py-1 text-[10px] font-bold text-blue-300">
+                    {accessInfo}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-sm text-white/40">{tagline}</p>
+              {vpnCountries && (
+                <p className="mt-1 text-xs font-semibold text-red-300/70">{t("vpn_label")} : {vpnCountries}</p>
               )}
 
-              {/* Access info */}
-              {accessInfo && (
-                <p className="mt-3 text-xs text-white/30">{accessInfo}</p>
-              )}
-
-              {/* Highlights */}
-              <div className="mt-4 flex flex-wrap gap-2">
+              {/* Highlights inline */}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-4 sm:justify-start">
                 {highlights.map((h) => (
-                  <div key={h.label} className="rounded-lg bg-white/5 px-3 py-2 text-center">
-                    <p className="text-sm font-extrabold text-white">{h.value}</p>
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-white/30">{h.label}</p>
+                  <div key={h.label} className="text-center sm:text-left">
+                    <span className="text-sm font-extrabold text-white">{h.value}</span>
+                    <span className="ml-1 text-[9px] uppercase tracking-wider text-white/25">{h.label}</span>
                   </div>
                 ))}
               </div>
