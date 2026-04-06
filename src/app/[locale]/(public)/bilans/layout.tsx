@@ -1,8 +1,8 @@
 import { ogImageUrl, pageSEO } from "@/lib/seo";
 
 export async function generateMetadata() {
-  const seo = pageSEO.bilans;
-  const image = ogImageUrl({ title: seo.title });
+  const seo = pageSEO["bilans"];
+  const image = ogImageUrl({ title: seo.title, cover: "https://pronos.club/og/bilans.png" });
   return {
     title: seo.title,
     description: seo.description,

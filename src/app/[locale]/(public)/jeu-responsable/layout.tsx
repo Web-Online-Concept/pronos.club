@@ -2,7 +2,7 @@ import { ogImageUrl, pageSEO } from "@/lib/seo";
 
 export async function generateMetadata() {
   const seo = pageSEO["jeu-responsable"];
-  const image = ogImageUrl({ title: seo.title });
+  const image = ogImageUrl({ title: seo.title, cover: "https://pronos.club/og/jeu-responsable.png" });
   return {
     title: seo.title,
     description: seo.description,
