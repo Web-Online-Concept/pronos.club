@@ -15,7 +15,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // ─── Fetch real stats ───
   const { data: allPicks } = await supabaseAdmin
     .from("picks")
-    .select("status, profit, stake, odds, event_name, selection, published_at, result_entered_at, sport:sports(icon)")
+    .select("status, profit, stake, odds, event_name, selection, published_at, result_entered_at, pick_number, sport:sports(icon)")
     .neq("status", "pending")
     .order("result_entered_at", { ascending: false });
 
@@ -38,7 +38,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   // Current streak
   const sorted = [...picks].sort(
-    (a, b) => new Date(a.result_entered_at).getTime() - new Date(b.result_entered_at).getTime()
+    (a, b) => (a.pick_number ?? 0) - (b.pick_number ?? 0)
   );
   let streakType = "";
   let streakCount = 0;
