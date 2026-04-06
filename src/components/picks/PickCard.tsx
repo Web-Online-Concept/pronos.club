@@ -205,12 +205,12 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     // Pre-fill with pick values
     if (isCombi) {
       const legOdds: Record<number, string> = {};
-      legs.forEach((l) => { legOdds[l.leg_number] = String(l.odds); });
+      legs.forEach((l) => { legOdds[l.leg_number] = Number(l.odds).toFixed(3); });
       setUserLegOdds(legOdds);
       const combined = legs.reduce((acc, l) => acc * l.odds, 1);
-      setUserOdds(String(Math.round(combined * 100) / 100));
+      setUserOdds(combined.toFixed(3));
     } else {
-      setUserOdds(String(pick.odds));
+      setUserOdds(Number(pick.odds).toFixed(3));
       setUserLegOdds({});
     }
     setUserBookmakerId(pick.bookmaker?.id ?? "");
@@ -242,12 +242,12 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     if (!userOdds) {
       if (isCombi) {
         const legOdds: Record<number, string> = {};
-        legs.forEach((l) => { legOdds[l.leg_number] = String(l.odds); });
+        legs.forEach((l) => { legOdds[l.leg_number] = Number(l.odds).toFixed(3); });
         setUserLegOdds(legOdds);
         const combined = legs.reduce((acc, l) => acc * l.odds, 1);
-        setUserOdds(String(Math.round(combined * 100) / 100));
+        setUserOdds(combined.toFixed(3));
       } else {
-        setUserOdds(String(pick.odds));
+        setUserOdds(Number(pick.odds).toFixed(3));
       }
     }
     if (!userBookmakerId) {
@@ -269,7 +269,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     setUserLegOdds(updated);
     // Recalculate combined odds
     const product = Object.values(updated).reduce((acc, v) => acc * (parseFloat(v) || 1), 1);
-    setUserOdds(String(Math.round(product * 100) / 100));
+    setUserOdds(product.toFixed(3));
   }
 
   async function confirmFollow() {
@@ -502,7 +502,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                                 : leg.status === "lost" || leg.status === "half_lost" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
                                 : leg.status === "void" ? "bg-neutral-500/15 text-neutral-400 ring-1 ring-neutral-500/30"
                                 : "bg-white/5 text-white/60 ring-1 ring-white/10"
-                              }`}>@{leg.odds}</span>
+                              }`}>@{Number(leg.odds).toFixed(3)}</span>
                             </div>
                             {/* Live Score per leg */}
                             <LiveScore
@@ -550,7 +550,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           : pick.status === "lost" || pick.status === "half_lost" ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
                           : pick.status === "void" ? "bg-neutral-500/15 text-neutral-400 ring-1 ring-neutral-500/30"
                           : "bg-white/5 text-white/60 ring-1 ring-white/10"
-                        }`}>@{pick.odds}</span>
+                        }`}>@{Number(pick.odds).toFixed(3)}</span>
                       </div>
                     </div>
                   )}
@@ -580,11 +580,11 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                         className="font-mono text-sm font-extrabold"
                         style={{ color: colors.accent }}
                       >
-                        {pick.odds}
+                        {Number(pick.odds).toFixed(3)}
                       </span>
                       {pick.min_odds && (
                         <span className="text-[9px] font-bold text-white/30" title="Cote minimum">
-                          min {pick.min_odds}
+                          min {Number(pick.min_odds).toFixed(3)}
                         </span>
                       )}
                     </div>
@@ -835,7 +835,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   {/* Combined odds display */}
                   <div className="mt-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-center">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60">Cote combinée : </span>
-                    <span className="font-mono text-sm font-extrabold text-emerald-400">{userOdds}</span>
+                    <span className="font-mono text-sm font-extrabold text-emerald-400">{parseFloat(userOdds).toFixed(3)}</span>
                   </div>
                 </div>
               ) : (
