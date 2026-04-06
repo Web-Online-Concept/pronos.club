@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const title = searchParams.get("title") || "PRONOS.CLUB";
   const subtitle = searchParams.get("subtitle") || "";
   const logoUrl = searchParams.get("logo") || "";
+  const coverUrl = searchParams.get("cover") || "";
 
   // Load site logo as base64 data URI
   let logoSrc = "";
@@ -33,6 +34,21 @@ export async function GET(req: NextRequest) {
         const base64 = Buffer.from(buf).toString("base64");
         const contentType = res.headers.get("content-type") || "image/png";
         bookLogoSrc = `data:${contentType};base64,${base64}`;
+      }
+    } catch {}
+  }
+
+  // Load cover image if provided (for blog articles)
+  let coverSrc = "";
+  if (coverUrl) {
+    try {
+      const fullCoverUrl = coverUrl.startsWith("/") ? `${new URL(req.url).origin}${coverUrl}` : coverUrl;
+      const res = await fetch(fullCoverUrl);
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        const base64 = Buffer.from(buf).toString("base64");
+        const contentType = res.headers.get("content-type") || "image/jpeg";
+        coverSrc = `data:${contentType};base64,${base64}`;
       }
     } catch {}
   }
@@ -107,8 +123,30 @@ export async function GET(req: NextRequest) {
               alignItems: "center",
             }}
           >
-            {/* Bookmaker logo */}
-            {bookLogoSrc && (
+            {/* Cover image (blog) or Bookmaker logo */}
+            {coverSrc ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "420px",
+                  height: "220px",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  marginBottom: "20px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                <img
+                  src={coverSrc}
+                  alt=""
+                  width={420}
+                  height={220}
+                  style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                />
+              </div>
+            ) : bookLogoSrc ? (
               <div
                 style={{
                   display: "flex",
@@ -130,7 +168,7 @@ export async function GET(req: NextRequest) {
                   style={{ objectFit: "contain" }}
                 />
               </div>
-            )}
+            ) : null}
 
             {/* Separator */}
             <div
