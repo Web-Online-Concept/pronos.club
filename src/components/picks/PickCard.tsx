@@ -208,7 +208,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
       legs.forEach((l) => { legOdds[l.leg_number] = Number(l.odds).toFixed(3); });
       setUserLegOdds(legOdds);
       const combined = legs.reduce((acc, l) => acc * l.odds, 1);
-      setUserOdds(combined.toFixed(3));
+      setUserOdds((Math.round(combined * 1000) / 1000).toFixed(3));
     } else {
       setUserOdds(Number(pick.odds).toFixed(3));
       setUserLegOdds({});
@@ -245,7 +245,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
         legs.forEach((l) => { legOdds[l.leg_number] = Number(l.odds).toFixed(3); });
         setUserLegOdds(legOdds);
         const combined = legs.reduce((acc, l) => acc * l.odds, 1);
-        setUserOdds(combined.toFixed(3));
+        setUserOdds((Math.round(combined * 1000) / 1000).toFixed(3));
       } else {
         setUserOdds(Number(pick.odds).toFixed(3));
       }
@@ -269,7 +269,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     setUserLegOdds(updated);
     // Recalculate combined odds
     const product = Object.values(updated).reduce((acc, v) => acc * (parseFloat(v) || 1), 1);
-    setUserOdds(product.toFixed(3));
+    setUserOdds((Math.round(product * 1000) / 1000).toFixed(3));
   }
 
   async function confirmFollow() {
