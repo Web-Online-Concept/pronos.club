@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     } catch {}
   }
 
-  const titleSize = title.length > 50 ? 34 : title.length > 35 ? 40 : 48;
+  const titleSize = title.length > 50 ? 32 : title.length > 35 ? 38 : 44;
 
   return new ImageResponse(
     (
@@ -48,7 +48,6 @@ export async function GET(req: NextRequest) {
           width: "100%",
           height: "100%",
           background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)",
-          padding: "0",
           fontFamily: "sans-serif",
         }}
       >
@@ -62,50 +61,85 @@ export async function GET(req: NextRequest) {
           }}
         />
 
-        {/* Main content area */}
+        {/* Main content — 2 columns */}
         <div
           style={{
             display: "flex",
             flex: 1,
-            padding: "50px 70px 20px 70px",
             flexDirection: "row",
-            justifyContent: "space-between",
             alignItems: "center",
+            padding: "30px 70px",
           }}
         >
-          {/* Left column */}
+          {/* LEFT — Big PRONOS.CLUB logo */}
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
+              alignItems: "center",
               justifyContent: "center",
-              maxWidth: bookLogoSrc ? "750px" : "1000px",
+              width: "420px",
+              flexShrink: 0,
             }}
           >
-            {/* Logo */}
             {logoSrc ? (
               <img
                 src={logoSrc}
                 alt="PRONOS.CLUB"
-                height={65}
+                width={350}
+                height={280}
                 style={{ objectFit: "contain" }}
               />
             ) : (
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ fontSize: 44, fontWeight: 900, color: "white", letterSpacing: "2px" }}>PRONOS</span>
-                <span style={{ fontSize: 44, fontWeight: 900, color: "#10b981", letterSpacing: "2px" }}>.CLUB</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <span style={{ fontSize: 64, fontWeight: 900, color: "white", letterSpacing: "3px" }}>PRONOS</span>
+                <span style={{ fontSize: 64, fontWeight: 900, color: "#10b981", letterSpacing: "3px" }}>.CLUB</span>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT — Bookmaker logo + Title + Subtitle */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              paddingLeft: "40px",
+            }}
+          >
+            {/* Bookmaker logo */}
+            {bookLogoSrc && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "320px",
+                  height: "180px",
+                  borderRadius: "20px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  marginBottom: "24px",
+                }}
+              >
+                <img
+                  src={bookLogoSrc}
+                  alt=""
+                  width={280}
+                  height={150}
+                  style={{ objectFit: "contain" }}
+                />
               </div>
             )}
 
-            {/* Separator line */}
+            {/* Separator */}
             <div
               style={{
                 display: "flex",
-                width: "400px",
+                width: "300px",
                 height: "3px",
-                marginTop: "28px",
                 background: "linear-gradient(90deg, #059669, #10b981, transparent)",
                 borderRadius: "2px",
+                marginBottom: "20px",
               }}
             />
 
@@ -113,7 +147,6 @@ export async function GET(req: NextRequest) {
             <div
               style={{
                 display: "flex",
-                marginTop: "28px",
                 fontSize: titleSize,
                 fontWeight: 800,
                 color: "white",
@@ -128,40 +161,17 @@ export async function GET(req: NextRequest) {
               <div
                 style={{
                   display: "flex",
-                  marginTop: "16px",
-                  fontSize: 22,
+                  marginTop: "12px",
+                  fontSize: 20,
                   color: "#10b981",
                   fontWeight: 600,
+                  maxWidth: "500px",
                 }}
               >
                 {subtitle}
               </div>
             )}
           </div>
-
-          {/* Right column — bookmaker logo */}
-          {bookLogoSrc && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "220px",
-                height: "150px",
-                borderRadius: "20px",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(16,185,129,0.25)",
-              }}
-            >
-              <img
-                src={bookLogoSrc}
-                alt=""
-                width={180}
-                height={120}
-                style={{ objectFit: "contain" }}
-              />
-            </div>
-          )}
         </div>
 
         {/* Footer */}
@@ -169,7 +179,7 @@ export async function GET(req: NextRequest) {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            padding: "0 70px 30px 70px",
+            padding: "0 70px 25px 70px",
             fontSize: 13,
             color: "rgba(255,255,255,0.25)",
             letterSpacing: "2px",

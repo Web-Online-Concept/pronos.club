@@ -14,7 +14,7 @@ export function ogImageUrl(params: {
   if (params.subtitle) url.searchParams.set("subtitle", params.subtitle);
   if (params.cover) url.searchParams.set("cover", params.cover);
   if (params.logo) url.searchParams.set("logo", params.logo);
-  url.searchParams.set("v", "2");
+  url.searchParams.set("v", "3");
   return url.toString();
 }
 
