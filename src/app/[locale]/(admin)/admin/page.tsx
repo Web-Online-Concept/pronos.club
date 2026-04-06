@@ -20,6 +20,11 @@ export default async function AdminDashboard() {
     .select("*", { count: "exact", head: true })
     .in("subscription_status", ["active", "trialing"]);
 
+  const { count: pendingReviews } = await supabaseAdmin
+    .from("reviews")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
   const stats = [
     { label: "Picks publiés", value: totalPicks ?? 0, accent: "#10b981" },
     { label: "En attente", value: pendingPicks ?? 0, accent: "#f59e0b" },
@@ -39,7 +44,7 @@ export default async function AdminDashboard() {
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
     { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
     { href: "/admin/blog", label: "Blog", icon: "📝", accent: "#f59e0b", desc: "Articles & contenu" },
-    { href: "/admin/avis", label: "Avis clients", icon: "⭐", accent: "#f59e0b", desc: "Modération des avis" },
+    { href: "/admin/avis", label: `Avis clients${(pendingReviews ?? 0) > 0 ? ` (${pendingReviews})` : ""}`, icon: "⭐", accent: (pendingReviews ?? 0) > 0 ? "#ef4444" : "#f59e0b", desc: (pendingReviews ?? 0) > 0 ? `${pendingReviews} en attente` : "Modération des avis" },
     { href: "/admin/reseaux", label: "Réseaux sociaux", icon: "🌐", accent: "#3b82f6", desc: "Liens sociaux" },
     { href: "/admin/emails", label: "Emails", icon: "📧", accent: "#10b981", desc: "Emails automatisés" },
     { href: "/admin/seo", label: "SEO", icon: "🔍", accent: "#f59e0b", desc: "Référencement & stats" },
