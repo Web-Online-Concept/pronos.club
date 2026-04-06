@@ -104,6 +104,7 @@ export async function GET(req: NextRequest) {
               flexDirection: "column",
               flex: 1,
               paddingLeft: "40px",
+              alignItems: "center",
             }}
           >
             {/* Bookmaker logo */}
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest) {
                 display: "flex",
                 width: "300px",
                 height: "3px",
-                background: "linear-gradient(90deg, #059669, #10b981, transparent)",
+                background: "linear-gradient(90deg, #059669, #10b981, #059669)",
                 borderRadius: "2px",
                 marginBottom: "20px",
               }}
@@ -151,6 +152,7 @@ export async function GET(req: NextRequest) {
                 fontWeight: 800,
                 color: "white",
                 lineHeight: 1.2,
+                textAlign: "center",
               }}
             >
               {title}
@@ -166,6 +168,7 @@ export async function GET(req: NextRequest) {
                   color: "#10b981",
                   fontWeight: 600,
                   maxWidth: "500px",
+                  textAlign: "center",
                 }}
               >
                 {subtitle}
