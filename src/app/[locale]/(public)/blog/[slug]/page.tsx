@@ -4,14 +4,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
 import { localized } from "@/lib/blog-i18n";
+import { ogImageUrl } from "@/lib/seo";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-
-// Use cover image directly — Supabase public URLs work with social crawlers
-function ogImage(url: string | null): string {
-  if (!url) return "https://pronos.club/og-image.jpg";
-  return url;
-}
 
 async function getPost(slug: string) {
   const { data: post } = await supabaseAdmin.from("blog_posts")
@@ -41,7 +36,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
   const title = localized(post, "meta_title", locale) || localized(post, "title", locale);
   const description = localized(post, "meta_description", locale) || localized(post, "excerpt", locale) || "";
-  const coverImage = ogImage(post.cover_image);
+
+  // Use branded OG template with cover image
+  const catName = post.blog_categories
+    ? localized(post.blog_categories, "name", locale)
+    : "Blog";
+  const image = ogImageUrl({
+    title,
+    subtitle: `${catName} — PRONOS.CLUB`,
+    cover: post.cover_image || undefined,
+  });
 
   return {
     title: `${title} — PRONOS.CLUB`,
@@ -49,15 +53,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     openGraph: {
       title,
       description,
-      images: [{ url: coverImage, width: 1200, height: 630 }],
+      images: [{ url: image, width: 1200, height: 630 }],
       type: "article",
       publishedTime: post.published_at,
+      siteName: "PRONOS.CLUB",
     },
     twitter: {
       card: "summary_large_image",
+      site: "@pronos_club_",
       title,
       description,
-      images: [coverImage],
+      images: [image],
     },
   };
 }

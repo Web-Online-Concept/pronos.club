@@ -1,14 +1,30 @@
 // Default Open Graph and SEO metadata for PRONOS.CLUB
-// Import and spread in any page's metadata
+
+const BASE_URL = "https://pronos.club";
+
+// Dynamic OG image URL builder
+export function ogImageUrl(params: {
+  title: string;
+  subtitle?: string;
+  cover?: string;
+  logo?: string;
+}): string {
+  const url = new URL("/api/og", BASE_URL);
+  url.searchParams.set("title", params.title);
+  if (params.subtitle) url.searchParams.set("subtitle", params.subtitle);
+  if (params.cover) url.searchParams.set("cover", params.cover);
+  if (params.logo) url.searchParams.set("logo", params.logo);
+  return url.toString();
+}
 
 export const defaultOpenGraph = {
   siteName: "PRONOS.CLUB",
   type: "website" as const,
   locale: "fr_FR",
-  url: "https://pronos.club",
+  url: BASE_URL,
   images: [
     {
-      url: "https://pronos.club/og-image.jpg",
+      url: ogImageUrl({ title: "Pronostics Sportifs Transparents", subtitle: "Statistiques vérifiables • ROI prouvé • +50 picks/mois" }),
       width: 1200,
       height: 630,
       alt: "PRONOS.CLUB — Pronostics Sportifs Transparents",
@@ -19,7 +35,7 @@ export const defaultOpenGraph = {
 export const defaultTwitter = {
   card: "summary_large_image" as const,
   site: "@pronos_club_",
-  images: ["https://pronos.club/og-image.jpg"],
+  images: [ogImageUrl({ title: "Pronostics Sportifs Transparents", subtitle: "Statistiques vérifiables • ROI prouvé • +50 picks/mois" })],
 };
 
 // Per-page SEO metadata (French)
