@@ -43,8 +43,8 @@ export default function MemberDashboard() {
 
         <Link
           href={`/${locale}/espace/avis`}
-          className="overflow-hidden rounded-xl border border-amber-500/20 p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
-          style={{ background: "linear-gradient(135deg, #111111 0%, #3d2a0a 100%)" }}
+          className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
+          style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
         >
           <span className="text-2xl">⭐</span>
           <h3 className="mt-2 font-bold text-white">{t("review_title")}</h3>
