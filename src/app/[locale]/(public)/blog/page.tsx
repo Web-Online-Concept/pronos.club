@@ -62,20 +62,32 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
-      <div className="border-b border-neutral-200 bg-gradient-to-b from-neutral-50 to-white">
-        <div className="mx-auto max-w-6xl px-4 py-12 text-center">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{t("heading")}</h1>
-          <p className="mt-3 text-base text-neutral-500">{t("subtitle")}</p>
+      {/* ═══════════ HERO — dark gradient matching other pages ═══════════ */}
+      <section
+        className="relative overflow-hidden border-b border-emerald-900/50"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      >
+        {/* Glow effects */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-32 -top-32 h-[400px] w-[400px] rounded-full bg-emerald-500/15 blur-[120px]" />
+          <div className="absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-emerald-400/10 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-4 py-10 text-center sm:py-14">
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">✍️ PRONOS.CLUB</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t("heading")}</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">{t("subtitle")}</p>
+
           {/* Mobile: dropdown */}
           <div className="mt-6 flex justify-center sm:hidden">
             <select
               id="mobile-category-select"
               defaultValue={category || ""}
-              className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold"
+              className="cursor-pointer rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/70 outline-none"
             >
-              <option value="">{t("filter_all")}</option>
+              <option value="" className="bg-neutral-900 text-white">{t("filter_all")}</option>
               {categories.map((c: any) => (
-                <option key={c.slug} value={c.slug}>{c.icon} {catName(c)}</option>
+                <option key={c.slug} value={c.slug} className="bg-neutral-900 text-white">{c.icon} {catName(c)}</option>
               ))}
             </select>
             <script dangerouslySetInnerHTML={{ __html: `
@@ -88,13 +100,35 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
 
           {/* Desktop: pills */}
           <div className="mt-8 hidden flex-wrap justify-center gap-2 sm:flex">
-            <Link href={`/${locale}/blog`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${!category ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>{t("filter_all")}</Link>
+            <Link
+              href={`/${locale}/blog`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                !category
+                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                  : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
+              }`}
+            >
+              {t("filter_all")}
+            </Link>
             {categories.map((c: any) => (
-              <Link key={c.slug} href={`/${locale}/blog?category=${c.slug}`} className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${category === c.slug ? "text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`} style={category === c.slug ? { backgroundColor: c.color } : undefined}>{c.icon} {catName(c)}</Link>
+              <Link
+                key={c.slug}
+                href={`/${locale}/blog?category=${c.slug}`}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  category === c.slug
+                    ? "text-white shadow-lg"
+                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
+                }`}
+                style={category === c.slug ? { backgroundColor: c.color, boxShadow: `0 4px 14px ${c.color}40` } : undefined}
+              >
+                {c.icon} {catName(c)}
+              </Link>
             ))}
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ═══════════ CONTENT — unchanged ═══════════ */}
       <div className="mx-auto max-w-6xl px-4 py-10">
         {posts.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-center">
