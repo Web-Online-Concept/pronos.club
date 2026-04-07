@@ -144,6 +144,7 @@ const COMBI_LABELS: Record<string, string[]> = {
 export default function ValueCalculatorPage() {
   const { user } = useAuth();
   const isAdmin = user?.is_admin === true;
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
   const [market, setMarket] = useState<MarketId>("2way");
   const [evMin, setEvMin] = useState("2.5");
   const [trjMin, setTrjMin] = useState("99");
@@ -236,13 +237,13 @@ export default function ValueCalculatorPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!isPremium) {
     return (
       <>
-        <EspaceHero title="Accès refusé" />
+        <EspaceHero title="Accès réservé" />
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <p className="text-4xl">🔒</p>
-          <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux administrateurs.</p>
+          <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux abonnés Premium.</p>
         </main>
       </>
     );
