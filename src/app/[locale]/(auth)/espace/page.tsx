@@ -10,6 +10,7 @@ export default function MemberDashboard() {
   const locale = useLocale();
   const { user, signOut } = useAuth();
   const isAdmin = user?.is_admin === true;
+  const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   const CARDS = [
     { href: `/${locale}/espace/stats`, icon: "📈", title: t("stats_title"), desc: t("stats_desc") },
@@ -41,7 +42,7 @@ export default function MemberDashboard() {
           </Link>
         ))}
 
-        {isAdmin && (
+        {isPremium && (
           <Link
             href={`/${locale}/espace/value-calculator`}
             className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
