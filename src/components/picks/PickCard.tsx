@@ -380,7 +380,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
             <div className="flex items-center gap-x-2 gap-y-1">
               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
               {/* Pick number */}
-              {!locked && pick.pick_number && (
+              {pick.pick_number && (
                 <span className="rounded-md bg-white/10 px-2.5 py-2.5 font-mono text-[11px] font-bold text-white/50">
                   {String(pick.pick_number).padStart(4, "0")}
                 </span>
