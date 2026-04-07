@@ -15,7 +15,9 @@ export default function MemberDashboard() {
   const CARDS = [
     { href: `/${locale}/espace/stats`, icon: "📈", title: t("stats_title"), desc: t("stats_desc") },
     { href: `/${locale}/espace/historique`, icon: "📋", title: t("history_title"), desc: t("history_desc") },
-    { href: `/${locale}/espace/abonnement`, icon: "💎", title: t("sub_title"), desc: t("sub_desc") },
+  ];
+
+  const CARDS_AFTER = [
     { href: `/${locale}/espace/notifications`, icon: "🔔", title: t("notif_title"), desc: t("notif_desc") },
     { href: `/${locale}/espace/gestion-bk`, icon: "🏦", title: t("bk_title"), desc: t("bk_desc") },
     { href: `/${locale}/espace/app-mobile`, icon: "📱", title: t("app_title"), desc: t("app_desc") },
@@ -54,6 +56,19 @@ export default function MemberDashboard() {
           </Link>
         )}
 
+        {CARDS_AFTER.map((card) => (
+          <Link
+            key={card.href}
+            href={card.href}
+            className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+          >
+            <span className="text-2xl">{card.icon}</span>
+            <h3 className="mt-2 font-bold text-white">{card.title}</h3>
+            <p className="mt-1 text-sm text-white/40">{card.desc}</p>
+          </Link>
+        ))}
+
         <Link
           href={`/${locale}/espace/avis`}
           className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
@@ -62,6 +77,16 @@ export default function MemberDashboard() {
           <span className="text-2xl">⭐</span>
           <h3 className="mt-2 font-bold text-white">{t("review_title")}</h3>
           <p className="mt-1 text-sm text-white/40">{t("review_desc")}</p>
+        </Link>
+
+        <Link
+          href={`/${locale}/espace/abonnement`}
+          className="overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg"
+          style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+        >
+          <span className="text-2xl">💎</span>
+          <h3 className="mt-2 font-bold text-white">{t("sub_title")}</h3>
+          <p className="mt-1 text-sm text-white/40">{t("sub_desc")}</p>
         </Link>
 
         {isAdmin && (
