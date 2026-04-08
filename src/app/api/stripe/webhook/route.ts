@@ -60,6 +60,7 @@ export async function POST(request: Request) {
             subscription_status: subStatus,
             subscription_end: periodEnd,
             stripe_customer_id: customerId,
+            ...(subStatus === "trialing" ? { has_used_trial: true } : {}),
           })
           .eq("id", userId);
 

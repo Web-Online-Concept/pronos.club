@@ -13,6 +13,9 @@ export default function AbonnementPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoError, setPromoError] = useState("");
 
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
@@ -43,7 +46,11 @@ export default function AbonnementPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoCode: promoCode.trim() || undefined }),
+      });
       const data = await res.json();
 
       if (data.url) {
@@ -55,6 +62,19 @@ export default function AbonnementPage() {
     } catch {
       setError(t("error_server"));
       setLoading(false);
+    }
+  }
+
+  function applyPromo() {
+    const code = promoCode.trim().toUpperCase();
+    setPromoError("");
+    if (!code) return;
+    if (code === "PRONOS7") {
+      setPromoApplied(true);
+      setPromoCode(code);
+    } else {
+      setPromoApplied(false);
+      setPromoError("Code promo invalide");
     }
   }
 
@@ -176,14 +196,44 @@ export default function AbonnementPage() {
                   {loading ? t("btn_loading") : t("btn_manage")}
                 </button>
               ) : (
-                <button
-                  onClick={handleSubscribe}
-                  disabled={loading}
-                  className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
-                >
-                  {loading ? t("btn_redirect") : t("btn_subscribe")}
-                </button>
+                <>
+                  {/* Promo code */}
+                  <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <p className="text-center text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400">🎁 Code promo</p>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoApplied(false); setPromoError(""); }}
+                        placeholder="PRONOS7"
+                        maxLength={20}
+                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-sm font-bold text-white uppercase placeholder-white/20 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyPromo}
+                        className="cursor-pointer rounded-lg bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/30"
+                      >
+                        Appliquer
+                      </button>
+                    </div>
+                    {promoApplied && (
+                      <p className="mt-2 text-center text-xs font-semibold text-emerald-400">✅ 7 jours d&apos;essai gratuit — vous ne serez débité qu&apos;après</p>
+                    )}
+                    {promoError && (
+                      <p className="mt-2 text-center text-xs font-semibold text-red-400">{promoError}</p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={loading}
+                    className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
+                  >
+                    {loading ? t("btn_redirect") : promoApplied ? "Commencer mon essai gratuit de 7 jours" : t("btn_subscribe")}
+                  </button>
+                </>
               )}
             </div>
           </div>
