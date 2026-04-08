@@ -168,6 +168,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             )}
           </div>
 
+          {/* Promo badge */}
+          {!isPremium && (
+            <div className="mt-4 flex justify-center sm:mt-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
+                <span className="text-xs">🎁</span>
+                <span className="text-xs font-semibold text-amber-400">Code <span className="font-mono font-extrabold">PRONOS7</span> = 7 jours d&apos;essai gratuit</span>
+              </div>
+            </div>
+          )}
+
           {/* Trust indicators */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-neutral-500 sm:mt-10 sm:gap-x-6 sm:gap-y-2 sm:text-xs">
             <span className="flex items-center gap-1.5">

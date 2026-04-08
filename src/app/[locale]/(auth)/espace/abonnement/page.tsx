@@ -174,6 +174,9 @@ export default function AbonnementPage() {
                 <span className="text-lg text-white/30">{t("premium_period")}</span>
               </div>
               <p className="mt-1 text-xs text-white/30">{t("premium_commitment")}</p>
+              {!isPremium && (
+                <p className="mt-2 text-xs font-semibold text-amber-400">🎁 Code PRONOS7 = 7 jours gratuits</p>
+              )}
             </div>
             <div className="mt-6 flex justify-center"><div className="space-y-2.5">
               {PREMIUM_FEATURES.map((f) => (

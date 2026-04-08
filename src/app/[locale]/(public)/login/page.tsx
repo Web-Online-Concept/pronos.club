@@ -357,6 +357,13 @@ export default function LoginPage() {
               <br />
               Déjà inscrit ? Vous serez reconnecté en un clic.
             </p>
+
+            {/* Promo mention */}
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-center">
+              <p className="text-xs text-amber-400">
+                🎁 Code <span className="font-mono font-extrabold">PRONOS7</span> = <span className="font-semibold">7 jours d&apos;essai gratuit</span> sur l&apos;abonnement Premium
+              </p>
+            </div>
           </div>
         </div>
       </div>
