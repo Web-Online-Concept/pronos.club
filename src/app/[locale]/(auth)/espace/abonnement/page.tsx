@@ -196,48 +196,50 @@ export default function AbonnementPage() {
                   {loading ? t("btn_loading") : t("btn_manage")}
                 </button>
               ) : (
-                <>
-                  {/* Promo code */}
-                  <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <p className="text-center text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400">🎁 Code promo</p>
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCode}
-                        onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoApplied(false); setPromoError(""); }}
-                        placeholder="PRONOS7"
-                        maxLength={20}
-                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-sm font-bold text-white uppercase placeholder-white/20 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={applyPromo}
-                        className="cursor-pointer rounded-lg bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/30"
-                      >
-                        Appliquer
-                      </button>
-                    </div>
-                    {promoApplied && (
-                      <p className="mt-2 text-center text-xs font-semibold text-emerald-400">✅ 7 jours d&apos;essai gratuit — vous ne serez débité qu&apos;après</p>
-                    )}
-                    {promoError && (
-                      <p className="mt-2 text-center text-xs font-semibold text-red-400">{promoError}</p>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleSubscribe}
-                    disabled={loading}
-                    className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
-                  >
-                    {loading ? t("btn_redirect") : promoApplied ? "Commencer mon essai gratuit de 7 jours" : t("btn_subscribe")}
-                  </button>
-                </>
+                <button
+                  onClick={handleSubscribe}
+                  disabled={loading}
+                  className="w-full cursor-pointer rounded-xl py-3.5 text-base font-bold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}
+                >
+                  {loading ? t("btn_redirect") : promoApplied ? "Commencer mon essai gratuit de 7 jours" : t("btn_subscribe")}
+                </button>
               )}
             </div>
           </div>
         </div>
+
+        {/* Promo code — below cards, centered */}
+        {!isPremium && (
+          <div className="mx-auto mt-6 max-w-sm">
+            <div className="rounded-2xl border border-white/[0.06] p-5" style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}>
+              <p className="text-center text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400">🎁 Vous avez un code promo ?</p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoApplied(false); setPromoError(""); }}
+                  placeholder="Entrez votre code"
+                  maxLength={20}
+                  className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-sm font-bold text-white uppercase placeholder-white/20 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                />
+                <button
+                  type="button"
+                  onClick={applyPromo}
+                  className="cursor-pointer rounded-lg bg-amber-500/20 px-5 py-2.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/30"
+                >
+                  OK
+                </button>
+              </div>
+              {promoApplied && (
+                <p className="mt-3 text-center text-xs font-semibold text-emerald-400">✅ 7 jours d&apos;essai gratuit appliqué — vous ne serez débité qu&apos;après la période d&apos;essai</p>
+              )}
+              {promoError && (
+                <p className="mt-3 text-center text-xs font-semibold text-red-400">{promoError}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
