@@ -61,7 +61,8 @@ export default function Navbar() {
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
     { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
-    { href: `/${locale}/livescore`, label: "Livescore", icon: "🏟️" },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
+    { href: `/${locale}/livescore`, label: "Livescore", icon: "🏟️", hideDesktop: true },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
@@ -171,7 +172,7 @@ export default function Navbar() {
 
           {/* Desktop nav */}
           <div className="hidden items-center gap-2 lg:flex">
-            {NAV_LINKS.map((link) => (
+            {NAV_LINKS.filter((link) => !link.hideDesktop).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
