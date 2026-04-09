@@ -8,8 +8,8 @@ const NAV_ITEMS = [
   { href: "/pronostics", labelKey: "pronos", icon: "🎯" },
   { href: "/historique", labelKey: "history", icon: "📋" },
   { href: "/statistiques", labelKey: "stats", icon: "📊" },
-  { href: "/espace", labelKey: "account", icon: "👤" },
   { href: "/livescore", labelKey: "livescore", icon: "🏟️" },
+  { href: "/espace", labelKey: "account", icon: "👤" },
 ];
 
 export default function MobileBottomBar() {
