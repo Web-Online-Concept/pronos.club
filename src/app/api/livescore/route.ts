@@ -134,29 +134,46 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
   const homeLinescores = home.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
   const awayLinescores = away.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
   
-  // For tennis: show set scores as "6-4 6-3" style
-  const isIndividualSport = !home.team?.displayName && home.athlete?.displayName;
-  let tennisScore = "";
-  if (isIndividualSport && homeLinescores.length > 0) {
-    tennisScore = homeLinescores.map((h, i) => `${h}-${awayLinescores[i] ?? "?"}`).join(" ");
-  }
+  // Tennis linescores (sets) — ESPN uses value (number), displayValue is empty for tennis
+  const homeLinescores = home.linescores?.map((l) => l.displayValue || (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
+  const awayLinescores = away.linescores?.map((l) => l.displayValue || (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
+  
+  const isIndividualSport = !home.team?.displayName && !!home.athlete?.displayName;
 
-  // Score: for tennis use winner marker, for team sports use score field
-  const homeScore = home.score ?? (isIndividualSport && home.winner ? "W" : "");
-  const awayScore = away.score ?? (isIndividualSport && away.winner ? "W" : "");
+  // Build scores
+  let homeScore: string;
+  let awayScore: string;
+  let displayStatusText = statusText;
+
+  if (isIndividualSport) {
+    // Tennis: show set scores in the score columns, e.g. "6 4 6" and "4 6 3"
+    if (homeLinescores.length > 0) {
+      homeScore = homeLinescores.join(" ");
+      awayScore = awayLinescores.join(" ");
+      // Also build "6-4 6-3" format for statusText
+      displayStatusText = homeLinescores.map((h, i) => `${h}-${awayLinescores[i] ?? "?"}`).join("  ");
+    } else {
+      homeScore = home.winner ? "W" : "-";
+      awayScore = away.winner ? "W" : "-";
+    }
+  } else {
+    // Team sports: use score field directly
+    homeScore = (home.score !== undefined && home.score !== null && home.score !== "") ? home.score : "-";
+    awayScore = (away.score !== undefined && away.score !== null && away.score !== "") ? away.score : "-";
+  }
 
   return {
     id: comp.id ?? fallbackId ?? "",
     homeTeam: homeName,
     homeAbbr,
     homeLogo,
-    homeScore: homeScore || "-",
+    homeScore,
     awayTeam: awayName,
     awayAbbr,
     awayLogo,
-    awayScore: awayScore || "-",
+    awayScore,
     status,
-    statusText: tennisScore || statusText,
+    statusText: displayStatusText,
     clock,
     startTime: comp.startDate ?? comp.date ?? "",
   };

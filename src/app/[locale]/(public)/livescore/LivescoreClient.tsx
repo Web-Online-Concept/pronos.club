@@ -176,16 +176,16 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
       </div>
 
       {/* Scores */}
-      <div className="flex flex-col gap-[3px] w-8 shrink-0">
+      <div className="flex flex-col gap-[3px] shrink-0 min-w-[32px]">
         <span
-          className={`text-center text-[14px] font-bold ${
+          className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
             isLive ? "text-red-500" : isFinished ? "text-neutral-500" : "text-neutral-300"
           }`}
         >
           {isScheduled ? "-" : match.homeScore}
         </span>
         <span
-          className={`text-center text-[14px] font-bold ${
+          className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
             isLive ? "text-red-500" : isFinished ? "text-neutral-500" : "text-neutral-300"
           }`}
         >
