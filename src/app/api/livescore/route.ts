@@ -121,13 +121,18 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
 
   const home = comp.competitors.find((c) => c.homeAway === "home") ?? comp.competitors[0];
   const away = comp.competitors.find((c) => c.homeAway === "away") ?? comp.competitors[1];
-  const { status, statusText, clock } = parseStatus(comp.status);
 
   // Tennis/individual sports use athlete instead of team
   const homeName = home.team?.displayName ?? home.team?.shortDisplayName ?? home.athlete?.displayName ?? "?";
+  const awayName = away.team?.displayName ?? away.team?.shortDisplayName ?? away.athlete?.displayName ?? "?";
+
+  // Skip matches with no real team/player names (TBD, ?, empty)
+  const invalidNames = ["?", "TBD", "TBA", ""];
+  if (invalidNames.includes(homeName) || invalidNames.includes(awayName)) return null;
+
+  const { status, statusText, clock } = parseStatus(comp.status);
   const homeAbbr = home.team?.abbreviation ?? home.athlete?.shortName ?? "";
   const homeLogo = home.team?.logo ?? home.athlete?.flag?.href ?? "";
-  const awayName = away.team?.displayName ?? away.team?.shortDisplayName ?? away.athlete?.displayName ?? "?";
   const awayAbbr = away.team?.abbreviation ?? away.athlete?.shortName ?? "";
   const awayLogo = away.team?.logo ?? away.athlete?.flag?.href ?? "";
 
