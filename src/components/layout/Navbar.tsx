@@ -61,8 +61,8 @@ export default function Navbar() {
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
     { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
-    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
-    { href: `/${locale}/livescore`, label: "Livescore", icon: "🏟️", hideDesktop: true },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️", hideDesktop: true },
+    { href: `/${locale}/livescore`, label: "Livescore", icon: "🏟️" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
