@@ -376,12 +376,29 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
 
       try {
         const dateStr = formatDate(selectedDate);
-        const sportParam = activeSport === "all" ? "all" : activeSport;
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const res = await fetch(`/api/livescore?sport=${sportParam}&date=${dateStr}&tz=${encodeURIComponent(tz)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSports(data.sports ?? []);
+
+        if (activeSport === "all") {
+          // Fetch each sport independently in parallel — avoids API timeout
+          const sportKeys = SPORT_TABS.filter((t) => t.key !== "all").map((t) => t.key);
+          const results = await Promise.all(
+            sportKeys.map(async (key) => {
+              try {
+                const res = await fetch(`/api/livescore?sport=${key}&date=${dateStr}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  return data.sports ?? [];
+                }
+              } catch {}
+              return [];
+            })
+          );
+          setSports(results.flat());
+        } else {
+          const res = await fetch(`/api/livescore?sport=${activeSport}&date=${dateStr}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSports(data.sports ?? []);
+          }
         }
       } catch {
         // silently fail
