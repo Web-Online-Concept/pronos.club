@@ -136,7 +136,7 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
 
   return (
     <div
-      className={`flex items-center gap-2 border-b border-white/[0.04] px-3 py-2.5 transition sm:px-4 ${
+      className={`flex items-center gap-2 border-b border-white/[0.04] px-3 py-2.5 transition cursor-pointer sm:px-4 ${
         isLive ? "bg-red-500/[0.04]" : "hover:bg-white/[0.02]"
       }`}
     >
