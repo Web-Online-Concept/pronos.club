@@ -4,6 +4,7 @@ import { SPORTS_CONFIG, buildScoreboardUrl } from "@/lib/livescore-config";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 60; // Fluid Compute : jusqu'à 60s sur plan Hobby
 
 interface ESPNCompetitor {
   team?: { displayName?: string; abbreviation?: string; logo?: string; shortDisplayName?: string };
