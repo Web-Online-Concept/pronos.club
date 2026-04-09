@@ -16,11 +16,11 @@ export default async function LivescorePage() {
   const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: "livescore" });
   return (
-    <main className="min-h-screen bg-[#0d0d0d]">
+    <main className="min-h-screen bg-neutral-100">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-extrabold text-white sm:text-3xl">{t("title")}</h1>
-          <p className="mt-1 text-sm text-white/40">{t("subtitle")}</p>
+          <h1 className="text-2xl font-extrabold text-neutral-900 sm:text-3xl">{t("title")}</h1>
+          <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
         </div>
         <LivescoreClient
           labels={{
