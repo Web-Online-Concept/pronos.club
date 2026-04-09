@@ -269,11 +269,9 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sport = searchParams.get("sport"); // filter by sport key, or "all"
-  const date = searchParams.get("date") ?? undefined; // YYYYMMDD — date locale du client
-  const tz = searchParams.get("tz") ?? "Europe/Paris"; // timezone du client
+  const league = searchParams.get("league"); // optional: filter by specific league slug
+  const date = searchParams.get("date") ?? undefined; // YYYYMMDD
 
-  // Stratégie simple : une seule date ESPN (pas de multi-date pour éviter timeout)
-  // Le filtrage timezone se fait côté client si besoin
   let datesToFetch: string[] = [];
   if (date && date.length === 8) {
     datesToFetch = [date];
@@ -285,26 +283,25 @@ export async function GET(request: Request) {
 
   const results: LiveSport[] = [];
 
-  // Fetch sports sequentially, leagues in batches of 5 to avoid Vercel timeout
   for (const sportConfig of targetSports) {
     if (sportConfig.leagues.length === 0) continue;
 
-    const allLeagueResults: (LiveLeague | null)[] = [];
-    const batchSize = 5;
+    // If a specific league is requested, only fetch that one
+    const leaguesToFetch = league
+      ? sportConfig.leagues.filter((l) => l.slug === league)
+      : sportConfig.leagues;
 
-    for (let i = 0; i < sportConfig.leagues.length; i += batchSize) {
-      const batch = sportConfig.leagues.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map((league) =>
-          datesToFetch.length > 0
-            ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
-            : fetchLeagueDates(sportConfig.espnSport, league, [])
-        )
-      );
-      allLeagueResults.push(...batchResults);
-    }
+    if (leaguesToFetch.length === 0) continue;
 
-      const validLeagues = allLeagueResults
+    const leagueResults = await Promise.all(
+      leaguesToFetch.map((lg) =>
+        datesToFetch.length > 0
+          ? fetchLeagueDates(sportConfig.espnSport, lg, datesToFetch)
+          : fetchLeagueDates(sportConfig.espnSport, lg, [])
+      )
+    );
+
+      const validLeagues = leagueResults
         .filter((l): l is LiveLeague => l !== null)
         .filter((l) => l.matches.length > 0)
         .sort((a, b) => {

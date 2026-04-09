@@ -369,6 +369,14 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Football leagues to fetch individually (avoids Vercel timeout)
+  const FOOTBALL_LEAGUES = [
+    "fra.1","eng.1","esp.1","ger.1","ita.1","uefa.champions","uefa.europa",
+    "uefa.europa.conf","fra.2","eng.2","ned.1","por.1","tur.1","bel.1",
+    "sco.1","usa.1","bra.1","arg.1","mex.1","aus.1","jpn.1","sui.1",
+    "aut.1","gre.1","den.1","nor.1","swe.1","pol.1",
+  ];
+
   const fetchData = useCallback(
     async (showLoader = false) => {
       if (showLoader) setLoading(true);
@@ -377,28 +385,53 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
       try {
         const dateStr = formatDate(selectedDate);
 
+        // Fetch a single sport — for football, fetch each league individually
+        const fetchSport = async (sportKey: string): Promise<LiveSport[]> => {
+          if (sportKey === "football") {
+            // Fetch all football leagues in parallel, each is a single ESPN call
+            const leagueResults = await Promise.all(
+              FOOTBALL_LEAGUES.map(async (league) => {
+                try {
+                  const res = await fetch(`/api/livescore?sport=football&league=${league}&date=${dateStr}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    return data.sports?.[0]?.leagues ?? [];
+                  }
+                } catch {}
+                return [];
+              })
+            );
+            const allLeagues = leagueResults.flat().filter((l: LiveLeague) => l.matches?.length > 0);
+            if (allLeagues.length === 0) return [];
+            const totalMatches = allLeagues.reduce((sum: number, l: LiveLeague) => sum + l.matches.length, 0);
+            const liveMatches = allLeagues.reduce((sum: number, l: LiveLeague) => sum + l.matches.filter((m: LiveMatch) => m.status === "live").length, 0);
+            return [{
+              key: "football",
+              name: "Football",
+              icon: "⚽",
+              leagues: allLeagues,
+              totalMatches,
+              liveMatches,
+            }];
+          } else {
+            try {
+              const res = await fetch(`/api/livescore?sport=${sportKey}&date=${dateStr}`);
+              if (res.ok) {
+                const data = await res.json();
+                return data.sports ?? [];
+              }
+            } catch {}
+            return [];
+          }
+        };
+
         if (activeSport === "all") {
-          // Fetch each sport independently in parallel — avoids API timeout
           const sportKeys = SPORT_TABS.filter((t) => t.key !== "all").map((t) => t.key);
-          const results = await Promise.all(
-            sportKeys.map(async (key) => {
-              try {
-                const res = await fetch(`/api/livescore?sport=${key}&date=${dateStr}`);
-                if (res.ok) {
-                  const data = await res.json();
-                  return data.sports ?? [];
-                }
-              } catch {}
-              return [];
-            })
-          );
+          const results = await Promise.all(sportKeys.map(fetchSport));
           setSports(results.flat());
         } else {
-          const res = await fetch(`/api/livescore?sport=${activeSport}&date=${dateStr}`);
-          if (res.ok) {
-            const data = await res.json();
-            setSports(data.sports ?? []);
-          }
+          const results = await fetchSport(activeSport);
+          setSports(results);
         }
       } catch {
         // silently fail
