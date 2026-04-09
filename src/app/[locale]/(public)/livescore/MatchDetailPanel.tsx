@@ -58,6 +58,20 @@ interface MatchDetailRoster {
   substitutes: MatchDetailPlayer[];
 }
 
+interface StandingEntry {
+  rank: string;
+  team: string;
+  logo: string;
+  played: string;
+  wins: string;
+  draws: string;
+  losses: string;
+  goalDiff: string;
+  points: string;
+  isHome: boolean;
+  isAway: boolean;
+}
+
 interface MatchDetail {
   id: string;
   status: string;
@@ -70,6 +84,7 @@ interface MatchDetail {
   stats: MatchDetailStat[];
   rosters: MatchDetailRoster[];
   h2h: { date: string; score: string; competition: string }[];
+  standings: StandingEntry[];
 }
 
 /* ── Event icon ── */
@@ -91,7 +106,7 @@ function eventIcon(type: string): string {
 }
 
 /* ── Tabs ── */
-type Tab = "stats" | "events" | "lineups";
+type Tab = "stats" | "events" | "lineups" | "standings";
 
 /* ── Stat bar ── */
 function StatBar({ stat, homeId, awayId }: { stat: MatchDetailStat; homeId?: string; awayId?: string }) {
@@ -228,6 +243,57 @@ function LineupsView({ rosters }: { rosters: MatchDetailRoster[] }) {
   );
 }
 
+/* ── Standings table ── */
+function StandingsView({ standings, homeName, awayName }: { standings: StandingEntry[]; homeName: string; awayName: string }) {
+  if (!standings.length) return <p className="py-6 text-center text-sm text-neutral-400">Classement non disponible</p>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-400">
+            <th className="py-1.5 pl-2 pr-1 text-left font-semibold w-6">#</th>
+            <th className="py-1.5 text-left font-semibold">Équipe</th>
+            <th className="py-1.5 px-1 text-center font-semibold w-7">MJ</th>
+            <th className="py-1.5 px-1 text-center font-semibold w-7">V</th>
+            <th className="py-1.5 px-1 text-center font-semibold w-7">N</th>
+            <th className="py-1.5 px-1 text-center font-semibold w-7">D</th>
+            <th className="py-1.5 px-1 text-center font-semibold w-8">DB</th>
+            <th className="py-1.5 px-1 pr-2 text-center font-bold w-8">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {standings.map((entry, i) => {
+            const isHighlighted = entry.isHome || entry.isAway;
+            return (
+              <tr
+                key={i}
+                className={`border-b border-neutral-50 ${
+                  isHighlighted ? "bg-emerald-50 font-semibold" : "hover:bg-neutral-50"
+                }`}
+              >
+                <td className="py-1 pl-2 pr-1 text-neutral-400 font-bold">{entry.rank}</td>
+                <td className="py-1 flex items-center gap-1.5">
+                  {entry.logo && (
+                    <Image src={entry.logo} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" unoptimized />
+                  )}
+                  <span className={isHighlighted ? "text-emerald-700" : "text-neutral-700"}>{entry.team}</span>
+                </td>
+                <td className="py-1 px-1 text-center text-neutral-500">{entry.played}</td>
+                <td className="py-1 px-1 text-center text-neutral-500">{entry.wins}</td>
+                <td className="py-1 px-1 text-center text-neutral-500">{entry.draws}</td>
+                <td className="py-1 px-1 text-center text-neutral-500">{entry.losses}</td>
+                <td className="py-1 px-1 text-center text-neutral-500">{entry.goalDiff}</td>
+                <td className="py-1 px-1 pr-2 text-center font-bold text-neutral-800">{entry.points}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ── Main component ── */
 export default function MatchDetailPanel({
   matchId,
@@ -282,11 +348,13 @@ export default function MatchDetailPanel({
   const hasStats = data.stats.length > 0;
   const hasEvents = data.events.length > 0;
   const hasLineups = data.rosters.length > 0 && data.rosters.some((r) => r.starters.length > 0);
+  const hasStandings = data.standings && data.standings.length > 0;
 
   const tabs: { key: Tab; label: string; available: boolean }[] = [
     { key: "stats", label: "Stats", available: hasStats },
     { key: "events", label: "Événements", available: hasEvents },
     { key: "lineups", label: "Compos", available: hasLineups },
+    { key: "standings", label: "Classement", available: hasStandings },
   ];
 
   // Auto-select first available tab
@@ -378,6 +446,10 @@ export default function MatchDetailPanel({
 
         {activeTab === "lineups" && hasLineups && (
           <LineupsView rosters={data.rosters} />
+        )}
+
+        {activeTab === "standings" && hasStandings && (
+          <StandingsView standings={data.standings} homeName={data.home.name} awayName={data.away.name} />
         )}
 
         {/* H2H */}

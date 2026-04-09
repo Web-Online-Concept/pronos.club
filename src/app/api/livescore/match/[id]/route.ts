@@ -57,6 +57,20 @@ interface MatchDetailRoster {
   substitutes: MatchDetailPlayer[];
 }
 
+interface StandingEntry {
+  rank: string;
+  team: string;
+  logo: string;
+  played: string;
+  wins: string;
+  draws: string;
+  losses: string;
+  goalDiff: string;
+  points: string;
+  isHome: boolean;
+  isAway: boolean;
+}
+
 export interface MatchDetail {
   id: string;
   status: string;
@@ -69,6 +83,7 @@ export interface MatchDetail {
   stats: MatchDetailStat[];
   rosters: MatchDetailRoster[];
   h2h: { date: string; score: string; competition: string }[];
+  standings: StandingEntry[];
 }
 
 // Stats we want to display, in order
@@ -230,6 +245,38 @@ function parseSummary(data: any, eventId: string): MatchDetail {
     }))
   );
 
+  // Standings
+  const standings: StandingEntry[] = [];
+  const standingsGroups = data.standings?.groups ?? [];
+  for (const group of standingsGroups) {
+    const entries = group.standings?.entries ?? [];
+    for (const entry of entries) {
+      const teamName = typeof entry.team === "string" ? entry.team : (entry.team?.displayName ?? entry.team ?? "?");
+      const teamLogo = entry.logo?.[0]?.href ?? entry.logo ?? "";
+      const statsMap: Record<string, string> = {};
+      for (const s of entry.stats ?? []) {
+        if (s.abbreviation && s.displayValue !== undefined) {
+          statsMap[s.abbreviation] = s.displayValue;
+        }
+      }
+      standings.push({
+        rank: statsMap["R"] ?? "",
+        team: teamName,
+        logo: typeof teamLogo === "string" ? teamLogo : "",
+        played: statsMap["GP"] ?? "",
+        wins: statsMap["W"] ?? "",
+        draws: statsMap["D"] ?? "",
+        losses: statsMap["L"] ?? "",
+        goalDiff: statsMap["GD"] ?? "",
+        points: statsMap["P"] ?? "",
+        isHome: teamName === home.name,
+        isAway: teamName === away.name,
+      });
+    }
+  }
+  // Sort by rank
+  standings.sort((a, b) => (parseInt(a.rank) || 99) - (parseInt(b.rank) || 99));
+
   return {
     id: eventId,
     status,
@@ -242,6 +289,7 @@ function parseSummary(data: any, eventId: string): MatchDetail {
     stats,
     rosters,
     h2h,
+    standings,
   };
 }
 
