@@ -159,13 +159,13 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
       <div className="flex flex-1 flex-col gap-[3px] min-w-0">
         <div className="flex items-center gap-2">
           <TeamLogo src={match.homeLogo} alt={match.homeAbbr || match.homeTeam} />
-          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-400" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
+          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-600" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
             {match.homeTeam}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <TeamLogo src={match.awayLogo} alt={match.awayAbbr || match.awayTeam} />
-          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-400" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
+          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-600" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
             {match.awayTeam}
           </span>
         </div>
@@ -175,14 +175,14 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
       <div className="flex flex-col gap-[3px] shrink-0 min-w-[32px]">
         <span
           className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
-            isLive ? "text-red-500" : isFinished ? "text-neutral-500" : "text-neutral-300"
+            isLive ? "text-red-500" : isFinished ? "text-neutral-700" : "text-neutral-300"
           }`}
         >
           {isScheduled ? "-" : match.homeScore}
         </span>
         <span
           className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
-            isLive ? "text-red-500" : isFinished ? "text-neutral-500" : "text-neutral-300"
+            isLive ? "text-red-500" : isFinished ? "text-neutral-700" : "text-neutral-300"
           }`}
         >
           {isScheduled ? "-" : match.awayScore}
