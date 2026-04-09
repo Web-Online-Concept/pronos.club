@@ -234,7 +234,7 @@ function DatePicker({ date, onChange }: { date: Date; onChange: (d: Date) => voi
         <button
           key={i}
           onClick={() => onChange(d)}
-          className={`flex flex-col items-center rounded-lg px-2 py-1.5 text-center transition sm:px-3 sm:py-2 ${
+          className={`flex flex-col items-center rounded-lg px-2 py-1.5 text-center transition cursor-pointer sm:px-3 sm:py-2 ${
             isSelected(d)
               ? "bg-emerald-600 text-white"
               : isToday(d)
@@ -315,7 +315,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
             <button
               key={tab.key}
               onClick={() => setActiveSport(tab.key)}
-              className={`relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition sm:px-4 ${
+              className={`relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition cursor-pointer sm:px-4 ${
                 isActive
                   ? "bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30"
                   : "bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
