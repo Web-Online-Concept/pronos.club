@@ -1223,7 +1223,8 @@
     "history": "History",
     "stats": "Stats",
     "account": "Account",
-    "blog": "Blog"
+    "blog": "Blog",
+    "livescore": "Live"
   },
   "livescore": {
     "meta_title": "Livescore — Live Scores | PRONOS.CLUB",

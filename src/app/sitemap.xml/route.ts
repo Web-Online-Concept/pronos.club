@@ -27,6 +27,7 @@ export async function GET() {
     { path: "/bookmakers/betclic", priority: "0.6", changefreq: "monthly" },
     { path: "/bookmakers/unibet", priority: "0.6", changefreq: "monthly" },
     { path: "/blog", priority: "0.8", changefreq: "daily" },
+    { path: "/livescore", priority: "0.8", changefreq: "daily" },
     { path: "/abonnement", priority: "0.7", changefreq: "monthly" },
     { path: "/contact", priority: "0.4", changefreq: "yearly" },
     { path: "/mentions-legales", priority: "0.2", changefreq: "yearly" },

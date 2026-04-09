@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: "/historique", labelKey: "history", icon: "📋" },
   { href: "/statistiques", labelKey: "stats", icon: "📊" },
   { href: "/espace", labelKey: "account", icon: "👤" },
-  { href: "/blog", labelKey: "blog", icon: "✍️" },
+  { href: "/livescore", labelKey: "livescore", icon: "🏟️" },
 ];
 
 export default function MobileBottomBar() {
