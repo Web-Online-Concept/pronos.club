@@ -104,15 +104,6 @@ export const SPORTS_CONFIG: SportConfig[] = [
       { slug: "college-football", name: "NCAA Football", flag: "🇺🇸", priority: 2 },
     ],
   },
-  {
-    key: "mma",
-    name: "MMA",
-    icon: "🥊",
-    espnSport: "mma",
-    leagues: [
-      { slug: "ufc", name: "UFC", priority: 1 },
-    ],
-  },
 ];
 
 // Helper: build ESPN scoreboard URL
