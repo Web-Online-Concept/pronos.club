@@ -473,7 +473,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
   return (
     <div className="overflow-hidden rounded-xl border border-neutral-200 shadow-sm">
       {/* Sport tabs bar — FlashScore style top bar */}
-      <div className="flex items-center gap-0 overflow-x-auto bg-[#1a1a2e] scrollbar-none">
+      <div className="flex items-center gap-0 overflow-x-auto bg-[#2d3352] scrollbar-none">
         {SPORT_TABS.map((tab) => {
           const isActive = activeSport === tab.key;
           const sportData = sports.find((s) => s.key === tab.key);
@@ -485,7 +485,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
               onClick={() => setActiveSport(tab.key)}
               className={`relative flex shrink-0 items-center gap-1.5 px-4 py-3 text-[11px] font-bold uppercase tracking-wide transition cursor-pointer border-b-2 ${
                 isActive
-                  ? "border-emerald-500 text-white bg-white/5"
+                  ? "border-emerald-400 text-white"
                   : "border-transparent text-white hover:bg-white/10"
               }`}
             >
