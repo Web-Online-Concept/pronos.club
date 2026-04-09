@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = t("meta_title");
   const description = t("meta_desc");
   const url = `https://pronos.club/${locale}/livescore`;
-  const ogImage = `https://pronos.club/api/og?title=${encodeURIComponent("Livescore")}&description=${encodeURIComponent("Scores en direct - Tous les sports")}`;
+  const ogImage = `https://pronos.club/api/og?title=${encodeURIComponent("Livescore")}&subtitle=${encodeURIComponent("Scores en direct - Tous les sports")}`;
 
   return {
     title,
