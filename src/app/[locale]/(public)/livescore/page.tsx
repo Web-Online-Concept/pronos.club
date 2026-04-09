@@ -6,9 +6,28 @@ import LivescoreClient from "./LivescoreClient";
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: "livescore" });
+  const title = t("meta_title");
+  const description = t("meta_desc");
+  const url = `https://pronos.club/${locale}/livescore`;
+  const ogImage = `https://pronos.club/api/og?title=${encodeURIComponent("Livescore")}&description=${encodeURIComponent("Scores en direct - Tous les sports")}`;
+
   return {
-    title: t("meta_title"),
-    description: t("meta_desc"),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "PRONOS.CLUB",
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
   };
 }
 
