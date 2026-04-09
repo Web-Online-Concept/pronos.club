@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import MatchDetailPanel from "./MatchDetailPanel";
 
 /* ── Types ────────────────────────────────── */
 interface LiveMatch {
@@ -64,6 +65,19 @@ function formatDate(date: Date): string {
 }
 
 /* ── Sport tabs ────────────────────────────── */
+const SPORT_ESPN_MAP: Record<string, string> = {
+  football: "soccer",
+  tennis: "tennis",
+  basketball: "basketball",
+  hockey: "hockey",
+  baseball: "baseball",
+  "football-us": "football",
+  mma: "mma",
+  rugby: "rugby",
+  cricket: "cricket",
+  golf: "golf",
+};
+
 const SPORT_TABS = [
   { key: "all", icon: "🏟️", label: "FAVORIS" },
   { key: "football", icon: "⚽", label: "FOOTBALL" },
@@ -183,9 +197,14 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
 }
 
 /* ── League section ────────────────────────── */
-function LeagueSection({ league, labels }: { league: LiveLeague; labels: Labels }) {
+function LeagueSection({ league, labels, espnSport }: { league: LiveLeague; labels: Labels; espnSport: string }) {
   const liveCount = league.matches.filter((m) => m.status === "live").length;
   const [collapsed, setCollapsed] = useState(false);
+  const [openMatchId, setOpenMatchId] = useState<string | null>(null);
+
+  const handleMatchClick = (matchId: string) => {
+    setOpenMatchId((prev) => (prev === matchId ? null : matchId));
+  };
 
   return (
     <div className="mb-1 overflow-hidden bg-white">
@@ -216,7 +235,17 @@ function LeagueSection({ league, labels }: { league: LiveLeague; labels: Labels 
       {!collapsed && (
         <div>
           {league.matches.map((match) => (
-            <MatchRow key={match.id} match={match} labels={labels} />
+            <div key={match.id}>
+              <div onClick={() => handleMatchClick(match.id)}>
+                <MatchRow match={match} labels={labels} />
+              </div>
+              <MatchDetailPanel
+                matchId={match.id}
+                sport={espnSport}
+                league={league.slug}
+                isOpen={openMatchId === match.id}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -467,7 +496,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
                 </div>
               )}
               {sport.leagues.map((league) => (
-                <LeagueSection key={league.slug} league={league} labels={labels} />
+                <LeagueSection key={league.slug} league={league} labels={labels} espnSport={SPORT_ESPN_MAP[sport.key] ?? "soccer"} />
               ))}
             </div>
           ))}
