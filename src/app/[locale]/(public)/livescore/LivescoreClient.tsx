@@ -238,8 +238,8 @@ function DatePicker({ date, onChange }: { date: Date; onChange: (d: Date) => voi
             isSelected(d)
               ? "bg-emerald-600 text-white"
               : isToday(d)
-              ? "bg-neutral-200 text-emerald-600"
-              : "text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+              ? "bg-[#1a1a1a] text-emerald-400"
+              : "bg-[#1a1a1a] text-white/50 hover:bg-[#252525] hover:text-white/70"
           }`}
         >
           <span className="text-[9px] font-semibold uppercase sm:text-[10px]">{dayNames[d.getDay()]}</span>
@@ -318,13 +318,13 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
               className={`relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition cursor-pointer sm:px-4 ${
                 isActive
                   ? "bg-emerald-600 text-white ring-1 ring-emerald-500/30"
-                  : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300 hover:text-neutral-800"
+                  : "bg-[#1a1a1a] text-white/60 hover:bg-[#252525] hover:text-white/80"
               }`}
             >
               <span className="text-base">{tab.icon}</span>
               <span className="hidden sm:inline">{tab.key === "all" ? labels.allSports : tab.key.replace("-us", " US").replace(/^\w/, (c) => c.toUpperCase())}</span>
               {matchCount > 0 && (
-                <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-neutral-300 text-neutral-500"}`}>
+                <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-white/10 text-white/40"}`}>
                   {matchCount}
                 </span>
               )}
@@ -340,13 +340,13 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
 
       {/* Live banner */}
       {totalLive > 0 && (
-        <div className="mb-4 flex items-center justify-center gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm font-bold text-red-500">
+        <div className="mb-4 flex items-center justify-center gap-2 rounded-lg bg-[#1a1a1a] border border-red-500/20 px-4 py-2 text-sm font-bold text-red-400">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
           </span>
           {totalLive} {labels.liveNow}
-          {refreshing && <span className="ml-2 text-[10px] text-neutral-400">⟳ {labels.refreshing}</span>}
+          {refreshing && <span className="ml-2 text-[10px] text-white/30">⟳ {labels.refreshing}</span>}
         </div>
       )}
 
@@ -371,10 +371,10 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
           <div key={sport.key} className="mb-6">
             {/* Sport header (only show when viewing "all") */}
             {activeSport === "all" && (
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3 flex items-center gap-2 rounded-lg bg-[#1a1a1a] px-3 py-2">
                 <span className="text-lg">{sport.icon}</span>
-                <h2 className="text-sm font-bold text-neutral-800">{sport.name}</h2>
-                <span className="text-[10px] text-neutral-400">{sport.totalMatches} matchs</span>
+                <h2 className="text-sm font-bold text-white/80">{sport.name}</h2>
+                <span className="text-[10px] text-white/30">{sport.totalMatches} matchs</span>
                 {sport.liveMatches > 0 && (
                   <span className="flex items-center gap-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold text-red-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
