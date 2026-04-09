@@ -1224,5 +1224,20 @@
     "stats": "Stats",
     "account": "Cuenta",
     "blog": "Blog"
+  },
+  "livescore": {
+    "meta_title": "Livescore — Resultados en vivo | PRONOS.CLUB",
+    "meta_desc": "Sigue todos los resultados en vivo: fútbol, tenis, baloncesto, hockey, béisbol, MMA y más. Actualizado cada 30 segundos.",
+    "title": "Livescore",
+    "subtitle": "Resultados en vivo — Todos los deportes",
+    "live": "En vivo",
+    "scheduled": "Próximo",
+    "finished": "Finalizado",
+    "postponed": "Aplazado",
+    "no_matches": "No hay partidos hoy",
+    "loading": "Cargando resultados...",
+    "all_sports": "Todos",
+    "refreshing": "Actualizando...",
+    "live_now": "partidos en vivo"
   }
 }

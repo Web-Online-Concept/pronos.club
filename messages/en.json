@@ -1224,5 +1224,20 @@
     "stats": "Stats",
     "account": "Account",
     "blog": "Blog"
+  },
+  "livescore": {
+    "meta_title": "Livescore — Live Scores | PRONOS.CLUB",
+    "meta_desc": "Follow all live scores: football, tennis, basketball, hockey, baseball, MMA and more. Updated every 30 seconds.",
+    "title": "Livescore",
+    "subtitle": "Live Scores — All Sports",
+    "live": "Live",
+    "scheduled": "Upcoming",
+    "finished": "Finished",
+    "postponed": "Postponed",
+    "no_matches": "No matches today",
+    "loading": "Loading scores...",
+    "all_sports": "All",
+    "refreshing": "Refreshing...",
+    "live_now": "matches live"
   }
 }
