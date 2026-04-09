@@ -122,24 +122,41 @@ function parseEvent(event: ESPNEvent): LiveMatch | null {
   };
 }
 
-async function fetchLeague(espnSport: string, league: { slug: string; name: string; flag?: string }, date?: string): Promise<LiveLeague | null> {
+async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string }, dates: string[]): Promise<LiveLeague | null> {
   try {
-    const url = buildScoreboardUrl(espnSport, league.slug, date);
-    const res = await fetch(url, { next: { revalidate: 30 }, headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) return null;
-    
-    const data: ESPNResponse = await res.json();
-    if (!data.events?.length) return null;
+    // Fetch all dates in parallel
+    const allEvents: ESPNEvent[] = [];
+    const seenIds = new Set<string>();
 
-    const matches = data.events.map(parseEvent).filter((m): m is LiveMatch => m !== null);
+    await Promise.all(
+      dates.map(async (date) => {
+        try {
+          const url = buildScoreboardUrl(espnSport, league.slug, date);
+          const res = await fetch(url, { next: { revalidate: 30 }, headers: { "User-Agent": "Mozilla/5.0" } });
+          if (!res.ok) return;
+          const data: ESPNResponse = await res.json();
+          if (data.events) {
+            for (const event of data.events) {
+              if (event.id && !seenIds.has(event.id)) {
+                seenIds.add(event.id);
+                allEvents.push(event);
+              }
+            }
+          }
+        } catch {
+          // skip failed date
+        }
+      })
+    );
+
+    if (!allEvents.length) return null;
+
+    const matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
     if (!matches.length) return null;
-
-    // Use ESPN league name if available
-    const leagueName = data.leagues?.[0]?.name ?? league.name;
 
     return {
       slug: league.slug,
-      name: leagueName,
+      name: league.name,
       flag: league.flag,
       matches,
     };
@@ -151,7 +168,23 @@ async function fetchLeague(espnSport: string, league: { slug: string; name: stri
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sport = searchParams.get("sport"); // filter by sport key, or "all"
-  const date = searchParams.get("date") ?? undefined; // YYYYMMDD
+  const date = searchParams.get("date") ?? undefined; // YYYYMMDD — date locale du client
+  const tz = searchParams.get("tz") ?? "Europe/Paris"; // timezone du client
+
+  // Calculer veille + jour + lendemain pour couvrir les décalages timezone
+  let datesToFetch: string[] = [];
+  if (date && date.length === 8) {
+    const y = parseInt(date.slice(0, 4));
+    const m = parseInt(date.slice(4, 6)) - 1;
+    const d = parseInt(date.slice(6, 8));
+    const base = new Date(y, m, d);
+    for (const offset of [-1, 0, 1]) {
+      const dt = new Date(base);
+      dt.setDate(dt.getDate() + offset);
+      const ds = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`;
+      datesToFetch.push(ds);
+    }
+  }
 
   const targetSports = sport && sport !== "all"
     ? SPORTS_CONFIG.filter((s) => s.key === sport)
@@ -163,11 +196,44 @@ export async function GET(request: Request) {
   await Promise.all(
     targetSports.map(async (sportConfig) => {
       const leagueResults = await Promise.all(
-        sportConfig.leagues.map((league) => fetchLeague(sportConfig.espnSport, league, date))
+        sportConfig.leagues.map((league) =>
+          datesToFetch.length > 0
+            ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
+            : fetchLeagueDates(sportConfig.espnSport, league, [])
+        )
       );
 
       const validLeagues = leagueResults
         .filter((l): l is LiveLeague => l !== null)
+        .map((league) => {
+          // Filter matches to only those that fall on the requested date in the client's timezone
+          if (date && date.length === 8) {
+            const requestedDate = date; // YYYYMMDD
+            league.matches = league.matches.filter((match) => {
+              if (!match.startTime) return true; // keep matches without startTime
+              try {
+                const matchDate = new Date(match.startTime);
+                // Format match date in client timezone
+                const formatter = new Intl.DateTimeFormat("en-CA", {
+                  timeZone: tz,
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                });
+                const parts = formatter.formatToParts(matchDate);
+                const yy = parts.find((p) => p.type === "year")?.value ?? "";
+                const mm = parts.find((p) => p.type === "month")?.value ?? "";
+                const dd = parts.find((p) => p.type === "day")?.value ?? "";
+                const matchLocalDate = `${yy}${mm}${dd}`;
+                return matchLocalDate === requestedDate;
+              } catch {
+                return true;
+              }
+            });
+          }
+          return league;
+        })
+        .filter((l) => l.matches.length > 0)
         .sort((a, b) => {
           const aPriority = sportConfig.leagues.find((l) => l.slug === a.slug)?.priority ?? 99;
           const bPriority = sportConfig.leagues.find((l) => l.slug === b.slug)?.priority ?? 99;

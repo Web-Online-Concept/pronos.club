@@ -352,7 +352,8 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
       try {
         const dateStr = formatDate(selectedDate);
         const sportParam = activeSport === "all" ? "all" : activeSport;
-        const res = await fetch(`/api/livescore?sport=${sportParam}&date=${dateStr}`);
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const res = await fetch(`/api/livescore?sport=${sportParam}&date=${dateStr}&tz=${encodeURIComponent(tz)}`);
         if (res.ok) {
           const data = await res.json();
           setSports(data.sports ?? []);
