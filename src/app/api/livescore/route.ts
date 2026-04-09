@@ -131,9 +131,7 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
   const awayLogo = away.team?.logo ?? away.athlete?.flag?.href ?? "";
 
   // Tennis linescores (sets) — ESPN uses value (number) for tennis, displayValue for football
-  const homeLinescores = home.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
-  const awayLinescores = away.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
-  
+
   // Tennis linescores (sets) — ESPN uses value (number), displayValue is empty for tennis
   const homeLinescores = home.linescores?.map((l) => l.displayValue || (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
   const awayLinescores = away.linescores?.map((l) => l.displayValue || (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
