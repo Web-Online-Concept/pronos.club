@@ -118,12 +118,7 @@ export const SPORTS_CONFIG: SportConfig[] = [
     name: "Rugby",
     icon: "🏉",
     espnSport: "rugby",
-    leagues: [
-      { slug: "270557", name: "Top 14", flag: "🇫🇷", priority: 1 },
-      { slug: "270559", name: "Premiership", flag: "🏴", priority: 2 },
-      { slug: "244293", name: "Six Nations", flag: "🏆", priority: 3 },
-      { slug: "242041", name: "Rugby Championship", flag: "🏆", priority: 4 },
-    ],
+    leagues: [],  // ESPN ne supporte pas le rugby via scoreboard — à brancher sur API-Sports plus tard
   },
   {
     key: "cricket",
@@ -131,7 +126,8 @@ export const SPORTS_CONFIG: SportConfig[] = [
     icon: "🏏",
     espnSport: "cricket",
     leagues: [
-      { slug: "icc", name: "International", priority: 1 },
+      { slug: "8039", name: "IPL", flag: "🇮🇳", priority: 1 },
+      { slug: "23694", name: "International", flag: "🏆", priority: 2 },
     ],
   },
   {

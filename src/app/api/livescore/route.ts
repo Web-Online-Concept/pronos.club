@@ -19,10 +19,27 @@ interface ESPNStatus {
   period?: number;
 }
 
+interface ESPNCompetitor {
+  team?: { displayName?: string; abbreviation?: string; logo?: string; shortDisplayName?: string };
+  athlete?: { displayName?: string; shortName?: string; flag?: { href?: string } };
+  score?: string;
+  winner?: boolean;
+  homeAway?: string;
+  linescores?: { displayValue?: string }[];
+}
+
 interface ESPNCompetition {
+  id?: string;
   competitors?: ESPNCompetitor[];
   status?: ESPNStatus;
   startDate?: string;
+  date?: string;
+  round?: { displayName?: string };
+}
+
+interface ESPNGrouping {
+  grouping?: { name?: string };
+  competitions?: ESPNCompetition[];
 }
 
 interface ESPNEvent {
@@ -30,6 +47,7 @@ interface ESPNEvent {
   name?: string;
   shortName?: string;
   competitions?: ESPNCompetition[];
+  groupings?: ESPNGrouping[];
 }
 
 interface ESPNLeagueInfo {
@@ -97,29 +115,71 @@ function parseStatus(status?: ESPNStatus): { status: LiveMatch["status"]; status
   return { status: "other", statusText: detail, clock: "" };
 }
 
-function parseEvent(event: ESPNEvent): LiveMatch | null {
-  const comp = event.competitions?.[0];
+function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch | null {
   if (!comp?.competitors || comp.competitors.length < 2) return null;
 
   const home = comp.competitors.find((c) => c.homeAway === "home") ?? comp.competitors[0];
   const away = comp.competitors.find((c) => c.homeAway === "away") ?? comp.competitors[1];
   const { status, statusText, clock } = parseStatus(comp.status);
 
+  // Tennis/individual sports use athlete instead of team
+  const homeName = home.team?.displayName ?? home.team?.shortDisplayName ?? home.athlete?.displayName ?? "?";
+  const homeAbbr = home.team?.abbreviation ?? home.athlete?.shortName ?? "";
+  const homeLogo = home.team?.logo ?? home.athlete?.flag?.href ?? "";
+  const awayName = away.team?.displayName ?? away.team?.shortDisplayName ?? away.athlete?.displayName ?? "?";
+  const awayAbbr = away.team?.abbreviation ?? away.athlete?.shortName ?? "";
+  const awayLogo = away.team?.logo ?? away.athlete?.flag?.href ?? "";
+
+  // Tennis linescores (sets)
+  const homeLinescores = home.linescores?.map((l) => l.displayValue ?? "").filter(Boolean) ?? [];
+  const awayLinescores = away.linescores?.map((l) => l.displayValue ?? "").filter(Boolean) ?? [];
+  const tennisScore = homeLinescores.length > 0
+    ? homeLinescores.join(" ") + " / " + awayLinescores.join(" ")
+    : "";
+
   return {
-    id: event.id ?? "",
-    homeTeam: home.team?.displayName ?? home.team?.shortDisplayName ?? "?",
-    homeAbbr: home.team?.abbreviation ?? "",
-    homeLogo: home.team?.logo ?? "",
-    homeScore: home.score ?? "-",
-    awayTeam: away.team?.displayName ?? away.team?.shortDisplayName ?? "?",
-    awayAbbr: away.team?.abbreviation ?? "",
-    awayLogo: away.team?.logo ?? "",
-    awayScore: away.score ?? "-",
+    id: comp.id ?? fallbackId ?? "",
+    homeTeam: homeName,
+    homeAbbr,
+    homeLogo,
+    homeScore: home.score ?? (tennisScore ? "" : "-"),
+    awayTeam: awayName,
+    awayAbbr,
+    awayLogo,
+    awayScore: away.score ?? (tennisScore ? "" : "-"),
     status,
-    statusText,
+    statusText: tennisScore || statusText,
     clock,
-    startTime: comp.startDate ?? "",
+    startTime: comp.startDate ?? comp.date ?? "",
   };
+}
+
+function parseEvent(event: ESPNEvent): LiveMatch | null {
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+  return parseCompetition(comp, event.id);
+}
+
+// Tennis/Golf: events contain groupings > competitions instead of direct competitions
+function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
+  const matches: LiveMatch[] = [];
+  const groupings = event.groupings ?? [];
+  for (const g of groupings) {
+    for (const comp of g.competitions ?? []) {
+      const match = parseCompetition(comp, comp.id);
+      if (match) matches.push(match);
+    }
+  }
+  // Fallback: also check direct competitions
+  if (event.competitions) {
+    for (const comp of event.competitions) {
+      const match = parseCompetition(comp, event.id);
+      if (match && !matches.find((m) => m.id === match.id)) {
+        matches.push(match);
+      }
+    }
+  }
+  return matches;
 }
 
 async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string }, dates: string[]): Promise<LiveLeague | null> {
@@ -151,12 +211,26 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
 
     if (!allEvents.length) return null;
 
-    const matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
+    // Tennis & Golf use tournament > groupings > competitions structure
+    const isTournamentSport = espnSport === "tennis" || espnSport === "golf";
+    let matches: LiveMatch[];
+
+    if (isTournamentSport) {
+      matches = allEvents.flatMap(parseTournamentEvent);
+    } else {
+      matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
+    }
+
     if (!matches.length) return null;
+
+    // For tournament sports, use the tournament name as league name
+    const leagueName = isTournamentSport && allEvents[0]?.name
+      ? allEvents[0].name
+      : league.name;
 
     return {
       slug: league.slug,
-      name: league.name,
+      name: leagueName,
       flag: league.flag,
       matches,
     };
