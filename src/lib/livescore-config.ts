@@ -113,32 +113,6 @@ export const SPORTS_CONFIG: SportConfig[] = [
       { slug: "ufc", name: "UFC", priority: 1 },
     ],
   },
-  {
-    key: "rugby",
-    name: "Rugby",
-    icon: "🏉",
-    espnSport: "rugby",
-    leagues: [],  // ESPN ne supporte pas le rugby via scoreboard — à brancher sur API-Sports plus tard
-  },
-  {
-    key: "cricket",
-    name: "Cricket",
-    icon: "🏏",
-    espnSport: "cricket",
-    leagues: [
-      { slug: "8039", name: "IPL", flag: "🇮🇳", priority: 1 },
-      { slug: "23694", name: "International", flag: "🏆", priority: 2 },
-    ],
-  },
-  {
-    key: "golf",
-    name: "Golf",
-    icon: "⛳",
-    espnSport: "golf",
-    leagues: [
-      { slug: "pga", name: "PGA Tour", flag: "🇺🇸", priority: 1 },
-    ],
-  },
 ];
 
 // Helper: build ESPN scoreboard URL

@@ -87,9 +87,6 @@ const SPORT_TABS = [
   { key: "baseball", icon: "⚾", label: "BASEBALL" },
   { key: "football-us", icon: "🏈", label: "NFL" },
   { key: "mma", icon: "🥊", label: "MMA" },
-  { key: "rugby", icon: "🏉", label: "RUGBY" },
-  { key: "cricket", icon: "🏏", label: "CRICKET" },
-  { key: "golf", icon: "⛳", label: "GOLF" },
 ];
 
 /* ── Status badge ──────────────────────────── */
