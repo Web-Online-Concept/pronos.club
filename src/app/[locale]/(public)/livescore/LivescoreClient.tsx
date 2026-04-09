@@ -192,10 +192,10 @@ function LeagueSection({ league, labels }: { league: LiveLeague; labels: Labels 
       {/* League header */}
       <div
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 border-b border-neutral-100 bg-[#fafafa] px-3 py-[7px] cursor-pointer hover:bg-neutral-100 transition sm:px-4"
+        className="flex items-center gap-2 border-b border-[#d6dce8] bg-[#e8ecf3] px-3 py-[7px] cursor-pointer hover:bg-[#dde2ed] transition sm:px-4"
       >
         {league.flag && <span className="text-sm">{league.flag}</span>}
-        <span className="text-[12px] font-bold text-neutral-700 uppercase tracking-wide">{league.name}</span>
+        <span className="text-[12px] font-bold text-[#3a4a6b] uppercase tracking-wide">{league.name}</span>
         {liveCount > 0 && (
           <span className="flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-500">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
@@ -454,9 +454,9 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
             <div key={sport.key}>
               {/* Sport header (only in "all" view) */}
               {activeSport === "all" && (
-                <div className="flex items-center gap-2 bg-[#f0f0f0] px-3 py-1.5 sm:px-4">
+                <div className="flex items-center gap-2 bg-[#dde1e8] px-3 py-1.5 sm:px-4">
                   <span className="text-sm">{sport.icon}</span>
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">{sport.name}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-[#3a4a6b]">{sport.name}</span>
                   {sport.liveMatches > 0 && (
                     <span className="flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-500">
                       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
