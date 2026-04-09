@@ -25,7 +25,7 @@ interface ESPNCompetitor {
   score?: string;
   winner?: boolean;
   homeAway?: string;
-  linescores?: { displayValue?: string }[];
+  linescores?: { displayValue?: string; value?: number; winner?: boolean }[];
 }
 
 interface ESPNCompetition {
@@ -130,23 +130,31 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
   const awayAbbr = away.team?.abbreviation ?? away.athlete?.shortName ?? "";
   const awayLogo = away.team?.logo ?? away.athlete?.flag?.href ?? "";
 
-  // Tennis linescores (sets)
-  const homeLinescores = home.linescores?.map((l) => l.displayValue ?? "").filter(Boolean) ?? [];
-  const awayLinescores = away.linescores?.map((l) => l.displayValue ?? "").filter(Boolean) ?? [];
-  const tennisScore = homeLinescores.length > 0
-    ? homeLinescores.join(" ") + " / " + awayLinescores.join(" ")
-    : "";
+  // Tennis linescores (sets) — ESPN uses value (number) for tennis, displayValue for football
+  const homeLinescores = home.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
+  const awayLinescores = away.linescores?.map((l) => l.displayValue ?? (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
+  
+  // For tennis: show set scores as "6-4 6-3" style
+  const isIndividualSport = !home.team?.displayName && home.athlete?.displayName;
+  let tennisScore = "";
+  if (isIndividualSport && homeLinescores.length > 0) {
+    tennisScore = homeLinescores.map((h, i) => `${h}-${awayLinescores[i] ?? "?"}`).join(" ");
+  }
+
+  // Score: for tennis use winner marker, for team sports use score field
+  const homeScore = home.score ?? (isIndividualSport && home.winner ? "W" : "");
+  const awayScore = away.score ?? (isIndividualSport && away.winner ? "W" : "");
 
   return {
     id: comp.id ?? fallbackId ?? "",
     homeTeam: homeName,
     homeAbbr,
     homeLogo,
-    homeScore: home.score ?? (tennisScore ? "" : "-"),
+    homeScore: homeScore || "-",
     awayTeam: awayName,
     awayAbbr,
     awayLogo,
-    awayScore: away.score ?? (tennisScore ? "" : "-"),
+    awayScore: awayScore || "-",
     status,
     statusText: tennisScore || statusText,
     clock,
@@ -245,18 +253,33 @@ export async function GET(request: Request) {
   const date = searchParams.get("date") ?? undefined; // YYYYMMDD — date locale du client
   const tz = searchParams.get("tz") ?? "Europe/Paris"; // timezone du client
 
-  // Calculer veille + jour + lendemain pour couvrir les décalages timezone
+  // Calculer les dates à fetcher
+  // "all" sports = juste la date demandée (sinon trop de requêtes parallèles)
+  // Sport spécifique = veille + jour + lendemain pour couvrir les décalages timezone
+  const isAllSports = !sport || sport === "all";
   let datesToFetch: string[] = [];
   if (date && date.length === 8) {
     const y = parseInt(date.slice(0, 4));
     const m = parseInt(date.slice(4, 6)) - 1;
     const d = parseInt(date.slice(6, 8));
     const base = new Date(y, m, d);
-    for (const offset of [-1, 0, 1]) {
-      const dt = new Date(base);
-      dt.setDate(dt.getDate() + offset);
-      const ds = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`;
-      datesToFetch.push(ds);
+    
+    if (isAllSports) {
+      // Just the requested date + next day to cover late night matches
+      for (const offset of [0, 1]) {
+        const dt = new Date(base);
+        dt.setDate(dt.getDate() + offset);
+        const ds = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`;
+        datesToFetch.push(ds);
+      }
+    } else {
+      // Full range for specific sport
+      for (const offset of [-1, 0, 1]) {
+        const dt = new Date(base);
+        dt.setDate(dt.getDate() + offset);
+        const ds = `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`;
+        datesToFetch.push(ds);
+      }
     }
   }
 
@@ -266,16 +289,17 @@ export async function GET(request: Request) {
 
   const results: LiveSport[] = [];
 
-  // Fetch all leagues for all targeted sports in parallel
-  await Promise.all(
-    targetSports.map(async (sportConfig) => {
-      const leagueResults = await Promise.all(
-        sportConfig.leagues.map((league) =>
-          datesToFetch.length > 0
-            ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
-            : fetchLeagueDates(sportConfig.espnSport, league, [])
-        )
-      );
+  // Fetch sports sequentially to avoid rate-limiting, leagues in parallel per sport
+  for (const sportConfig of targetSports) {
+    if (sportConfig.leagues.length === 0) continue;
+
+    const leagueResults = await Promise.all(
+      sportConfig.leagues.map((league) =>
+        datesToFetch.length > 0
+          ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
+          : fetchLeagueDates(sportConfig.espnSport, league, [])
+      )
+    );
 
       const validLeagues = leagueResults
         .filter((l): l is LiveLeague => l !== null)
@@ -327,8 +351,7 @@ export async function GET(request: Request) {
           liveMatches,
         });
       }
-    })
-  );
+  }
 
   // Sort: sports with live matches first, then by config order
   results.sort((a, b) => {
