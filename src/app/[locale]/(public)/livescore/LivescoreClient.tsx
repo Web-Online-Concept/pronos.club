@@ -486,7 +486,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
               className={`relative flex shrink-0 items-center gap-1.5 px-4 py-3 text-[11px] font-bold uppercase tracking-wide transition cursor-pointer border-b-2 ${
                 isActive
                   ? "border-emerald-500 text-white bg-white/5"
-                  : "border-transparent text-white/50 hover:text-white/80 hover:bg-white/5"
+                  : "border-transparent text-white/70 hover:text-white hover:bg-white/10"
               }`}
             >
               <span className="text-sm">{tab.icon}</span>
