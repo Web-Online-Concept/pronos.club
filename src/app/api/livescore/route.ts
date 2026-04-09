@@ -215,7 +215,10 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
       dates.map(async (date) => {
         try {
           const url = buildScoreboardUrl(espnSport, league.slug, date);
-          const res = await fetch(url, { next: { revalidate: 30 }, headers: { "User-Agent": "Mozilla/5.0" } });
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch(url, { signal: controller.signal, next: { revalidate: 30 }, headers: { "User-Agent": "Mozilla/5.0" } });
+          clearTimeout(timeout);
           if (!res.ok) return;
           const data: ESPNResponse = await res.json();
           if (data.events) {
@@ -281,19 +284,26 @@ export async function GET(request: Request) {
 
   const results: LiveSport[] = [];
 
-  // Fetch sports sequentially to avoid rate-limiting, leagues in parallel per sport
+  // Fetch sports sequentially, leagues in batches of 5 to avoid Vercel timeout
   for (const sportConfig of targetSports) {
     if (sportConfig.leagues.length === 0) continue;
 
-    const leagueResults = await Promise.all(
-      sportConfig.leagues.map((league) =>
-        datesToFetch.length > 0
-          ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
-          : fetchLeagueDates(sportConfig.espnSport, league, [])
-      )
-    );
+    const allLeagueResults: (LiveLeague | null)[] = [];
+    const batchSize = 5;
 
-      const validLeagues = leagueResults
+    for (let i = 0; i < sportConfig.leagues.length; i += batchSize) {
+      const batch = sportConfig.leagues.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map((league) =>
+          datesToFetch.length > 0
+            ? fetchLeagueDates(sportConfig.espnSport, league, datesToFetch)
+            : fetchLeagueDates(sportConfig.espnSport, league, [])
+        )
+      );
+      allLeagueResults.push(...batchResults);
+    }
+
+      const validLeagues = allLeagueResults
         .filter((l): l is LiveLeague => l !== null)
         .filter((l) => l.matches.length > 0)
         .sort((a, b) => {
