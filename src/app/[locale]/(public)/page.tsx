@@ -295,7 +295,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                         {pick.profit !== null && (
                           <span>
                             {(pick.profit ?? 0) >= 0 ? "+" : ""}
-                            {Number(pick.profit).toFixed(3)}U
+                            {Number(pick.profit).toFixed((pick.status === "lost" || pick.status === "half_lost") ? 1 : 3)}U
                           </span>
                         )}
                       </span>

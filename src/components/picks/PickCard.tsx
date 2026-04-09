@@ -661,7 +661,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           <span className="text-[11px] font-extrabold text-white">{status.label}</span>
                           {displayProfit !== null && displayProfit !== 0 && (
                             <span className="text-[11px] font-extrabold text-white/90">
-                              {Number(displayProfit).toFixed(3)}U
+                              {Number(displayProfit).toFixed(1)}U
                             </span>
                           )}
                           {displayProfit !== null && displayProfit !== 0 && tipsterUnitEuro > 0 && (
