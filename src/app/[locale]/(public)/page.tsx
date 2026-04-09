@@ -264,7 +264,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 return (
                   <div
                     key={i}
-                    className={`group relative overflow-hidden rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${
+                    className={`group relative overflow-hidden rounded-2xl border p-3 sm:p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${
                       isWon
                         ? "border-emerald-500/20 bg-emerald-500/5"
                         : isVoid
@@ -274,16 +274,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     style={{ background: isWon ? "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" : isVoid ? "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)" : "linear-gradient(135deg, #0a0a0a 0%, #2e0606 100%)" }}
                   >
                     <div className={`absolute inset-y-0 left-0 w-1 ${isWon ? "bg-emerald-500" : isVoid ? "bg-neutral-500" : "bg-red-500"}`} />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 pl-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-lg">{sport?.icon ?? "⚽"}</span>
-                        <div>
-                          <p className="text-sm font-bold text-white">{pick.event_name}</p>
-                          <p className="text-xs text-white/40">{pick.selection} · {t("results_odds")} {pick.odds}</p>
+                    <div className="flex items-center justify-between gap-2 pl-2 sm:pl-3">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-base sm:text-lg">{sport?.icon ?? "⚽"}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs sm:text-sm font-bold text-white truncate">{pick.event_name}</p>
+                          <p className="text-[10px] sm:text-xs text-white/40 truncate">{pick.selection} · {t("results_odds")} {pick.odds}</p>
                         </div>
                       </div>
                       <span
-                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        className={`shrink-0 whitespace-nowrap rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold ${
                           isWon
                             ? "bg-emerald-500/20 text-emerald-400"
                             : isVoid
