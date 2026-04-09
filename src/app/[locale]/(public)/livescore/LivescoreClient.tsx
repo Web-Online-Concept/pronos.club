@@ -144,6 +144,25 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
   const isFinished = match.status === "finished";
   const isScheduled = match.status === "scheduled";
 
+  // Determine winner for finished matches
+  const homeScoreNum = parseInt(match.homeScore) || 0;
+  const awayScoreNum = parseInt(match.awayScore) || 0;
+  const isDraw = isFinished && homeScoreNum === awayScoreNum;
+  const homeWin = isFinished && homeScoreNum > awayScoreNum;
+  const awayWin = isFinished && awayScoreNum > homeScoreNum;
+
+  const homeScoreColor = isLive ? "text-red-500"
+    : homeWin ? "text-emerald-600"
+    : awayWin ? "text-red-400"
+    : isDraw ? "text-neutral-500"
+    : "text-neutral-300";
+
+  const awayScoreColor = isLive ? "text-red-500"
+    : awayWin ? "text-emerald-600"
+    : homeWin ? "text-red-400"
+    : isDraw ? "text-neutral-500"
+    : "text-neutral-300";
+
   return (
     <div
       className={`flex items-center border-b border-neutral-100 px-3 py-[9px] transition cursor-pointer sm:px-4 ${
@@ -159,13 +178,13 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
       <div className="flex flex-1 flex-col gap-[3px] min-w-0">
         <div className="flex items-center gap-2">
           <TeamLogo src={match.homeLogo} alt={match.homeAbbr || match.homeTeam} />
-          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-600" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
+          <span className={`flex-1 truncate text-[13px] ${isFinished ? (homeWin ? "text-neutral-800 font-semibold" : "text-neutral-500") : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
             {match.homeTeam}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <TeamLogo src={match.awayLogo} alt={match.awayAbbr || match.awayTeam} />
-          <span className={`flex-1 truncate text-[13px] ${isFinished ? "text-neutral-600" : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
+          <span className={`flex-1 truncate text-[13px] ${isFinished ? (awayWin ? "text-neutral-800 font-semibold" : "text-neutral-500") : "text-neutral-800"} ${isLive ? "font-semibold" : "font-medium"}`}>
             {match.awayTeam}
           </span>
         </div>
@@ -173,18 +192,10 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
 
       {/* Scores */}
       <div className="flex flex-col gap-[3px] shrink-0 min-w-[32px]">
-        <span
-          className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
-            isLive ? "text-red-500" : isFinished ? "text-neutral-700" : "text-neutral-300"
-          }`}
-        >
+        <span className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${homeScoreColor}`}>
           {isScheduled ? "-" : match.homeScore}
         </span>
-        <span
-          className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${
-            isLive ? "text-red-500" : isFinished ? "text-neutral-700" : "text-neutral-300"
-          }`}
-        >
+        <span className={`text-right font-mono text-[13px] font-bold whitespace-nowrap ${awayScoreColor}`}>
           {isScheduled ? "-" : match.awayScore}
         </span>
       </div>
