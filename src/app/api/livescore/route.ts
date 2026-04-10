@@ -301,14 +301,15 @@ export async function GET(request: Request) {
   const date = searchParams.get("date") ?? undefined; // YYYYMMDD — date locale du client
   const tz = searchParams.get("tz") ?? "Europe/Paris"; // timezone du client
 
-  // Fetch ESPN date + next day to cover timezone overlaps
+  // Fetch ESPN dates: veille + date + lendemain pour couvrir les décalages timezone US/Europe
+  // Ex: matchs NBA du 10 avril 1h Paris = 9 avril 19h US → ESPN les met au 9 avril
   let datesToFetch: string[] = [];
   if (date && date.length === 8) {
     const y = parseInt(date.slice(0, 4));
     const m = parseInt(date.slice(4, 6)) - 1;
     const d = parseInt(date.slice(6, 8));
     const base = new Date(y, m, d);
-    for (const offset of [0, 1]) {
+    for (const offset of [-1, 0, 1]) {
       const dt = new Date(base);
       dt.setDate(dt.getDate() + offset);
       datesToFetch.push(`${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`);
