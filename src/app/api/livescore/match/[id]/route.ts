@@ -162,21 +162,39 @@ function parseSummary(data: any, eventId: string): MatchDetail {
   };
 
   // Events
-  const events: MatchDetailEvent[] = (data.keyEvents ?? []).map((ke: any) => ({
-    id: ke.id ?? "",
-    type: ke.type?.type ?? ke.type?.text ?? "",
-    minute: ke.clock?.displayValue ?? "",
-    text: ke.text ?? "",
-    shortText: ke.shortText ?? "",
-    team: ke.team?.displayName ?? "",
-    teamId: ke.team?.id ?? "",
-    scoringPlay: ke.scoringPlay ?? false,
-    participants: (ke.participants ?? []).map((p: any) => ({
-      name: p.athlete?.displayName ?? "",
-      role: p.type ?? "",
-    })),
-    period: ke.period?.number ?? 0,
-  }));
+  const events: MatchDetailEvent[] = (data.keyEvents ?? []).map((ke: any) => {
+    // Normalize ESPN event type text to our internal types
+    const rawType = (ke.type?.text ?? "").toLowerCase();
+    let type = "other";
+    if (rawType.startsWith("goal") || rawType === "penalty - Loss" || rawType === "penalty - Loss") type = "goal";
+    if (ke.scoringPlay && rawType.includes("penalty")) type = "penalty-goal";
+    else if (ke.scoringPlay) type = "goal";
+    if (rawType.includes("yellow card")) type = "yellow-card";
+    if (rawType.includes("red card")) type = "red-card";
+    if (rawType.includes("substitution")) type = "substitution";
+    if (rawType === "kickoff") type = "kickoff";
+    if (rawType === "halftime") type = "halftime";
+    if (rawType.includes("end regular time") || rawType.includes("full time")) type = "end-regular-time";
+    if (rawType.includes("start 2nd half")) type = "start-2nd-half";
+    if (rawType.includes("var")) type = "var";
+    if (rawType.includes("penalty") && rawType.includes("miss")) type = "penalty-miss";
+
+    return {
+      id: ke.id ?? "",
+      type,
+      minute: ke.clock?.displayValue ?? "",
+      text: ke.text ?? "",
+      shortText: ke.shortText ?? "",
+      team: ke.team?.displayName ?? "",
+      teamId: ke.team?.id ?? "",
+      scoringPlay: ke.scoringPlay ?? false,
+      participants: (ke.participants ?? []).map((p: any) => ({
+        name: p.athlete?.displayName ?? "",
+        role: p.type ?? "",
+      })),
+      period: ke.period?.number ?? 0,
+    };
+  });
 
   // Stats
   const stats: MatchDetailStat[] = [];
@@ -251,8 +269,10 @@ function parseSummary(data: any, eventId: string): MatchDetail {
   for (const group of standingsGroups) {
     const entries = group.standings?.entries ?? [];
     for (const entry of entries) {
-      const teamName = typeof entry.team === "string" ? entry.team : (entry.team?.displayName ?? entry.team ?? "?");
-      const teamLogo = entry.logo?.[0]?.href ?? entry.logo ?? "";
+      const teamObj = entry.team;
+      const teamName = typeof teamObj === "string" ? teamObj : (teamObj?.displayName ?? teamObj?.name ?? "?");
+      // Logo can be in multiple places depending on the sport/league
+      const teamLogo = teamObj?.logos?.[0]?.href ?? teamObj?.logo ?? entry.logo?.[0]?.href ?? entry.logo ?? "";
       const statsMap: Record<string, string> = {};
       for (const s of entry.stats ?? []) {
         if (s.abbreviation && s.displayValue !== undefined) {
