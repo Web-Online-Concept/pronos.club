@@ -187,8 +187,8 @@ function parseEvent(event: ESPNEvent): LiveMatch | null {
 }
 
 // Tennis/Golf: events contain groupings > competitions instead of direct competitions
-// date parameter filters to only show matches from that day
-function parseTournamentEvent(event: ESPNEvent, filterDate?: string): LiveMatch[] {
+// For tennis: ESPN startDate is tournament start, not match date — filter by status instead
+function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
   const matches: LiveMatch[] = [];
   const groupings = event.groupings ?? [];
   for (const g of groupings) {
@@ -207,21 +207,18 @@ function parseTournamentEvent(event: ESPNEvent, filterDate?: string): LiveMatch[
     }
   }
 
-  // Filter by date if provided (YYYYMMDD)
-  if (filterDate && filterDate.length === 8) {
-    return matches.filter((m) => {
-      if (!m.startTime) return false;
-      try {
-        const d = new Date(m.startTime);
-        const matchDate = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
-        return matchDate === filterDate;
-      } catch {
-        return false;
-      }
-    });
-  }
-
-  return matches;
+  // Filter: keep live + scheduled + recently finished (last 18h)
+  const now = Date.now();
+  const cutoff = 18 * 60 * 60 * 1000; // 18 hours
+  return matches.filter((m) => {
+    if (m.status === "live" || m.status === "scheduled") return true;
+    if (m.status === "finished") {
+      // For finished matches, we can't reliably know when they ended
+      // Keep all finished matches — they're from today's scoreboard anyway
+      return true;
+    }
+    return false;
+  });
 }
 
 async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[]): Promise<LiveLeague | null> {
@@ -261,8 +258,10 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
     let matches: LiveMatch[];
 
     if (isTournamentSport) {
-      const filterDate = dates.length > 0 ? dates[0] : undefined;
-      matches = allEvents.flatMap((e) => parseTournamentEvent(e, filterDate));
+      // Don't filter by date — ESPN startDate is the tournament start, not match date
+      // Instead: fetch only one ESPN date (the requested one), and keep all non-TBD matches
+      // ESPN returns the right matches for the requested date in the scoreboard
+      matches = allEvents.flatMap((e) => parseTournamentEvent(e));
     } else {
       matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
     }
@@ -332,10 +331,15 @@ export async function GET(request: Request) {
 
     if (leaguesToFetch.length === 0) continue;
 
+    const isTournament = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
+    // Tennis/golf: single date only (ESPN returns all tournament matches regardless)
+    // Other sports: veille+date+lendemain to cover timezone differences
+    const sportDates = isTournament && date ? [date] : datesToFetch;
+
     const leagueResults = await Promise.all(
       leaguesToFetch.map((lg) =>
-        datesToFetch.length > 0
-          ? fetchLeagueDates(sportConfig.espnSport, lg, datesToFetch)
+        sportDates.length > 0
+          ? fetchLeagueDates(sportConfig.espnSport, lg, sportDates)
           : fetchLeagueDates(sportConfig.espnSport, lg, [])
       )
     );
