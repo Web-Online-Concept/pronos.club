@@ -84,6 +84,7 @@ export interface LiveLeague {
   slug: string;
   name: string;
   flag?: string;
+  country?: string;
   matches: LiveMatch[];
 }
 
@@ -231,7 +232,7 @@ function parseTournamentEvent(event: ESPNEvent, filterDate?: string): LiveMatch[
   return matches;
 }
 
-async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string }, dates: string[]): Promise<LiveLeague | null> {
+async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[]): Promise<LiveLeague | null> {
   try {
     // Fetch all dates in parallel
     const allEvents: ESPNEvent[] = [];
@@ -285,6 +286,7 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
       slug: league.slug,
       name: leagueName,
       flag: league.flag,
+      country: league.country,
       matches,
     };
   } catch {

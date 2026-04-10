@@ -27,6 +27,7 @@ interface LiveLeague {
   slug: string;
   name: string;
   flag?: string;
+  country?: string;
   matches: LiveMatch[];
 }
 
@@ -222,7 +223,8 @@ function LeagueSection({ league, labels, espnSport }: { league: LiveLeague; labe
         className="flex items-center gap-2 border-b border-[#d6dce8] bg-[#e8ecf3] px-3 py-[7px] cursor-pointer hover:bg-[#dde2ed] transition sm:px-4"
       >
         {league.flag && <span className="text-sm">{league.flag}</span>}
-        <span className="text-[12px] font-bold text-[#3a4a6b] uppercase tracking-wide">{league.name}</span>
+        {league.country && <span className="text-[11px] font-bold text-[#3a4a6b] uppercase tracking-wide">{league.country}:</span>}
+        <span className="text-[12px] font-bold text-[#3a4a6b] tracking-wide">{league.name}</span>
         {liveCount > 0 && (
           <span className="flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-500">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
