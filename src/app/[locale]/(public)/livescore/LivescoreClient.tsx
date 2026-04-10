@@ -387,8 +387,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
     "uefa.europa.conf","fra.2","eng.2","ned.1","por.1","tur.1","bel.1",
     "sco.1","usa.1","bra.1","arg.1","mex.1","aus.1","jpn.1","sui.1",
     "aut.1","gre.1","den.1","nor.1","swe.1","pol.1",
-    "fin.1","rus.1","cze.1","rou.1","isr.1","cyp.1","irl.1",
-    "col.1","chi.1","per.1","ecu.1","uru.1","par.1",
+    "rus.1","cyp.1","irl.1","col.1","chi.1","per.1","ecu.1","uru.1","par.1",
     "chn.1","ind.1","ksa.1","rsa.1",
   ];
 
