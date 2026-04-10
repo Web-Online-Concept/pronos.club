@@ -23,14 +23,14 @@ export async function GET(request: Request) {
 
   if (status) {
     if (status === "awaiting") {
-      // Pending picks where match has started
-      query = query.eq("status", "pending").lte("event_date", new Date().toISOString());
+      // Pending picks where match has started — we'll filter by legs post-fetch
+      query = query.eq("status", "pending");
     } else {
       query = query.eq("status", status);
     }
   } else if (excludePending) {
-    // Show resolved picks + pending picks where match has started (awaiting MAJ)
-    query = query.or(`status.neq.pending,and(status.eq.pending,event_date.lte.${new Date().toISOString()})`);
+    // Show all resolved picks + all pending picks (we'll filter pending post-fetch)
+    query = query.or(`status.neq.pending,status.eq.pending`);
   }
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
@@ -55,6 +55,31 @@ export async function GET(request: Request) {
   }
 
   let filtered = data ?? [];
+
+  // Helper: get the earliest event date (first leg for combinés)
+  function getEarliestDate(pick: any): Date {
+    const legDates = (pick.legs ?? [])
+      .map((l: any) => l.event_date)
+      .filter(Boolean)
+      .map((d: string) => new Date(d).getTime());
+    
+    if (legDates.length > 0) return new Date(Math.min(...legDates));
+    return new Date(pick.event_date);
+  }
+
+  const now = new Date();
+
+  // Post-fetch filtering for pending picks
+  if (status === "awaiting") {
+    // Only pending picks where first match has started
+    filtered = filtered.filter((pick: any) => getEarliestDate(pick) <= now);
+  } else if (excludePending) {
+    // Resolved picks + pending picks where first match has started
+    filtered = filtered.filter((pick: any) => {
+      if (pick.status !== "pending") return true;
+      return getEarliestDate(pick) <= now;
+    });
+  }
 
   // Helper: check if a pick is a multi-sport combi
   function isMultiSportCombi(pick: any): boolean {

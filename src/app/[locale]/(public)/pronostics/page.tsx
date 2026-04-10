@@ -20,7 +20,19 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
   const now = new Date();
   const allPending = pendingPicks ?? [];
 
-  const activePicks = allPending;
+  const activePicks = allPending.filter((p) => {
+    // Use earliest leg date for combinés, event_date for simples
+    const legDates = (p.legs ?? [])
+      .map((l: any) => l.event_date)
+      .filter(Boolean)
+      .map((d: string) => new Date(d).getTime());
+    
+    const earliestDate = legDates.length > 0
+      ? new Date(Math.min(...legDates))
+      : new Date(p.event_date);
+    
+    return earliestDate > now;
+  });
 
   const premiumCount = activePicks.filter((p) => p.is_premium).length;
   const freeCount = activePicks.filter((p) => !p.is_premium).length;
