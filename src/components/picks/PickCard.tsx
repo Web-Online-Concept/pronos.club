@@ -332,7 +332,15 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     setFollowLoading(false);
   }
   const eventDate = new Date(pick.event_date);
-  const isAwaitingResult = isPending && eventDate <= new Date();
+  
+  // For combinés: use earliest leg date (first match to start)
+  const legDates = (pick.legs ?? [])
+    .map((l: any) => l.event_date)
+    .filter(Boolean)
+    .map((d: string) => new Date(d).getTime());
+  const earliestDate = legDates.length > 0 ? new Date(Math.min(...legDates)) : eventDate;
+  
+  const isAwaitingResult = isPending && earliestDate <= new Date();
 
   // Tipster unit value in euros (for display on ticket)
   const tipsterUnitEuro = tipsterBk
@@ -428,7 +436,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   </div>
                 )
               )}
-              {!locked && isPending && <Countdown target={eventDate} />}
+              {!locked && isPending && <Countdown target={earliestDate} />}
               </div>
 
               {/* Site logo — pushed right, slightly left so ribbon overlaps */}
@@ -583,7 +591,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                         {Number(pick.odds).toFixed(3)}
                       </span>
                       {pick.min_odds && (
-                        <span className="text-[9px] font-bold text-white/30" title="Cote minimum">
+                        <span className="text-[9px] font-bold text-white/60" title="Cote minimum">
                           min {Number(pick.min_odds).toFixed(3)}
                         </span>
                       )}
@@ -593,7 +601,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                     <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2.5">
                       <span className="text-[11px] font-bold text-white/60">{pick.stake}U</span>
                       {tipsterUnitEuro > 0 && (
-                        <span className="text-[10px] text-white/30">({(pick.stake * tipsterUnitEuro).toFixed(0)}€)</span>
+                        <span className="text-[10px] text-white/60">({(pick.stake * tipsterUnitEuro).toFixed(0)}€)</span>
                       )}
                     </div>
 
