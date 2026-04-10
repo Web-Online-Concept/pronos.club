@@ -72,6 +72,8 @@ export interface LiveMatch {
   awayAbbr: string;
   awayLogo: string;
   awayScore: string;
+  homeWinner?: boolean;
+  awayWinner?: boolean;
   status: "scheduled" | "live" | "finished" | "postponed" | "other";
   statusText: string;
   clock: string;
@@ -176,6 +178,8 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
     awayAbbr,
     awayLogo,
     awayScore,
+    homeWinner: home.winner ?? undefined,
+    awayWinner: away.winner ?? undefined,
     status,
     statusText: displayStatusText,
     clock,

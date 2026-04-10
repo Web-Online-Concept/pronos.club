@@ -15,6 +15,8 @@ interface LiveMatch {
   awayAbbr: string;
   awayLogo: string;
   awayScore: string;
+  homeWinner?: boolean;
+  awayWinner?: boolean;
   status: "scheduled" | "live" | "finished" | "postponed" | "other";
   statusText: string;
   clock: string;
@@ -145,11 +147,10 @@ function MatchRow({ match, labels }: { match: LiveMatch; labels: Labels }) {
   const isScheduled = match.status === "scheduled";
 
   // Determine winner for finished matches
-  const homeScoreNum = parseInt(match.homeScore) || 0;
-  const awayScoreNum = parseInt(match.awayScore) || 0;
-  const isDraw = isFinished && homeScoreNum === awayScoreNum;
-  const homeWin = isFinished && homeScoreNum > awayScoreNum;
-  const awayWin = isFinished && awayScoreNum > homeScoreNum;
+  // Use ESPN winner flags when available (essential for tennis), fallback to score comparison
+  const homeWin = isFinished && (match.homeWinner !== undefined ? match.homeWinner : (parseInt(match.homeScore) || 0) > (parseInt(match.awayScore) || 0));
+  const awayWin = isFinished && (match.awayWinner !== undefined ? match.awayWinner : (parseInt(match.awayScore) || 0) > (parseInt(match.homeScore) || 0));
+  const isDraw = isFinished && !homeWin && !awayWin;
 
   const homeScoreColor = isLive ? "text-red-500"
     : homeWin ? "text-emerald-600"
