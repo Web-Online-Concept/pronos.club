@@ -458,7 +458,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
 
   useEffect(() => {
     fetchData(true);
-    intervalRef.current = setInterval(() => fetchData(false), 60000);
+    intervalRef.current = setInterval(() => fetchData(false), 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
