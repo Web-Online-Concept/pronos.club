@@ -188,8 +188,8 @@ function parseEvent(event: ESPNEvent): LiveMatch | null {
 
 // Tennis/Golf: events contain groupings > competitions instead of direct competitions
 // ESPN returns ALL tournament matches regardless of date parameter
-// Strategy: show live + scheduled always, show finished only when viewing today
-function parseTournamentEvent(event: ESPNEvent, isToday: boolean): LiveMatch[] {
+// Strategy: filter by actual startTime date (which IS reliable, unlike startDate on the competition)
+function parseTournamentEvent(event: ESPNEvent, clientDate?: string): LiveMatch[] {
   const matches: LiveMatch[] = [];
   const groupings = event.groupings ?? [];
   for (const g of groupings) {
@@ -207,20 +207,26 @@ function parseTournamentEvent(event: ESPNEvent, isToday: boolean): LiveMatch[] {
     }
   }
 
+  // Filter by startTime date (UTC) — startTime on individual matches IS correct
+  // even though competition.startDate points to tournament start
+  if (clientDate && clientDate.length === 8) {
+    return matches.filter((m) => {
+      if (m.status === "live") return true; // always show live
+      if (!m.startTime) return false;
+      try {
+        const d = new Date(m.startTime);
+        const matchDate = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+        return matchDate === clientDate;
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  // No date filter — return live + scheduled only
   const live = matches.filter((m) => m.status === "live");
   const scheduled = matches.filter((m) => m.status === "scheduled");
-
-  if (isToday) {
-    // Today: show live + scheduled + recent finished (today's completed matches)
-    const finished = matches.filter((m) => m.status === "finished");
-    // Limit finished to avoid showing old qualif results
-    const maxFinished = Math.max(scheduled.length * 2, 10);
-    const recentFinished = finished.slice(-maxFinished);
-    return [...live, ...recentFinished, ...scheduled];
-  } else {
-    // Past/future dates: only show live + scheduled
-    return [...live, ...scheduled];
-  }
+  return [...live, ...scheduled];
 }
 
 async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[], clientDate?: string): Promise<LiveLeague | null> {
@@ -260,11 +266,7 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
     let matches: LiveMatch[];
 
     if (isTournamentSport) {
-      // Determine if we're looking at today
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-      const isToday = clientDate ? clientDate === todayStr : true;
-      matches = allEvents.flatMap((e) => parseTournamentEvent(e, isToday));
+      matches = allEvents.flatMap((e) => parseTournamentEvent(e, clientDate));
     } else {
       matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
     }
@@ -335,20 +337,9 @@ export async function GET(request: Request) {
     if (leaguesToFetch.length === 0) continue;
 
     const isTournament = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
-    let sportDates: string[];
-    if (isTournament && date && date.length === 8) {
-      // ESPN tennis scoreboard uses US timezone — European "today" = ESPN "yesterday"
-      // Send date-1 to get today's matches from European perspective
-      const y = parseInt(date.slice(0, 4));
-      const m = parseInt(date.slice(4, 6)) - 1;
-      const d = parseInt(date.slice(6, 8));
-      const prev = new Date(y, m, d);
-      prev.setDate(prev.getDate() - 1);
-      const prevStr = `${prev.getFullYear()}${String(prev.getMonth() + 1).padStart(2, "0")}${String(prev.getDate()).padStart(2, "0")}`;
-      sportDates = [prevStr];
-    } else {
-      sportDates = datesToFetch;
-    }
+    // Tennis/golf: single date (ESPN returns whole tournament anyway)
+    // Other sports: veille+date+lendemain to cover timezone differences
+    const sportDates = isTournament && date ? [date] : datesToFetch;
 
     const leagueResults = await Promise.all(
       leaguesToFetch.map((lg) =>
