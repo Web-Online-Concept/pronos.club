@@ -358,14 +358,14 @@ export default function MatchDetailPanel({
   ];
 
   // Auto-select first available tab
-  const availableTabs = tabs.filter((t) => t.available);
-  const firstAvailable = availableTabs[0]?.key;
+  const firstAvailable = tabs.find((t) => t.available)?.key;
+  const isCurrentTabAvailable = tabs.find((t) => t.key === activeTab)?.available;
 
   useEffect(() => {
-    if (firstAvailable && !availableTabs.find((t) => t.key === activeTab)) {
+    if (firstAvailable && !isCurrentTabAvailable) {
       setActiveTab(firstAvailable);
     }
-  }, [firstAvailable]);
+  }, [firstAvailable, isCurrentTabAvailable]);
 
   return (
     <div className="bg-white border-b-2 border-emerald-500/30">
