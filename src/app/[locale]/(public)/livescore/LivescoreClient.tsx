@@ -400,6 +400,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
 
       try {
         const dateStr = formatDate(selectedDate);
+        const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
         // Fetch a single sport — for football, fetch each league individually
         const fetchSport = async (sportKey: string): Promise<LiveSport[]> => {
@@ -408,7 +409,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
             const leagueResults = await Promise.all(
               FOOTBALL_LEAGUES.map(async (league) => {
                 try {
-                  const res = await fetch(`/api/livescore?sport=football&league=${league}&date=${dateStr}`);
+                  const res = await fetch(`/api/livescore?sport=football&league=${league}&date=${dateStr}&tz=${tz}`);
                   if (res.ok) {
                     const data = await res.json();
                     return data.sports?.[0]?.leagues ?? [];
@@ -431,7 +432,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
             }];
           } else {
             try {
-              const res = await fetch(`/api/livescore?sport=${sportKey}&date=${dateStr}`);
+              const res = await fetch(`/api/livescore?sport=${sportKey}&date=${dateStr}&tz=${tz}`);
               if (res.ok) {
                 const data = await res.json();
                 return data.sports ?? [];

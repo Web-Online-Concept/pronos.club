@@ -298,11 +298,21 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sport = searchParams.get("sport"); // filter by sport key, or "all"
   const league = searchParams.get("league"); // optional: filter by specific league slug
-  const date = searchParams.get("date") ?? undefined; // YYYYMMDD
+  const date = searchParams.get("date") ?? undefined; // YYYYMMDD — date locale du client
+  const tz = searchParams.get("tz") ?? "Europe/Paris"; // timezone du client
 
+  // Fetch ESPN date + next day to cover timezone overlaps
   let datesToFetch: string[] = [];
   if (date && date.length === 8) {
-    datesToFetch = [date];
+    const y = parseInt(date.slice(0, 4));
+    const m = parseInt(date.slice(4, 6)) - 1;
+    const d = parseInt(date.slice(6, 8));
+    const base = new Date(y, m, d);
+    for (const offset of [0, 1]) {
+      const dt = new Date(base);
+      dt.setDate(dt.getDate() + offset);
+      datesToFetch.push(`${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, "0")}${String(dt.getDate()).padStart(2, "0")}`);
+    }
   }
 
   const targetSports = sport && sport !== "all"
@@ -331,6 +341,31 @@ export async function GET(request: Request) {
 
       const validLeagues = leagueResults
         .filter((l): l is LiveLeague => l !== null)
+        .map((leagueData) => {
+          // Filter matches to only those on the requested date in the client's timezone
+          if (date && date.length === 8) {
+            leagueData.matches = leagueData.matches.filter((match) => {
+              if (!match.startTime) return true;
+              try {
+                const matchDate = new Date(match.startTime);
+                const formatter = new Intl.DateTimeFormat("en-CA", {
+                  timeZone: tz,
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                });
+                const parts = formatter.formatToParts(matchDate);
+                const yy = parts.find((p) => p.type === "year")?.value ?? "";
+                const mm = parts.find((p) => p.type === "month")?.value ?? "";
+                const dd = parts.find((p) => p.type === "day")?.value ?? "";
+                return `${yy}${mm}${dd}` === date;
+              } catch {
+                return true;
+              }
+            });
+          }
+          return leagueData;
+        })
         .filter((l) => l.matches.length > 0)
         .sort((a, b) => {
           const aPriority = sportConfig.leagues.find((l) => l.slug === a.slug)?.priority ?? 99;
