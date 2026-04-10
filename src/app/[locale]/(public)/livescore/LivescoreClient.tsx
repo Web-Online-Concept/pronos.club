@@ -222,7 +222,9 @@ function LeagueSection({ league, labels, espnSport }: { league: LiveLeague; labe
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center gap-2 border-b border-[#d6dce8] bg-[#e8ecf3] px-3 py-[7px] cursor-pointer hover:bg-[#dde2ed] transition sm:px-4"
       >
-        {league.flag && <span className="text-sm">{league.flag}</span>}
+        {league.flag && (
+          <img src={`https://flagcdn.com/w20/${league.flag}.png`} alt="" className="h-3.5 w-5 object-cover rounded-sm" />
+        )}
         {league.country && <span className="text-[11px] font-bold text-[#3a4a6b] uppercase tracking-wide">{league.country}:</span>}
         <span className="text-[12px] font-bold text-[#3a4a6b] tracking-wide">{league.name}</span>
         {liveCount > 0 && (
