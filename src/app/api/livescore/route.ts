@@ -187,8 +187,9 @@ function parseEvent(event: ESPNEvent): LiveMatch | null {
 }
 
 // Tennis/Golf: events contain groupings > competitions instead of direct competitions
-// ESPN returns ALL tournament matches — we filter to today's relevant ones
-function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
+// ESPN returns ALL tournament matches regardless of date parameter
+// Strategy: show live + scheduled always, show finished only when viewing today
+function parseTournamentEvent(event: ESPNEvent, isToday: boolean): LiveMatch[] {
   const matches: LiveMatch[] = [];
   const groupings = event.groupings ?? [];
   for (const g of groupings) {
@@ -197,7 +198,6 @@ function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
       if (match) matches.push(match);
     }
   }
-  // Fallback: also check direct competitions
   if (event.competitions) {
     for (const comp of event.competitions) {
       const match = parseCompetition(comp, event.id);
@@ -207,16 +207,20 @@ function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
     }
   }
 
-  // ESPN tennis returns ALL tournament matches (qualifs + main draw, past + future)
-  // Keep: all live + all scheduled + last 10 finished (most recent results)
   const live = matches.filter((m) => m.status === "live");
   const scheduled = matches.filter((m) => m.status === "scheduled");
-  const finished = matches.filter((m) => m.status === "finished");
 
-  // Take only the last N finished matches (they appear in chronological order in ESPN)
-  const recentFinished = finished.slice(-10);
-
-  return [...live, ...scheduled, ...recentFinished];
+  if (isToday) {
+    // Today: show live + scheduled + recent finished (today's completed matches)
+    const finished = matches.filter((m) => m.status === "finished");
+    // Limit finished to avoid showing old qualif results
+    const maxFinished = Math.max(scheduled.length * 2, 10);
+    const recentFinished = finished.slice(-maxFinished);
+    return [...live, ...recentFinished, ...scheduled];
+  } else {
+    // Past/future dates: only show live + scheduled
+    return [...live, ...scheduled];
+  }
 }
 
 async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[]): Promise<LiveLeague | null> {
@@ -256,10 +260,11 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
     let matches: LiveMatch[];
 
     if (isTournamentSport) {
-      // Don't filter by date — ESPN startDate is the tournament start, not match date
-      // Instead: fetch only one ESPN date (the requested one), and keep all non-TBD matches
-      // ESPN returns the right matches for the requested date in the scoreboard
-      matches = allEvents.flatMap((e) => parseTournamentEvent(e));
+      // Determine if we're looking at today
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      const isToday = dates.length > 0 ? dates.includes(todayStr) : true;
+      matches = allEvents.flatMap((e) => parseTournamentEvent(e, isToday));
     } else {
       matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
     }
