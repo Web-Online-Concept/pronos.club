@@ -340,11 +340,14 @@ export async function GET(request: Request) {
       )
     );
 
+      const isTournamentSport = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
+
       const validLeagues = leagueResults
         .filter((l): l is LiveLeague => l !== null)
         .map((leagueData) => {
           // Filter matches to only those on the requested date in the client's timezone
-          if (date && date.length === 8) {
+          // Skip for tournament sports (tennis/golf) — they already filter by date in parseTournamentEvent
+          if (date && date.length === 8 && !isTournamentSport) {
             leagueData.matches = leagueData.matches.filter((match) => {
               if (!match.startTime) return true;
               try {
