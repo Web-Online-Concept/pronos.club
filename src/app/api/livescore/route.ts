@@ -194,7 +194,8 @@ function parseEvent(event: ESPNEvent): LiveMatch | null {
 }
 
 // Tennis/Golf: events contain groupings > competitions instead of direct competitions
-function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
+// date parameter filters to only show matches from that day
+function parseTournamentEvent(event: ESPNEvent, filterDate?: string): LiveMatch[] {
   const matches: LiveMatch[] = [];
   const groupings = event.groupings ?? [];
   for (const g of groupings) {
@@ -212,6 +213,21 @@ function parseTournamentEvent(event: ESPNEvent): LiveMatch[] {
       }
     }
   }
+
+  // Filter by date if provided (YYYYMMDD)
+  if (filterDate && filterDate.length === 8) {
+    return matches.filter((m) => {
+      if (!m.startTime) return false;
+      try {
+        const d = new Date(m.startTime);
+        const matchDate = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+        return matchDate === filterDate;
+      } catch {
+        return false;
+      }
+    });
+  }
+
   return matches;
 }
 
@@ -252,7 +268,8 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
     let matches: LiveMatch[];
 
     if (isTournamentSport) {
-      matches = allEvents.flatMap(parseTournamentEvent);
+      const filterDate = dates.length > 0 ? dates[0] : undefined;
+      matches = allEvents.flatMap((e) => parseTournamentEvent(e, filterDate));
     } else {
       matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
     }
