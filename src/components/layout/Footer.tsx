@@ -35,7 +35,7 @@ export default async function Footer() {
     { href: `/${locale}/bilans`, label: tn("bilans_short") },
     { href: `/${locale}/tipster`, label: tn("tipster_short") },
     { href: `/${locale}/bookmakers`, label: tn("books") },
-    { href: `/${locale}/livescore`, label: "Livescore" },
+    { href: `/${locale}/livescore`, label: "Scores" },
     { href: `/${locale}/blog`, label: tn("blog_short") },
   ];
 
