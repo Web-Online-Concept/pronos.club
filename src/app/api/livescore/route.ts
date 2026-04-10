@@ -223,7 +223,7 @@ function parseTournamentEvent(event: ESPNEvent, isToday: boolean): LiveMatch[] {
   }
 }
 
-async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[]): Promise<LiveLeague | null> {
+async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[], clientDate?: string): Promise<LiveLeague | null> {
   try {
     // Fetch all dates in parallel
     const allEvents: ESPNEvent[] = [];
@@ -263,7 +263,7 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
       // Determine if we're looking at today
       const now = new Date();
       const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-      const isToday = dates.length > 0 ? dates.includes(todayStr) : true;
+      const isToday = clientDate ? clientDate === todayStr : true;
       matches = allEvents.flatMap((e) => parseTournamentEvent(e, isToday));
     } else {
       matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
@@ -335,15 +335,26 @@ export async function GET(request: Request) {
     if (leaguesToFetch.length === 0) continue;
 
     const isTournament = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
-    // Tennis/golf: single date only (ESPN returns all tournament matches regardless)
-    // Other sports: veille+date+lendemain to cover timezone differences
-    const sportDates = isTournament && date ? [date] : datesToFetch;
+    let sportDates: string[];
+    if (isTournament && date && date.length === 8) {
+      // ESPN tennis scoreboard uses US timezone — European "today" = ESPN "yesterday"
+      // Send date-1 to get today's matches from European perspective
+      const y = parseInt(date.slice(0, 4));
+      const m = parseInt(date.slice(4, 6)) - 1;
+      const d = parseInt(date.slice(6, 8));
+      const prev = new Date(y, m, d);
+      prev.setDate(prev.getDate() - 1);
+      const prevStr = `${prev.getFullYear()}${String(prev.getMonth() + 1).padStart(2, "0")}${String(prev.getDate()).padStart(2, "0")}`;
+      sportDates = [prevStr];
+    } else {
+      sportDates = datesToFetch;
+    }
 
     const leagueResults = await Promise.all(
       leaguesToFetch.map((lg) =>
         sportDates.length > 0
-          ? fetchLeagueDates(sportConfig.espnSport, lg, sportDates)
-          : fetchLeagueDates(sportConfig.espnSport, lg, [])
+          ? fetchLeagueDates(sportConfig.espnSport, lg, sportDates, date)
+          : fetchLeagueDates(sportConfig.espnSport, lg, [], date)
       )
     );
 
