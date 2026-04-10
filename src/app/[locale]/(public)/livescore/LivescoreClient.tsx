@@ -78,7 +78,7 @@ const SPORT_ESPN_MAP: Record<string, string> = {
 };
 
 const SPORT_TABS = [
-  { key: "all", icon: "🏟️", label: "FAVORIS" },
+  { key: "all", icon: "🏟️", label: "TOUS" },
   { key: "football", icon: "⚽", label: "FOOTBALL" },
   { key: "tennis", icon: "🎾", label: "TENNIS" },
   { key: "basketball", icon: "🏀", label: "BASKET" },
