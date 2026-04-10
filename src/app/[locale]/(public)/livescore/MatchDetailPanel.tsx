@@ -357,15 +357,9 @@ export default function MatchDetailPanel({
     { key: "standings", label: "Classement", available: hasStandings },
   ];
 
-  // Auto-select first available tab
-  const firstAvailable = tabs.find((t) => t.available)?.key;
-  const isCurrentTabAvailable = tabs.find((t) => t.key === activeTab)?.available;
-
-  useEffect(() => {
-    if (firstAvailable && !isCurrentTabAvailable) {
-      setActiveTab(firstAvailable);
-    }
-  }, [firstAvailable, isCurrentTabAvailable]);
+  // Auto-select first available tab (computed, no useEffect needed)
+  const firstAvailable = tabs.find((t) => t.available)?.key ?? "stats";
+  const effectiveTab = tabs.find((t) => t.key === activeTab)?.available ? activeTab : firstAvailable;
 
   return (
     <div className="bg-white border-b-2 border-emerald-500/30">
@@ -422,7 +416,7 @@ export default function MatchDetailPanel({
             key={tab.key}
             onClick={() => tab.available && setActiveTab(tab.key)}
             className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wide transition cursor-pointer border-b-2 ${
-              activeTab === tab.key
+              effectiveTab === tab.key
                 ? "border-emerald-500 text-emerald-600"
                 : tab.available
                 ? "border-transparent text-neutral-400 hover:text-neutral-600"
@@ -436,7 +430,7 @@ export default function MatchDetailPanel({
 
       {/* Tab content */}
       <div className="max-h-[400px] overflow-y-auto">
-        {activeTab === "stats" && hasStats && (
+        {effectiveTab === "stats" && hasStats && (
           <div className="px-3 py-2 sm:px-6">
             {data.stats.map((stat) => (
               <StatBar key={stat.name} stat={stat} />
@@ -444,20 +438,20 @@ export default function MatchDetailPanel({
           </div>
         )}
 
-        {activeTab === "events" && hasEvents && (
+        {effectiveTab === "events" && hasEvents && (
           <EventsTimeline events={data.events} home={data.home} away={data.away} />
         )}
 
-        {activeTab === "lineups" && hasLineups && (
+        {effectiveTab === "lineups" && hasLineups && (
           <LineupsView rosters={data.rosters} />
         )}
 
-        {activeTab === "standings" && hasStandings && (
+        {effectiveTab === "standings" && hasStandings && (
           <StandingsView standings={data.standings} homeName={data.home.name} awayName={data.away.name} />
         )}
 
         {/* H2H */}
-        {data.h2h.length > 0 && activeTab === "stats" && (
+        {data.h2h.length > 0 && effectiveTab === "stats" && (
           <div className="border-t border-neutral-100 px-3 py-2">
             <p className="text-[10px] font-bold uppercase text-neutral-400 mb-1">Confrontations</p>
             {data.h2h.slice(0, 5).map((h, i) => (
