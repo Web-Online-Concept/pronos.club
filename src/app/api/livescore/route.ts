@@ -8,9 +8,11 @@ export const maxDuration = 60; // Fluid Compute : jusqu'à 60s sur plan Hobby
 
 interface ESPNCompetitor {
   team?: { displayName?: string; abbreviation?: string; logo?: string; shortDisplayName?: string };
+  athlete?: { displayName?: string; shortName?: string; flag?: { href?: string } };
   score?: string;
   winner?: boolean;
   homeAway?: string;
+  linescores?: { displayValue?: string; value?: number; winner?: boolean }[];
 }
 
 interface ESPNStatus {
@@ -20,14 +22,6 @@ interface ESPNStatus {
   period?: number;
 }
 
-interface ESPNCompetitor {
-  team?: { displayName?: string; abbreviation?: string; logo?: string; shortDisplayName?: string };
-  athlete?: { displayName?: string; shortName?: string; flag?: { href?: string } };
-  score?: string;
-  winner?: boolean;
-  homeAway?: string;
-  linescores?: { displayValue?: string; value?: number; winner?: boolean }[];
-}
 
 interface ESPNCompetition {
   id?: string;
@@ -138,8 +132,6 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
   const homeLogo = home.team?.logo ?? home.athlete?.flag?.href ?? "";
   const awayAbbr = away.team?.abbreviation ?? away.athlete?.shortName ?? "";
   const awayLogo = away.team?.logo ?? away.athlete?.flag?.href ?? "";
-
-  // Tennis linescores (sets) — ESPN uses value (number) for tennis, displayValue for football
 
   // Tennis linescores (sets) — ESPN uses value (number), displayValue is empty for tennis
   const homeLinescores = home.linescores?.map((l) => l.displayValue || (l.value !== undefined ? String(Math.round(l.value)) : "")).filter(Boolean) ?? [];
@@ -276,6 +268,14 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
     }
 
     if (!matches.length) return null;
+
+    // Sort: live first, then scheduled by start time, then finished
+    matches.sort((a, b) => {
+      const order = { live: 0, scheduled: 1, finished: 2, postponed: 3, other: 4 };
+      const diff = (order[a.status] ?? 4) - (order[b.status] ?? 4);
+      if (diff !== 0) return diff;
+      return (a.startTime || "").localeCompare(b.startTime || "");
+    });
 
     // For tournament sports, use the tournament name as league name
     const leagueName = isTournamentSport && allEvents[0]?.name

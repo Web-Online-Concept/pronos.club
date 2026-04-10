@@ -75,10 +75,6 @@ const SPORT_ESPN_MAP: Record<string, string> = {
   hockey: "hockey",
   baseball: "baseball",
   "football-us": "football",
-  mma: "mma",
-  rugby: "rugby",
-  cricket: "cricket",
-  golf: "golf",
 };
 
 const SPORT_TABS = [
@@ -462,7 +458,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
 
   useEffect(() => {
     fetchData(true);
-    intervalRef.current = setInterval(() => fetchData(false), 30000);
+    intervalRef.current = setInterval(() => fetchData(false), 60000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -559,7 +555,7 @@ export default function LivescoreClient({ labels }: { labels: Labels }) {
                 </div>
               )}
               {sport.leagues.map((league) => (
-                <LeagueSection key={league.slug} league={league} labels={labels} espnSport={SPORT_ESPN_MAP[sport.key] ?? "soccer"} />
+                <LeagueSection key={`${league.slug}-${formatDate(selectedDate)}`} league={league} labels={labels} espnSport={SPORT_ESPN_MAP[sport.key] ?? "soccer"} />
               ))}
             </div>
           ))}

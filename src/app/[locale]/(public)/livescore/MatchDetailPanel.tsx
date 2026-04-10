@@ -359,9 +359,13 @@ export default function MatchDetailPanel({
 
   // Auto-select first available tab
   const availableTabs = tabs.filter((t) => t.available);
-  if (availableTabs.length > 0 && !availableTabs.find((t) => t.key === activeTab)) {
-    // Don't setState in render — handled by initial state or effect
-  }
+  const firstAvailable = availableTabs[0]?.key;
+
+  useEffect(() => {
+    if (firstAvailable && !availableTabs.find((t) => t.key === activeTab)) {
+      setActiveTab(firstAvailable);
+    }
+  }, [firstAvailable]);
 
   return (
     <div className="bg-white border-b-2 border-emerald-500/30">
