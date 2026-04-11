@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
+import MobileSportSelect from "./MobileSportSelect";
 import { localized } from "@/lib/blog-i18n";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -166,26 +167,18 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
           <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{headings[locale] || headings.fr}</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">{subtitles[locale] || subtitles.fr}</p>
 
-          {/* Mobile: dropdown */}
+          {/* Mobile: dropdown (Client Component) */}
           <div className="mt-6 flex justify-center sm:hidden">
-            <select
-              id="mobile-sport-select"
-              defaultValue={sport || ""}
-              className="cursor-pointer rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/70 outline-none"
-            >
-              <option value="" className="bg-neutral-900 text-white">{filterAll[locale] || filterAll.fr}</option>
-              {sports.map((s: string) => (
-                <option key={s} value={s} className="bg-neutral-900 text-white">
-                  {SPORT_ICONS[s] || "🏅"} {getSportLabel(s, locale)}
-                </option>
-              ))}
-            </select>
-            <script dangerouslySetInnerHTML={{ __html: `
-              document.getElementById('mobile-sport-select').addEventListener('change', function() {
-                var val = this.value;
-                window.location.href = val ? '/${locale}/news?sport=' + val : '/${locale}/news';
-              });
-            ` }} />
+            <MobileSportSelect
+              locale={locale}
+              sport={sport}
+              sports={sports.map((s: string) => ({
+                value: s,
+                icon: SPORT_ICONS[s] || "🏅",
+                label: getSportLabel(s, locale),
+              }))}
+              filterAllLabel={filterAll[locale] || filterAll.fr}
+            />
           </div>
 
           {/* Desktop: pills */}
