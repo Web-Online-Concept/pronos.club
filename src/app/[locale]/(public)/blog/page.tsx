@@ -1,7 +1,10 @@
+// src/app/[locale]/(public)/blog/page.tsx
+
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
 import { localized } from "@/lib/blog-i18n";
+import MobileCategorySelect from "./MobileCategorySelect";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -60,6 +63,13 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
   // Helper for category name
   const catName = (c: any) => localized(c, "name", locale);
 
+  // Préparer les catégories pour le composant client mobile
+  const mobileCats = categories.map((c: any) => ({
+    slug: c.slug,
+    icon: c.icon,
+    label: catName(c),
+  }));
+
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       {/* ═══════════ HERO — dark gradient matching other pages ═══════════ */}
@@ -78,24 +88,14 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
           <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t("heading")}</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">{t("subtitle")}</p>
 
-          {/* Mobile: dropdown */}
+          {/* Mobile: dropdown (Client Component) */}
           <div className="mt-6 flex justify-center sm:hidden">
-            <select
-              id="mobile-category-select"
-              defaultValue={category || ""}
-              className="cursor-pointer rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/70 outline-none"
-            >
-              <option value="" className="bg-neutral-900 text-white">{t("filter_all")}</option>
-              {categories.map((c: any) => (
-                <option key={c.slug} value={c.slug} className="bg-neutral-900 text-white">{c.icon} {catName(c)}</option>
-              ))}
-            </select>
-            <script dangerouslySetInnerHTML={{ __html: `
-              document.getElementById('mobile-category-select').addEventListener('change', function() {
-                var val = this.value;
-                window.location.href = val ? '/${locale}/blog?category=' + val : '/${locale}/blog';
-              });
-            ` }} />
+            <MobileCategorySelect
+              locale={locale}
+              category={category}
+              categories={mobileCats}
+              filterAllLabel={t("filter_all")}
+            />
           </div>
 
           {/* Desktop: pills */}
@@ -128,7 +128,7 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
         </div>
       </section>
 
-      {/* ═══════════ CONTENT — unchanged ═══════════ */}
+      {/* ═══════════ CONTENT ═══════════ */}
       <div className="mx-auto max-w-6xl px-4 py-10">
         {posts.length === 0 ? (
           <div className="flex flex-col items-center py-20 text-center">
