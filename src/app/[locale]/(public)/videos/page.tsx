@@ -52,11 +52,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: titles[locale] || titles.fr, description: descriptions[locale] || descriptions.fr };
 }
 
-export default async function VideosPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ category?: string; channel?: string; page?: string }> }) {
+export default async function VideosPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<{ channel?: string; page?: string }> }) {
   const { locale } = await params;
-  const { category, channel: channelId, page: pageParam } = await searchParams;
+  const { channel: channelId, page: pageParam } = await searchParams;
   const currentPage = Math.max(1, parseInt(pageParam || "1"));
-  const [{ videos, total }, channels] = await Promise.all([getVideos(category, channelId, currentPage), getChannels()]);
+  const [{ videos, total }, channels] = await Promise.all([getVideos(undefined, channelId, currentPage), getChannels()]);
   const totalPages = Math.ceil(total / PER_PAGE);
 
   const headings: Record<string, string> = { fr: "Vidéos", en: "Videos", es: "Vídeos" };
@@ -67,8 +67,6 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
   };
   const filterLabels = {
     all: locale === "es" ? "Todos" : locale === "en" ? "All" : "Tous",
-    tipsters: "Tipsters",
-    medias: locale === "es" ? "Medios" : locale === "en" ? "Media" : "Médias",
   };
   const emptyMsg: Record<string, string> = {
     fr: "Aucune vidéo pour le moment",
@@ -80,7 +78,6 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
 
   const pageUrl = (p: number) => {
     const params = new URLSearchParams();
-    if (category) params.set("category", category);
     if (channelId) params.set("channel", channelId);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
@@ -102,67 +99,29 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
           <div className="absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-emerald-400/10 blur-[100px]" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-10 text-center sm:py-14">
+        <div className="relative mx-auto max-w-6xl px-4 py-8 text-center sm:py-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">🎬 PRONOS.CLUB</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{headings[locale] || headings.fr}</h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">{subtitles[locale] || subtitles.fr}</p>
+          <h1 className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">{headings[locale] || headings.fr}</h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-white/40">{subtitles[locale] || subtitles.fr}</p>
 
-          {/* Mobile filters (Client Component) */}
-          <MobileVideoFilter
-            locale={locale}
-            category={category}
-            channelId={channelId}
-            channels={channels}
-            labels={filterLabels}
-          />
+          {/* Mobile: channel select (Client Component) */}
+          <div className="mt-5 flex justify-center sm:hidden">
+            <MobileVideoFilter
+              locale={locale}
+              channelId={channelId}
+              channels={channels}
+              labels={filterLabels}
+            />
+          </div>
 
-          {/* Desktop: pills catégories + chaînes */}
-          <div className="mt-8 hidden flex-col items-center gap-3 sm:flex">
-            {/* Catégories */}
-            <div className="flex flex-wrap justify-center gap-2">
-              <Link
-                href={`/${locale}/videos`}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  !category && !channelId
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                {filterLabels.all}
-              </Link>
-              <Link
-                href={`/${locale}/videos?category=tipster`}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  category === "tipster"
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                🎯 Tipsters
-              </Link>
-              <Link
-                href={`/${locale}/videos?category=media`}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  category === "media"
-                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                📺 {filterLabels.medias}
-              </Link>
-            </div>
-
-            {/* Chaîne — select dropdown (Client Component) */}
-            {channels.length > 0 && (
-              <div className="flex justify-center">
-                <DesktopChannelSelect
-                  locale={locale}
-                  channelId={channelId}
-                  channels={channels.map((c: any) => ({ channel_id: c.channel_id, name: c.name }))}
-                  allLabel={locale === "fr" ? "Toutes les chaînes" : locale === "es" ? "Todos los canales" : "All channels"}
-                />
-              </div>
-            )}
+          {/* Desktop: channel select only */}
+          <div className="mt-5 hidden justify-center sm:flex">
+            <DesktopChannelSelect
+              locale={locale}
+              channelId={channelId}
+              channels={channels.map((c: any) => ({ channel_id: c.channel_id, name: c.name }))}
+              allLabel={locale === "fr" ? "Toutes les chaînes" : locale === "es" ? "Todos los canales" : "All channels"}
+            />
           </div>
         </div>
       </section>
