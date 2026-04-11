@@ -727,18 +727,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Blog */}
             <Link
               href={`/${locale}/blog`}
-              className="group overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center transition hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-lg"
+              className="group overflow-hidden rounded-2xl border border-emerald-900/30 p-6 text-center transition hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl">✍️</div>
-              <h3 className="mt-4 text-lg font-bold text-neutral-900">Blog</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">✍️</div>
+              <h3 className="mt-4 text-lg font-bold text-white">Blog</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">
                 {locale === "en"
                   ? "In-depth guides, bookmaker reviews, and expert analysis to sharpen your betting strategy."
                   : locale === "es"
                   ? "Guías detalladas, reseñas de casas de apuestas y análisis experto para mejorar tu estrategia."
                   : "Guides approfondis, analyses de bookmakers et stratégies pour affûter vos paris."}
               </p>
-              <p className="mt-4 text-xs font-semibold text-emerald-600">
+              <p className="mt-4 text-xs font-semibold text-emerald-400">
                 {locale === "en" ? "Read articles →" : locale === "es" ? "Leer artículos →" : "Lire les articles →"}
               </p>
             </Link>
@@ -746,18 +747,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* News */}
             <Link
               href={`/${locale}/news`}
-              className="group overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center transition hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-lg"
+              className="group overflow-hidden rounded-2xl border border-emerald-900/30 p-6 text-center transition hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl">📰</div>
-              <h3 className="mt-4 text-lg font-bold text-neutral-900">News</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">📰</div>
+              <h3 className="mt-4 text-lg font-bold text-white">News</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">
                 {locale === "en"
                   ? "Breaking sports news rewritten with a betting angle. Updated every hour, in 3 languages."
                   : locale === "es"
                   ? "Noticias deportivas de última hora con enfoque en apuestas. Actualizadas cada hora, en 3 idiomas."
                   : "L'actualité sportive décryptée avec un angle paris. Mise à jour toutes les heures, en 3 langues."}
               </p>
-              <p className="mt-4 text-xs font-semibold text-emerald-600">
+              <p className="mt-4 text-xs font-semibold text-emerald-400">
                 {locale === "en" ? "See latest news →" : locale === "es" ? "Ver últimas noticias →" : "Voir les actus →"}
               </p>
             </Link>
@@ -765,18 +767,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Vidéos */}
             <Link
               href={`/${locale}/videos`}
-              className="group overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center transition hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-lg"
+              className="group overflow-hidden rounded-2xl border border-emerald-900/30 p-6 text-center transition hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl">🎬</div>
-              <h3 className="mt-4 text-lg font-bold text-neutral-900">{locale === "es" ? "Vídeos" : "Vidéos"}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">🎬</div>
+              <h3 className="mt-4 text-lg font-bold text-white">{locale === "es" ? "Vídeos" : "Vidéos"}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">
                 {locale === "en"
                   ? "The best sports videos from top media channels, curated and watchable right here."
                   : locale === "es"
                   ? "Los mejores vídeos deportivos de los principales medios, seleccionados y visibles aquí."
                   : "Les meilleures vidéos sport des grandes chaînes média, à regarder directement sur le site."}
               </p>
-              <p className="mt-4 text-xs font-semibold text-emerald-600">
+              <p className="mt-4 text-xs font-semibold text-emerald-400">
                 {locale === "en" ? "Watch videos →" : locale === "es" ? "Ver vídeos →" : "Regarder les vidéos →"}
               </p>
             </Link>
