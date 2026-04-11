@@ -31,6 +31,7 @@ export async function GET() {
     { path: "/bookmakers/unibet", priority: "0.6", changefreq: "monthly" },
     { path: "/blog", priority: "0.8", changefreq: "daily" },
     { path: "/news", priority: "0.8", changefreq: "hourly" },
+    { path: "/videos", priority: "0.7", changefreq: "daily" },
     { path: "/livescore", priority: "0.8", changefreq: "daily" },
     { path: "/abonnement", priority: "0.7", changefreq: "monthly" },
     { path: "/contact", priority: "0.4", changefreq: "yearly" },
