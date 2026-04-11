@@ -50,10 +50,13 @@ export default function Navbar() {
   const { user, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
+  // Tous les liens — mobile les affiche tous dans la grille
   const NAV_LINKS = [
     { href: `/${locale}/pronostics`, label: t("pronos"), icon: "🎯" },
     { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
@@ -66,12 +69,32 @@ export default function Navbar() {
     { href: `/${locale}/news`, label: "News", icon: "📰" },
   ];
 
+  // Desktop : liens principaux affichés directement dans la barre
+  const DESKTOP_MAIN = [
+    { href: `/${locale}/pronostics`, label: t("pronos") },
+    { href: `/${locale}/historique`, label: t("history_short") },
+    { href: `/${locale}/statistiques`, label: t("stats_short") },
+  ];
+
+  // Desktop : liens secondaires dans le dropdown "Plus"
+  const DESKTOP_MORE = [
+    { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
+    { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
+    { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: `/${locale}/news`, label: "News", icon: "📰" },
+  ];
+
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
 
+  // Fermer les dropdowns au clic extérieur
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
         setLangOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -88,6 +111,9 @@ export default function Navbar() {
     router.push(segments.join("/"));
     setLangOpen(false);
   }
+
+  // Vérifier si une page du dropdown "Plus" est active
+  const isMoreActive = DESKTOP_MORE.some((link) => pathname.startsWith(link.href));
 
   return (
     <>
@@ -171,9 +197,9 @@ export default function Navbar() {
             <span className="text-sm font-extrabold text-emerald-400 lg:hidden">.CLUB</span>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop nav — liens principaux + dropdown "Plus" */}
           <div className="hidden items-center gap-2 lg:flex">
-            {NAV_LINKS.filter((link) => !link.hideDesktop).map((link) => (
+            {DESKTOP_MAIN.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -182,6 +208,47 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {/* Dropdown "Plus" */}
+            <div className="relative" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen(!moreOpen)}
+                className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
+                  isMoreActive ? "text-emerald-400" : "text-neutral-300"
+                }`}
+              >
+                Plus
+                <svg
+                  className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {moreOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[200px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
+                  {DESKTOP_MORE.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
+                        pathname.startsWith(link.href)
+                          ? "bg-emerald-600/10 text-emerald-400"
+                          : "text-neutral-300"
+                      }`}
+                    >
+                      <span className="text-lg">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Desktop CTA + Lang */}
@@ -291,7 +358,7 @@ export default function Navbar() {
           />
         )}
 
-        {/* Mobile drawer — slide from left */}
+        {/* Mobile drawer — slide from left (INCHANGÉ) */}
         <div
           className={`fixed inset-y-0 left-0 z-50 w-[90vw] transform shadow-2xl shadow-black/50 transition-transform duration-300 ease-in-out lg:hidden ${
             menuOpen ? "translate-x-0" : "-translate-x-full"
