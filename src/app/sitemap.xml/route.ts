@@ -1,3 +1,6 @@
+// src/app/sitemap.xml/route.ts
+// Sitemap dynamique — pages statiques + blog + bilans + NEWS AUTO
+
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -27,6 +30,7 @@ export async function GET() {
     { path: "/bookmakers/betclic", priority: "0.6", changefreq: "monthly" },
     { path: "/bookmakers/unibet", priority: "0.6", changefreq: "monthly" },
     { path: "/blog", priority: "0.8", changefreq: "daily" },
+    { path: "/news", priority: "0.8", changefreq: "hourly" },
     { path: "/livescore", priority: "0.8", changefreq: "daily" },
     { path: "/abonnement", priority: "0.7", changefreq: "monthly" },
     { path: "/contact", priority: "0.4", changefreq: "yearly" },
@@ -49,6 +53,13 @@ export async function GET() {
     .from("bilans")
     .select("slug, updated_at")
     .eq("is_published", true);
+
+  // Auto News
+  const { data: newsArticles } = await supabaseAdmin
+    .from("auto_news")
+    .select("slug, updated_at")
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
 
   const locales = ["fr", "en", "es"];
   const now = new Date().toISOString().split("T")[0];
@@ -112,6 +123,28 @@ ${alternates}
     <loc>${BASE_URL}/${locale}/bilans/${bilan.slug}</loc>
     <lastmod>${bilan.updated_at ? bilan.updated_at.split("T")[0] : now}</lastmod>
     <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+${alternates}
+  </url>`);
+      }
+    }
+  }
+
+  // Auto News
+  if (newsArticles) {
+    for (const news of newsArticles) {
+      for (const locale of locales) {
+        const alternates = locales
+          .map(
+            (alt) =>
+              `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/news/${news.slug}" />`
+          )
+          .join("\n");
+
+        urls.push(`  <url>
+    <loc>${BASE_URL}/${locale}/news/${news.slug}</loc>
+    <lastmod>${news.updated_at ? news.updated_at.split("T")[0] : now}</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.6</priority>
 ${alternates}
   </url>`);
