@@ -99,13 +99,13 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
           <div className="absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-emerald-400/10 blur-[100px]" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-8 text-center sm:py-10">
+        <div className="relative mx-auto max-w-6xl px-4 py-10 text-center sm:py-14">
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">🎬 PRONOS.CLUB</p>
-          <h1 className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">{headings[locale] || headings.fr}</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-white/40">{subtitles[locale] || subtitles.fr}</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{headings[locale] || headings.fr}</h1>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-white/40">{subtitles[locale] || subtitles.fr}</p>
 
           {/* Mobile: channel select (Client Component) */}
-          <div className="mt-5 flex justify-center sm:hidden">
+          <div className="mt-6 flex justify-center sm:hidden">
             <MobileVideoFilter
               locale={locale}
               channelId={channelId}
@@ -115,7 +115,7 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
           </div>
 
           {/* Desktop: channel select only */}
-          <div className="mt-5 hidden justify-center sm:flex">
+          <div className="mt-8 hidden justify-center sm:flex">
             <DesktopChannelSelect
               locale={locale}
               channelId={channelId}
