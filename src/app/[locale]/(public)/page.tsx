@@ -706,6 +706,94 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </section>
       )}
 
+      {/* ═══════════ BLOG / NEWS / VIDÉOS (DARK) ═══════════ */}
+      <section
+        className="relative overflow-hidden px-4 py-16 text-white"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #0a2e1f 50%, #0a0a0a 100%)" }}
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-20 bottom-0 h-[250px] w-[250px] rounded-full bg-emerald-500/10 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl">
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">📚 {locale === "en" ? "CONTENT" : locale === "es" ? "CONTENIDO" : "CONTENU"}</p>
+            <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
+              {locale === "en" ? "Stay informed, stay ahead" : locale === "es" ? "Mantente informado, mantente adelante" : "Restez informé, gardez l'avantage"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm text-white/40">
+              {locale === "en"
+                ? "Articles, breaking news, and sports videos — everything you need to make better bets."
+                : locale === "es"
+                ? "Artículos, noticias de última hora y vídeos deportivos — todo lo que necesitas para apostar mejor."
+                : "Articles, actualités en temps réel et vidéos sportives — tout ce qu'il faut pour parier mieux."}
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+            {/* Blog */}
+            <Link
+              href={`/${locale}/blog`}
+              className="group overflow-hidden rounded-2xl border border-white/[0.06] p-6 transition hover:-translate-y-1 hover:border-emerald-500/30"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">✍️</div>
+              <h3 className="mt-4 text-lg font-bold text-white">Blog</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/40">
+                {locale === "en"
+                  ? "In-depth guides, bookmaker reviews, and expert analysis to sharpen your betting strategy."
+                  : locale === "es"
+                  ? "Guías detalladas, reseñas de casas de apuestas y análisis experto para mejorar tu estrategia."
+                  : "Guides approfondis, analyses de bookmakers et stratégies pour affûter vos paris."}
+              </p>
+              <p className="mt-4 text-xs font-semibold text-emerald-400 transition group-hover:translate-x-1">
+                {locale === "en" ? "Read articles →" : locale === "es" ? "Leer artículos →" : "Lire les articles →"}
+              </p>
+            </Link>
+
+            {/* News */}
+            <Link
+              href={`/${locale}/news`}
+              className="group overflow-hidden rounded-2xl border border-white/[0.06] p-6 transition hover:-translate-y-1 hover:border-emerald-500/30"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">📰</div>
+              <h3 className="mt-4 text-lg font-bold text-white">News</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/40">
+                {locale === "en"
+                  ? "Breaking sports news rewritten with a betting angle. Updated every hour, in 3 languages."
+                  : locale === "es"
+                  ? "Noticias deportivas de última hora con enfoque en apuestas. Actualizadas cada hora, en 3 idiomas."
+                  : "L'actualité sportive décryptée avec un angle paris. Mise à jour toutes les heures, en 3 langues."}
+              </p>
+              <p className="mt-4 text-xs font-semibold text-emerald-400 transition group-hover:translate-x-1">
+                {locale === "en" ? "See latest news →" : locale === "es" ? "Ver últimas noticias →" : "Voir les actus →"}
+              </p>
+            </Link>
+
+            {/* Vidéos */}
+            <Link
+              href={`/${locale}/videos`}
+              className="group overflow-hidden rounded-2xl border border-white/[0.06] p-6 transition hover:-translate-y-1 hover:border-emerald-500/30"
+              style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-2xl">🎬</div>
+              <h3 className="mt-4 text-lg font-bold text-white">{locale === "es" ? "Vídeos" : "Vidéos"}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/40">
+                {locale === "en"
+                  ? "The best sports videos from top media channels, curated and watchable right here."
+                  : locale === "es"
+                  ? "Los mejores vídeos deportivos de los principales medios, seleccionados y visibles aquí."
+                  : "Les meilleures vidéos sport des grandes chaînes média, à regarder directement sur le site."}
+              </p>
+              <p className="mt-4 text-xs font-semibold text-emerald-400 transition group-hover:translate-x-1">
+                {locale === "en" ? "Watch videos →" : locale === "es" ? "Ver vídeos →" : "Regarder les vidéos →"}
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════ CTA FINAL (DARK) ═══════════ */}
       <section
         className="relative overflow-hidden px-4 py-16 text-center text-white sm:py-20"
