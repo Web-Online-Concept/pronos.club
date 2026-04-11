@@ -13,18 +13,19 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Permet jusqu'à 300s sur Vercel Pro (60s sur Hobby)
+export const maxDuration = 300;
+
 // Sécurité CRON Vercel
 function verifyCron(request: Request): boolean {
   const authHeader = request.headers.get("authorization");
   if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
-  // Autoriser aussi en dev local
   const url = new URL(request.url);
   if (url.searchParams.get("secret") === process.env.CRON_SECRET) return true;
   return false;
 }
 
 export async function GET(request: Request) {
-  // Vérifier CRON_SECRET
   if (!verifyCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -33,15 +34,15 @@ export async function GET(request: Request) {
   const results = { fetched: 0, skipped: 0, published: 0, errors: 0, details: [] as string[] };
 
   try {
-    // 1. Fetch ESPN News (max 3 par source pour limiter le volume)
-    const articles = await fetchESPNNews(3);
+    // 1. Fetch ESPN News (max 2 par source pour limiter)
+    const articles = await fetchESPNNews(2);
     results.fetched = articles.length;
 
     if (articles.length === 0) {
       return NextResponse.json({ ...results, message: "No articles fetched" });
     }
 
-    // 2. Déduplique — vérifier quels source_id existent déjà
+    // 2. Déduplique
     const sourceIds = articles.map((a) => a.sourceId);
     const { data: existing } = await supabaseAdmin
       .from("auto_news")
@@ -49,8 +50,6 @@ export async function GET(request: Request) {
       .in("source_id", sourceIds);
 
     const existingIds = new Set((existing || []).map((e) => e.source_id));
-
-    // 3. Filtrer les nouveaux articles
     const newArticles = articles.filter((a) => !existingIds.has(a.sourceId));
     results.skipped = articles.length - newArticles.length;
 
@@ -58,16 +57,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ ...results, message: "All articles already exist" });
     }
 
-    // 4. Limiter à 5 articles max par exécution (budget API + timeout Vercel 60s)
-    const toProcess = newArticles.slice(0, 5);
+    // 3. Max 2 articles par exécution (séquentiel pour éviter rate limit + timeout)
+    const toProcess = newArticles.slice(0, 2);
 
-    // 5. Traiter chaque article
     for (const article of toProcess) {
       try {
-        // Réécrire via Claude Haiku
+        // Vérifier qu'on n'a pas dépassé 250s
+        if (Date.now() - startTime > 250000) {
+          results.details.push("Stopped: approaching timeout limit");
+          break;
+        }
+
         const rewritten = await rewriteArticle(article);
 
-        // Vérifier que le slug n'existe pas déjà
+        // Slug unique
         const { data: slugExists } = await supabaseAdmin
           .from("auto_news")
           .select("id")
@@ -78,7 +81,6 @@ export async function GET(request: Request) {
           ? `${rewritten.slug}-${Date.now().toString(36)}`
           : rewritten.slug;
 
-        // INSERT dans auto_news
         const { error: insertError } = await supabaseAdmin.from("auto_news").insert({
           title: rewritten.title,
           title_en: rewritten.title_en,
@@ -108,20 +110,17 @@ export async function GET(request: Request) {
           results.details.push(`INSERT error [${article.sourceId}]: ${insertError.message}`);
         } else {
           results.published++;
-          results.details.push(`Published: ${rewritten.title} (${article.sport}/${article.league})`);
+          results.details.push(`OK: ${rewritten.title} (${article.sport}/${article.league})`);
         }
       } catch (err: any) {
         results.errors++;
-        results.details.push(`Rewrite error [${article.sourceId}]: ${err.message}`);
+        results.details.push(`Error [${article.sourceId}]: ${err.message}`);
       }
     }
 
     const elapsed = Date.now() - startTime;
     return NextResponse.json({ ...results, elapsed_ms: elapsed });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message, ...results },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message, ...results }, { status: 500 });
   }
 }

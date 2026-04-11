@@ -33,11 +33,11 @@ async function callHaiku(systemPrompt: string, userPrompt: string): Promise<stri
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 4000,
+      max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(55000),
   });
 
   if (!res.ok) {
@@ -53,7 +53,7 @@ function buildSlug(title: string): string {
   return title
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
@@ -73,51 +73,34 @@ const SPORT_LABELS: Record<string, string> = {
 export async function rewriteArticle(article: FetchedArticle): Promise<RewrittenArticle & { slug: string }> {
   const sportLabel = SPORT_LABELS[article.sport] || article.sport;
 
-  const systemPrompt = `Tu es un rédacteur sportif expert en paris sportifs pour PRONOS.CLUB. 
-Tu réécris des actualités sportives avec un angle betting/pronostics.
+  const systemPrompt = `Tu es rédacteur sportif pour PRONOS.CLUB. Réécris l'actu avec un angle paris sportifs.
 
-RÈGLES STRICTES :
-- Réécrire complètement l'article, JAMAIS copier le texte source
-- Ajouter un angle paris sportifs / pronostics / cotes / value bet quand pertinent
-- Ton professionnel mais accessible, engageant pour des parieurs
-- Le contenu doit être en HTML valide (paragraphes <p>, titres <h2>/<h3>, listes <ul>/<li> si pertinent)
-- Minimum 3 paragraphes, maximum 6 paragraphes
-- Ne JAMAIS inventer de cotes ou résultats — rester factuel
-- Ne JAMAIS mentionner la source (ESPN)
+RÈGLES :
+- Réécrire complètement, JAMAIS copier la source
+- Angle betting/pronostics quand pertinent
+- HTML valide : <p>, <h2>, <h3>
+- 2-4 paragraphes courts
+- Ne JAMAIS inventer de cotes — rester factuel
+- Ne JAMAIS mentionner ESPN
 
-FORMAT DE RÉPONSE — JSON strict, rien d'autre :
-{
-  "title": "Titre FR accrocheur (max 80 car.)",
-  "title_en": "English title (max 80 chars)",
-  "title_es": "Título en español (max 80 car.)",
-  "excerpt": "Résumé FR 1-2 phrases (max 160 car.)",
-  "excerpt_en": "English summary (max 160 chars)",
-  "excerpt_es": "Resumen en español (max 160 car.)",
-  "content": "<p>Contenu FR complet en HTML...</p>",
-  "content_en": "<p>Full English content in HTML...</p>",
-  "content_es": "<p>Contenido completo en español HTML...</p>",
-  "tags": ["tag1", "tag2", "tag3"],
-  "meta_title": "Meta titre SEO FR (max 60 car.)",
-  "meta_description": "Meta description SEO FR (max 155 car.)"
-}`;
+Réponds UNIQUEMENT en JSON valide, SANS backticks :
+{"title":"FR max 80c","title_en":"EN max 80c","title_es":"ES max 80c","excerpt":"FR max 160c","excerpt_en":"EN max 160c","excerpt_es":"ES max 160c","content":"<p>FR HTML</p>","content_en":"<p>EN HTML</p>","content_es":"<p>ES HTML</p>","tags":["t1","t2"],"meta_title":"FR max 60c","meta_description":"FR max 155c"}`;
 
-  const userPrompt = `Sport : ${sportLabel}
-Ligue : ${article.league}
-Titre original : ${article.title}
-Description : ${article.description}
+  const userPrompt = `Sport: ${sportLabel} | Ligue: ${article.league}
+Titre: ${article.title}
+${article.description}
 
-Réécris cet article en 3 langues (FR, EN, ES) avec un angle paris sportifs. Réponds UNIQUEMENT en JSON valide.`;
+JSON:`;
 
   const raw = await callHaiku(systemPrompt, userPrompt);
 
-  // Parse JSON — nettoyer les éventuels backticks markdown
   const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
   
   let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
   } catch (e) {
-    throw new Error(`Failed to parse Haiku response: ${cleaned.slice(0, 200)}`);
+    throw new Error(`JSON parse failed: ${cleaned.slice(0, 200)}`);
   }
 
   const slug = buildSlug(parsed.title || article.title);
