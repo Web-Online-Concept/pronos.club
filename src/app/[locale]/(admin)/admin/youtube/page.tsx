@@ -124,7 +124,7 @@ export default function AdminYouTubePage() {
         <button
           onClick={handleAdd}
           disabled={adding || !newChannelId.trim() || !newName.trim()}
-          className="mt-3 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+          className="mt-3 cursor-pointer rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
         >
           {adding ? "Ajout..." : "Ajouter"}
         </button>
@@ -168,7 +168,7 @@ export default function AdminYouTubePage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleActive(ch)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                     ch.is_active
                       ? "bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30"
                       : "bg-neutral-700 text-neutral-400 hover:bg-neutral-600"
@@ -178,7 +178,7 @@ export default function AdminYouTubePage() {
                 </button>
                 <button
                   onClick={() => handleDelete(ch)}
-                  className="rounded-lg bg-red-600/10 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-600/20"
+                  className="cursor-pointer rounded-lg bg-red-600/10 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-600/20"
                 >
                   Suppr.
                 </button>
