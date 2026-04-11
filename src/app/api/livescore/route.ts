@@ -149,8 +149,12 @@ function parseCompetition(comp: ESPNCompetition, fallbackId?: string): LiveMatch
     if (homeLinescores.length > 0) {
       homeScore = homeLinescores.join(" ");
       awayScore = awayLinescores.join(" ");
-      // Also build "6-4 6-3" format for statusText
-      displayStatusText = homeLinescores.map((h, i) => `${h}-${awayLinescores[i] ?? "?"}`).join("  ");
+      // For live matches: show set scores in statusText (e.g. "6-4  3-2")
+      // For finished matches: keep the original statusText (e.g. "Terminé" / "Final")
+      if (status === "live") {
+        displayStatusText = homeLinescores.map((h, i) => `${h}-${awayLinescores[i] ?? "?"}`).join("  ");
+      }
+      // For finished: displayStatusText stays as the original "Final" / "Terminé" from ESPN
     } else {
       homeScore = home.winner ? "W" : "-";
       awayScore = away.winner ? "W" : "-";
@@ -418,14 +422,14 @@ export async function GET(request: Request) {
       })
       .filter((l) => l.matches.length > 0)
       .sort((a, b) => {
-        // For tournaments, sort by live matches first
-        const aLive = a.matches.some((m) => m.status === "live") ? 0 : 1;
-        const bLive = b.matches.some((m) => m.status === "live") ? 0 : 1;
-        if (aLive !== bLive) return aLive - bLive;
-        // Then by config priority
+        // First by config priority (ATP=1 before WTA=2)
         const aPriority = sportConfig.leagues.find((l) => a.slug.startsWith(l.slug))?.priority ?? 99;
         const bPriority = sportConfig.leagues.find((l) => b.slug.startsWith(l.slug))?.priority ?? 99;
-        return aPriority - bPriority;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        // Within same priority (same league), live matches first
+        const aLive = a.matches.some((m) => m.status === "live") ? 0 : 1;
+        const bLive = b.matches.some((m) => m.status === "live") ? 0 : 1;
+        return aLive - bLive;
       });
 
     const totalMatches = validLeagues.reduce((sum, l) => sum + l.matches.length, 0);
