@@ -48,7 +48,7 @@ export default function VideoGrid({ videos, locale }: Props) {
           <button
             key={video.id}
             onClick={() => setActiveVideo(video)}
-            className="group overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-sm transition hover:shadow-md"
+            className="group cursor-pointer overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-sm transition hover:shadow-md"
           >
             {/* Thumbnail with play overlay */}
             <div className="relative aspect-video overflow-hidden bg-neutral-100">
