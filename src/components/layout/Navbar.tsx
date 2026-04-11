@@ -63,6 +63,7 @@ export default function Navbar() {
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️", hideDesktop: true },
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: `/${locale}/news`, label: "News", icon: "📰" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
