@@ -81,6 +81,7 @@ export default function Navbar() {
   // Desktop : liens secondaires dans le dropdown "Plus"
   const DESKTOP_MORE = [
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
   ];
