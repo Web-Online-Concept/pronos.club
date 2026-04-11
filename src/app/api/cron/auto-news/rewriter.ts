@@ -33,7 +33,7 @@ async function callHaiku(systemPrompt: string, userPrompt: string): Promise<stri
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 2000,
+      max_tokens: 3000,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     }),
@@ -73,15 +73,20 @@ const SPORT_LABELS: Record<string, string> = {
 export async function rewriteArticle(article: FetchedArticle): Promise<RewrittenArticle & { slug: string }> {
   const sportLabel = SPORT_LABELS[article.sport] || article.sport;
 
-  const systemPrompt = `Tu es rédacteur sportif pour PRONOS.CLUB. Réécris l'actu avec un angle paris sportifs.
+  const systemPrompt = `Tu es rédacteur sportif expert pour PRONOS.CLUB, plateforme de pronostics sportifs.
+Réécris l'actualité sportive en un article complet et engageant avec un angle paris sportifs.
 
 RÈGLES :
 - Réécrire complètement, JAMAIS copier la source
-- Angle betting/pronostics quand pertinent
-- HTML valide : <p>, <h2>, <h3>
-- 2-4 paragraphes courts
-- Ne JAMAIS inventer de cotes — rester factuel
-- Ne JAMAIS mentionner ESPN
+- 4 à 6 paragraphes développés en HTML (<p>, <h2>, <h3>)
+- Paragraphe 1 : résumé de l'actu et contexte immédiat
+- Paragraphe 2-3 : analyse approfondie (forme des équipes/joueurs, historique récent, dynamique)
+- Paragraphe 4-5 : impact sur les paris sportifs (quels marchés surveiller, tendances à exploiter, value potentielle)
+- Paragraphe 6 : conclusion et perspectives à venir
+- Ton professionnel mais accessible, engageant pour des parieurs
+- Ne JAMAIS inventer de cotes ou résultats — rester factuel
+- Ne JAMAIS mentionner ESPN ou la source
+- Utiliser des sous-titres <h2> pour structurer l'article
 
 Réponds UNIQUEMENT en JSON valide, SANS backticks :
 {"title":"FR max 80c","title_en":"EN max 80c","title_es":"ES max 80c","excerpt":"FR max 160c","excerpt_en":"EN max 160c","excerpt_es":"ES max 160c","content":"<p>FR HTML</p>","content_en":"<p>EN HTML</p>","content_es":"<p>ES HTML</p>","tags":["t1","t2"],"meta_title":"FR max 60c","meta_description":"FR max 155c"}`;
