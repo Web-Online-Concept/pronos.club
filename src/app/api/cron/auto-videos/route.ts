@@ -1,10 +1,10 @@
 // src/app/api/cron/auto-videos/route.ts
 // CRON Vercel — Fetch vidéos YouTube toutes les 2h
-// Flow : get active channels → fetch RSS → déduplique → INSERT youtube_videos
+// + Auto-fetch logo pour les chaînes qui n'en ont pas
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { fetchYouTubeRSS } from "./youtube-rss";
+import { fetchYouTubeRSS, fetchChannelLogo } from "./youtube-rss";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,13 +27,13 @@ export async function GET(request: Request) {
   }
 
   const startTime = Date.now();
-  const results = { channels: 0, fetched: 0, new: 0, skipped: 0, errors: 0 };
+  const results = { channels: 0, fetched: 0, new: 0, skipped: 0, logos: 0, errors: 0 };
 
   try {
     // 1. Get active channels
     const { data: channels } = await supabaseAdmin
       .from("youtube_channels")
-      .select("channel_id")
+      .select("id, channel_id, logo_url")
       .eq("is_active", true);
 
     if (!channels || channels.length === 0) {
@@ -42,7 +42,20 @@ export async function GET(request: Request) {
 
     results.channels = channels.length;
 
-    // 2. Fetch RSS for all channels
+    // 2. Auto-fetch logos pour les chaînes sans logo
+    const channelsWithoutLogo = channels.filter((c) => !c.logo_url);
+    for (const ch of channelsWithoutLogo) {
+      const logo = await fetchChannelLogo(ch.channel_id);
+      if (logo) {
+        await supabaseAdmin
+          .from("youtube_channels")
+          .update({ logo_url: logo })
+          .eq("id", ch.id);
+        results.logos++;
+      }
+    }
+
+    // 3. Fetch RSS for all channels
     const videos = await fetchYouTubeRSS(channels);
     results.fetched = videos.length;
 
@@ -50,7 +63,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ...results, message: "No videos fetched" });
     }
 
-    // 3. Déduplique — vérifier quels video_id existent déjà
+    // 4. Déduplique
     const videoIds = videos.map((v) => v.videoId);
     const { data: existing } = await supabaseAdmin
       .from("youtube_videos")
@@ -58,11 +71,10 @@ export async function GET(request: Request) {
       .in("video_id", videoIds);
 
     const existingIds = new Set((existing || []).map((e) => e.video_id));
-
-    // 4. INSERT les nouvelles vidéos
     const newVideos = videos.filter((v) => !existingIds.has(v.videoId));
     results.skipped = videos.length - newVideos.length;
 
+    // 5. INSERT les nouvelles vidéos
     if (newVideos.length > 0) {
       const rows = newVideos.map((v) => ({
         video_id: v.videoId,

@@ -19,10 +19,9 @@ export default function AdminYouTubePage() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  // Form state
+  // Form state — plus de champ logo
   const [newChannelId, setNewChannelId] = useState("");
   const [newName, setNewName] = useState("");
-  const [newLogo, setNewLogo] = useState("");
   const [newCategory, setNewCategory] = useState<"tipster" | "media">("media");
 
   async function loadChannels() {
@@ -51,7 +50,6 @@ export default function AdminYouTubePage() {
       body: JSON.stringify({
         channel_id: channelId,
         name: newName.trim(),
-        logo_url: newLogo.trim() || null,
         category: newCategory,
       }),
     });
@@ -59,7 +57,6 @@ export default function AdminYouTubePage() {
     if (res.ok) {
       setNewChannelId("");
       setNewName("");
-      setNewLogo("");
       setNewCategory("media");
       await loadChannels();
     } else {
@@ -95,15 +92,15 @@ export default function AdminYouTubePage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="text-2xl font-bold text-white">📺 Chaînes YouTube</h1>
-      <p className="mt-1 text-sm text-neutral-400">Gérer les chaînes dont les vidéos sont affichées sur la page Vidéos</p>
+      <p className="mt-1 text-sm text-neutral-400">Gérer les chaînes dont les vidéos sont affichées sur la page Vidéos. Le logo est récupéré automatiquement.</p>
 
       {/* Formulaire d'ajout */}
       <div className="mt-8 rounded-xl border border-neutral-700 bg-neutral-800/50 p-5">
         <h2 className="text-sm font-semibold text-white">Ajouter une chaîne</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <input
             type="text"
-            placeholder="Channel ID ou URL (ex: UCxxxxx)"
+            placeholder="Channel ID (UCxxxxx)"
             value={newChannelId}
             onChange={(e) => setNewChannelId(e.target.value)}
             className="rounded-lg border border-neutral-600 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-500 outline-none focus:border-emerald-500"
@@ -113,13 +110,6 @@ export default function AdminYouTubePage() {
             placeholder="Nom de la chaîne"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="rounded-lg border border-neutral-600 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-500 outline-none focus:border-emerald-500"
-          />
-          <input
-            type="text"
-            placeholder="URL du logo (optionnel)"
-            value={newLogo}
-            onChange={(e) => setNewLogo(e.target.value)}
             className="rounded-lg border border-neutral-600 bg-neutral-900 px-3 py-2 text-sm text-white placeholder-neutral-500 outline-none focus:border-emerald-500"
           />
           <select
@@ -154,7 +144,7 @@ export default function AdminYouTubePage() {
                   : "border-neutral-800 bg-neutral-900/50 opacity-50"
               }`}
             >
-              {/* Logo */}
+              {/* Logo (auto-fetched) */}
               {ch.logo_url ? (
                 <img src={ch.logo_url} alt="" className="h-10 w-10 rounded-full object-cover" />
               ) : (
@@ -170,6 +160,7 @@ export default function AdminYouTubePage() {
                   {ch.channel_id} · {ch.category === "tipster" ? "🎯 Tipster" : "📺 Média"}
                   {" · "}
                   {ch.youtube_videos?.[0]?.count || 0} vidéos
+                  {!ch.logo_url && " · ⏳ Logo en attente"}
                 </p>
               </div>
 
@@ -200,10 +191,10 @@ export default function AdminYouTubePage() {
       {/* Info */}
       <div className="mt-8 rounded-lg border border-neutral-800 bg-neutral-900/50 p-4 text-xs text-neutral-500">
         <p className="font-semibold text-neutral-400">Comment trouver un Channel ID ?</p>
-        <p className="mt-1">1. Ouvrir la chaîne YouTube</p>
-        <p>2. Clic droit → "Afficher le code source"</p>
-        <p>3. Chercher "channel_id" ou "externalId" → copier la valeur UC...</p>
-        <p className="mt-2">Ou utiliser un outil comme <a href="https://commentpicker.com/youtube-channel-id.php" target="_blank" rel="noopener" className="text-emerald-400 underline">commentpicker.com</a></p>
+        <p className="mt-1">1. Aller sur <a href="https://commentpicker.com/youtube-channel-id.php" target="_blank" rel="noopener" className="text-emerald-400 underline">commentpicker.com</a></p>
+        <p>2. Coller l'URL de la chaîne YouTube (ex: https://www.youtube.com/@beINSPORTSFrance)</p>
+        <p>3. Copier le Channel ID (format UC...)</p>
+        <p className="mt-2 text-neutral-400">Le logo de la chaîne est récupéré automatiquement au prochain passage du CRON.</p>
       </div>
     </div>
   );
