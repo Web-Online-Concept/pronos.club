@@ -229,7 +229,9 @@ function parseTournamentEvent(event: ESPNEvent, clientDate?: string): LiveMatch[
   return [...live, ...scheduled];
 }
 
-async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[], clientDate?: string): Promise<LiveLeague | null> {
+// For tournament sports: returns multiple LiveLeague (one per tournament)
+// For regular sports: returns a single LiveLeague
+async function fetchLeagueDates(espnSport: string, league: { slug: string; name: string; flag?: string; country?: string }, dates: string[], clientDate?: string): Promise<LiveLeague[]> {
   try {
     // Fetch all dates in parallel
     const allEvents: ESPNEvent[] = [];
@@ -259,42 +261,66 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
       })
     );
 
-    if (!allEvents.length) return null;
+    if (!allEvents.length) return [];
 
-    // Tennis & Golf use tournament > groupings > competitions structure
     const isTournamentSport = espnSport === "tennis" || espnSport === "golf";
-    let matches: LiveMatch[];
 
     if (isTournamentSport) {
-      matches = allEvents.flatMap((e) => parseTournamentEvent(e, clientDate));
+      // Create one LiveLeague per tournament event
+      const tournamentLeagues: LiveLeague[] = [];
+
+      for (const event of allEvents) {
+        const matches = parseTournamentEvent(event, clientDate);
+        if (matches.length === 0) continue;
+
+        // Sort matches: live first, then scheduled, then finished
+        matches.sort((a, b) => {
+          const order = { live: 0, scheduled: 1, finished: 2, postponed: 3, other: 4 };
+          const diff = (order[a.status] ?? 4) - (order[b.status] ?? 4);
+          if (diff !== 0) return diff;
+          return (a.startTime || "").localeCompare(b.startTime || "");
+        });
+
+        tournamentLeagues.push({
+          slug: `${league.slug}-${event.id}`,
+          name: event.name || league.name,
+          flag: league.flag,
+          country: league.country,
+          matches,
+        });
+      }
+
+      // Sort tournaments: ones with live matches first
+      tournamentLeagues.sort((a, b) => {
+        const aLive = a.matches.some((m) => m.status === "live") ? 0 : 1;
+        const bLive = b.matches.some((m) => m.status === "live") ? 0 : 1;
+        return aLive - bLive;
+      });
+
+      return tournamentLeagues;
     } else {
-      matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
+      // Regular sport: one league with all matches
+      const matches = allEvents.map(parseEvent).filter((m): m is LiveMatch => m !== null);
+      if (!matches.length) return [];
+
+      // Sort: live first, then scheduled by start time, then finished
+      matches.sort((a, b) => {
+        const order = { live: 0, scheduled: 1, finished: 2, postponed: 3, other: 4 };
+        const diff = (order[a.status] ?? 4) - (order[b.status] ?? 4);
+        if (diff !== 0) return diff;
+        return (a.startTime || "").localeCompare(b.startTime || "");
+      });
+
+      return [{
+        slug: league.slug,
+        name: league.name,
+        flag: league.flag,
+        country: league.country,
+        matches,
+      }];
     }
-
-    if (!matches.length) return null;
-
-    // Sort: live first, then scheduled by start time, then finished
-    matches.sort((a, b) => {
-      const order = { live: 0, scheduled: 1, finished: 2, postponed: 3, other: 4 };
-      const diff = (order[a.status] ?? 4) - (order[b.status] ?? 4);
-      if (diff !== 0) return diff;
-      return (a.startTime || "").localeCompare(b.startTime || "");
-    });
-
-    // For tournament sports, use the tournament name as league name
-    const leagueName = isTournamentSport && allEvents[0]?.name
-      ? allEvents[0].name
-      : league.name;
-
-    return {
-      slug: league.slug,
-      name: leagueName,
-      flag: league.flag,
-      country: league.country,
-      matches,
-    };
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -341,7 +367,8 @@ export async function GET(request: Request) {
     // Other sports: veille+date+lendemain to cover timezone differences
     const sportDates = isTournament && date ? [date] : datesToFetch;
 
-    const leagueResults = await Promise.all(
+    // fetchLeagueDates now returns LiveLeague[] (possibly multiple for tournaments)
+    const leagueResultArrays = await Promise.all(
       leaguesToFetch.map((lg) =>
         sportDates.length > 0
           ? fetchLeagueDates(sportConfig.espnSport, lg, sportDates, date)
@@ -349,56 +376,64 @@ export async function GET(request: Request) {
       )
     );
 
-      const isTournamentSport = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
+    // Flatten: each call can return multiple leagues for tournament sports
+    const allLeagueResults = leagueResultArrays.flat();
 
-      const validLeagues = leagueResults
-        .filter((l): l is LiveLeague => l !== null)
-        .map((leagueData) => {
-          // Filter matches to only those on the requested date in the client's timezone
-          // Skip for tournament sports (tennis/golf) — they already filter by date in parseTournamentEvent
-          if (date && date.length === 8 && !isTournamentSport) {
-            leagueData.matches = leagueData.matches.filter((match) => {
-              if (!match.startTime) return true;
-              try {
-                const matchDate = new Date(match.startTime);
-                const formatter = new Intl.DateTimeFormat("en-CA", {
-                  timeZone: tz,
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                });
-                const parts = formatter.formatToParts(matchDate);
-                const yy = parts.find((p) => p.type === "year")?.value ?? "";
-                const mm = parts.find((p) => p.type === "month")?.value ?? "";
-                const dd = parts.find((p) => p.type === "day")?.value ?? "";
-                return `${yy}${mm}${dd}` === date;
-              } catch {
-                return true;
-              }
-            });
-          }
-          return leagueData;
-        })
-        .filter((l) => l.matches.length > 0)
-        .sort((a, b) => {
-          const aPriority = sportConfig.leagues.find((l) => l.slug === a.slug)?.priority ?? 99;
-          const bPriority = sportConfig.leagues.find((l) => l.slug === b.slug)?.priority ?? 99;
-          return aPriority - bPriority;
-        });
+    const isTournamentSport = sportConfig.espnSport === "tennis" || sportConfig.espnSport === "golf";
 
-      const totalMatches = validLeagues.reduce((sum, l) => sum + l.matches.length, 0);
-      const liveMatches = validLeagues.reduce((sum, l) => sum + l.matches.filter((m) => m.status === "live").length, 0);
+    const validLeagues = allLeagueResults
+      .filter((l) => l.matches.length > 0)
+      .map((leagueData) => {
+        // Filter matches to only those on the requested date in the client's timezone
+        // Skip for tournament sports — they already filter by date in parseTournamentEvent
+        if (date && date.length === 8 && !isTournamentSport) {
+          leagueData.matches = leagueData.matches.filter((match) => {
+            if (!match.startTime) return true;
+            try {
+              const matchDate = new Date(match.startTime);
+              const formatter = new Intl.DateTimeFormat("en-CA", {
+                timeZone: tz,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              });
+              const parts = formatter.formatToParts(matchDate);
+              const yy = parts.find((p) => p.type === "year")?.value ?? "";
+              const mm = parts.find((p) => p.type === "month")?.value ?? "";
+              const dd = parts.find((p) => p.type === "day")?.value ?? "";
+              return `${yy}${mm}${dd}` === date;
+            } catch {
+              return true;
+            }
+          });
+        }
+        return leagueData;
+      })
+      .filter((l) => l.matches.length > 0)
+      .sort((a, b) => {
+        // For tournaments, sort by live matches first
+        const aLive = a.matches.some((m) => m.status === "live") ? 0 : 1;
+        const bLive = b.matches.some((m) => m.status === "live") ? 0 : 1;
+        if (aLive !== bLive) return aLive - bLive;
+        // Then by config priority
+        const aPriority = sportConfig.leagues.find((l) => a.slug.startsWith(l.slug))?.priority ?? 99;
+        const bPriority = sportConfig.leagues.find((l) => b.slug.startsWith(l.slug))?.priority ?? 99;
+        return aPriority - bPriority;
+      });
 
-      if (validLeagues.length > 0) {
-        results.push({
-          key: sportConfig.key,
-          name: sportConfig.name,
-          icon: sportConfig.icon,
-          leagues: validLeagues,
-          totalMatches,
-          liveMatches,
-        });
-      }
+    const totalMatches = validLeagues.reduce((sum, l) => sum + l.matches.length, 0);
+    const liveMatches = validLeagues.reduce((sum, l) => sum + l.matches.filter((m) => m.status === "live").length, 0);
+
+    if (validLeagues.length > 0) {
+      results.push({
+        key: sportConfig.key,
+        name: sportConfig.name,
+        icon: sportConfig.icon,
+        leagues: validLeagues,
+        totalMatches,
+        liveMatches,
+      });
+    }
   }
 
   // Sort: sports with live matches first, then by config order
