@@ -1224,7 +1224,8 @@
     "stats": "Stats",
     "account": "Cuenta",
     "blog": "Blog",
-    "livescore": "Scores"
+    "livescore": "Scores",
+    "news": "News"
   },
   "livescore": {
     "meta_title": "Livescore — Resultados en vivo | PRONOS.CLUB",
