@@ -151,27 +151,26 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
               </Link>
             </div>
 
-            {/* Chaînes */}
+            {/* Chaîne — select dropdown */}
             {channels.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-2">
-                {channels.map((c: any) => (
-                  <Link
-                    key={c.channel_id}
-                    href={`/${locale}/videos?channel=${c.channel_id}`}
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition ${
-                      channelId === c.channel_id
-                        ? "bg-white/20 text-white"
-                        : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50"
-                    }`}
-                  >
-                    {c.logo_url ? (
-                      <img src={c.logo_url} alt="" className="h-4 w-4 rounded-full object-cover" />
-                    ) : (
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[8px]">{c.name.charAt(0)}</span>
-                    )}
-                    {c.name}
-                  </Link>
-                ))}
+              <div className="flex justify-center">
+                <select
+                  defaultValue={channelId || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    window.location.href = val ? `/${locale}/videos?channel=${val}` : `/${locale}/videos`;
+                  }}
+                  className="cursor-pointer rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 outline-none transition hover:border-white/20"
+                >
+                  <option value="" className="bg-neutral-900 text-white">
+                    {locale === "fr" ? "Toutes les chaînes" : locale === "es" ? "Todos los canales" : "All channels"}
+                  </option>
+                  {channels.map((c: any) => (
+                    <option key={c.channel_id} value={c.channel_id} className="bg-neutral-900 text-white">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
