@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
 import { localized } from "@/lib/blog-i18n";
 import MobileCategorySelect from "./MobileCategorySelect";
+import DesktopCategorySelect from "./DesktopCategorySelect";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -98,32 +99,14 @@ export default async function BlogPage({ params, searchParams }: { params: Promi
             />
           </div>
 
-          {/* Desktop: pills */}
-          <div className="mt-8 hidden flex-wrap justify-center gap-2 sm:flex">
-            <Link
-              href={`/${locale}/blog`}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                !category
-                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                  : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-              }`}
-            >
-              {t("filter_all")}
-            </Link>
-            {categories.map((c: any) => (
-              <Link
-                key={c.slug}
-                href={`/${locale}/blog?category=${c.slug}`}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  category === c.slug
-                    ? "text-white shadow-lg"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-                style={category === c.slug ? { backgroundColor: c.color, boxShadow: `0 4px 14px ${c.color}40` } : undefined}
-              >
-                {c.icon} {catName(c)}
-              </Link>
-            ))}
+          {/* Desktop: dropdown (Client Component) */}
+          <div className="mt-8 hidden justify-center sm:flex">
+            <DesktopCategorySelect
+              locale={locale}
+              category={category}
+              categories={mobileCats}
+              allLabel={t("filter_all")}
+            />
           </div>
         </div>
       </section>

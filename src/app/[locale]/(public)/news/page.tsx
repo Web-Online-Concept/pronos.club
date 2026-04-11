@@ -3,8 +3,8 @@
 
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { getTranslations } from "next-intl/server";
 import MobileSportSelect from "./MobileSportSelect";
+import DesktopSportSelect from "./DesktopSportSelect";
 import { localized } from "@/lib/blog-i18n";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -132,7 +132,11 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
     en: "Sports news with a betting and predictions angle",
     es: "Noticias deportivas con enfoque en apuestas y pronósticos",
   };
-  const filterAll: Record<string, string> = { fr: "Tous", en: "All", es: "Todos" };
+  const filterAll: Record<string, string> = {
+    fr: "Tous les sports",
+    en: "All sports",
+    es: "Todos los deportes",
+  };
   const emptyMsg: Record<string, string> = {
     fr: "Aucune actualité pour le moment",
     en: "No news yet",
@@ -141,6 +145,12 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
   const viewsLabel: Record<string, string> = { fr: "vues", en: "views", es: "vistas" };
   const prevLabel: Record<string, string> = { fr: "← Précédent", en: "← Previous", es: "← Anterior" };
   const nextLabel: Record<string, string> = { fr: "Suivant →", en: "Next →", es: "Siguiente →" };
+
+  const sportOptions = sports.map((s: string) => ({
+    value: s,
+    icon: SPORT_ICONS[s] || "🏅",
+    label: getSportLabel(s, locale),
+  }));
 
   const pageUrl = (p: number) => {
     const params = new URLSearchParams();
@@ -172,41 +182,19 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
             <MobileSportSelect
               locale={locale}
               sport={sport}
-              sports={sports.map((s: string) => ({
-                value: s,
-                icon: SPORT_ICONS[s] || "🏅",
-                label: getSportLabel(s, locale),
-              }))}
+              sports={sportOptions}
               filterAllLabel={filterAll[locale] || filterAll.fr}
             />
           </div>
 
-          {/* Desktop: pills */}
-          <div className="mt-8 hidden flex-wrap justify-center gap-2 sm:flex">
-            <Link
-              href={`/${locale}/news`}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                !sport
-                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                  : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-              }`}
-            >
-              {filterAll[locale] || filterAll.fr}
-            </Link>
-            {sports.map((s: string) => (
-              <Link
-                key={s}
-                href={`/${locale}/news?sport=${s}`}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                  sport === s
-                    ? "text-white shadow-lg"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-                style={sport === s ? { backgroundColor: SPORT_COLORS[s] || "#10b981", boxShadow: `0 4px 14px ${SPORT_COLORS[s] || "#10b981"}40` } : undefined}
-              >
-                {SPORT_ICONS[s] || "🏅"} {getSportLabel(s, locale)}
-              </Link>
-            ))}
+          {/* Desktop: dropdown (Client Component) */}
+          <div className="mt-8 hidden justify-center sm:flex">
+            <DesktopSportSelect
+              locale={locale}
+              sport={sport}
+              sports={sportOptions}
+              allLabel={filterAll[locale] || filterAll.fr}
+            />
           </div>
         </div>
       </section>
