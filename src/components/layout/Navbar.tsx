@@ -74,13 +74,13 @@ export default function Navbar() {
     { href: `/${locale}/pronostics`, label: t("pronos") },
     { href: `/${locale}/historique`, label: t("history_short") },
     { href: `/${locale}/statistiques`, label: t("stats_short") },
+    { href: `/${locale}/tipster`, label: t("tipster_short") },
+    { href: `/${locale}/bookmakers`, label: t("books") },
   ];
 
   // Desktop : liens secondaires dans le dropdown "Plus"
   const DESKTOP_MORE = [
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
-    { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
   ];
