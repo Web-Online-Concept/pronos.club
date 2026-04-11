@@ -32,11 +32,12 @@ export default async function Footer() {
     { href: `/${locale}/pronostics`, label: tn("pronos") },
     { href: `/${locale}/historique`, label: tn("history_short") },
     { href: `/${locale}/statistiques`, label: tn("stats_short") },
-    { href: `/${locale}/bilans`, label: tn("bilans_short") },
     { href: `/${locale}/tipster`, label: tn("tipster_short") },
     { href: `/${locale}/bookmakers`, label: tn("books") },
-    { href: `/${locale}/livescore`, label: "Scores" },
+    { href: `/${locale}/bilans`, label: tn("bilans_short") },
     { href: `/${locale}/blog`, label: tn("blog_short") },
+    { href: `/${locale}/livescore`, label: "Scores" },
+    { href: `/${locale}/news`, label: "News" },
   ];
 
   return (
