@@ -281,9 +281,16 @@ async function fetchLeagueDates(espnSport: string, league: { slug: string; name:
           return (a.startTime || "").localeCompare(b.startTime || "");
         });
 
+        // Prefix tournament name with league name (ATP/WTA) for tennis
+        const tournamentName = event.name || league.name;
+        const prefix = league.slug.toUpperCase(); // "atp" → "ATP", "wta" → "WTA"
+        const displayName = espnSport === "tennis" && tournamentName && !tournamentName.toUpperCase().startsWith(prefix)
+          ? `${prefix} - ${tournamentName}`
+          : tournamentName;
+
         tournamentLeagues.push({
           slug: `${league.slug}-${event.id}`,
-          name: event.name || league.name,
+          name: displayName,
           flag: league.flag,
           country: league.country,
           matches,
