@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import VideoGrid from "./VideoGrid";
 import MobileVideoFilter from "./MobileVideoFilter";
+import DesktopChannelSelect from "./DesktopChannelSelect";
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -151,26 +152,15 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
               </Link>
             </div>
 
-            {/* Chaîne — select dropdown */}
+            {/* Chaîne — select dropdown (Client Component) */}
             {channels.length > 0 && (
               <div className="flex justify-center">
-                <select
-                  defaultValue={channelId || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    window.location.href = val ? `/${locale}/videos?channel=${val}` : `/${locale}/videos`;
-                  }}
-                  className="cursor-pointer rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 outline-none transition hover:border-white/20"
-                >
-                  <option value="" className="bg-neutral-900 text-white">
-                    {locale === "fr" ? "Toutes les chaînes" : locale === "es" ? "Todos los canales" : "All channels"}
-                  </option>
-                  {channels.map((c: any) => (
-                    <option key={c.channel_id} value={c.channel_id} className="bg-neutral-900 text-white">
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <DesktopChannelSelect
+                  locale={locale}
+                  channelId={channelId}
+                  channels={channels.map((c: any) => ({ channel_id: c.channel_id, name: c.name }))}
+                  allLabel={locale === "fr" ? "Toutes les chaînes" : locale === "es" ? "Todos los canales" : "All channels"}
+                />
               </div>
             )}
           </div>
