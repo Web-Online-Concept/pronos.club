@@ -18,6 +18,8 @@ export default function AdminYouTubePage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchResult, setFetchResult] = useState<string | null>(null);
 
   // Form state — plus de champ logo
   const [newChannelId, setNewChannelId] = useState("");
@@ -31,6 +33,20 @@ export default function AdminYouTubePage() {
       setChannels(data);
     }
     setLoading(false);
+  }
+
+  async function handleFetch() {
+    setFetching(true);
+    setFetchResult(null);
+    try {
+      const res = await fetch(`/api/cron/auto-videos?secret=${encodeURIComponent("PronosClub2026CronAuto")}`);
+      const data = await res.json();
+      setFetchResult(`✅ ${data.new || 0} nouvelles vidéos · ${data.logos || 0} logos · ${data.skipped || 0} déjà existantes`);
+      await loadChannels();
+    } catch (err: any) {
+      setFetchResult(`❌ Erreur: ${err.message}`);
+    }
+    setFetching(false);
   }
 
   useEffect(() => { loadChannels(); }, []);
@@ -128,6 +144,20 @@ export default function AdminYouTubePage() {
         >
           {adding ? "Ajout..." : "Ajouter"}
         </button>
+      </div>
+
+      {/* Bouton fetch manuel */}
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={handleFetch}
+          disabled={fetching || channels.length === 0}
+          className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
+        >
+          {fetching ? "⏳ Fetch en cours..." : "🔄 Lancer le fetch maintenant"}
+        </button>
+        {fetchResult && (
+          <span className="text-xs text-neutral-400">{fetchResult}</span>
+        )}
       </div>
 
       {/* Liste des chaînes */}
