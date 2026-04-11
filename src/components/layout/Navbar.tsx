@@ -64,9 +64,10 @@ export default function Navbar() {
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
     { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
-    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️", hideDesktop: true },
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
+    { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
   ];
 
   // Desktop : liens principaux affichés directement dans la barre
@@ -81,9 +82,10 @@ export default function Navbar() {
   // Desktop : liens secondaires dans le dropdown "Plus"
   const DESKTOP_MORE = [
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
+    { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];

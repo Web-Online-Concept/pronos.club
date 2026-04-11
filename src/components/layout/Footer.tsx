@@ -38,6 +38,7 @@ export default async function Footer() {
     { href: `/${locale}/blog`, label: tn("blog_short") },
     { href: `/${locale}/livescore`, label: "Scores" },
     { href: `/${locale}/news`, label: "News" },
+    { href: `/${locale}/videos`, label: "Vidéos" },
   ];
 
   return (
