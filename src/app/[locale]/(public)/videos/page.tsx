@@ -138,35 +138,43 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
             <VideoGrid videos={videos} locale={locale} />
 
             {totalPages > 1 && (
-              <div className="mt-10 flex items-center justify-center gap-2">
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">
-                    {prevLabel[locale] || prevLabel.fr}
+                    ←
                   </Link>
                 ) : (
-                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">{prevLabel[locale] || prevLabel.fr}</span>
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">←</span>
                 )}
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <Link
-                    key={p}
-                    href={pageUrl(p)}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                      p === currentPage
-                        ? "bg-neutral-900 text-white"
-                        : "border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                  >
-                    {p}
-                  </Link>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1))
+                  .map((p, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && p - prev > 1;
+                    return (
+                      <span key={p} className="contents">
+                        {showEllipsis && <span className="px-1 text-sm text-neutral-400">…</span>}
+                        <Link
+                          href={pageUrl(p)}
+                          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                            p === currentPage
+                              ? "bg-neutral-900 text-white"
+                              : "border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                          }`}
+                        >
+                          {p}
+                        </Link>
+                      </span>
+                    );
+                  })}
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 transition">
-                    {nextLabel[locale] || nextLabel.fr}
+                    →
                   </Link>
                 ) : (
-                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">{nextLabel[locale] || nextLabel.fr}</span>
+                  <span className="rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-300">→</span>
                 )}
               </div>
             )}
