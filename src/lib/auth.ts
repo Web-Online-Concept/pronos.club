@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@/lib/supabase/types";
 
+// Emails admin autorisés — seule source de vérité
+const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "jeromebollaert@gmail.com"];
+
 export async function getCurrentUser(): Promise<User | null> {
   const supabase = await createClient();
 
@@ -29,7 +32,8 @@ export async function requireAuth(): Promise<User> {
 
 export async function requireAdmin(): Promise<User> {
   const user = await requireAuth();
-  if (!user.is_admin) {
+  // Vérification par email — jamais par colonne DB manipulable
+  if (!ADMIN_EMAILS.includes(user.email)) {
     throw new Error("FORBIDDEN");
   }
   return user;

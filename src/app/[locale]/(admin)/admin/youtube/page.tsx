@@ -21,7 +21,7 @@ export default function AdminYouTubePage() {
   const [fetching, setFetching] = useState(false);
   const [fetchResult, setFetchResult] = useState<string | null>(null);
 
-  // Form state — plus de champ logo
+  // Form state
   const [newChannelId, setNewChannelId] = useState("");
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState<"tipster" | "media">("media");
@@ -35,26 +35,11 @@ export default function AdminYouTubePage() {
     setLoading(false);
   }
 
-  async function handleFetch() {
-    setFetching(true);
-    setFetchResult(null);
-    try {
-      const res = await fetch(`/api/cron/auto-videos?secret=${encodeURIComponent("PronosClub2026CronAuto")}`);
-      const data = await res.json();
-      setFetchResult(`✅ ${data.new || 0} nouvelles vidéos · ${data.logos || 0} logos · ${data.skipped || 0} déjà existantes`);
-      await loadChannels();
-    } catch (err: any) {
-      setFetchResult(`❌ Erreur: ${err.message}`);
-    }
-    setFetching(false);
-  }
-
   useEffect(() => { loadChannels(); }, []);
 
   async function handleAdd() {
     if (!newChannelId.trim() || !newName.trim()) return;
 
-    // Extraire le channel_id si c'est une URL complète
     let channelId = newChannelId.trim();
     const match = channelId.match(/channel\/([a-zA-Z0-9_-]+)/);
     if (match) channelId = match[1];
@@ -80,6 +65,28 @@ export default function AdminYouTubePage() {
       alert(`Erreur: ${err.error}`);
     }
     setAdding(false);
+  }
+
+  async function handleFetch() {
+    setFetching(true);
+    setFetchResult(null);
+    try {
+      const res = await fetch("/api/admin/trigger-cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cron: "auto-videos" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setFetchResult(`❌ ${data.error}`);
+      } else {
+        setFetchResult(`✅ ${data.new || 0} nouvelles vidéos · ${data.logos || 0} logos · ${data.skipped || 0} déjà existantes`);
+      }
+      await loadChannels();
+    } catch (err: any) {
+      setFetchResult(`❌ Erreur: ${err.message}`);
+    }
+    setFetching(false);
   }
 
   async function toggleActive(channel: Channel) {
@@ -146,7 +153,7 @@ export default function AdminYouTubePage() {
         </button>
       </div>
 
-      {/* Bouton fetch manuel */}
+      {/* Bouton fetch manuel — SÉCURISÉ via /api/admin/trigger-cron */}
       <div className="mt-4 flex items-center gap-3">
         <button
           onClick={handleFetch}
@@ -174,7 +181,6 @@ export default function AdminYouTubePage() {
                   : "border-neutral-800 bg-neutral-900/50 opacity-50"
               }`}
             >
-              {/* Logo (auto-fetched) */}
               {ch.logo_url ? (
                 <img src={ch.logo_url} alt="" className="h-10 w-10 rounded-full object-cover" />
               ) : (
@@ -183,7 +189,6 @@ export default function AdminYouTubePage() {
                 </div>
               )}
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{ch.name}</p>
                 <p className="text-xs text-neutral-500">
@@ -194,7 +199,6 @@ export default function AdminYouTubePage() {
                 </p>
               </div>
 
-              {/* Actions */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleActive(ch)}
