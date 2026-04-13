@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { User } from "@/lib/supabase/types";
 
 // Emails admin autorisés — seule source de vérité
-const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "jeromebollaert@gmail.com"];
+const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "bollaert2003@gmail.com"];
 
 export async function getCurrentUser(): Promise<User | null> {
   const supabase = await createClient();
