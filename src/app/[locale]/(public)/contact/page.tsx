@@ -67,7 +67,8 @@ export default function ContactPage() {
               <span className="text-3xl">✅</span>
             </div>
             <h2 className="mt-4 text-xl font-extrabold text-neutral-900">{t("sent_title")}</h2>
-            <p className="mt-2 text-sm text-neutral-500" dangerouslySetInnerHTML={{ __html: t("sent_desc", { email }) }} />
+            <p className="mt-2 text-sm text-neutral-500">{t("sent_desc")}</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-600">{email}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

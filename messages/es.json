@@ -769,7 +769,7 @@
     "hero_title": "Contáctanos",
     "hero_subtitle": "¿Una pregunta, sugerencia o problema? Te respondemos en menos de 24 horas.",
     "sent_title": "¡Mensaje enviado!",
-    "sent_desc": "Gracias por tu mensaje. Te responderemos a <strong>{email}</strong> lo antes posible.",
+    "sent_desc": "Gracias por tu mensaje. Te responderemos lo antes posible.",
     "label_name": "Nombre / Usuario",
     "placeholder_name": "Tu nombre",
     "label_email": "Email",
