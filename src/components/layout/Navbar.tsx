@@ -443,8 +443,38 @@ export default function Navbar() {
 
             {/* Nav links + lang + CTA — all in scrollable area */}
             <div className="flex-1 overflow-y-auto px-3 py-4">
+              {/* Nos Pronos */}
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🎯 Nos Pronos</p>
               <div className="grid grid-cols-3 gap-2">
-                {NAV_LINKS.map((link) => (
+                {[
+                  { href: `/${locale}/pronostics`, label: "Pronos", icon: "🎯" },
+                  { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
+                  { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
+                  { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+                  { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
+                  { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center transition hover:border-emerald-500/30 hover:bg-emerald-500/10"
+                  >
+                    <span className="text-2xl">{link.icon}</span>
+                    <span className="text-xs font-semibold text-neutral-300">{link.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Stats & Médias */}
+              <p className="mt-4 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">📺 Stats & Médias</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+                  { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
+                  { href: `/${locale}/news`, label: "News", icon: "📰" },
+                  { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
+                ].map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
