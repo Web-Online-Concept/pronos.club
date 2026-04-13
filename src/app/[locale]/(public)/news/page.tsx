@@ -161,7 +161,7 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
   };
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900">
+    <main className="min-h-screen overflow-x-hidden bg-white text-neutral-900">
       {/* ═══════════ HERO ═══════════ */}
       <section
         className="relative overflow-hidden border-b border-emerald-900/50"
@@ -213,7 +213,7 @@ export default async function NewsPage({ params, searchParams }: { params: Promi
                 <Link
                   key={article.id}
                   href={`/${locale}/news/${article.slug}`}
-                  className="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition"
+                  className="group min-w-0 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm hover:shadow-md transition"
                 >
                   <div className="h-36 overflow-hidden bg-neutral-100">
                     {article.cover_image ? (

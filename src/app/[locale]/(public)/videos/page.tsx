@@ -88,7 +88,7 @@ export default async function VideosPage({ params, searchParams }: { params: Pro
   const activeChannel = channelId ? channels.find((c: any) => c.channel_id === channelId) : null;
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900">
+    <main className="min-h-screen overflow-x-hidden bg-white text-neutral-900">
       {/* ═══════════ HERO ═══════════ */}
       <section
         className="relative overflow-hidden border-b border-emerald-900/50"
