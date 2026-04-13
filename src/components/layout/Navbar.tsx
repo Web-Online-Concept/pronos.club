@@ -50,9 +50,11 @@ export default function Navbar() {
   const { user, loading: authLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [pronosOpen, setPronosOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
-  const moreRef = useRef<HTMLDivElement>(null);
+  const pronosRef = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -70,19 +72,20 @@ export default function Navbar() {
     { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
   ];
 
-  // Desktop : liens principaux affichés directement dans la barre
-  const DESKTOP_MAIN = [
-    { href: `/${locale}/pronostics`, label: t("pronos") },
-    { href: `/${locale}/historique`, label: t("history_short") },
-    { href: `/${locale}/statistiques`, label: t("stats_short") },
-    { href: `/${locale}/tipster`, label: t("tipster_short") },
-    { href: `/${locale}/bookmakers`, label: t("books") },
+  // Desktop : dropdown "Nos Pronos"
+  const DESKTOP_PRONOS = [
+    { href: `/${locale}/pronostics`, label: "Pronos en cours", icon: "🎯" },
+    { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
+    { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
+    { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
+    { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
   ];
 
-  // Desktop : liens secondaires dans le dropdown "Plus"
-  const DESKTOP_MORE = [
-    { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
+  // Desktop : dropdown "Stats & Médias"
+  const DESKTOP_MEDIA = [
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: "", label: "Divers Stats", icon: "📉", disabled: true },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
     { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
@@ -96,8 +99,11 @@ export default function Navbar() {
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
         setLangOpen(false);
       }
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
+      if (pronosRef.current && !pronosRef.current.contains(e.target as Node)) {
+        setPronosOpen(false);
+      }
+      if (mediaRef.current && !mediaRef.current.contains(e.target as Node)) {
+        setMediaOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -115,8 +121,9 @@ export default function Navbar() {
     setLangOpen(false);
   }
 
-  // Vérifier si une page du dropdown "Plus" est active
-  const isMoreActive = DESKTOP_MORE.some((link) => pathname.startsWith(link.href));
+  // Vérifier si une page d'un dropdown est active
+  const isPronosActive = DESKTOP_PRONOS.some((link) => link.href && pathname.startsWith(link.href));
+  const isMediaActive = DESKTOP_MEDIA.some((link) => link.href && pathname.startsWith(link.href));
 
   return (
     <>
@@ -200,29 +207,19 @@ export default function Navbar() {
             <span className="text-sm font-extrabold text-emerald-400 lg:hidden">.CLUB</span>
           </Link>
 
-          {/* Desktop nav — liens principaux + dropdown "Plus" */}
+          {/* Desktop nav — 2 dropdowns : Nos Pronos + Stats & Médias */}
           <div className="hidden items-center gap-2 lg:flex">
-            {DESKTOP_MAIN.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="nav-pill-dark rounded-xl px-4 py-2.5 text-base font-semibold text-neutral-300"
-              >
-                {link.label}
-              </Link>
-            ))}
-
-            {/* Dropdown "Plus" */}
-            <div className="relative" ref={moreRef}>
+            {/* Dropdown "Nos Pronos" */}
+            <div className="relative" ref={pronosRef}>
               <button
-                onClick={() => setMoreOpen(!moreOpen)}
+                onClick={() => { setPronosOpen(!pronosOpen); setMediaOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
-                  isMoreActive ? "text-emerald-400" : "text-neutral-300"
+                  isPronosActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Plus
+                Nos Pronos
                 <svg
-                  className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
+                  className={`h-3.5 w-3.5 transition-transform ${pronosOpen ? "rotate-180" : ""}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -232,13 +229,13 @@ export default function Navbar() {
                 </svg>
               </button>
 
-              {moreOpen && (
-                <div className="absolute left-0 top-full z-50 mt-2 min-w-[200px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
-                  {DESKTOP_MORE.map((link) => (
+              {pronosOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
+                  {DESKTOP_PRONOS.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}
-                      onClick={() => setMoreOpen(false)}
+                      onClick={() => setPronosOpen(false)}
                       className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
                         pathname.startsWith(link.href)
                           ? "bg-emerald-600/10 text-emerald-400"
@@ -249,6 +246,58 @@ export default function Navbar() {
                       <span>{link.label}</span>
                     </Link>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Dropdown "Stats & Médias" */}
+            <div className="relative" ref={mediaRef}>
+              <button
+                onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); }}
+                className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
+                  isMediaActive ? "text-emerald-400" : "text-neutral-300"
+                }`}
+              >
+                Stats & Médias
+                <svg
+                  className={`h-3.5 w-3.5 transition-transform ${mediaOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {mediaOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
+                  {DESKTOP_MEDIA.map((link) =>
+                    link.disabled ? (
+                      <span
+                        key={link.label}
+                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-neutral-500 cursor-default"
+                      >
+                        <span className="text-lg">{link.icon}</span>
+                        <span>{link.label}</span>
+                        <span className="ml-auto text-[10px] rounded-full bg-neutral-800 px-2 py-0.5 text-neutral-500">Bientôt</span>
+                      </span>
+                    ) : (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setMediaOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
+                          pathname.startsWith(link.href)
+                            ? "bg-emerald-600/10 text-emerald-400"
+                            : "text-neutral-300"
+                        }`}
+                      >
+                        <span className="text-lg">{link.icon}</span>
+                        <span>{link.label}</span>
+                      </Link>
+                    )
+                  )}
                 </div>
               )}
             </div>
