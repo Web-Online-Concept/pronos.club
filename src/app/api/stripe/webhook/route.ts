@@ -1,8 +1,30 @@
+// src/app/api/stripe/webhook/route.ts
+// Webhook Stripe avec idempotence (évite de traiter le même event 2 fois)
+
 import { stripe } from "@/lib/stripe/config";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { NextResponse } from "next/server";
+
+// ── Idempotence : tracker les event IDs déjà traités ──
+const processedEvents = new Map<string, number>();
+const MAX_PROCESSED = 5000;
+
+function isAlreadyProcessed(eventId: string): boolean {
+  const now = Date.now();
+
+  // Nettoyage périodique
+  if (processedEvents.size > MAX_PROCESSED) {
+    for (const [id, timestamp] of processedEvents) {
+      if (now - timestamp > 24 * 60 * 60 * 1000) processedEvents.delete(id);
+    }
+  }
+
+  if (processedEvents.has(eventId)) return true;
+  processedEvents.set(eventId, now);
+  return false;
+}
 
 // Safe timestamp conversion — Stripe sends Unix seconds, can be null/undefined
 function toISO(timestamp: unknown): string | null {
@@ -32,6 +54,11 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // ── Idempotence : ignorer les events déjà traités ──
+  if (isAlreadyProcessed(event.id)) {
+    return NextResponse.json({ received: true, skipped: "already_processed" });
   }
 
   try {

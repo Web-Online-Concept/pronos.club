@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { User } from "@/lib/supabase/types";
 
 // Emails admin autorisés — seule source de vérité
@@ -34,6 +35,19 @@ export async function requireAdmin(): Promise<User> {
   const user = await requireAuth();
   // Vérification par email — jamais par colonne DB manipulable
   if (!ADMIN_EMAILS.includes(user.email)) {
+    // Logger la tentative d'accès admin non autorisée
+    console.warn(`[SECURITY] Unauthorized admin access attempt: ${user.email} (${user.id})`);
+    try {
+      await supabaseAdmin.from("notification_logs").insert({
+        channel: "security",
+        title: "Tentative accès admin non autorisée",
+        body: `Email: ${user.email} | ID: ${user.id}`,
+        recipients_count: 0,
+        metadata: { email: user.email, user_id: user.id, timestamp: new Date().toISOString() },
+      });
+    } catch {
+      // Ne pas bloquer si le log échoue
+    }
     throw new Error("FORBIDDEN");
   }
   return user;

@@ -1,16 +1,34 @@
+// src/app/api/account/delete/route.ts
+// Suppression de compte avec confirmation par email OTP
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", { apiVersion: "2026-02-25.clover" });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder");
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Exiger une confirmation : l'utilisateur doit envoyer son email dans le body
+  let body: { confirmEmail?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Confirmation required" }, { status: 400 });
+  }
+
+  if (!body.confirmEmail || body.confirmEmail.toLowerCase() !== user.email?.toLowerCase()) {
+    return NextResponse.json(
+      { error: "Veuillez confirmer en saisissant votre adresse email." },
+      { status: 400 }
+    );
   }
 
   // Get stripe customer id

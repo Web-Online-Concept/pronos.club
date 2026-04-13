@@ -2,6 +2,7 @@
 // Formulaire de contact avec rate limiting par IP
 
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
@@ -13,36 +14,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ── Rate limiting en mémoire ──
-// Max 3 soumissions par IP par heure
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 3;
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 heure
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  // Nettoyage périodique (éviter memory leak)
-  if (rateLimitMap.size > 10000) {
-    for (const [key, val] of rateLimitMap) {
-      if (val.resetAt < now) rateLimitMap.delete(key);
-    }
-  }
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
-
 const SUBJECT_LABELS: Record<string, string> = {
   question: "Question générale",
   abonnement: "Abonnement Premium",
@@ -53,12 +24,9 @@ const SUBJECT_LABELS: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  // Rate limiting par IP
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
-
-  if (!checkRateLimit(ip)) {
+  // Rate limiting: 3 messages par heure par IP
+  const ip = getClientIP(request);
+  if (!checkRateLimit("contact", ip, 3)) {
     return NextResponse.json(
       { error: "Trop de messages envoyés. Réessayez dans une heure." },
       { status: 429 }

@@ -1,5 +1,7 @@
+// src/app/api/reviews/route.ts
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin, requireAuth } from "@/lib/auth";
+import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 // GET — public approved reviews OR admin all reviews
@@ -36,6 +38,12 @@ export async function GET(request: Request) {
 
 // POST — user submits a review
 export async function POST(request: Request) {
+  // Rate limit: 3 reviews par heure par IP
+  const ip = getClientIP(request);
+  if (!checkRateLimit("reviews", ip, 3)) {
+    return NextResponse.json({ error: "Trop de tentatives. Réessayez plus tard." }, { status: 429 });
+  }
+
   let user;
   try {
     user = await requireAuth();
