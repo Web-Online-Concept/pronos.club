@@ -346,13 +346,21 @@ async function fetchTennisSchedule(tour: string) {
         status: ev.status?.type?.name ?? "STATUS_SCHEDULED",
         tournament: ev.season?.name ?? comp?.venue?.fullName ?? "",
         venue: comp?.venue?.fullName ?? null,
-        players: competitors.map((c: any) => ({
-          id: c.athlete?.id ?? c.id,
-          name: c.athlete?.displayName ?? c.athlete?.name ?? c.team?.displayName ?? "",
-          seed: c.seed ?? null,
-          countryFlag: c.athlete?.flag?.href ?? null,
-          headshot: c.athlete?.id ? `https://a.espncdn.com/i/headshots/tennis/players/full/${c.athlete.id}.png` : null,
-        })),
+        players: competitors.map((c: any) => {
+          // ESPN tennis: player info can be in c.athlete, c.team, or directly on c
+          const athlete = c.athlete ?? {};
+          const team = c.team ?? {};
+          const id = athlete.id ?? team.id ?? c.id ?? "";
+          const name = athlete.displayName ?? athlete.name ?? team.displayName ?? team.name ?? c.displayName ?? "";
+          const flag = athlete.flag?.href ?? team.flag?.href ?? null;
+          return {
+            id,
+            name,
+            seed: c.seed ?? null,
+            countryFlag: flag,
+            headshot: id ? `https://a.espncdn.com/i/headshots/tennis/players/full/${id}.png` : null,
+          };
+        }),
       };
     })
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -370,9 +378,42 @@ async function fetchUSInjuries(sportKey: string) {
   );
   if (!data) return null;
 
-  const teams = (data.items ?? data.teams ?? []).map((teamEntry: any) => {
+  // ESPN can return injuries in multiple structures:
+  // 1) { items: [...] } — each item has .team and .injuries
+  // 2) { teams: [...] } — same shape as items
+  // 3) Top-level array
+  // 4) { injuries: [...] } — flat list, need to group by team
+  let rawTeams: any[] = [];
+
+  if (Array.isArray(data)) {
+    rawTeams = data;
+  } else if (data.items && Array.isArray(data.items)) {
+    rawTeams = data.items;
+  } else if (data.teams && Array.isArray(data.teams)) {
+    rawTeams = data.teams;
+  } else if (data.injuries && Array.isArray(data.injuries)) {
+    // Flat list — group by team
+    const teamMap = new Map<string, { team: any; injuries: any[] }>();
+    for (const inj of data.injuries) {
+      const team = inj.team ?? {};
+      const teamId = team.id ?? "unknown";
+      if (!teamMap.has(teamId)) {
+        teamMap.set(teamId, { team, injuries: [] });
+      }
+      teamMap.get(teamId)!.injuries.push(inj);
+    }
+    rawTeams = Array.from(teamMap.values());
+  }
+
+  if (rawTeams.length === 0) {
+    console.log("[stats-sports] injuries: no teams found in response. Keys:", Object.keys(data));
+    return [];
+  }
+
+  const teams = rawTeams.map((teamEntry: any) => {
     const team = teamEntry.team ?? {};
-    const injuries = (teamEntry.injuries ?? []).map((inj: any) => ({
+    const injuriesList = teamEntry.injuries ?? [];
+    const injuries = injuriesList.map((inj: any) => ({
       athlete: {
         id: inj.athlete?.id,
         name: inj.athlete?.displayName ?? inj.athlete?.name ?? "Unknown",

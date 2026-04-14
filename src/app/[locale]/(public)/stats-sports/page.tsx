@@ -662,14 +662,19 @@ function ScheduleView({ data, t, locale }: { data: any; t: Record<string, string
                     )}
                     <div className="flex items-center justify-between">
                       <div className="flex-1 space-y-1.5">
-                        {match.players?.map((p: any, pi: number) => (
-                          <div key={pi} className="flex items-center gap-2">
-                            <HeadshotWithFallback headshot={p.headshot} teamLogo={null} name={p.name} />
-                            {p.countryFlag && <img src={p.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
-                            <span className="text-xs font-semibold text-neutral-900">{p.name}</span>
-                            {p.seed && <span className="text-[10px] text-neutral-400">[{p.seed}]</span>}
-                          </div>
-                        ))}
+                        {match.players && match.players.length > 0 && match.players.some((p: any) => p.name) ? (
+                          match.players.map((p: any, pi: number) => (
+                            <div key={pi} className="flex items-center gap-2">
+                              <HeadshotWithFallback headshot={p.headshot} teamLogo={null} name={p.name} />
+                              {p.countryFlag && <img src={p.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
+                              <span className="text-xs font-semibold text-neutral-900">{p.name}</span>
+                              {p.seed && <span className="text-[10px] text-neutral-400">[{p.seed}]</span>}
+                            </div>
+                          ))
+                        ) : (
+                          /* Fallback: show match.name (e.g. "Djokovic vs Sinner") */
+                          <span className="text-xs font-semibold text-neutral-900">{match.name}</span>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-sm font-bold text-emerald-600">{formatMatchTime(match.date, locale)}</span>
@@ -729,7 +734,9 @@ function injuryStatusColor(status: string) {
 function InjuriesView({ data, t }: { data: any; t: Record<string, string> }) {
   const teams = data?.teams || [];
   if (teams.length === 0) {
-    const msg = data?.view === "injuries" ? t.no_injuries : t.no_data;
+    // If sport is US (has injuries endpoint) but no data → "no data", not "unavailable"
+    const isUSSport = ["nba", "nhl", "nfl", "mlb"].includes(data?.sport);
+    const msg = isUSSport ? t.no_data : t.no_injuries;
     return <p className="text-center text-neutral-400 py-10">{msg}</p>;
   }
 
