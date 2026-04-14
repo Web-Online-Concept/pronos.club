@@ -1,10 +1,11 @@
 // src/app/api/stats-sports/route.ts
 // API route pour les statistiques sportives — données ESPN avec cache 30 min
-// Supporte: standings, leaders (meilleurs joueurs), football scorers
+// Football leaders via /statistics (noms inline)
+// US sports leaders via /leaders + résolution $ref athlètes
 
 import { NextResponse } from "next/server";
 
-// ── Configuration des ligues ──
+// ── Configuration ──
 const FOOTBALL_LEAGUES = [
   { id: "fra.1", name: "Ligue 1", flag: "🇫🇷" },
   { id: "eng.1", name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
@@ -27,7 +28,7 @@ const US_SPORTS: Record<string, { sport: string; league: string; name: string }>
   mlb: { sport: "baseball", league: "mlb", name: "MLB" },
 };
 
-// ── Cache en mémoire — 30 minutes ──
+// ── Cache 30 min ──
 const cache = new Map<string, { data: any; expiresAt: number }>();
 const CACHE_TTL = 30 * 60 * 1000;
 
@@ -51,7 +52,7 @@ async function fetchESPN(url: string) {
   } catch { return null; }
 }
 
-// ── Parser classement football ──
+// ── Parsers standings (inchangés) ──
 function parseFootballStandings(data: any) {
   const children = data?.children || [];
   const allEntries: any[] = [];
@@ -73,7 +74,6 @@ function parseFootballStandings(data: any) {
   return allEntries.sort((a, b) => a.position - b.position);
 }
 
-// ── Parser classement US sports ──
 function parseUSStandings(data: any) {
   const children = data?.children || [];
   const conferences: any[] = [];
@@ -102,7 +102,6 @@ function parseUSStandings(data: any) {
   return conferences;
 }
 
-// ── Parser rankings tennis ──
 function parseTennisRankings(data: any) {
   const rankings = data?.rankings || [];
   if (rankings.length === 0) return [];
@@ -117,30 +116,78 @@ function parseTennisRankings(data: any) {
   return entries.slice(0, 100);
 }
 
-// ── Parser leaders (meilleurs joueurs) ──
-// Works for both US sports and football
-function parseLeaders(data: any, limit: number = 10) {
+// ── Parser football leaders (via /statistics — noms inline) ──
+function parseFootballLeaders(data: any) {
   const categories: any[] = [];
-  const leadersList = data?.leaders || [];
-  for (const cat of leadersList) {
+  const statsList = data?.stats || [];
+  for (const cat of statsList) {
     const catName = cat.displayName || cat.name || "?";
-    const abbr = cat.abbreviation || "";
     const leaders: any[] = [];
-    for (const entry of (cat.leaders || []).slice(0, limit)) {
+    for (const entry of (cat.leaders || []).slice(0, 15)) {
       const athlete = entry.athlete || {};
-      const team = athlete.team || {};
       leaders.push({
-        rank: entry.rank || leaders.length + 1,
+        rank: leaders.length + 1,
         name: athlete.displayName || "?",
-        team: { name: team.displayName || team.name || "", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
         headshot: athlete.headshot?.href || null,
         value: entry.displayValue || entry.value || "-",
       });
     }
     if (leaders.length > 0) {
+      categories.push({ name: catName, leaders });
+    }
+  }
+  return categories;
+}
+
+// ── Parser US sports leaders (via sports.core — résolution $ref) ──
+async function parseUSLeaders(data: any, sport: string, league: string) {
+  const categories: any[] = [];
+  const catList = data?.categories || [];
+
+  // Limiter à 4 premières catégories
+  for (const cat of catList.slice(0, 4)) {
+    const catName = cat.displayName || cat.name || "?";
+    const abbr = cat.abbreviation || "";
+    const leaders: any[] = [];
+
+    // Limiter à 5 premiers joueurs par catégorie
+    const topEntries = (cat.leaders || []).slice(0, 5);
+
+    // Résoudre les $ref des athlètes en parallèle
+    const athletePromises = topEntries.map(async (entry: any) => {
+      const athleteRef = entry.athlete?.$ref;
+      if (!athleteRef) return null;
+
+      const athleteData = await fetchESPN(athleteRef);
+      if (!athleteData) return null;
+
+      const athleteId = athleteData.id;
+      // Construire l'URL du headshot
+      const headshotUrl = `https://a.espncdn.com/i/headshots/${sport}/players/full/${athleteId}.png`;
+
+      return {
+        rank: leaders.length + 1,
+        name: athleteData.displayName || athleteData.fullName || "?",
+        headshot: headshotUrl,
+        team: { shortName: athleteData.team?.abbreviation || "" },
+        value: entry.displayValue || String(entry.value) || "-",
+      };
+    });
+
+    const resolved = await Promise.all(athletePromises);
+    let rank = 1;
+    for (const r of resolved) {
+      if (r) {
+        r.rank = rank++;
+        leaders.push(r);
+      }
+    }
+
+    if (leaders.length > 0) {
       categories.push({ name: catName, abbreviation: abbr, leaders });
     }
   }
+
   return categories;
 }
 
@@ -163,28 +210,47 @@ export async function GET(request: Request) {
       if (!leagueConfig) return NextResponse.json({ error: "Unknown league" }, { status: 400 });
 
       if (view === "leaders") {
-        const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/leaders`);
-        result = { sport: "football", view: "leaders", league: leagueConfig, categories: data ? parseLeaders(data, 15) : [] };
+        // Football: /statistics retourne noms + stats inline
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/statistics`
+        );
+        result = {
+          sport: "football", view: "leaders", league: leagueConfig,
+          categories: data ? parseFootballLeaders(data) : [],
+        };
       } else {
-        const data = await fetchESPN(`https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`);
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`
+        );
         if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
         result = { sport: "football", view: "standings", league: leagueConfig, standings: parseFootballStandings(data) };
       }
 
     } else if (sport in US_SPORTS) {
       const config = US_SPORTS[sport];
+
       if (view === "leaders") {
-        const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/${config.sport}/${config.league}/leaders`);
-        result = { sport, view: "leaders", name: config.name, categories: data ? parseLeaders(data) : [] };
+        // US sports: sports.core + résolution $ref athlètes
+        const data = await fetchESPN(
+          `https://sports.core.api.espn.com/v2/sports/${config.sport}/leagues/${config.league}/leaders`
+        );
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+
+        const categories = await parseUSLeaders(data, config.sport === "football" ? "nfl" : config.league, config.league);
+        result = { sport, view: "leaders", name: config.name, categories };
       } else {
-        const data = await fetchESPN(`https://site.api.espn.com/apis/v2/sports/${config.sport}/${config.league}/standings`);
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/v2/sports/${config.sport}/${config.league}/standings`
+        );
         if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
         result = { sport, view: "standings", name: config.name, conferences: parseUSStandings(data) };
       }
 
     } else if (sport === "tennis") {
       const tour = league === "wta" ? "wta" : "atp";
-      const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`);
+      const data = await fetchESPN(
+        `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
+      );
       if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
       result = { sport: "tennis", view: "standings", tour: tour.toUpperCase(), rankings: parseTennisRankings(data) };
 
