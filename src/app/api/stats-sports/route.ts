@@ -1,396 +1,289 @@
-import { NextRequest, NextResponse } from "next/server";
+// src/app/api/stats-sports/route.ts
+// Football leaders: site.api.espn.com/apis/site/v2/sports/soccer/{league}/statistics
+// US sports leaders: sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/types/2/leaders
+// US athletes $ref resolved in parallel, cached 30 min
 
-// ============================================================
-// /api/stats-sports/route.ts — PRONOS.CLUB Stats Sports API
-// Views: standings | leaders | schedule | injuries
-// Cache: 30 min server-side
-// ============================================================
+import { NextResponse } from "next/server";
 
-const CACHE_DURATION = 1800; // 30 min
-const cache = new Map<string, { data: unknown; ts: number }>();
-
-function getCached(key: string) {
-  const entry = cache.get(key);
-  if (entry && Date.now() - entry.ts < CACHE_DURATION * 1000) return entry.data;
-  return null;
-}
-function setCache(key: string, data: unknown) {
-  cache.set(key, { data, ts: Date.now() });
-}
-
-// --- ESPN Config ---
-
+// ── Configuration ──
 const FOOTBALL_LEAGUES = [
-  { id: "fra.1", name: "Ligue 1", flag: "fr" },
-  { id: "eng.1", name: "Premier League", flag: "gb-eng" },
-  { id: "esp.1", name: "La Liga", flag: "es" },
-  { id: "ita.1", name: "Serie A", flag: "it" },
-  { id: "ger.1", name: "Bundesliga", flag: "de" },
-  { id: "fra.2", name: "Ligue 2", flag: "fr" },
-  { id: "por.1", name: "Liga Portugal", flag: "pt" },
-  { id: "ned.1", name: "Eredivisie", flag: "nl" },
-  { id: "bel.1", name: "Pro League", flag: "be" },
-  { id: "tur.1", name: "Süper Lig", flag: "tr" },
-  { id: "uefa.champions", name: "Champions League", flag: "eu" },
-  { id: "uefa.europa", name: "Europa League", flag: "eu" },
+  { id: "fra.1", name: "Ligue 1", flag: "🇫🇷" },
+  { id: "eng.1", name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { id: "esp.1", name: "La Liga", flag: "🇪🇸" },
+  { id: "ita.1", name: "Serie A", flag: "🇮🇹" },
+  { id: "ger.1", name: "Bundesliga", flag: "🇩🇪" },
+  { id: "fra.2", name: "Ligue 2", flag: "🇫🇷" },
+  { id: "por.1", name: "Liga Portugal", flag: "🇵🇹" },
+  { id: "ned.1", name: "Eredivisie", flag: "🇳🇱" },
+  { id: "bel.1", name: "Pro League", flag: "🇧🇪" },
+  { id: "tur.1", name: "Süper Lig", flag: "🇹🇷" },
+  { id: "uefa.champions", name: "Champions League", flag: "🏆" },
+  { id: "uefa.europa", name: "Europa League", flag: "🏆" },
 ];
 
-const US_SPORTS: Record<string, { sport: string; league: string; season: number; leaderCategories: string[] }> = {
-  nba: { sport: "basketball", league: "nba", season: 2026, leaderCategories: ["points", "rebounds", "assists", "steals"] },
-  nhl: { sport: "hockey", league: "nhl", season: 2026, leaderCategories: ["points", "goals", "assists", "wins"] },
-  nfl: { sport: "football", league: "nfl", season: 2025, leaderCategories: ["passingYards", "rushingYards", "receivingYards", "sacks"] },
-  mlb: { sport: "baseball", league: "mlb", season: 2026, leaderCategories: ["battingAverage", "homeRuns", "RBIs", "wins"] },
+const US_SPORTS: Record<string, { sport: string; league: string; name: string; season: number }> = {
+  nba: { sport: "basketball", league: "nba", name: "NBA", season: 2026 },
+  nhl: { sport: "hockey", league: "nhl", name: "NHL", season: 2026 },
+  nfl: { sport: "football", league: "nfl", name: "NFL", season: 2025 },
+  mlb: { sport: "baseball", league: "mlb", name: "MLB", season: 2026 },
 };
 
-const TENNIS_TOURS = [
-  { id: "atp", name: "ATP" },
-  { id: "wta", name: "WTA" },
-];
+// ── Cache 30 min ──
+const cache = new Map<string, { data: any; expiresAt: number }>();
+const CACHE_TTL = 30 * 60 * 1000;
 
-// --- Fetch helpers ---
-
-async function espnFetch(url: string) {
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+function getCached(key: string): any | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { cache.delete(key); return null; }
+  return entry.data;
+}
+function setCache(key: string, data: any) {
+  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
 }
 
-async function resolveRef(url: string) {
+// ── Fetch ESPN ──
+async function fetchESPN(url: string) {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
     if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+    return res.json();
+  } catch { return null; }
 }
 
-// ============================================================
-// STANDINGS (existing)
-// ============================================================
-
-async function getFootballStandings(league: string) {
-  const cacheKey = `standings-football-${league}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`
-  );
-  if (!data) return null;
-
-  const standings = data.children?.[0]?.standings?.entries?.map((e: any) => ({
-    position: e.stats?.find((s: any) => s.name === "rank")?.value ?? 0,
-    team: {
-      id: e.team?.id,
-      name: e.team?.displayName ?? e.team?.name,
-      shortName: e.team?.abbreviation,
-      logo: e.team?.logos?.[0]?.href,
-    },
-    gamesPlayed: e.stats?.find((s: any) => s.name === "gamesPlayed")?.value ?? 0,
-    wins: e.stats?.find((s: any) => s.name === "wins")?.value ?? 0,
-    draws: e.stats?.find((s: any) => s.name === "ties")?.value ?? 0,
-    losses: e.stats?.find((s: any) => s.name === "losses")?.value ?? 0,
-    goalsFor: e.stats?.find((s: any) => s.name === "pointsFor")?.value ?? 0,
-    goalsAgainst: e.stats?.find((s: any) => s.name === "pointsAgainst")?.value ?? 0,
-    goalDiff: e.stats?.find((s: any) => s.name === "pointDifferential")?.value ?? 0,
-    points: e.stats?.find((s: any) => s.name === "points")?.value ?? 0,
-  })) ?? [];
-
-  standings.sort((a: any, b: any) => a.position - b.position);
-
-  // Forme récente
+// ── Fetch team form (last 5 results) from scoreboard ──
+async function fetchTeamForms(league: string): Promise<Record<string, string>> {
+  const forms: Record<string, string> = {};
+  // Fetch last 30 days of matches to get form for all teams
   const now = new Date();
-  const from = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
-  const dateRange = `${fmt(from)}-${fmt(now)}`;
-  const scores = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${dateRange}&limit=200`
+  const from = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000); // 45 days back
+  const fromStr = from.toISOString().slice(0, 10).replace(/-/g, "");
+  const toStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+
+  const data = await fetchESPN(
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${fromStr}-${toStr}&limit=200`
   );
+  if (!data?.events) return forms;
 
-  if (scores?.events) {
-    const formMap = new Map<string, string[]>();
-    const sortedEvents = scores.events
-      .filter((ev: any) => ev.status?.type?.completed)
-      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    for (const ev of sortedEvents) {
-      const comps = ev.competitions?.[0];
-      if (!comps?.competitors) continue;
-      const home = comps.competitors.find((c: any) => c.homeAway === "home");
-      const away = comps.competitors.find((c: any) => c.homeAway === "away");
-      if (!home || !away) continue;
-      const hScore = parseInt(home.score);
-      const aScore = parseInt(away.score);
-
-      const hResult = hScore > aScore ? "W" : hScore < aScore ? "L" : "D";
-      const aResult = aScore > hScore ? "W" : aScore < hScore ? "L" : "D";
-
-      if (!formMap.has(home.team.id)) formMap.set(home.team.id, []);
-      if (!formMap.has(away.team.id)) formMap.set(away.team.id, []);
-      formMap.get(home.team.id)!.push(hResult);
-      formMap.get(away.team.id)!.push(aResult);
-    }
-
-    for (const team of standings) {
-      const results = formMap.get(team.team.id) ?? [];
-      team.form = results.slice(-5);
+  // Extract form from the most recent match of each team
+  for (const event of data.events) {
+    for (const comp of event.competitions || []) {
+      // Only completed matches
+      if (!comp.status?.type?.completed) continue;
+      for (const competitor of comp.competitors || []) {
+        const teamId = competitor.team?.id;
+        const form = competitor.form;
+        if (teamId && form && !forms[teamId]) {
+          // form is like "WWWWW", "WDLWW" etc. — take from most recent match
+          forms[teamId] = form;
+        }
+      }
     }
   }
-
-  setCache(cacheKey, standings);
-  return standings;
+  return forms;
 }
 
-function fmt(d: Date) {
-  return d.toISOString().slice(0, 10).replace(/-/g, "");
+// ── Parsers standings ──
+function parseFootballStandings(data: any) {
+  const children = data?.children || [];
+  const allEntries: any[] = [];
+  const parseEntries = (entries: any[]) => {
+    for (const entry of entries) {
+      const team = entry.team || {};
+      const stats: Record<string, number> = {};
+      for (const s of entry.stats || []) { stats[s.name] = s.value; }
+      allEntries.push({
+        position: stats.rank || 0,
+        teamId: team.id || "",
+        team: { name: team.displayName || team.name || "?", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
+        played: stats.gamesPlayed || 0, wins: stats.wins || 0, draws: stats.ties || 0, losses: stats.losses || 0,
+        goalsFor: stats.pointsFor || 0, goalsAgainst: stats.pointsAgainst || 0, goalDiff: stats.pointDifferential || 0, points: stats.points || 0,
+        form: "", // filled later
+      });
+    }
+  };
+  for (const group of children) { parseEntries(group?.standings?.entries || []); }
+  if (allEntries.length === 0) { parseEntries(data?.standings?.entries || []); }
+  return allEntries.sort((a, b) => a.position - b.position);
 }
 
-async function getUSStandings(sportKey: string) {
-  const cacheKey = `standings-us-${sportKey}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const cfg = US_SPORTS[sportKey];
-  if (!cfg) return null;
-
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/v2/sports/${cfg.sport}/${cfg.league}/standings`
-  );
-  if (!data) return null;
-
-  const conferences = data.children?.map((conf: any) => ({
-    name: conf.name ?? conf.abbreviation,
-    teams: conf.standings?.entries?.map((e: any) => ({
-      team: {
-        id: e.team?.id,
-        name: e.team?.displayName ?? e.team?.name,
-        shortName: e.team?.abbreviation,
-        logo: e.team?.logos?.[0]?.href,
-      },
-      gamesPlayed: e.stats?.find((s: any) => s.name === "gamesPlayed")?.value ?? 0,
-      wins: e.stats?.find((s: any) => s.name === "wins")?.value ?? 0,
-      losses: e.stats?.find((s: any) => s.name === "losses")?.value ?? 0,
-      winPct: e.stats?.find((s: any) => s.name === "winPercent" || s.name === "avgPointsFor")?.displayValue ?? "-",
-      streak: e.stats?.find((s: any) => s.name === "streak")?.displayValue ?? "-",
-    })) ?? [],
-  })) ?? [];
-
-  setCache(cacheKey, conferences);
+function parseUSStandings(data: any) {
+  const children = data?.children || [];
+  const conferences: any[] = [];
+  for (const conf of children) {
+    const confName = conf.name || conf.abbreviation || "";
+    const entries: any[] = [];
+    const parseEntry = (entry: any, divName?: string) => {
+      const team = entry.team || {};
+      const stats: Record<string, number | string> = {};
+      for (const s of entry.stats || []) { stats[s.name] = s.displayValue || s.value; }
+      entries.push({
+        ...(divName ? { division: divName } : {}),
+        team: { name: team.displayName || team.name || "?", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
+        played: Number(stats.gamesPlayed) || (Number(stats.wins) || 0) + (Number(stats.losses) || 0),
+        wins: Number(stats.wins) || 0, losses: Number(stats.losses) || 0,
+        pct: stats.winPercent || stats.winPct || "-", streak: stats.streak || "-",
+      });
+    };
+    if (conf.children) {
+      for (const div of conf.children) { for (const entry of div.standings?.entries || []) { parseEntry(entry, div.name || ""); } }
+    } else {
+      for (const entry of conf.standings?.entries || []) { parseEntry(entry); }
+    }
+    conferences.push({ name: confName, entries });
+  }
   return conferences;
 }
 
-async function getTennisRankings(tour: string) {
-  const cacheKey = `rankings-tennis-${tour}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
-  );
-  if (!data) return null;
-
-  const rankings = data.rankings?.[0]?.ranks?.slice(0, 100).map((r: any) => ({
-    rank: r.current,
-    previousRank: r.previous,
-    movement: (r.previous ?? r.current) - r.current,
-    athlete: {
-      id: r.athlete?.id,
-      name: r.athlete?.displayName ?? r.athlete?.name,
-      country: r.athlete?.flag?.alt ?? "",
-      countryCode: r.athlete?.flag?.href?.match(/\/(\w+)\.png/)?.[1] ?? "",
-      headshot: r.athlete?.id
-        ? `https://a.espncdn.com/i/headshots/tennis/players/full/${r.athlete.id}.png`
-        : null,
-    },
-    points: r.points,
-  })) ?? [];
-
-  setCache(cacheKey, rankings);
-  return rankings;
-}
-
-// ============================================================
-// LEADERS (existing)
-// ============================================================
-
-async function getFootballLeaders(league: string) {
-  const cacheKey = `leaders-football-${league}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/statistics`
-  );
-  if (!data) return null;
-
-  const categories = data.categories ?? data.leaders ?? [];
-  const result: Record<string, any[]> = {};
-
-  for (const cat of categories) {
-    const catName = cat.name ?? cat.displayName ?? "unknown";
-    result[catName] = (cat.leaders ?? cat.entries ?? []).slice(0, 15).map((l: any) => ({
-      athlete: {
-        id: l.athlete?.id,
-        name: l.athlete?.displayName ?? l.athlete?.name,
-        headshot: l.athlete?.id
-          ? `https://a.espncdn.com/i/headshots/soccer/players/full/${l.athlete.id}.png`
-          : null,
-        team: l.team?.displayName ?? l.team?.name ?? "",
-        teamLogo: l.team?.logos?.[0]?.href ?? null,
-        teamAbbr: l.team?.abbreviation ?? "",
-      },
-      value: l.value ?? l.stat ?? 0,
-      displayValue: l.displayValue ?? String(l.value ?? 0),
-      gamesPlayed: l.stats?.find((s: any) => s.name === "appearances")?.value ?? null,
-    }));
+function parseTennisRankings(data: any) {
+  const rankings = data?.rankings || [];
+  if (rankings.length === 0) return [];
+  const entries: any[] = [];
+  for (const r of rankings[0]?.ranks || []) {
+    const athleteId = r.athlete?.id || "";
+    entries.push({
+      rank: r.current || 0, previousRank: r.previous || 0,
+      name: r.athlete?.displayName || "?", country: r.athlete?.flag?.alt || "",
+      countryFlag: r.athlete?.flag?.href || null, points: r.points || 0,
+      headshot: athleteId ? `https://a.espncdn.com/i/headshots/tennis/players/full/${athleteId}.png` : null,
+    });
   }
-
-  setCache(cacheKey, result);
-  return result;
+  return entries.slice(0, 100);
 }
 
-async function getUSLeaders(sportKey: string) {
-  const cacheKey = `leaders-us-${sportKey}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
+// ── Football leaders (via /statistics — noms, team, stats inline) ──
+function parseFootballLeaders(data: any) {
+  const categories: any[] = [];
+  const statsList = data?.stats || [];
+  for (const cat of statsList) {
+    const catName = cat.displayName || cat.name || "?";
+    const leaders: any[] = [];
+    for (const entry of (cat.leaders || []).slice(0, 15)) {
+      const athlete = entry.athlete || {};
+      const athleteId = athlete.id || "";
+      const team = athlete.team || {};
 
-  const cfg = US_SPORTS[sportKey];
-  if (!cfg) return null;
+      // Headshot via ESPN CDN
+      const headshot = athleteId
+        ? `https://a.espncdn.com/i/headshots/soccer/players/full/${athleteId}.png`
+        : null;
 
-  const data = await espnFetch(
-    `https://sports.core.api.espn.com/v2/sports/${cfg.sport}/leagues/${cfg.league}/seasons/${cfg.season}/types/2/leaders`
-  );
-  if (!data?.categories) return null;
+      // Team logo
+      const teamLogo = team.logos?.[0]?.href || null;
+      const teamName = team.abbreviation || team.name || "";
 
-  const result: Record<string, any[]> = {};
+      // Extract clean stats from athlete.statistics[] array
+      const statsMap: Record<string, string> = {};
+      for (const s of athlete.statistics || []) {
+        statsMap[s.name] = s.displayValue || String(s.value);
+      }
 
-  for (const cat of data.categories) {
-    const catName = cat.name ?? cat.displayName ?? "unknown";
-    const leaders = (cat.leaders ?? []).slice(0, 5);
+      // Main value = the stat number (goals or assists)
+      const mainValue = String(Math.round(entry.value)) || "-";
+
+      // Subtitle = appearances + assists (for goals) or appearances (for assists)
+      const appearances = statsMap.appearances || "";
+      const assists = statsMap.goalAssists || "";
+      let subtitle = "";
+      if (appearances) {
+        subtitle = `${appearances} matchs`;
+        // For goals category, also show assists
+        if (catName.toLowerCase().includes("goal") && assists) {
+          subtitle += ` · ${assists} assists`;
+        }
+      }
+
+      leaders.push({
+        rank: leaders.length + 1,
+        name: athlete.displayName || "?",
+        headshot,
+        team: { shortName: teamName, logo: teamLogo },
+        value: mainValue,
+        subtitle,
+      });
+    }
+    if (leaders.length > 0) {
+      categories.push({ name: catName, leaders });
+    }
+  }
+  return categories;
+}
+
+// ── US sports leaders (via sports.core — résolution $ref athlètes) ──
+// headshotSlug: nba, nhl, nfl, mlb (not "basketball", "hockey" etc.)
+async function parseUSLeaders(data: any, leagueSlug: string) {
+  const categories: any[] = [];
+  const catList = data?.categories || [];
+
+  // Map league to headshot CDN path
+  const headshotMap: Record<string, string> = {
+    nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb",
+  };
+  const headshotSport = headshotMap[leagueSlug] || leagueSlug;
+
+  // Map league to team logo sport path
+  const teamLogoSportMap: Record<string, string> = {
+    nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb",
+  };
+  const teamLogoSport = teamLogoSportMap[leagueSlug] || leagueSlug;
+
+  for (const cat of catList.slice(0, 4)) {
+    const catName = cat.displayName || cat.name || "?";
+    const abbr = cat.abbreviation || "";
+    const topEntries = (cat.leaders || []).slice(0, 5);
 
     const resolved = await Promise.all(
-      leaders.map(async (l: any) => {
-        let athlete: any = { id: null, name: "Unknown", headshot: null, team: "", teamLogo: null };
+      topEntries.map(async (entry: any, idx: number) => {
+        const athleteRef = entry.athlete?.$ref;
+        if (!athleteRef) return null;
+        const athleteData = await fetchESPN(athleteRef);
+        if (!athleteData) return null;
 
-        if (l.athlete?.$ref) {
-          const ath = await resolveRef(l.athlete.$ref);
-          if (ath) {
-            athlete = {
-              id: ath.id,
-              name: ath.displayName ?? ath.fullName ?? "Unknown",
-              headshot: ath.id
-                ? `https://a.espncdn.com/i/headshots/${cfg.sport === "basketball" ? "nba" : cfg.sport === "hockey" ? "nhl" : cfg.sport === "football" ? "nfl" : "mlb"}/players/full/${ath.id}.png`
-                : null,
-              team: "",
-              teamLogo: null,
-            };
+        const id = athleteData.id;
+        const headshot = `https://a.espncdn.com/i/headshots/${headshotSport}/players/full/${id}.png`;
 
-            // Resolve team
-            const teamRef = ath.team?.$ref;
-            if (teamRef) {
-              const tm = await resolveRef(teamRef);
-              if (tm) {
-                athlete.team = tm.displayName ?? tm.name ?? "";
-                athlete.teamAbbr = tm.abbreviation ?? "";
-                athlete.teamLogo = tm.id
-                  ? `https://a.espncdn.com/i/teamlogos/${cfg.sport === "basketball" ? "nba" : cfg.sport === "hockey" ? "nhl" : cfg.sport === "football" ? "nfl" : "mlb"}/500/${tm.id}.png`
-                  : null;
-              }
-            }
-          }
-        }
+        // Extract team ID from team $ref URL
+        const teamRef = entry.team?.$ref || "";
+        const teamIdMatch = teamRef.match(/teams\/(\d+)/);
+        const teamId = teamIdMatch ? teamIdMatch[1] : null;
+        const teamLogo = teamId
+          ? `https://a.espncdn.com/i/teamlogos/${teamLogoSport}/500/${teamId}.png`
+          : null;
 
         return {
-          athlete,
-          value: l.value ?? 0,
-          displayValue: l.displayValue ?? String(l.value ?? 0),
+          rank: idx + 1,
+          name: athleteData.displayName || athleteData.fullName || "?",
+          headshot,
+          team: {
+            shortName: "",
+            logo: teamLogo,
+          },
+          // Use numeric value, not the full stat line displayValue
+          // Format: batting avg → "0.417", others → round number
+          value: typeof entry.value === "number"
+            ? (entry.value < 1 && entry.value > 0
+              ? entry.value.toFixed(3)
+              : String(Math.round(entry.value * 10) / 10).replace(/\.0$/, ""))
+            : entry.displayValue || "-",
         };
       })
     );
 
-    result[catName] = resolved;
+    const leaders = resolved.filter(Boolean);
+    if (leaders.length > 0) {
+      categories.push({ name: catName, abbreviation: abbr, leaders });
+    }
   }
-
-  setCache(cacheKey, result);
-  return result;
+  return categories;
 }
 
-// ============================================================
-// SCHEDULE (NEW — Phase 2)
-// ============================================================
-
-function getDateRange14() {
-  const now = new Date();
-  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-  return { from: fmt(now), to: fmt(end) };
+// ── Schedule helpers ──
+function fmtDate(d: Date) {
+  return d.toISOString().slice(0, 10).replace(/-/g, "");
 }
 
-async function getFootballSchedule(league: string) {
-  const cacheKey = `schedule-football-${league}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const { from, to } = getDateRange14();
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${from}-${to}&limit=200`
-  );
-  if (!data?.events) return [];
-
-  const matches = data.events
-    .filter((ev: any) => !ev.status?.type?.completed)
-    .map((ev: any) => {
-      const comp = ev.competitions?.[0];
-      const home = comp?.competitors?.find((c: any) => c.homeAway === "home");
-      const away = comp?.competitors?.find((c: any) => c.homeAway === "away");
-      return {
-        id: ev.id,
-        date: ev.date,
-        name: ev.name ?? `${home?.team?.displayName} vs ${away?.team?.displayName}`,
-        status: ev.status?.type?.name ?? "STATUS_SCHEDULED",
-        venue: comp?.venue?.fullName ?? null,
-        home: home
-          ? {
-              id: home.team?.id,
-              name: home.team?.displayName ?? home.team?.name,
-              shortName: home.team?.abbreviation,
-              logo: home.team?.logos?.[0]?.href,
-            }
-          : null,
-        away: away
-          ? {
-              id: away.team?.id,
-              name: away.team?.displayName ?? away.team?.name,
-              shortName: away.team?.abbreviation,
-              logo: away.team?.logos?.[0]?.href,
-            }
-          : null,
-      };
-    })
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  setCache(cacheKey, matches);
-  return matches;
-}
-
-async function getUSSchedule(sportKey: string) {
-  const cacheKey = `schedule-us-${sportKey}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
-  const cfg = US_SPORTS[sportKey];
-  if (!cfg) return [];
-
-  const { from, to } = getDateRange14();
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/${cfg.sport}/${cfg.league}/scoreboard?dates=${from}-${to}&limit=200`
-  );
-  if (!data?.events) return [];
-
-  const matches = data.events
+function parseScheduleEvents(events: any[]) {
+  return events
     .filter((ev: any) => !ev.status?.type?.completed)
     .map((ev: any) => {
       const comp = ev.competitions?.[0];
@@ -403,50 +296,53 @@ async function getUSSchedule(sportKey: string) {
         status: ev.status?.type?.name ?? "STATUS_SCHEDULED",
         venue: comp?.venue?.fullName ?? null,
         broadcast: comp?.broadcasts?.[0]?.names?.[0] ?? null,
-        home: home
-          ? {
-              id: home.team?.id,
-              name: home.team?.displayName ?? home.team?.name,
-              shortName: home.team?.abbreviation,
-              logo: home.team?.logos?.[0]?.href,
-            }
-          : null,
-        away: away
-          ? {
-              id: away.team?.id,
-              name: away.team?.displayName ?? away.team?.name,
-              shortName: away.team?.abbreviation,
-              logo: away.team?.logos?.[0]?.href,
-            }
-          : null,
+        home: home ? {
+          id: home.team?.id, name: home.team?.displayName ?? home.team?.name,
+          shortName: home.team?.abbreviation, logo: home.team?.logos?.[0]?.href,
+        } : null,
+        away: away ? {
+          id: away.team?.id, name: away.team?.displayName ?? away.team?.name,
+          shortName: away.team?.abbreviation, logo: away.team?.logos?.[0]?.href,
+        } : null,
       };
     })
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  setCache(cacheKey, matches);
-  return matches;
 }
 
-async function getTennisSchedule(tour: string) {
-  const cacheKey = `schedule-tennis-${tour}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
+async function fetchFootballSchedule(league: string) {
+  const now = new Date();
+  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const data = await fetchESPN(
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${fmtDate(now)}-${fmtDate(end)}&limit=200`
+  );
+  return data?.events ? parseScheduleEvents(data.events) : [];
+}
 
-  const { from, to } = getDateRange14();
-  const data = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/scoreboard?dates=${from}-${to}&limit=100`
+async function fetchUSSchedule(sportKey: string) {
+  const cfg = US_SPORTS[sportKey];
+  if (!cfg) return [];
+  const now = new Date();
+  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const data = await fetchESPN(
+    `https://site.api.espn.com/apis/site/v2/sports/${cfg.sport}/${cfg.league}/scoreboard?dates=${fmtDate(now)}-${fmtDate(end)}&limit=200`
+  );
+  return data?.events ? parseScheduleEvents(data.events) : [];
+}
+
+async function fetchTennisSchedule(tour: string) {
+  const now = new Date();
+  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const data = await fetchESPN(
+    `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/scoreboard?dates=${fmtDate(now)}-${fmtDate(end)}&limit=100`
   );
   if (!data?.events) return [];
-
-  const matches = data.events
+  return data.events
     .filter((ev: any) => !ev.status?.type?.completed)
     .map((ev: any) => {
       const comp = ev.competitions?.[0];
       const competitors = comp?.competitors ?? [];
       return {
-        id: ev.id,
-        date: ev.date,
-        name: ev.name ?? ev.shortName ?? "",
+        id: ev.id, date: ev.date, name: ev.name ?? ev.shortName ?? "",
         status: ev.status?.type?.name ?? "STATUS_SCHEDULED",
         tournament: ev.season?.name ?? comp?.venue?.fullName ?? "",
         venue: comp?.venue?.fullName ?? null,
@@ -454,37 +350,26 @@ async function getTennisSchedule(tour: string) {
           id: c.athlete?.id ?? c.id,
           name: c.athlete?.displayName ?? c.athlete?.name ?? c.team?.displayName ?? "",
           seed: c.seed ?? null,
-          countryCode: c.athlete?.flag?.href?.match(/\/(\w+)\.png/)?.[1] ?? "",
-          headshot: c.athlete?.id
-            ? `https://a.espncdn.com/i/headshots/tennis/players/full/${c.athlete.id}.png`
-            : null,
+          countryFlag: c.athlete?.flag?.href ?? null,
+          headshot: c.athlete?.id ? `https://a.espncdn.com/i/headshots/tennis/players/full/${c.athlete.id}.png` : null,
         })),
       };
     })
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  setCache(cacheKey, matches);
-  return matches;
 }
 
-// ============================================================
-// INJURIES (NEW — Phase 2)
-// ============================================================
-
-async function getUSInjuries(sportKey: string) {
-  const cacheKey = `injuries-us-${sportKey}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
+// ── Injuries (US sports only) ──
+async function fetchUSInjuries(sportKey: string) {
   const cfg = US_SPORTS[sportKey];
   if (!cfg) return null;
+  const headshotMap: Record<string, string> = { nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb" };
+  const hs = headshotMap[sportKey] || sportKey;
 
-  const data = await espnFetch(
+  const data = await fetchESPN(
     `https://site.api.espn.com/apis/site/v2/sports/${cfg.sport}/${cfg.league}/injuries`
   );
   if (!data) return null;
 
-  // ESPN returns injuries grouped by team
   const teams = (data.items ?? data.teams ?? []).map((teamEntry: any) => {
     const team = teamEntry.team ?? {};
     const injuries = (teamEntry.injuries ?? []).map((inj: any) => ({
@@ -492,105 +377,118 @@ async function getUSInjuries(sportKey: string) {
         id: inj.athlete?.id,
         name: inj.athlete?.displayName ?? inj.athlete?.name ?? "Unknown",
         position: inj.athlete?.position?.abbreviation ?? inj.athlete?.position?.name ?? "",
-        headshot: inj.athlete?.id
-          ? `https://a.espncdn.com/i/headshots/${cfg.sport === "basketball" ? "nba" : cfg.sport === "hockey" ? "nhl" : cfg.sport === "football" ? "nfl" : "mlb"}/players/full/${inj.athlete.id}.png`
-          : null,
+        headshot: inj.athlete?.id ? `https://a.espncdn.com/i/headshots/${hs}/players/full/${inj.athlete.id}.png` : null,
       },
       status: inj.status ?? inj.type?.name ?? "Unknown",
       date: inj.date ?? null,
       description: inj.longComment ?? inj.shortComment ?? inj.details?.detail ?? "",
     }));
-
     return {
       team: {
-        id: team.id,
-        name: team.displayName ?? team.name ?? "Unknown",
+        id: team.id, name: team.displayName ?? team.name ?? "Unknown",
         shortName: team.abbreviation ?? "",
-        logo: team.logos?.[0]?.href ?? (team.id
-          ? `https://a.espncdn.com/i/teamlogos/${cfg.sport === "basketball" ? "nba" : cfg.sport === "hockey" ? "nhl" : cfg.sport === "football" ? "nfl" : "mlb"}/500/${team.id}.png`
-          : null),
+        logo: team.logos?.[0]?.href ?? (team.id ? `https://a.espncdn.com/i/teamlogos/${hs}/500/${team.id}.png` : null),
       },
       injuries,
     };
   });
 
-  // Sort teams alphabetically, filter out teams with no injuries
-  const filtered = teams
-    .filter((t: any) => t.injuries.length > 0)
-    .sort((a: any, b: any) => a.team.name.localeCompare(b.team.name));
-
-  setCache(cacheKey, filtered);
-  return filtered;
+  return teams.filter((t: any) => t.injuries.length > 0).sort((a: any, b: any) => a.team.name.localeCompare(b.team.name));
 }
 
-// ============================================================
-// ROUTE HANDLER
-// ============================================================
+// ── GET handler ──
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const sport = searchParams.get("sport") || "football";
+  const league = searchParams.get("league") || "fra.1";
+  const view = searchParams.get("view") || "standings";
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const sport = searchParams.get("sport") ?? "football";
-  const league = searchParams.get("league") ?? "";
-  const view = searchParams.get("view") ?? "standings";
+  const cacheKey = `${sport}:${league}:${view}`;
+  const cached = getCached(cacheKey);
+  if (cached) return NextResponse.json(cached);
 
   try {
-    // --- STANDINGS ---
-    if (view === "standings") {
-      if (sport === "football" && league) {
-        const data = await getFootballStandings(league);
-        return NextResponse.json({ sport, league, view, data });
+    let result: any = null;
+
+    if (sport === "football") {
+      const leagueConfig = FOOTBALL_LEAGUES.find((l) => l.id === league);
+      if (!leagueConfig) return NextResponse.json({ error: "Unknown league" }, { status: 400 });
+
+      if (view === "schedule") {
+        const matches = await fetchFootballSchedule(league);
+        result = { sport: "football", view: "schedule", league: leagueConfig, matches };
+      } else if (view === "leaders") {
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/statistics`
+        );
+        result = {
+          sport: "football", view: "leaders", league: leagueConfig,
+          categories: data ? parseFootballLeaders(data) : [],
+        };
+      } else {
+        // Fetch standings + form in parallel
+        const [standingsData, formData] = await Promise.all([
+          fetchESPN(`https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`),
+          fetchTeamForms(league),
+        ]);
+        if (!standingsData) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+
+        const standings = parseFootballStandings(standingsData);
+        // Merge form into standings
+        for (const entry of standings) {
+          entry.form = formData[entry.teamId] || "";
+        }
+
+        result = { sport: "football", view: "standings", league: leagueConfig, standings };
       }
-      if (sport === "tennis" && league) {
-        const data = await getTennisRankings(league);
-        return NextResponse.json({ sport, league, view, data });
+
+    } else if (sport in US_SPORTS) {
+      const config = US_SPORTS[sport];
+
+      if (view === "schedule") {
+        const matches = await fetchUSSchedule(sport);
+        result = { sport, view: "schedule", name: config.name, matches };
+      } else if (view === "injuries") {
+        const teams = await fetchUSInjuries(sport);
+        result = { sport, view: "injuries", name: config.name, teams: teams || [] };
+      } else if (view === "leaders") {
+        // Saison en cours avec /seasons/{year}/types/2/leaders
+        const data = await fetchESPN(
+          `https://sports.core.api.espn.com/v2/sports/${config.sport}/leagues/${config.league}/seasons/${config.season}/types/2/leaders`
+        );
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+
+        const categories = await parseUSLeaders(data, config.league);
+        result = { sport, view: "leaders", name: config.name, categories };
+      } else {
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/v2/sports/${config.sport}/${config.league}/standings`
+        );
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+        result = { sport, view: "standings", name: config.name, conferences: parseUSStandings(data) };
       }
-      if (US_SPORTS[sport]) {
-        const data = await getUSStandings(sport);
-        return NextResponse.json({ sport, league: sport, view, data });
+
+    } else if (sport === "tennis") {
+      const tour = league === "wta" ? "wta" : "atp";
+      if (view === "schedule") {
+        const matches = await fetchTennisSchedule(tour);
+        result = { sport: "tennis", view: "schedule", tour: tour.toUpperCase(), matches };
+      } else {
+        const data = await fetchESPN(
+          `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
+        );
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+        result = { sport: "tennis", view: "standings", tour: tour.toUpperCase(), rankings: parseTennisRankings(data) };
       }
+
+    } else {
+      return NextResponse.json({ error: "Unknown sport" }, { status: 400 });
     }
 
-    // --- LEADERS ---
-    if (view === "leaders") {
-      if (sport === "football" && league) {
-        const data = await getFootballLeaders(league);
-        return NextResponse.json({ sport, league, view, data });
-      }
-      if (US_SPORTS[sport]) {
-        const data = await getUSLeaders(sport);
-        return NextResponse.json({ sport, league: sport, view, data });
-      }
-    }
-
-    // --- SCHEDULE ---
-    if (view === "schedule") {
-      if (sport === "football" && league) {
-        const data = await getFootballSchedule(league);
-        return NextResponse.json({ sport, league, view, data });
-      }
-      if (sport === "tennis" && league) {
-        const data = await getTennisSchedule(league);
-        return NextResponse.json({ sport, league, view, data });
-      }
-      if (US_SPORTS[sport]) {
-        const data = await getUSSchedule(sport);
-        return NextResponse.json({ sport, league: sport, view, data });
-      }
-    }
-
-    // --- INJURIES ---
-    if (view === "injuries") {
-      if (US_SPORTS[sport]) {
-        const data = await getUSInjuries(sport);
-        return NextResponse.json({ sport, league: sport, view, data });
-      }
-      // Football & Tennis: no ESPN injuries endpoint
-      return NextResponse.json({ sport, league, view, data: null, message: "Injuries not available for this sport" });
-    }
-
-    return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+    setCache(cacheKey, result);
+    return NextResponse.json(result);
   } catch (err: any) {
-    console.error("[stats-sports] Error:", err?.message ?? err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    console.error("[stats-sports] Error:", err.message);
+    return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 });
   }
 }
