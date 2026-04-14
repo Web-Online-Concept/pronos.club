@@ -38,6 +38,7 @@ const TEXTS: Record<string, Record<string, string>> = {
   fr: {
     hero_tag: "STATISTIQUES SPORTIVES",
     hero_title: "Classements & Statistiques",
+    hero_title_mobile: "Classements & Stats",
     hero_subtitle: "Données en direct issues d'ESPN. Classements, meilleurs buteurs, leaders statistiques et plus encore.",
     loading: "Chargement...",
     error: "Erreur de chargement. Réessayez.",
@@ -59,6 +60,7 @@ const TEXTS: Record<string, Record<string, string>> = {
   en: {
     hero_tag: "SPORTS STATISTICS",
     hero_title: "Standings & Statistics",
+    hero_title_mobile: "Standings & Stats",
     hero_subtitle: "Live data from ESPN. Standings, top scorers, stat leaders and more.",
     loading: "Loading...",
     error: "Failed to load. Try again.",
@@ -80,6 +82,7 @@ const TEXTS: Record<string, Record<string, string>> = {
   es: {
     hero_tag: "ESTADÍSTICAS DEPORTIVAS",
     hero_title: "Clasificaciones & Estadísticas",
+    hero_title_mobile: "Clasificaciones & Stats",
     hero_subtitle: "Datos en vivo de ESPN. Clasificaciones, goleadores, líderes estadísticos y más.",
     loading: "Cargando...",
     error: "Error al cargar. Inténtalo de nuevo.",
@@ -165,7 +168,10 @@ export default function StatsSportsPage() {
       >
         <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14 text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">📊 {t.hero_tag}</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t.hero_title}</h1>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">
+            <span className="sm:hidden">{t.hero_title_mobile}</span>
+            <span className="hidden sm:inline">{t.hero_title}</span>
+          </h1>
           <p className="mx-auto mt-3 max-w-md text-sm text-white/40">{t.hero_subtitle}</p>
         </div>
       </section>

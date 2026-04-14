@@ -33,6 +33,8 @@ export async function GET() {
     { path: "/news", priority: "0.8", changefreq: "hourly" },
     { path: "/videos", priority: "0.7", changefreq: "daily" },
     { path: "/livescore", priority: "0.8", changefreq: "daily" },
+    { path: "/stats-sports", priority: "0.7", changefreq: "daily" },
+    { path: "/coupe-du-monde", priority: "0.9", changefreq: "daily" },
     { path: "/abonnement", priority: "0.7", changefreq: "monthly" },
     { path: "/contact", priority: "0.4", changefreq: "yearly" },
     { path: "/mentions-legales", priority: "0.2", changefreq: "yearly" },
