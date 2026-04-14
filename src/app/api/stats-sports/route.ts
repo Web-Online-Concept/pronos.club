@@ -124,11 +124,37 @@ function parseFootballLeaders(data: any) {
     const leaders: any[] = [];
     for (const entry of (cat.leaders || []).slice(0, 15)) {
       const athlete = entry.athlete || {};
+      const athleteId = athlete.id || athlete.uid?.split("~a:")?.pop() || "";
+
+      // Headshot via ESPN CDN
+      const headshot = athleteId
+        ? `https://a.espncdn.com/i/headshots/soccer/players/full/${athleteId}.png`
+        : null;
+
+      // Parse "Matches: 29, Goals: 16" into clean value + subtitle
+      const raw = entry.displayValue || String(entry.value) || "-";
+      let mainValue = raw;
+      let subtitle = "";
+
+      // Extract the stat value (Goals/Assists) and matches
+      const goalsMatch = raw.match(/Goals:\s*(\d+)/i);
+      const assistsMatch = raw.match(/Assists:\s*(\d+)/i);
+      const matchesMatch = raw.match(/Matches:\s*(\d+)/i);
+
+      if (goalsMatch) {
+        mainValue = goalsMatch[1];
+        subtitle = matchesMatch ? `${matchesMatch[1]} matchs` : "";
+      } else if (assistsMatch) {
+        mainValue = assistsMatch[1];
+        subtitle = matchesMatch ? `${matchesMatch[1]} matchs` : "";
+      }
+
       leaders.push({
         rank: leaders.length + 1,
         name: athlete.displayName || "?",
-        headshot: athlete.headshot?.href || null,
-        value: entry.displayValue || entry.value || "-",
+        headshot,
+        value: mainValue,
+        subtitle,
       });
     }
     if (leaders.length > 0) {

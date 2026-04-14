@@ -249,16 +249,25 @@ function LeadersView({ data, t }: { data: any; t: Record<string, string> }) {
               <div key={li} className={`flex items-center gap-3 px-4 py-2.5 ${li === 0 ? "bg-amber-50/40" : ""}`}>
                 <span className="w-5 text-xs font-bold text-neutral-400">{leader.rank}</span>
                 {leader.headshot ? (
-                  <img src={leader.headshot} alt="" className="h-8 w-8 rounded-full object-cover bg-neutral-100" />
-                ) : leader.team?.logo ? (
-                  <img src={leader.team.logo} alt="" className="h-6 w-6 object-contain" />
+                  <img
+                    src={leader.headshot}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover bg-neutral-100"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-neutral-200" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-bold text-neutral-500">
+                    {leader.name?.charAt(0) || "?"}
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-neutral-900 truncate">{leader.name}</p>
-                  {leader.team?.shortName && (
-                    <p className="text-[10px] text-neutral-400">{leader.team.shortName}</p>
+                  {(leader.team?.shortName || leader.subtitle) && (
+                    <p className="text-[10px] text-neutral-400">
+                      {leader.team?.shortName}
+                      {leader.team?.shortName && leader.subtitle ? " · " : ""}
+                      {leader.subtitle}
+                    </p>
                   )}
                 </div>
                 <span className="text-sm font-extrabold text-emerald-600">{leader.value}</span>
