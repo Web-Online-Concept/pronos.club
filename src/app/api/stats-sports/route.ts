@@ -1,7 +1,7 @@
 // src/app/api/stats-sports/route.ts
-// API route pour les statistiques sportives — données ESPN avec cache 30 min
-// Football leaders via /statistics (noms inline)
-// US sports leaders via /leaders + résolution $ref athlètes
+// Football leaders: site.api.espn.com/apis/site/v2/sports/soccer/{league}/statistics
+// US sports leaders: sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/types/2/leaders
+// US athletes $ref resolved in parallel, cached 30 min
 
 import { NextResponse } from "next/server";
 
@@ -21,11 +21,11 @@ const FOOTBALL_LEAGUES = [
   { id: "uefa.europa", name: "Europa League", flag: "🏆" },
 ];
 
-const US_SPORTS: Record<string, { sport: string; league: string; name: string }> = {
-  nba: { sport: "basketball", league: "nba", name: "NBA" },
-  nhl: { sport: "hockey", league: "nhl", name: "NHL" },
-  nfl: { sport: "football", league: "nfl", name: "NFL" },
-  mlb: { sport: "baseball", league: "mlb", name: "MLB" },
+const US_SPORTS: Record<string, { sport: string; league: string; name: string; season: number }> = {
+  nba: { sport: "basketball", league: "nba", name: "NBA", season: 2026 },
+  nhl: { sport: "hockey", league: "nhl", name: "NHL", season: 2026 },
+  nfl: { sport: "football", league: "nfl", name: "NFL", season: 2025 },
+  mlb: { sport: "baseball", league: "mlb", name: "MLB", season: 2026 },
 };
 
 // ── Cache 30 min ──
@@ -38,7 +38,6 @@ function getCached(key: string): any | null {
   if (Date.now() > entry.expiresAt) { cache.delete(key); return null; }
   return entry.data;
 }
-
 function setCache(key: string, data: any) {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
 }
@@ -52,7 +51,7 @@ async function fetchESPN(url: string) {
   } catch { return null; }
 }
 
-// ── Parsers standings (inchangés) ──
+// ── Parsers standings ──
 function parseFootballStandings(data: any) {
   const children = data?.children || [];
   const allEntries: any[] = [];
@@ -116,7 +115,7 @@ function parseTennisRankings(data: any) {
   return entries.slice(0, 100);
 }
 
-// ── Parser football leaders (via /statistics — noms inline) ──
+// ── Football leaders (via /statistics — noms inline) ──
 function parseFootballLeaders(data: any) {
   const categories: any[] = [];
   const statsList = data?.stats || [];
@@ -139,55 +138,45 @@ function parseFootballLeaders(data: any) {
   return categories;
 }
 
-// ── Parser US sports leaders (via sports.core — résolution $ref) ──
-async function parseUSLeaders(data: any, sport: string, league: string) {
+// ── US sports leaders (via sports.core — résolution $ref athlètes) ──
+async function parseUSLeaders(data: any, sportSlug: string) {
   const categories: any[] = [];
   const catList = data?.categories || [];
 
-  // Limiter à 4 premières catégories
+  // 4 premières catégories, 5 joueurs chacune
   for (const cat of catList.slice(0, 4)) {
     const catName = cat.displayName || cat.name || "?";
     const abbr = cat.abbreviation || "";
-    const leaders: any[] = [];
-
-    // Limiter à 5 premiers joueurs par catégorie
     const topEntries = (cat.leaders || []).slice(0, 5);
 
-    // Résoudre les $ref des athlètes en parallèle
-    const athletePromises = topEntries.map(async (entry: any) => {
-      const athleteRef = entry.athlete?.$ref;
-      if (!athleteRef) return null;
+    // Résoudre $ref athlètes en parallèle
+    const resolved = await Promise.all(
+      topEntries.map(async (entry: any, idx: number) => {
+        const athleteRef = entry.athlete?.$ref;
+        if (!athleteRef) return null;
+        const athleteData = await fetchESPN(athleteRef);
+        if (!athleteData) return null;
 
-      const athleteData = await fetchESPN(athleteRef);
-      if (!athleteData) return null;
+        const id = athleteData.id;
+        // Headshot: nba/nhl/nfl/mlb
+        const headshotSport = sportSlug === "football" ? "nfl" : sportSlug;
+        const headshot = `https://a.espncdn.com/i/headshots/${headshotSport}/players/full/${id}.png`;
 
-      const athleteId = athleteData.id;
-      // Construire l'URL du headshot
-      const headshotUrl = `https://a.espncdn.com/i/headshots/${sport}/players/full/${athleteId}.png`;
+        return {
+          rank: idx + 1,
+          name: athleteData.displayName || athleteData.fullName || "?",
+          headshot,
+          team: { shortName: athleteData.team?.abbreviation || "" },
+          value: entry.displayValue || String(entry.value) || "-",
+        };
+      })
+    );
 
-      return {
-        rank: leaders.length + 1,
-        name: athleteData.displayName || athleteData.fullName || "?",
-        headshot: headshotUrl,
-        team: { shortName: athleteData.team?.abbreviation || "" },
-        value: entry.displayValue || String(entry.value) || "-",
-      };
-    });
-
-    const resolved = await Promise.all(athletePromises);
-    let rank = 1;
-    for (const r of resolved) {
-      if (r) {
-        r.rank = rank++;
-        leaders.push(r);
-      }
-    }
-
+    const leaders = resolved.filter(Boolean);
     if (leaders.length > 0) {
       categories.push({ name: catName, abbreviation: abbr, leaders });
     }
   }
-
   return categories;
 }
 
@@ -210,7 +199,6 @@ export async function GET(request: Request) {
       if (!leagueConfig) return NextResponse.json({ error: "Unknown league" }, { status: 400 });
 
       if (view === "leaders") {
-        // Football: /statistics retourne noms + stats inline
         const data = await fetchESPN(
           `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/statistics`
         );
@@ -230,13 +218,14 @@ export async function GET(request: Request) {
       const config = US_SPORTS[sport];
 
       if (view === "leaders") {
-        // US sports: sports.core + résolution $ref athlètes
+        // Saison en cours avec /seasons/{year}/types/2/leaders
         const data = await fetchESPN(
-          `https://sports.core.api.espn.com/v2/sports/${config.sport}/leagues/${config.league}/leaders`
+          `https://sports.core.api.espn.com/v2/sports/${config.sport}/leagues/${config.league}/seasons/${config.season}/types/2/leaders`
         );
         if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
 
-        const categories = await parseUSLeaders(data, config.sport === "football" ? "nfl" : config.league, config.league);
+        const sportSlug = config.sport;
+        const categories = await parseUSLeaders(data, sportSlug);
         result = { sport, view: "leaders", name: config.name, categories };
       } else {
         const data = await fetchESPN(
