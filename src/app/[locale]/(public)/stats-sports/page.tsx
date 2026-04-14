@@ -162,7 +162,7 @@ export default function StatsSportsPage() {
 
       <div className="mx-auto max-w-5xl px-4 py-6">
         {/* Sport + League selectors */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex items-center justify-center gap-3">
           {/* Sport selector */}
           <select
             value={activeSport}
@@ -171,7 +171,7 @@ export default function StatsSportsPage() {
               if (e.target.value === "football") setActiveLeague("fra.1");
               if (e.target.value === "tennis") setActiveTour("atp");
             }}
-            className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           >
             {SPORTS.map((sport) => (
               <option key={sport.id} value={sport.id}>{sport.label}</option>
@@ -183,7 +183,7 @@ export default function StatsSportsPage() {
             <select
               value={activeLeague}
               onChange={(e) => setActiveLeague(e.target.value)}
-              className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             >
               {FOOTBALL_LEAGUES.map((league) => (
                 <option key={league.id} value={league.id}>{league.flag} {league.name}</option>
@@ -196,7 +196,7 @@ export default function StatsSportsPage() {
             <select
               value={activeTour}
               onChange={(e) => setActiveTour(e.target.value)}
-              className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             >
               {TENNIS_TOURS.map((tour) => (
                 <option key={tour.id} value={tour.id}>{tour.flag} {tour.name}</option>
