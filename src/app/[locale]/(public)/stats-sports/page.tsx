@@ -1,7 +1,7 @@
 // src/app/[locale]/(public)/stats-sports/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocale } from "next-intl";
 
 // ── Config ──
@@ -15,18 +15,18 @@ const SPORTS = [
 ];
 
 const FOOTBALL_LEAGUES = [
-  { id: "fra.1", name: "Ligue 1", flag: "FR" },
-  { id: "eng.1", name: "Premier League", flag: "EN" },
-  { id: "esp.1", name: "La Liga", flag: "ES" },
-  { id: "ita.1", name: "Serie A", flag: "IT" },
-  { id: "ger.1", name: "Bundesliga", flag: "DE" },
-  { id: "fra.2", name: "Ligue 2", flag: "FR" },
-  { id: "por.1", name: "Liga Portugal", flag: "PT" },
-  { id: "ned.1", name: "Eredivisie", flag: "NL" },
-  { id: "bel.1", name: "Pro League", flag: "BE" },
-  { id: "tur.1", name: "Süper Lig", flag: "TR" },
-  { id: "uefa.champions", name: "Champions League", flag: "UCL" },
-  { id: "uefa.europa", name: "Europa League", flag: "UEL" },
+  { id: "fra.1", name: "Ligue 1", flag: "https://flagcdn.com/w40/fr.png" },
+  { id: "eng.1", name: "Premier League", flag: "https://flagcdn.com/w40/gb-eng.png" },
+  { id: "esp.1", name: "La Liga", flag: "https://flagcdn.com/w40/es.png" },
+  { id: "ita.1", name: "Serie A", flag: "https://flagcdn.com/w40/it.png" },
+  { id: "ger.1", name: "Bundesliga", flag: "https://flagcdn.com/w40/de.png" },
+  { id: "fra.2", name: "Ligue 2", flag: "https://flagcdn.com/w40/fr.png" },
+  { id: "por.1", name: "Liga Portugal", flag: "https://flagcdn.com/w40/pt.png" },
+  { id: "ned.1", name: "Eredivisie", flag: "https://flagcdn.com/w40/nl.png" },
+  { id: "bel.1", name: "Pro League", flag: "https://flagcdn.com/w40/be.png" },
+  { id: "tur.1", name: "Süper Lig", flag: "https://flagcdn.com/w40/tr.png" },
+  { id: "uefa.champions", name: "Champions League", flag: "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png" },
+  { id: "uefa.europa", name: "Europa League", flag: "https://a.espncdn.com/i/leaguelogos/soccer/500/2310.png" },
 ];
 
 const TENNIS_TOURS = [
@@ -93,8 +93,27 @@ export default function StatsSportsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [sportOpen, setSportOpen] = useState(false);
+  const [leagueOpen, setLeagueOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const sportRef = useRef<HTMLDivElement>(null);
+  const leagueRef = useRef<HTMLDivElement>(null);
+  const tourRef = useRef<HTMLDivElement>(null);
 
   const currentSport = SPORTS.find((s) => s.id === activeSport);
+  const currentLeague = FOOTBALL_LEAGUES.find((l) => l.id === activeLeague);
+  const currentTour = TENNIS_TOURS.find((t) => t.id === activeTour);
+
+  // Close dropdowns on click outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (sportRef.current && !sportRef.current.contains(e.target as Node)) setSportOpen(false);
+      if (leagueRef.current && !leagueRef.current.contains(e.target as Node)) setLeagueOpen(false);
+      if (tourRef.current && !tourRef.current.contains(e.target as Node)) setTourOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -136,43 +155,88 @@ export default function StatsSportsPage() {
       <div className="mx-auto max-w-5xl px-4 py-6">
         {/* Sport + League selectors */}
         <div className="flex items-center justify-center gap-3">
-          <select
-            value={activeSport}
-            onChange={(e) => {
-              setActiveSport(e.target.value);
-              setActiveView("standings");
-              if (e.target.value === "football") setActiveLeague("fra.1");
-              if (e.target.value === "tennis") setActiveTour("atp");
-            }}
-            className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-          >
-            {SPORTS.map((sport) => (
-              <option key={sport.id} value={sport.id}>{sport.label}</option>
-            ))}
-          </select>
-
-          {activeSport === "football" && (
-            <select
-              value={activeLeague}
-              onChange={(e) => setActiveLeague(e.target.value)}
-              className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+          {/* Sport dropdown */}
+          <div className="relative" ref={sportRef}>
+            <button
+              onClick={() => { setSportOpen(!sportOpen); setLeagueOpen(false); setTourOpen(false); }}
+              className="flex items-center gap-2 cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition hover:border-neutral-300"
             >
-              {FOOTBALL_LEAGUES.map((league) => (
-                <option key={league.id} value={league.id}>{league.flag} {league.name}</option>
-              ))}
-            </select>
+              <span>{currentSport?.label}</span>
+              <svg className={`h-3.5 w-3.5 transition-transform ${sportOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            {sportOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+                {SPORTS.map((sport) => (
+                  <button
+                    key={sport.id}
+                    onClick={() => {
+                      setActiveSport(sport.id);
+                      setActiveView("standings");
+                      if (sport.id === "football") setActiveLeague("fra.1");
+                      if (sport.id === "tennis") setActiveTour("atp");
+                      setSportOpen(false);
+                    }}
+                    className={`flex w-full items-center px-4 py-2.5 text-sm font-medium transition hover:bg-emerald-50 ${activeSport === sport.id ? "bg-emerald-50 text-emerald-600 font-semibold" : "text-neutral-700"}`}
+                  >
+                    {sport.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* League dropdown (football) */}
+          {activeSport === "football" && (
+            <div className="relative" ref={leagueRef}>
+              <button
+                onClick={() => { setLeagueOpen(!leagueOpen); setSportOpen(false); setTourOpen(false); }}
+                className="flex items-center gap-2 cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition hover:border-neutral-300"
+              >
+                {currentLeague && <img src={currentLeague.flag} alt="" className="h-4 w-5 rounded-sm object-cover" />}
+                <span>{currentLeague?.name}</span>
+                <svg className={`h-3.5 w-3.5 transition-transform ${leagueOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {leagueOpen && (
+                <div className="absolute left-0 top-full z-50 mt-1 max-h-[300px] min-w-[220px] overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg">
+                  {FOOTBALL_LEAGUES.map((league) => (
+                    <button
+                      key={league.id}
+                      onClick={() => { setActiveLeague(league.id); setLeagueOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition hover:bg-emerald-50 ${activeLeague === league.id ? "bg-emerald-50 text-emerald-600 font-semibold" : "text-neutral-700"}`}
+                    >
+                      <img src={league.flag} alt="" className="h-4 w-5 rounded-sm object-cover" />
+                      <span>{league.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
+          {/* Tour dropdown (tennis) */}
           {activeSport === "tennis" && (
-            <select
-              value={activeTour}
-              onChange={(e) => setActiveTour(e.target.value)}
-              className="flex-1 sm:flex-none cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-            >
-              {TENNIS_TOURS.map((tour) => (
-                <option key={tour.id} value={tour.id}>{tour.flag} {tour.name}</option>
-              ))}
-            </select>
+            <div className="relative" ref={tourRef}>
+              <button
+                onClick={() => { setTourOpen(!tourOpen); setSportOpen(false); setLeagueOpen(false); }}
+                className="flex items-center gap-2 cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition hover:border-neutral-300"
+              >
+                <span>{currentTour?.name}</span>
+                <svg className={`h-3.5 w-3.5 transition-transform ${tourOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {tourOpen && (
+                <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+                  {TENNIS_TOURS.map((tour) => (
+                    <button
+                      key={tour.id}
+                      onClick={() => { setActiveTour(tour.id); setTourOpen(false); }}
+                      className={`flex w-full items-center px-4 py-2.5 text-sm font-medium transition hover:bg-emerald-50 ${activeTour === tour.id ? "bg-emerald-50 text-emerald-600 font-semibold" : "text-neutral-700"}`}
+                    >
+                      {tour.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
