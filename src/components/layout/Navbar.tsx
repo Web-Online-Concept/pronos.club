@@ -85,7 +85,7 @@ export default function Navbar() {
   // Desktop : dropdown "Stats & Médias"
   const DESKTOP_MEDIA = [
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
-    { href: "", label: "Divers Stats", icon: "📉", disabled: true },
+    { href: `/${locale}/stats-sports`, label: "Stats Sports", icon: "📉" },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
     { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
@@ -447,7 +447,7 @@ export default function Navbar() {
               <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🎯 Nos Pronos</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { href: `/${locale}/pronostics`, label: "Pronos", icon: "🎯" },
+                  { href: `/${locale}/pronostics`, label: "En Cours", icon: "🎯" },
                   { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
                   { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
                   { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
@@ -471,23 +471,7 @@ export default function Navbar() {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
-                ].map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center transition hover:border-emerald-500/30 hover:bg-emerald-500/10"
-                  >
-                    <span className="text-2xl">{link.icon}</span>
-                    <span className="text-xs font-semibold text-neutral-300">{link.label}</span>
-                  </Link>
-                ))}
-                {/* Divers Stats — désactivé, pas de lien */}
-                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center opacity-40">
-                  <span className="text-2xl">📉</span>
-                  <span className="text-xs font-semibold text-neutral-500">Divers Stats</span>
-                </div>
-                {[
+                  { href: `/${locale}/stats-sports`, label: "Stats Sports", icon: "📉" },
                   { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
                   { href: `/${locale}/news`, label: "News", icon: "📰" },
                   { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
