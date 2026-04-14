@@ -87,7 +87,7 @@ const TEXTS: Record<string, Record<string, string>> = {
 export default function WorldCupPage() {
   const locale = useLocale();
   const t = TEXTS[locale] || TEXTS.fr;
-  const [activeView, setActiveView] = useState<"standings" | "bracket" | "schedule">("standings");
+  const [activeView, setActiveView] = useState<"standings" | "bracket" | "schedule">("schedule");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -128,9 +128,9 @@ export default function WorldCupPage() {
         {/* View toggle */}
         <div className="flex flex-wrap items-center justify-center gap-1">
           {([
+            { id: "schedule" as const, label: t.tab_schedule },
             { id: "standings" as const, label: t.tab_groups },
             { id: "bracket" as const, label: t.tab_bracket },
-            { id: "schedule" as const, label: t.tab_schedule },
           ]).map((tab) => (
             <button
               key={tab.id}
