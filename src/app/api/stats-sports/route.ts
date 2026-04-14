@@ -115,7 +115,7 @@ function parseTennisRankings(data: any) {
   return entries.slice(0, 100);
 }
 
-// ── Football leaders (via /statistics — noms inline) ──
+// ── Football leaders (via /statistics — noms, team, stats inline) ──
 function parseFootballLeaders(data: any) {
   const categories: any[] = [];
   const statsList = data?.stats || [];
@@ -124,35 +124,44 @@ function parseFootballLeaders(data: any) {
     const leaders: any[] = [];
     for (const entry of (cat.leaders || []).slice(0, 15)) {
       const athlete = entry.athlete || {};
-      const athleteId = athlete.id || athlete.uid?.split("~a:")?.pop() || "";
+      const athleteId = athlete.id || "";
+      const team = athlete.team || {};
 
       // Headshot via ESPN CDN
       const headshot = athleteId
         ? `https://a.espncdn.com/i/headshots/soccer/players/full/${athleteId}.png`
         : null;
 
-      // Parse "Matches: 29, Goals: 16" into clean value + subtitle
-      const raw = entry.displayValue || String(entry.value) || "-";
-      let mainValue = raw;
+      // Team logo
+      const teamLogo = team.logos?.[0]?.href || null;
+      const teamName = team.abbreviation || team.name || "";
+
+      // Extract clean stats from athlete.statistics[] array
+      const statsMap: Record<string, string> = {};
+      for (const s of athlete.statistics || []) {
+        statsMap[s.name] = s.displayValue || String(s.value);
+      }
+
+      // Main value = the stat number (goals or assists)
+      const mainValue = String(Math.round(entry.value)) || "-";
+
+      // Subtitle = appearances + assists (for goals) or appearances (for assists)
+      const appearances = statsMap.appearances || "";
+      const assists = statsMap.goalAssists || "";
       let subtitle = "";
-
-      // Extract the stat value (Goals/Assists) and matches
-      const goalsMatch = raw.match(/Goals:\s*(\d+)/i);
-      const assistsMatch = raw.match(/Assists:\s*(\d+)/i);
-      const matchesMatch = raw.match(/Matches:\s*(\d+)/i);
-
-      if (goalsMatch) {
-        mainValue = goalsMatch[1];
-        subtitle = matchesMatch ? `${matchesMatch[1]} matchs` : "";
-      } else if (assistsMatch) {
-        mainValue = assistsMatch[1];
-        subtitle = matchesMatch ? `${matchesMatch[1]} matchs` : "";
+      if (appearances) {
+        subtitle = `${appearances} matchs`;
+        // For goals category, also show assists
+        if (catName.toLowerCase().includes("goal") && assists) {
+          subtitle += ` · ${assists} assists`;
+        }
       }
 
       leaders.push({
         rank: leaders.length + 1,
         name: athlete.displayName || "?",
         headshot,
+        team: { shortName: teamName, logo: teamLogo },
         value: mainValue,
         subtitle,
       });
