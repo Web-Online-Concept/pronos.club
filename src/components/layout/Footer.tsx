@@ -40,6 +40,7 @@ export default async function Footer() {
     { href: `/${locale}/stats-sports`, label: "Stats Sports" },
     { href: `/${locale}/news`, label: "News" },
     { href: `/${locale}/videos`, label: "Vidéos" },
+    { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026" },
   ];
 
   return (

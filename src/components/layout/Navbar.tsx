@@ -89,6 +89,7 @@ export default function Navbar() {
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
     { href: `/${locale}/news`, label: "News", icon: "📰" },
     { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
+    { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026", icon: "🏆" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
@@ -464,6 +465,7 @@ export default function Navbar() {
                   { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
                   { href: `/${locale}/news`, label: "News", icon: "📰" },
                   { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
+                  { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026", icon: "🏆" },
                 ].map((link) => (
                   <Link
                     key={link.href}
