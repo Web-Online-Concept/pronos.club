@@ -6,12 +6,12 @@ import { useLocale } from "next-intl";
 
 // ── Config ──
 const SPORTS = [
-  { id: "football", label: "⚽ Football", hasLeagues: true },
-  { id: "nba", label: "🏀 NBA" },
-  { id: "nhl", label: "🏒 NHL" },
-  { id: "tennis", label: "🎾 Tennis", hasLeagues: true },
-  { id: "nfl", label: "🏈 NFL" },
-  { id: "mlb", label: "⚾ MLB" },
+  { id: "football", label: "⚽ Football", hasLeagues: true, hasLeaders: true },
+  { id: "nba", label: "🏀 NBA", hasLeaders: true },
+  { id: "nhl", label: "🏒 NHL", hasLeaders: true },
+  { id: "tennis", label: "🎾 Tennis" },
+  { id: "nfl", label: "🏈 NFL", hasLeaders: true },
+  { id: "mlb", label: "⚾ MLB", hasLeaders: true },
 ];
 
 const FOOTBALL_LEAGUES = [
@@ -37,77 +37,47 @@ const TENNIS_TOURS = [
 const TEXTS: Record<string, Record<string, string>> = {
   fr: {
     hero_tag: "STATISTIQUES SPORTIVES",
-    hero_title: "Classements & Rankings",
-    hero_subtitle: "Données en direct issues d'ESPN. Classements football, NBA, NHL, tennis et plus encore.",
+    hero_title: "Classements & Statistiques",
+    hero_subtitle: "Données en direct issues d'ESPN. Classements, meilleurs buteurs, leaders statistiques et plus encore.",
     loading: "Chargement...",
     error: "Erreur de chargement. Réessayez.",
-    pos: "#",
-    team: "Équipe",
-    played: "MJ",
-    wins: "V",
-    draws: "N",
-    losses: "D",
-    gf: "BP",
-    ga: "BC",
-    gd: "Diff",
-    points: "Pts",
-    w: "V",
-    l: "D",
-    pct: "%",
-    streak: "Série",
-    rank: "#",
-    player: "Joueur",
-    pts: "Points",
+    tab_standings: "📊 Classements",
+    tab_leaders: "🏆 Leaders",
+    pos: "#", team: "Équipe", played: "MJ", wins: "V", draws: "N", losses: "D",
+    gf: "BP", ga: "BC", gd: "Diff", points: "Pts",
+    w: "V", l: "D", pct: "%", streak: "Série",
+    rank: "#", player: "Joueur", pts: "Points", value: "Stat",
+    no_data: "Aucune donnée disponible",
     updated: "Mis à jour toutes les 30 min via ESPN",
   },
   en: {
     hero_tag: "SPORTS STATISTICS",
-    hero_title: "Standings & Rankings",
-    hero_subtitle: "Live data from ESPN. Football standings, NBA, NHL, tennis rankings and more.",
+    hero_title: "Standings & Statistics",
+    hero_subtitle: "Live data from ESPN. Standings, top scorers, stat leaders and more.",
     loading: "Loading...",
     error: "Failed to load. Try again.",
-    pos: "#",
-    team: "Team",
-    played: "GP",
-    wins: "W",
-    draws: "D",
-    losses: "L",
-    gf: "GF",
-    ga: "GA",
-    gd: "GD",
-    points: "Pts",
-    w: "W",
-    l: "L",
-    pct: "%",
-    streak: "Streak",
-    rank: "#",
-    player: "Player",
-    pts: "Points",
+    tab_standings: "📊 Standings",
+    tab_leaders: "🏆 Leaders",
+    pos: "#", team: "Team", played: "GP", wins: "W", draws: "D", losses: "L",
+    gf: "GF", ga: "GA", gd: "GD", points: "Pts",
+    w: "W", l: "L", pct: "%", streak: "Streak",
+    rank: "#", player: "Player", pts: "Points", value: "Stat",
+    no_data: "No data available",
     updated: "Updated every 30 min via ESPN",
   },
   es: {
     hero_tag: "ESTADÍSTICAS DEPORTIVAS",
-    hero_title: "Clasificaciones & Rankings",
-    hero_subtitle: "Datos en vivo de ESPN. Clasificaciones de fútbol, NBA, NHL, tenis y más.",
+    hero_title: "Clasificaciones & Estadísticas",
+    hero_subtitle: "Datos en vivo de ESPN. Clasificaciones, goleadores, líderes estadísticos y más.",
     loading: "Cargando...",
     error: "Error al cargar. Inténtalo de nuevo.",
-    pos: "#",
-    team: "Equipo",
-    played: "PJ",
-    wins: "V",
-    draws: "E",
-    losses: "D",
-    gf: "GF",
-    ga: "GC",
-    gd: "Dif",
-    points: "Pts",
-    w: "V",
-    l: "D",
-    pct: "%",
-    streak: "Racha",
-    rank: "#",
-    player: "Jugador",
-    pts: "Puntos",
+    tab_standings: "📊 Clasificaciones",
+    tab_leaders: "🏆 Líderes",
+    pos: "#", team: "Equipo", played: "PJ", wins: "V", draws: "E", losses: "D",
+    gf: "GF", ga: "GC", gd: "Dif", points: "Pts",
+    w: "V", l: "D", pct: "%", streak: "Racha",
+    rank: "#", player: "Jugador", pts: "Puntos", value: "Stat",
+    no_data: "Sin datos disponibles",
     updated: "Actualizado cada 30 min vía ESPN",
   },
 };
@@ -119,9 +89,12 @@ export default function StatsSportsPage() {
   const [activeSport, setActiveSport] = useState("football");
   const [activeLeague, setActiveLeague] = useState("fra.1");
   const [activeTour, setActiveTour] = useState("atp");
+  const [activeView, setActiveView] = useState<"standings" | "leaders">("standings");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const currentSport = SPORTS.find((s) => s.id === activeSport);
 
   useEffect(() => {
     async function load() {
@@ -129,7 +102,7 @@ export default function StatsSportsPage() {
       setError(false);
       setData(null);
 
-      let url = `/api/stats-sports?sport=${activeSport}`;
+      let url = `/api/stats-sports?sport=${activeSport}&view=${activeView}`;
       if (activeSport === "football") url += `&league=${activeLeague}`;
       if (activeSport === "tennis") url += `&league=${activeTour}`;
 
@@ -144,7 +117,7 @@ export default function StatsSportsPage() {
       setLoading(false);
     }
     load();
-  }, [activeSport, activeLeague, activeTour]);
+  }, [activeSport, activeLeague, activeTour, activeView]);
 
   return (
     <main className="min-h-screen bg-white">
@@ -163,11 +136,11 @@ export default function StatsSportsPage() {
       <div className="mx-auto max-w-5xl px-4 py-6">
         {/* Sport + League selectors */}
         <div className="flex items-center justify-center gap-3">
-          {/* Sport selector */}
           <select
             value={activeSport}
             onChange={(e) => {
               setActiveSport(e.target.value);
+              setActiveView("standings");
               if (e.target.value === "football") setActiveLeague("fra.1");
               if (e.target.value === "tennis") setActiveTour("atp");
             }}
@@ -178,7 +151,6 @@ export default function StatsSportsPage() {
             ))}
           </select>
 
-          {/* League sub-selector (football) */}
           {activeSport === "football" && (
             <select
               value={activeLeague}
@@ -191,7 +163,6 @@ export default function StatsSportsPage() {
             </select>
           )}
 
-          {/* Tour sub-selector (tennis) */}
           {activeSport === "tennis" && (
             <select
               value={activeTour}
@@ -204,6 +175,32 @@ export default function StatsSportsPage() {
             </select>
           )}
         </div>
+
+        {/* View toggle: Standings / Leaders */}
+        {currentSport?.hasLeaders && (
+          <div className="mt-4 flex items-center justify-center gap-1">
+            <button
+              onClick={() => setActiveView("standings")}
+              className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeView === "standings"
+                  ? "bg-neutral-900 text-white shadow"
+                  : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+              }`}
+            >
+              {t.tab_standings}
+            </button>
+            <button
+              onClick={() => setActiveView("leaders")}
+              className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                activeView === "leaders"
+                  ? "bg-neutral-900 text-white shadow"
+                  : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+              }`}
+            >
+              {t.tab_leaders}
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="mt-6">
@@ -218,6 +215,8 @@ export default function StatsSportsPage() {
             <div className="flex items-center justify-center py-20">
               <p className="text-sm text-red-500">{t.error}</p>
             </div>
+          ) : data?.view === "leaders" ? (
+            <LeadersView data={data} t={t} />
           ) : data?.sport === "football" ? (
             <FootballTable data={data} t={t} />
           ) : data?.sport === "tennis" ? (
@@ -227,17 +226,55 @@ export default function StatsSportsPage() {
           ) : null}
         </div>
 
-        {/* Footer note */}
         <p className="mt-6 pb-8 text-center text-[11px] text-neutral-400">{t.updated}</p>
       </div>
     </main>
   );
 }
 
+// ── Leaders view (works for all sports) ──
+function LeadersView({ data, t }: { data: any; t: Record<string, string> }) {
+  const categories = data?.categories || [];
+  if (categories.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_data}</p>;
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-2">
+      {categories.map((cat: any, ci: number) => (
+        <div key={ci} className="overflow-hidden rounded-xl border border-neutral-200">
+          <div className="bg-neutral-900 px-4 py-3">
+            <h3 className="text-sm font-bold text-white">{cat.name}</h3>
+          </div>
+          <div className="divide-y divide-neutral-100">
+            {cat.leaders.map((leader: any, li: number) => (
+              <div key={li} className={`flex items-center gap-3 px-4 py-2.5 ${li === 0 ? "bg-amber-50/40" : ""}`}>
+                <span className="w-5 text-xs font-bold text-neutral-400">{leader.rank}</span>
+                {leader.headshot ? (
+                  <img src={leader.headshot} alt="" className="h-8 w-8 rounded-full object-cover bg-neutral-100" />
+                ) : leader.team?.logo ? (
+                  <img src={leader.team.logo} alt="" className="h-6 w-6 object-contain" />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-neutral-200" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-neutral-900 truncate">{leader.name}</p>
+                  {leader.team?.shortName && (
+                    <p className="text-[10px] text-neutral-400">{leader.team.shortName}</p>
+                  )}
+                </div>
+                <span className="text-sm font-extrabold text-emerald-600">{leader.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Football standings table ──
 function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
   const standings = data?.standings || [];
-  if (standings.length === 0) return <p className="text-center text-neutral-400 py-10">Aucune donnée</p>;
+  if (standings.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_data}</p>;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-neutral-200">
@@ -267,12 +304,8 @@ function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
               <td className="py-2.5 pl-3 pr-1 text-xs font-bold text-neutral-500">{row.position}</td>
               <td className="py-2.5 px-2">
                 <div className="flex items-center gap-2">
-                  {row.team.logo && (
-                    <img src={row.team.logo} alt="" className="h-5 w-5 object-contain" />
-                  )}
-                  <span className="text-xs font-semibold text-neutral-900 truncate max-w-[140px] sm:max-w-none">
-                    {row.team.name}
-                  </span>
+                  {row.team.logo && <img src={row.team.logo} alt="" className="h-5 w-5 object-contain" />}
+                  <span className="text-xs font-semibold text-neutral-900 truncate max-w-[140px] sm:max-w-none">{row.team.name}</span>
                 </div>
               </td>
               <td className="py-2.5 px-2 text-center text-xs text-neutral-500 hidden sm:table-cell">{row.played}</td>
@@ -295,10 +328,10 @@ function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
   );
 }
 
-// ── US Sports standings table (NBA, NHL, NFL, MLB) ──
+// ── US Sports standings table ──
 function USTable({ data, t }: { data: any; t: Record<string, string> }) {
   const conferences = data?.conferences || [];
-  if (conferences.length === 0) return <p className="text-center text-neutral-400 py-10">Aucune donnée</p>;
+  if (conferences.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_data}</p>;
 
   return (
     <div className="space-y-6">
@@ -324,15 +357,9 @@ function USTable({ data, t }: { data: any; t: Record<string, string> }) {
                     <td className="py-2.5 pl-3 pr-1 text-xs font-bold text-neutral-500">{i + 1}</td>
                     <td className="py-2.5 px-2">
                       <div className="flex items-center gap-2">
-                        {row.team.logo && (
-                          <img src={row.team.logo} alt="" className="h-5 w-5 object-contain" />
-                        )}
-                        <span className="text-xs font-semibold text-neutral-900 truncate max-w-[140px] sm:max-w-none">
-                          {row.team.name}
-                        </span>
-                        {row.division && (
-                          <span className="hidden sm:inline text-[10px] text-neutral-400">{row.division}</span>
-                        )}
+                        {row.team.logo && <img src={row.team.logo} alt="" className="h-5 w-5 object-contain" />}
+                        <span className="text-xs font-semibold text-neutral-900 truncate max-w-[140px] sm:max-w-none">{row.team.name}</span>
+                        {row.division && <span className="hidden sm:inline text-[10px] text-neutral-400">{row.division}</span>}
                       </div>
                     </td>
                     <td className="py-2.5 px-2 text-center text-xs text-neutral-500">{row.played ?? (row.wins + row.losses)}</td>
@@ -354,7 +381,7 @@ function USTable({ data, t }: { data: any; t: Record<string, string> }) {
 // ── Tennis rankings table ──
 function TennisTable({ data, t }: { data: any; t: Record<string, string> }) {
   const rankings = data?.rankings || [];
-  if (rankings.length === 0) return <p className="text-center text-neutral-400 py-10">Aucune donnée</p>;
+  if (rankings.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_data}</p>;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-neutral-200">
@@ -374,9 +401,7 @@ function TennisTable({ data, t }: { data: any; t: Record<string, string> }) {
                 <td className="py-2.5 pl-3 pr-1 text-xs font-bold text-neutral-500">{row.rank}</td>
                 <td className="py-2.5 px-2">
                   <div className="flex items-center gap-2">
-                    {row.countryFlag && (
-                      <img src={row.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />
-                    )}
+                    {row.countryFlag && <img src={row.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
                     <span className="text-xs font-semibold text-neutral-900">{row.name}</span>
                     {diff !== 0 && (
                       <span className={`text-[10px] font-medium ${diff > 0 ? "text-emerald-600" : "text-red-500"}`}>

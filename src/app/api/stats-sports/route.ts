@@ -1,5 +1,6 @@
 // src/app/api/stats-sports/route.ts
 // API route pour les statistiques sportives — données ESPN avec cache 30 min
+// Supporte: standings, leaders (meilleurs joueurs), football scorers
 
 import { NextResponse } from "next/server";
 
@@ -19,10 +20,12 @@ const FOOTBALL_LEAGUES = [
   { id: "uefa.europa", name: "Europa League", flag: "🏆" },
 ];
 
-const NBA_CONFIG = { sport: "basketball", league: "nba", name: "NBA" };
-const NHL_CONFIG = { sport: "hockey", league: "nhl", name: "NHL" };
-const NFL_CONFIG = { sport: "football", league: "nfl", name: "NFL" };
-const MLB_CONFIG = { sport: "baseball", league: "mlb", name: "MLB" };
+const US_SPORTS: Record<string, { sport: string; league: string; name: string }> = {
+  nba: { sport: "basketball", league: "nba", name: "NBA" },
+  nhl: { sport: "hockey", league: "nhl", name: "NHL" },
+  nfl: { sport: "football", league: "nfl", name: "NFL" },
+  mlb: { sport: "baseball", league: "mlb", name: "MLB" },
+};
 
 // ── Cache en mémoire — 30 minutes ──
 const cache = new Map<string, { data: any; expiresAt: number }>();
@@ -31,10 +34,7 @@ const CACHE_TTL = 30 * 60 * 1000;
 function getCached(key: string): any | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
-    return null;
-  }
+  if (Date.now() > entry.expiresAt) { cache.delete(key); return null; }
   return entry.data;
 }
 
@@ -44,139 +44,61 @@ function setCache(key: string, data: any) {
 
 // ── Fetch ESPN ──
 async function fetchESPN(url: string) {
-  const res = await fetch(url, {
-    headers: { "Accept": "application/json" },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    return res.json();
+  } catch { return null; }
 }
 
 // ── Parser classement football ──
 function parseFootballStandings(data: any) {
   const children = data?.children || [];
-  // Some leagues have groups (e.g., Champions League), others have a single standings block
   const allEntries: any[] = [];
-
-  for (const group of children) {
-    const entries = group?.standings?.entries || [];
+  const parseEntries = (entries: any[]) => {
     for (const entry of entries) {
       const team = entry.team || {};
       const stats: Record<string, number> = {};
-      for (const s of entry.stats || []) {
-        stats[s.name] = s.value;
-        if (s.displayValue) stats[s.name + "_display"] = s.displayValue;
-      }
-
+      for (const s of entry.stats || []) { stats[s.name] = s.value; }
       allEntries.push({
         position: stats.rank || 0,
-        team: {
-          name: team.displayName || team.name || "?",
-          shortName: team.abbreviation || "",
-          logo: team.logos?.[0]?.href || null,
-        },
-        played: stats.gamesPlayed || 0,
-        wins: stats.wins || 0,
-        draws: stats.ties || 0,
-        losses: stats.losses || 0,
-        goalsFor: stats.pointsFor || 0,
-        goalsAgainst: stats.pointsAgainst || 0,
-        goalDiff: stats.pointDifferential || 0,
-        points: stats.points || 0,
+        team: { name: team.displayName || team.name || "?", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
+        played: stats.gamesPlayed || 0, wins: stats.wins || 0, draws: stats.ties || 0, losses: stats.losses || 0,
+        goalsFor: stats.pointsFor || 0, goalsAgainst: stats.pointsAgainst || 0, goalDiff: stats.pointDifferential || 0, points: stats.points || 0,
       });
     }
-  }
-
-  // If no children, try direct standings
-  if (allEntries.length === 0) {
-    const entries = data?.standings?.entries || [];
-    for (const entry of entries) {
-      const team = entry.team || {};
-      const stats: Record<string, number> = {};
-      for (const s of entry.stats || []) {
-        stats[s.name] = s.value;
-      }
-      allEntries.push({
-        position: stats.rank || 0,
-        team: {
-          name: team.displayName || team.name || "?",
-          shortName: team.abbreviation || "",
-          logo: team.logos?.[0]?.href || null,
-        },
-        played: stats.gamesPlayed || 0,
-        wins: stats.wins || 0,
-        draws: stats.ties || 0,
-        losses: stats.losses || 0,
-        goalsFor: stats.pointsFor || 0,
-        goalsAgainst: stats.pointsAgainst || 0,
-        goalDiff: stats.pointDifferential || 0,
-        points: stats.points || 0,
-      });
-    }
-  }
-
+  };
+  for (const group of children) { parseEntries(group?.standings?.entries || []); }
+  if (allEntries.length === 0) { parseEntries(data?.standings?.entries || []); }
   return allEntries.sort((a, b) => a.position - b.position);
 }
 
-// ── Parser classement US sports (NBA, NHL, NFL, MLB) ──
+// ── Parser classement US sports ──
 function parseUSStandings(data: any) {
   const children = data?.children || [];
   const conferences: any[] = [];
-
   for (const conf of children) {
     const confName = conf.name || conf.abbreviation || "";
     const entries: any[] = [];
-
-    // Some sports have divisions inside conferences
+    const parseEntry = (entry: any, divName?: string) => {
+      const team = entry.team || {};
+      const stats: Record<string, number | string> = {};
+      for (const s of entry.stats || []) { stats[s.name] = s.displayValue || s.value; }
+      entries.push({
+        ...(divName ? { division: divName } : {}),
+        team: { name: team.displayName || team.name || "?", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
+        played: Number(stats.gamesPlayed) || (Number(stats.wins) || 0) + (Number(stats.losses) || 0),
+        wins: Number(stats.wins) || 0, losses: Number(stats.losses) || 0,
+        pct: stats.winPercent || stats.winPct || "-", streak: stats.streak || "-",
+      });
+    };
     if (conf.children) {
-      for (const div of conf.children) {
-        const divName = div.name || "";
-        for (const entry of div.standings?.entries || []) {
-          const team = entry.team || {};
-          const stats: Record<string, number | string> = {};
-          for (const s of entry.stats || []) {
-            stats[s.name] = s.displayValue || s.value;
-          }
-          entries.push({
-            division: divName,
-            team: {
-              name: team.displayName || team.name || "?",
-              shortName: team.abbreviation || "",
-              logo: team.logos?.[0]?.href || null,
-            },
-            played: Number(stats.gamesPlayed) || (Number(stats.wins) || 0) + (Number(stats.losses) || 0),
-            wins: Number(stats.wins) || 0,
-            losses: Number(stats.losses) || 0,
-            pct: stats.winPercent || stats.winPct || "-",
-            streak: stats.streak || "-",
-          });
-        }
-      }
+      for (const div of conf.children) { for (const entry of div.standings?.entries || []) { parseEntry(entry, div.name || ""); } }
     } else {
-      for (const entry of conf.standings?.entries || []) {
-        const team = entry.team || {};
-        const stats: Record<string, number | string> = {};
-        for (const s of entry.stats || []) {
-          stats[s.name] = s.displayValue || s.value;
-        }
-        entries.push({
-          team: {
-            name: team.displayName || team.name || "?",
-            shortName: team.abbreviation || "",
-            logo: team.logos?.[0]?.href || null,
-          },
-          played: Number(stats.gamesPlayed) || (Number(stats.wins) || 0) + (Number(stats.losses) || 0),
-          wins: Number(stats.wins) || 0,
-          losses: Number(stats.losses) || 0,
-          pct: stats.winPercent || stats.winPct || "-",
-          streak: stats.streak || "-",
-        });
-      }
+      for (const entry of conf.standings?.entries || []) { parseEntry(entry); }
     }
-
     conferences.push({ name: confName, entries });
   }
-
   return conferences;
 }
 
@@ -184,20 +106,42 @@ function parseUSStandings(data: any) {
 function parseTennisRankings(data: any) {
   const rankings = data?.rankings || [];
   if (rankings.length === 0) return [];
-
   const entries: any[] = [];
   for (const r of rankings[0]?.ranks || []) {
     entries.push({
-      rank: r.current || 0,
-      previousRank: r.previous || 0,
-      name: r.athlete?.displayName || "?",
-      country: r.athlete?.flag?.alt || "",
-      countryFlag: r.athlete?.flag?.href || null,
-      points: r.points || 0,
+      rank: r.current || 0, previousRank: r.previous || 0,
+      name: r.athlete?.displayName || "?", country: r.athlete?.flag?.alt || "",
+      countryFlag: r.athlete?.flag?.href || null, points: r.points || 0,
     });
   }
+  return entries.slice(0, 100);
+}
 
-  return entries.slice(0, 100); // Top 100
+// ── Parser leaders (meilleurs joueurs) ──
+// Works for both US sports and football
+function parseLeaders(data: any, limit: number = 10) {
+  const categories: any[] = [];
+  const leadersList = data?.leaders || [];
+  for (const cat of leadersList) {
+    const catName = cat.displayName || cat.name || "?";
+    const abbr = cat.abbreviation || "";
+    const leaders: any[] = [];
+    for (const entry of (cat.leaders || []).slice(0, limit)) {
+      const athlete = entry.athlete || {};
+      const team = athlete.team || {};
+      leaders.push({
+        rank: entry.rank || leaders.length + 1,
+        name: athlete.displayName || "?",
+        team: { name: team.displayName || team.name || "", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
+        headshot: athlete.headshot?.href || null,
+        value: entry.displayValue || entry.value || "-",
+      });
+    }
+    if (leaders.length > 0) {
+      categories.push({ name: catName, abbreviation: abbr, leaders });
+    }
+  }
+  return categories;
 }
 
 // ── GET handler ──
@@ -205,62 +149,45 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sport = searchParams.get("sport") || "football";
   const league = searchParams.get("league") || "fra.1";
+  const view = searchParams.get("view") || "standings";
 
-  const cacheKey = `${sport}:${league}`;
+  const cacheKey = `${sport}:${league}:${view}`;
   const cached = getCached(cacheKey);
-  if (cached) {
-    return NextResponse.json(cached);
-  }
+  if (cached) return NextResponse.json(cached);
 
   try {
     let result: any = null;
 
     if (sport === "football") {
       const leagueConfig = FOOTBALL_LEAGUES.find((l) => l.id === league);
-      if (!leagueConfig) {
-        return NextResponse.json({ error: "Unknown league" }, { status: 400 });
+      if (!leagueConfig) return NextResponse.json({ error: "Unknown league" }, { status: 400 });
+
+      if (view === "leaders") {
+        const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/leaders`);
+        result = { sport: "football", view: "leaders", league: leagueConfig, categories: data ? parseLeaders(data, 15) : [] };
+      } else {
+        const data = await fetchESPN(`https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`);
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+        result = { sport: "football", view: "standings", league: leagueConfig, standings: parseFootballStandings(data) };
       }
 
-      const data = await fetchESPN(
-        `https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`
-      );
-      if (!data) {
-        return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+    } else if (sport in US_SPORTS) {
+      const config = US_SPORTS[sport];
+      if (view === "leaders") {
+        const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/${config.sport}/${config.league}/leaders`);
+        result = { sport, view: "leaders", name: config.name, categories: data ? parseLeaders(data) : [] };
+      } else {
+        const data = await fetchESPN(`https://site.api.espn.com/apis/v2/sports/${config.sport}/${config.league}/standings`);
+        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+        result = { sport, view: "standings", name: config.name, conferences: parseUSStandings(data) };
       }
 
-      result = {
-        sport: "football",
-        league: leagueConfig,
-        standings: parseFootballStandings(data),
-      };
-    } else if (sport === "nba" || sport === "nhl" || sport === "nfl" || sport === "mlb") {
-      const config = { nba: NBA_CONFIG, nhl: NHL_CONFIG, nfl: NFL_CONFIG, mlb: MLB_CONFIG }[sport]!;
-      const data = await fetchESPN(
-        `https://site.api.espn.com/apis/v2/sports/${config.sport}/${config.league}/standings`
-      );
-      if (!data) {
-        return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
-      }
-
-      result = {
-        sport,
-        name: config.name,
-        conferences: parseUSStandings(data),
-      };
     } else if (sport === "tennis") {
       const tour = league === "wta" ? "wta" : "atp";
-      const data = await fetchESPN(
-        `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
-      );
-      if (!data) {
-        return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
-      }
+      const data = await fetchESPN(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`);
+      if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+      result = { sport: "tennis", view: "standings", tour: tour.toUpperCase(), rankings: parseTennisRankings(data) };
 
-      result = {
-        sport: "tennis",
-        tour: tour.toUpperCase(),
-        rankings: parseTennisRankings(data),
-      };
     } else {
       return NextResponse.json({ error: "Unknown sport" }, { status: 400 });
     }
