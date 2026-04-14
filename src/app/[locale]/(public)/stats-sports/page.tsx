@@ -241,41 +241,63 @@ function LeadersView({ data, t }: { data: any; t: Record<string, string> }) {
     <div className="grid gap-6 sm:grid-cols-2">
       {categories.map((cat: any, ci: number) => (
         <div key={ci} className="overflow-hidden rounded-xl border border-neutral-200">
-          <div className="bg-neutral-900 px-4 py-3">
+          <div className="bg-neutral-900 px-4 py-3 flex items-center justify-between">
             <h3 className="text-sm font-bold text-white">{cat.name}</h3>
+            <div className="flex items-center gap-4 text-[10px] font-semibold text-white/40">
+              <span>{t.played}</span>
+              <span className="w-8 text-right">{cat.name}</span>
+            </div>
           </div>
           <div className="divide-y divide-neutral-100">
-            {cat.leaders.map((leader: any, li: number) => (
-              <div key={li} className={`flex items-center gap-3 px-4 py-2.5 ${li === 0 ? "bg-amber-50/40" : ""}`}>
-                <span className="w-5 text-xs font-bold text-neutral-400">{leader.rank}</span>
-                {leader.headshot ? (
-                  <img
-                    src={leader.headshot}
-                    alt=""
-                    className="h-8 w-8 rounded-full object-cover bg-neutral-100"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-bold text-neutral-500">
-                    {leader.name?.charAt(0) || "?"}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-neutral-900 truncate">{leader.name}</p>
-                  {(leader.team?.shortName || leader.subtitle) && (
-                    <p className="text-[10px] text-neutral-400">
-                      {leader.team?.shortName}
-                      {leader.team?.shortName && leader.subtitle ? " · " : ""}
-                      {leader.subtitle}
-                    </p>
-                  )}
+            {cat.leaders.map((leader: any, li: number) => {
+              // Build info string: "Esteban Lepaul — REN (3 assists)"
+              const extraInfo = leader.subtitle?.replace(/^\d+\s*matchs?\s*·?\s*/, "").trim() || "";
+              return (
+                <div key={li} className={`flex items-center gap-2.5 px-3 py-2.5 ${li === 0 ? "bg-amber-50/40" : ""}`}>
+                  <span className="w-5 shrink-0 text-xs font-bold text-neutral-400 text-center">{leader.rank}</span>
+                  <HeadshotWithFallback headshot={leader.headshot} teamLogo={leader.team?.logo} name={leader.name} />
+                  <p className="flex-1 min-w-0 text-xs font-bold text-neutral-900 truncate">
+                    {leader.name}
+                    {leader.team?.shortName ? ` — ${leader.team.shortName}` : ""}
+                    {extraInfo ? ` (${extraInfo})` : ""}
+                  </p>
+                  {leader.subtitle && (() => {
+                    const m = leader.subtitle.match(/^(\d+)/);
+                    return m ? <span className="shrink-0 text-xs font-bold text-neutral-500">{m[1]}</span> : null;
+                  })()}
+                  <span className="shrink-0 text-sm font-extrabold text-emerald-600">{leader.value}</span>
                 </div>
-                <span className="text-sm font-extrabold text-emerald-600">{leader.value}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Headshot with team logo fallback ──
+function HeadshotWithFallback({ headshot, teamLogo, name }: { headshot: string | null; teamLogo: string | null; name: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (headshot && !imgError) {
+    return (
+      <img
+        src={headshot}
+        alt=""
+        className="h-8 w-8 rounded-full object-cover bg-neutral-100"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  if (teamLogo) {
+    return <img src={teamLogo} alt="" className="h-7 w-7 object-contain" />;
+  }
+
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-bold text-neutral-500">
+      {name?.charAt(0) || "?"}
     </div>
   );
 }
