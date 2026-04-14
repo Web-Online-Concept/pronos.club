@@ -249,11 +249,10 @@ export async function GET(request: Request) {
       };
     } else if (view === "schedule") {
       const matches = await fetchSchedule();
-      // Only group stage matches (June 11–27)
-      const groupMatches = matches.filter((m: any) => {
-        const d = new Date(m.date);
-        return d <= new Date("2026-06-28T00:00:00Z");
-      });
+      // Group stage matches end June 27 US time = June 28 early morning UTC
+      // Use June 28 12:00 UTC as cutoff to include late J3 matches
+      const groupCutoff = new Date("2026-06-28T12:00:00Z");
+      const groupMatches = matches.filter((m: any) => new Date(m.date) < groupCutoff);
       result = {
         view: "schedule",
         info: TOURNAMENT_INFO,
@@ -261,11 +260,9 @@ export async function GET(request: Request) {
       };
     } else if (view === "bracket") {
       const matches = await fetchSchedule();
-      // Knockout matches start June 28
-      const knockoutMatches = matches.filter((m: any) => {
-        const d = new Date(m.date);
-        return d >= new Date("2026-06-28T00:00:00Z");
-      });
+      // Knockout starts June 28 evening US time = June 28 after noon UTC
+      const knockoutCutoff = new Date("2026-06-28T12:00:00Z");
+      const knockoutMatches = matches.filter((m: any) => new Date(m.date) >= knockoutCutoff);
 
       // Group by phase based on dates
       // R32: June 28 – July 2 (32 matches)
@@ -275,17 +272,17 @@ export async function GET(request: Request) {
       // 3rd place: July 18 (1 match)
       // Final: July 19 (1 match)
       const phases = [
-        { id: "r32", name: "Huitièmes de finale", nameEn: "Round of 32", nameEs: "Dieciseisavos de final", from: "2026-06-28", to: "2026-07-02" },
-        { id: "r16", name: "Huitièmes", nameEn: "Round of 16", nameEs: "Octavos de final", from: "2026-07-03", to: "2026-07-05" },
-        { id: "qf", name: "Quarts de finale", nameEn: "Quarterfinals", nameEs: "Cuartos de final", from: "2026-07-08", to: "2026-07-09" },
-        { id: "sf", name: "Demi-finales", nameEn: "Semifinals", nameEs: "Semifinales", from: "2026-07-12", to: "2026-07-13" },
-        { id: "3rd", name: "Match pour la 3e place", nameEn: "Third-place match", nameEs: "Partido por el tercer puesto", from: "2026-07-18", to: "2026-07-18" },
-        { id: "final", name: "Finale", nameEn: "Final", nameEs: "Final", from: "2026-07-19", to: "2026-07-19" },
+        { id: "r32", name: "32èmes de finale", nameEn: "Round of 32", nameEs: "Dieciseisavos de final", from: "2026-06-28T12:00:00Z", to: "2026-07-03T05:59:59Z" },
+        { id: "r16", name: "Huitièmes de finale", nameEn: "Round of 16", nameEs: "Octavos de final", from: "2026-07-03T06:00:00Z", to: "2026-07-06T05:59:59Z" },
+        { id: "qf", name: "Quarts de finale", nameEn: "Quarterfinals", nameEs: "Cuartos de final", from: "2026-07-08T00:00:00Z", to: "2026-07-10T05:59:59Z" },
+        { id: "sf", name: "Demi-finales", nameEn: "Semifinals", nameEs: "Semifinales", from: "2026-07-12T00:00:00Z", to: "2026-07-14T05:59:59Z" },
+        { id: "3rd", name: "Match pour la 3e place", nameEn: "Third-place match", nameEs: "Partido por el tercer puesto", from: "2026-07-18T00:00:00Z", to: "2026-07-18T23:59:59Z" },
+        { id: "final", name: "Finale", nameEn: "Final", nameEs: "Final", from: "2026-07-19T00:00:00Z", to: "2026-07-19T23:59:59Z" },
       ];
 
       const bracket = phases.map((phase) => {
-        const fromDate = new Date(phase.from + "T00:00:00Z");
-        const toDate = new Date(phase.to + "T23:59:59Z");
+        const fromDate = new Date(phase.from);
+        const toDate = new Date(phase.to);
         const phaseMatches = knockoutMatches.filter((m: any) => {
           const d = new Date(m.date);
           return d >= fromDate && d <= toDate;

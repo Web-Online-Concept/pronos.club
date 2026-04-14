@@ -13,7 +13,7 @@ const TEXTS: Record<string, Record<string, string>> = {
     tab_groups: "🏆 Groupes",
     tab_standings: "📊 Classements",
     tab_schedule: "📅 Calendrier",
-    tab_bracket: "🏟️ Bracket",
+    tab_bracket: "⚽ Phase finale",
     loading: "Chargement...",
     error: "Erreur de chargement. Réessayez.",
     no_data: "Aucune donnée disponible",
@@ -38,7 +38,7 @@ const TEXTS: Record<string, Record<string, string>> = {
     tab_groups: "🏆 Groups",
     tab_standings: "📊 Standings",
     tab_schedule: "📅 Schedule",
-    tab_bracket: "🏟️ Bracket",
+    tab_bracket: "⚽ Knockout",
     loading: "Loading...",
     error: "Failed to load. Try again.",
     no_data: "No data available",
@@ -63,7 +63,7 @@ const TEXTS: Record<string, Record<string, string>> = {
     tab_groups: "🏆 Grupos",
     tab_standings: "📊 Clasificación",
     tab_schedule: "📅 Calendario",
-    tab_bracket: "🏟️ Bracket",
+    tab_bracket: "⚽ Eliminatorias",
     loading: "Cargando...",
     error: "Error al cargar. Inténtalo de nuevo.",
     no_data: "Sin datos disponibles",
@@ -87,7 +87,7 @@ const TEXTS: Record<string, Record<string, string>> = {
 export default function WorldCupPage() {
   const locale = useLocale();
   const t = TEXTS[locale] || TEXTS.fr;
-  const [activeView, setActiveView] = useState<"groups" | "standings" | "schedule" | "bracket">("groups");
+  const [activeView, setActiveView] = useState<"standings" | "bracket" | "schedule">("standings");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -128,10 +128,9 @@ export default function WorldCupPage() {
         {/* View toggle */}
         <div className="flex flex-wrap items-center justify-center gap-1">
           {([
-            { id: "groups" as const, label: t.tab_groups },
-            { id: "standings" as const, label: t.tab_standings },
-            { id: "schedule" as const, label: t.tab_schedule },
+            { id: "standings" as const, label: t.tab_groups },
             { id: "bracket" as const, label: t.tab_bracket },
+            { id: "schedule" as const, label: t.tab_schedule },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -160,8 +159,6 @@ export default function WorldCupPage() {
             <div className="flex items-center justify-center py-20">
               <p className="text-sm text-red-500">{t.error}</p>
             </div>
-          ) : activeView === "groups" ? (
-            <GroupsView data={data} t={t} locale={locale} />
           ) : activeView === "standings" ? (
             <StandingsView data={data} t={t} locale={locale} />
           ) : activeView === "bracket" ? (
@@ -195,34 +192,6 @@ function Flag({ code, size = 24 }: { code: string; size?: number }) {
       loading="lazy"
       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
     />
-  );
-}
-
-// ── Groups View ──
-function GroupsView({ data, t, locale }: { data: any; t: Record<string, string>; locale: string }) {
-  const groups = data?.groups || [];
-  if (groups.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_data}</p>;
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {groups.map((group: any) => (
-        <div key={group.name} className="overflow-hidden rounded-xl border border-neutral-200">
-          <div className="bg-neutral-900 px-4 py-2.5">
-            <h3 className="text-sm font-bold text-white">{t.group} {group.name}</h3>
-          </div>
-          <div className="divide-y divide-neutral-100">
-            {group.teams.map((team: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3">
-                <Flag code={team.flag} size={22} />
-                <span className="text-sm font-semibold text-neutral-900">
-                  {locale === "en" || locale === "es" ? team.nameEn : team.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
