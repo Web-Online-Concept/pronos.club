@@ -51,6 +51,38 @@ async function fetchESPN(url: string) {
   } catch { return null; }
 }
 
+// ── Fetch team form (last 5 results) from scoreboard ──
+async function fetchTeamForms(league: string): Promise<Record<string, string>> {
+  const forms: Record<string, string> = {};
+  // Fetch last 30 days of matches to get form for all teams
+  const now = new Date();
+  const from = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000); // 45 days back
+  const fromStr = from.toISOString().slice(0, 10).replace(/-/g, "");
+  const toStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+
+  const data = await fetchESPN(
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard?dates=${fromStr}-${toStr}&limit=200`
+  );
+  if (!data?.events) return forms;
+
+  // Extract form from the most recent match of each team
+  for (const event of data.events) {
+    for (const comp of event.competitions || []) {
+      // Only completed matches
+      if (!comp.status?.type?.completed) continue;
+      for (const competitor of comp.competitors || []) {
+        const teamId = competitor.team?.id;
+        const form = competitor.form;
+        if (teamId && form && !forms[teamId]) {
+          // form is like "WWWWW", "WDLWW" etc. — take from most recent match
+          forms[teamId] = form;
+        }
+      }
+    }
+  }
+  return forms;
+}
+
 // ── Parsers standings ──
 function parseFootballStandings(data: any) {
   const children = data?.children || [];
@@ -62,9 +94,11 @@ function parseFootballStandings(data: any) {
       for (const s of entry.stats || []) { stats[s.name] = s.value; }
       allEntries.push({
         position: stats.rank || 0,
+        teamId: team.id || "",
         team: { name: team.displayName || team.name || "?", shortName: team.abbreviation || "", logo: team.logos?.[0]?.href || null },
         played: stats.gamesPlayed || 0, wins: stats.wins || 0, draws: stats.ties || 0, losses: stats.losses || 0,
         goalsFor: stats.pointsFor || 0, goalsAgainst: stats.pointsAgainst || 0, goalDiff: stats.pointDifferential || 0, points: stats.points || 0,
+        form: "", // filled later
       });
     }
   };
@@ -270,11 +304,20 @@ export async function GET(request: Request) {
           categories: data ? parseFootballLeaders(data) : [],
         };
       } else {
-        const data = await fetchESPN(
-          `https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`
-        );
-        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
-        result = { sport: "football", view: "standings", league: leagueConfig, standings: parseFootballStandings(data) };
+        // Fetch standings + form in parallel
+        const [standingsData, formData] = await Promise.all([
+          fetchESPN(`https://site.api.espn.com/apis/v2/sports/soccer/${league}/standings`),
+          fetchTeamForms(league),
+        ]);
+        if (!standingsData) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+
+        const standings = parseFootballStandings(standingsData);
+        // Merge form into standings
+        for (const entry of standings) {
+          entry.form = formData[entry.teamId] || "";
+        }
+
+        result = { sport: "football", view: "standings", league: leagueConfig, standings };
       }
 
     } else if (sport in US_SPORTS) {

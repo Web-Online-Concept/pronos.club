@@ -362,6 +362,30 @@ function HeadshotWithFallback({ headshot, teamLogo, name }: { headshot: string |
   );
 }
 
+// ── Form badges component ──
+function FormBadges({ form, size = "sm" }: { form: string; size?: "sm" | "xs" }) {
+  if (!form) return null;
+  const colors: Record<string, string> = {
+    W: "bg-emerald-500",
+    D: "bg-amber-400",
+    L: "bg-red-500",
+  };
+  const sizeClass = size === "xs" ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
+  const textSize = size === "xs" ? "text-[7px]" : "text-[8px]";
+  return (
+    <div className="flex gap-0.5">
+      {form.split("").slice(0, 5).map((r, i) => (
+        <span
+          key={i}
+          className={`${sizeClass} ${colors[r] || "bg-neutral-300"} inline-flex items-center justify-center rounded-full ${textSize} font-bold text-white`}
+        >
+          {r}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Football standings table ──
 function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
   const standings = data?.standings || [];
@@ -381,6 +405,7 @@ function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
             <th className="py-3 px-2 text-center text-xs font-semibold hidden sm:table-cell">{t.gf}</th>
             <th className="py-3 px-2 text-center text-xs font-semibold hidden sm:table-cell">{t.ga}</th>
             <th className="py-3 px-2 text-center text-xs font-semibold">{t.gd}</th>
+            <th className="py-3 px-1 text-center text-xs font-semibold hidden md:table-cell">Forme</th>
             <th className="py-3 px-2 pr-3 text-center text-xs font-bold">{t.points}</th>
           </tr>
         </thead>
@@ -396,7 +421,15 @@ function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
               <td className="py-2.5 px-2">
                 <div className="flex items-center gap-2">
                   {row.team.logo && <img src={row.team.logo} alt="" className="h-5 w-5 object-contain" />}
-                  <span className="text-xs font-semibold text-neutral-900 truncate max-w-[140px] sm:max-w-none">{row.team.name}</span>
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-neutral-900 truncate block max-w-[120px] sm:max-w-none">{row.team.name}</span>
+                    {/* Form badges — mobile only (under team name) */}
+                    {row.form && (
+                      <div className="mt-0.5 md:hidden">
+                        <FormBadges form={row.form} size="xs" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </td>
               <td className="py-2.5 px-2 text-center text-xs text-neutral-500 hidden sm:table-cell">{row.played}</td>
@@ -409,6 +442,12 @@ function FootballTable({ data, t }: { data: any; t: Record<string, string> }) {
                 <span className={row.goalDiff > 0 ? "text-emerald-600" : row.goalDiff < 0 ? "text-red-500" : "text-neutral-400"}>
                   {row.goalDiff > 0 ? "+" : ""}{row.goalDiff}
                 </span>
+              </td>
+              {/* Form badges — desktop only (own column) */}
+              <td className="py-2.5 px-1 hidden md:table-cell">
+                <div className="flex justify-center">
+                  <FormBadges form={row.form} />
+                </div>
               </td>
               <td className="py-2.5 px-2 pr-3 text-center text-sm font-extrabold text-neutral-900">{row.points}</td>
             </tr>
