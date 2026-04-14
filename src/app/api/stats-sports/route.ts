@@ -224,7 +224,13 @@ async function parseUSLeaders(data: any, leagueSlug: string) {
             shortName: "",
             logo: teamLogo,
           },
-          value: entry.displayValue || String(entry.value) || "-",
+          // Use numeric value, not the full stat line displayValue
+          // Format: batting avg → "0.417", others → round number
+          value: typeof entry.value === "number"
+            ? (entry.value < 1 && entry.value > 0
+              ? entry.value.toFixed(3)
+              : String(Math.round(entry.value * 10) / 10).replace(/\.0$/, ""))
+            : entry.displayValue || "-",
         };
       })
     );
