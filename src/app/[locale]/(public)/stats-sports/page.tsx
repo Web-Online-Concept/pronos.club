@@ -646,8 +646,7 @@ function ScheduleView({ data, t, locale }: { data: any; t: Record<string, string
                 <div className="flex items-center gap-2 sm:gap-4">
                   {/* Home */}
                   <div className="flex-1 flex items-center justify-end gap-2 text-right min-w-0">
-                    <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.home?.name}</span>
-                    <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.home?.shortName || match.home?.name}</span>
+                    <span className="text-xs font-semibold text-neutral-900 truncate">{match.home?.name}</span>
                     {match.home?.logo && <img src={match.home.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
                   </div>
 
@@ -665,8 +664,7 @@ function ScheduleView({ data, t, locale }: { data: any; t: Record<string, string
                   {/* Away */}
                   <div className="flex-1 flex items-center gap-2 min-w-0">
                     {match.away?.logo && <img src={match.away.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
-                    <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.away?.name}</span>
-                    <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.away?.shortName || match.away?.name}</span>
+                    <span className="text-xs font-semibold text-neutral-900 truncate">{match.away?.name}</span>
                   </div>
                 </div>
               </div>
