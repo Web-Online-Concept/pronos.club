@@ -161,63 +161,49 @@ export default function StatsSportsPage() {
       </section>
 
       <div className="mx-auto max-w-5xl px-4 py-6">
-        {/* Sport tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
-          {SPORTS.map((sport) => (
-            <button
-              key={sport.id}
-              onClick={() => {
-                setActiveSport(sport.id);
-                if (sport.id === "football") setActiveLeague("fra.1");
-                if (sport.id === "tennis") setActiveTour("atp");
-              }}
-              className={`shrink-0 cursor-pointer rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                activeSport === sport.id
-                  ? "bg-neutral-900 text-white shadow-md"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-              }`}
+        {/* Sport + League selectors */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          {/* Sport selector */}
+          <select
+            value={activeSport}
+            onChange={(e) => {
+              setActiveSport(e.target.value);
+              if (e.target.value === "football") setActiveLeague("fra.1");
+              if (e.target.value === "tennis") setActiveTour("atp");
+            }}
+            className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+          >
+            {SPORTS.map((sport) => (
+              <option key={sport.id} value={sport.id}>{sport.label}</option>
+            ))}
+          </select>
+
+          {/* League sub-selector (football) */}
+          {activeSport === "football" && (
+            <select
+              value={activeLeague}
+              onChange={(e) => setActiveLeague(e.target.value)}
+              className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             >
-              {sport.label}
-            </button>
-          ))}
+              {FOOTBALL_LEAGUES.map((league) => (
+                <option key={league.id} value={league.id}>{league.flag} {league.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Tour sub-selector (tennis) */}
+          {activeSport === "tennis" && (
+            <select
+              value={activeTour}
+              onChange={(e) => setActiveTour(e.target.value)}
+              className="w-full sm:w-auto cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            >
+              {TENNIS_TOURS.map((tour) => (
+                <option key={tour.id} value={tour.id}>{tour.flag} {tour.name}</option>
+              ))}
+            </select>
+          )}
         </div>
-
-        {/* League / Tour sub-selector */}
-        {activeSport === "football" && (
-          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
-            {FOOTBALL_LEAGUES.map((league) => (
-              <button
-                key={league.id}
-                onClick={() => setActiveLeague(league.id)}
-                className={`shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-medium transition ${
-                  activeLeague === league.id
-                    ? "bg-emerald-600 text-white"
-                    : "bg-neutral-50 border border-neutral-200 text-neutral-600 hover:border-emerald-500/50"
-                }`}
-              >
-                {league.flag} {league.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {activeSport === "tennis" && (
-          <div className="mt-3 flex gap-1.5">
-            {TENNIS_TOURS.map((tour) => (
-              <button
-                key={tour.id}
-                onClick={() => setActiveTour(tour.id)}
-                className={`shrink-0 cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  activeTour === tour.id
-                    ? "bg-emerald-600 text-white"
-                    : "bg-neutral-50 border border-neutral-200 text-neutral-600 hover:border-emerald-500/50"
-                }`}
-              >
-                {tour.name}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Content */}
         <div className="mt-6">
@@ -325,6 +311,7 @@ function USTable({ data, t }: { data: any; t: Record<string, string> }) {
                 <tr className="bg-neutral-900 text-white">
                   <th className="py-3 pl-3 pr-1 text-left text-xs font-semibold w-8">{t.pos}</th>
                   <th className="py-3 px-2 text-left text-xs font-semibold">{t.team}</th>
+                  <th className="py-3 px-2 text-center text-xs font-semibold">{t.played}</th>
                   <th className="py-3 px-2 text-center text-xs font-semibold">{t.w}</th>
                   <th className="py-3 px-2 text-center text-xs font-semibold">{t.l}</th>
                   <th className="py-3 px-2 text-center text-xs font-semibold">{t.pct}</th>
@@ -348,6 +335,7 @@ function USTable({ data, t }: { data: any; t: Record<string, string> }) {
                         )}
                       </div>
                     </td>
+                    <td className="py-2.5 px-2 text-center text-xs text-neutral-500">{row.played ?? (row.wins + row.losses)}</td>
                     <td className="py-2.5 px-2 text-center text-xs font-medium text-emerald-600">{row.wins}</td>
                     <td className="py-2.5 px-2 text-center text-xs text-red-500">{row.losses}</td>
                     <td className="py-2.5 px-2 text-center text-xs text-neutral-600">{row.pct}</td>
