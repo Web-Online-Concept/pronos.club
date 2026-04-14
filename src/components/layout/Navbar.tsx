@@ -272,32 +272,21 @@ export default function Navbar() {
 
               {mediaOpen && (
                 <div className="absolute left-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
-                  {DESKTOP_MEDIA.map((link) =>
-                    link.disabled ? (
-                      <span
-                        key={link.label}
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-neutral-500 cursor-default"
-                      >
-                        <span className="text-lg">{link.icon}</span>
-                        <span>{link.label}</span>
-                        <span className="ml-auto text-[10px] rounded-full bg-neutral-800 px-2 py-0.5 text-neutral-500">Bientôt</span>
-                      </span>
-                    ) : (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        onClick={() => setMediaOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
-                          pathname.startsWith(link.href)
-                            ? "bg-emerald-600/10 text-emerald-400"
-                            : "text-neutral-300"
-                        }`}
-                      >
-                        <span className="text-lg">{link.icon}</span>
-                        <span>{link.label}</span>
-                      </Link>
-                    )
-                  )}
+                  {DESKTOP_MEDIA.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMediaOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
+                        pathname.startsWith(link.href)
+                          ? "bg-emerald-600/10 text-emerald-400"
+                          : "text-neutral-300"
+                      }`}
+                    >
+                      <span className="text-lg">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
