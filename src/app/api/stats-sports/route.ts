@@ -174,17 +174,28 @@ function parseFootballLeaders(data: any) {
 }
 
 // ── US sports leaders (via sports.core — résolution $ref athlètes) ──
-async function parseUSLeaders(data: any, sportSlug: string) {
+// headshotSlug: nba, nhl, nfl, mlb (not "basketball", "hockey" etc.)
+async function parseUSLeaders(data: any, leagueSlug: string) {
   const categories: any[] = [];
   const catList = data?.categories || [];
 
-  // 4 premières catégories, 5 joueurs chacune
+  // Map league to headshot CDN path
+  const headshotMap: Record<string, string> = {
+    nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb",
+  };
+  const headshotSport = headshotMap[leagueSlug] || leagueSlug;
+
+  // Map league to team logo sport path
+  const teamLogoSportMap: Record<string, string> = {
+    nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb",
+  };
+  const teamLogoSport = teamLogoSportMap[leagueSlug] || leagueSlug;
+
   for (const cat of catList.slice(0, 4)) {
     const catName = cat.displayName || cat.name || "?";
     const abbr = cat.abbreviation || "";
     const topEntries = (cat.leaders || []).slice(0, 5);
 
-    // Résoudre $ref athlètes en parallèle
     const resolved = await Promise.all(
       topEntries.map(async (entry: any, idx: number) => {
         const athleteRef = entry.athlete?.$ref;
@@ -193,15 +204,24 @@ async function parseUSLeaders(data: any, sportSlug: string) {
         if (!athleteData) return null;
 
         const id = athleteData.id;
-        // Headshot: nba/nhl/nfl/mlb
-        const headshotSport = sportSlug === "football" ? "nfl" : sportSlug;
         const headshot = `https://a.espncdn.com/i/headshots/${headshotSport}/players/full/${id}.png`;
+
+        // Extract team ID from team $ref URL
+        const teamRef = entry.team?.$ref || "";
+        const teamIdMatch = teamRef.match(/teams\/(\d+)/);
+        const teamId = teamIdMatch ? teamIdMatch[1] : null;
+        const teamLogo = teamId
+          ? `https://a.espncdn.com/i/teamlogos/${teamLogoSport}/500/${teamId}.png`
+          : null;
 
         return {
           rank: idx + 1,
           name: athleteData.displayName || athleteData.fullName || "?",
           headshot,
-          team: { shortName: athleteData.team?.abbreviation || "" },
+          team: {
+            shortName: "",
+            logo: teamLogo,
+          },
           value: entry.displayValue || String(entry.value) || "-",
         };
       })
@@ -259,8 +279,7 @@ export async function GET(request: Request) {
         );
         if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
 
-        const sportSlug = config.sport;
-        const categories = await parseUSLeaders(data, sportSlug);
+        const categories = await parseUSLeaders(data, config.league);
         result = { sport, view: "leaders", name: config.name, categories };
       } else {
         const data = await fetchESPN(

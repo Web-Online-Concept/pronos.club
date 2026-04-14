@@ -241,12 +241,8 @@ function LeadersView({ data, t }: { data: any; t: Record<string, string> }) {
     <div className="grid gap-6 sm:grid-cols-2">
       {categories.map((cat: any, ci: number) => (
         <div key={ci} className="overflow-hidden rounded-xl border border-neutral-200">
-          <div className="bg-neutral-900 px-4 py-3 flex items-center justify-between">
+          <div className="bg-neutral-900 px-4 py-3">
             <h3 className="text-sm font-bold text-white">{cat.name}</h3>
-            <div className="flex items-center gap-4 text-[10px] font-semibold text-white/40">
-              <span>{t.played}</span>
-              <span className="w-8 text-right">{cat.name}</span>
-            </div>
           </div>
           <div className="divide-y divide-neutral-100">
             {cat.leaders.map((leader: any, li: number) => {
