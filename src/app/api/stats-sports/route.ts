@@ -329,114 +329,6 @@ async function fetchUSSchedule(sportKey: string) {
   return data?.events ? parseScheduleEvents(data.events) : [];
 }
 
-async function fetchTennisSchedule(tour: string) {
-  const now = new Date();
-  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-  const data = await fetchESPN(
-    `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/scoreboard?dates=${fmtDate(now)}-${fmtDate(end)}&limit=100`
-  );
-  if (!data?.events) return [];
-  return data.events
-    .filter((ev: any) => !ev.status?.type?.completed)
-    .map((ev: any) => {
-      const comp = ev.competitions?.[0];
-      const competitors = comp?.competitors ?? [];
-      return {
-        id: ev.id, date: ev.date, name: ev.name ?? ev.shortName ?? "",
-        status: ev.status?.type?.name ?? "STATUS_SCHEDULED",
-        tournament: ev.season?.name ?? comp?.venue?.fullName ?? "",
-        venue: comp?.venue?.fullName ?? null,
-        players: competitors.map((c: any) => {
-          // ESPN tennis: player info can be in c.athlete, c.team, or directly on c
-          const athlete = c.athlete ?? {};
-          const team = c.team ?? {};
-          const id = athlete.id ?? team.id ?? c.id ?? "";
-          const name = athlete.displayName ?? athlete.name ?? team.displayName ?? team.name ?? c.displayName ?? "";
-          const flag = athlete.flag?.href ?? team.flag?.href ?? null;
-          return {
-            id,
-            name,
-            seed: c.seed ?? null,
-            countryFlag: flag,
-            headshot: id ? `https://a.espncdn.com/i/headshots/tennis/players/full/${id}.png` : null,
-          };
-        }),
-      };
-    })
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-}
-
-// ── Injuries (US sports only) ──
-async function fetchUSInjuries(sportKey: string) {
-  const cfg = US_SPORTS[sportKey];
-  if (!cfg) return null;
-  const headshotMap: Record<string, string> = { nba: "nba", nhl: "nhl", nfl: "nfl", mlb: "mlb" };
-  const hs = headshotMap[sportKey] || sportKey;
-
-  const data = await fetchESPN(
-    `https://site.api.espn.com/apis/site/v2/sports/${cfg.sport}/${cfg.league}/injuries`
-  );
-  if (!data) return null;
-
-  // ESPN can return injuries in multiple structures:
-  // 1) { items: [...] } — each item has .team and .injuries
-  // 2) { teams: [...] } — same shape as items
-  // 3) Top-level array
-  // 4) { injuries: [...] } — flat list, need to group by team
-  let rawTeams: any[] = [];
-
-  if (Array.isArray(data)) {
-    rawTeams = data;
-  } else if (data.items && Array.isArray(data.items)) {
-    rawTeams = data.items;
-  } else if (data.teams && Array.isArray(data.teams)) {
-    rawTeams = data.teams;
-  } else if (data.injuries && Array.isArray(data.injuries)) {
-    // Flat list — group by team
-    const teamMap = new Map<string, { team: any; injuries: any[] }>();
-    for (const inj of data.injuries) {
-      const team = inj.team ?? {};
-      const teamId = team.id ?? "unknown";
-      if (!teamMap.has(teamId)) {
-        teamMap.set(teamId, { team, injuries: [] });
-      }
-      teamMap.get(teamId)!.injuries.push(inj);
-    }
-    rawTeams = Array.from(teamMap.values());
-  }
-
-  if (rawTeams.length === 0) {
-    console.log("[stats-sports] injuries: no teams found in response. Keys:", Object.keys(data));
-    return [];
-  }
-
-  const teams = rawTeams.map((teamEntry: any) => {
-    const team = teamEntry.team ?? {};
-    const injuriesList = teamEntry.injuries ?? [];
-    const injuries = injuriesList.map((inj: any) => ({
-      athlete: {
-        id: inj.athlete?.id,
-        name: inj.athlete?.displayName ?? inj.athlete?.name ?? "Unknown",
-        position: inj.athlete?.position?.abbreviation ?? inj.athlete?.position?.name ?? "",
-        headshot: inj.athlete?.id ? `https://a.espncdn.com/i/headshots/${hs}/players/full/${inj.athlete.id}.png` : null,
-      },
-      status: inj.status ?? inj.type?.name ?? "Unknown",
-      date: inj.date ?? null,
-      description: inj.longComment ?? inj.shortComment ?? inj.details?.detail ?? "",
-    }));
-    return {
-      team: {
-        id: team.id, name: team.displayName ?? team.name ?? "Unknown",
-        shortName: team.abbreviation ?? "",
-        logo: team.logos?.[0]?.href ?? (team.id ? `https://a.espncdn.com/i/teamlogos/${hs}/500/${team.id}.png` : null),
-      },
-      injuries,
-    };
-  });
-
-  return teams.filter((t: any) => t.injuries.length > 0).sort((a: any, b: any) => a.team.name.localeCompare(b.team.name));
-}
-
 // ── GET handler ──
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -489,9 +381,6 @@ export async function GET(request: Request) {
       if (view === "schedule") {
         const matches = await fetchUSSchedule(sport);
         result = { sport, view: "schedule", name: config.name, matches };
-      } else if (view === "injuries") {
-        const teams = await fetchUSInjuries(sport);
-        result = { sport, view: "injuries", name: config.name, teams: teams || [] };
       } else if (view === "leaders") {
         // Saison en cours avec /seasons/{year}/types/2/leaders
         const data = await fetchESPN(
@@ -511,16 +400,11 @@ export async function GET(request: Request) {
 
     } else if (sport === "tennis") {
       const tour = league === "wta" ? "wta" : "atp";
-      if (view === "schedule") {
-        const matches = await fetchTennisSchedule(tour);
-        result = { sport: "tennis", view: "schedule", tour: tour.toUpperCase(), matches };
-      } else {
-        const data = await fetchESPN(
-          `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
-        );
-        if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
-        result = { sport: "tennis", view: "standings", tour: tour.toUpperCase(), rankings: parseTennisRankings(data) };
-      }
+      const data = await fetchESPN(
+        `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings`
+      );
+      if (!data) return NextResponse.json({ error: "ESPN unavailable" }, { status: 502 });
+      result = { sport: "tennis", view: "standings", tour: tour.toUpperCase(), rankings: parseTennisRankings(data) };
 
     } else {
       return NextResponse.json({ error: "Unknown sport" }, { status: 400 });

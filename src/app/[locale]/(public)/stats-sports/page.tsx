@@ -7,11 +7,11 @@ import { useLocale } from "next-intl";
 // ── Config ──
 const SPORTS = [
   { id: "football", label: "Football", hasLeagues: true, hasLeaders: true, hasSchedule: true },
-  { id: "nba", label: "NBA", hasLeaders: true, hasSchedule: true, hasInjuries: true },
-  { id: "nhl", label: "NHL", hasLeaders: true, hasSchedule: true, hasInjuries: true },
-  { id: "tennis", label: "Tennis", hasSchedule: true },
-  { id: "nfl", label: "NFL", hasLeaders: true, hasSchedule: true, hasInjuries: true },
-  { id: "mlb", label: "MLB", hasLeaders: true, hasSchedule: true, hasInjuries: true },
+  { id: "nba", label: "NBA", hasLeaders: true, hasSchedule: true },
+  { id: "nhl", label: "NHL", hasLeaders: true, hasSchedule: true },
+  { id: "tennis", label: "Tennis" },
+  { id: "nfl", label: "NFL", hasLeaders: true, hasSchedule: true },
+  { id: "mlb", label: "MLB", hasLeaders: true, hasSchedule: true },
 ];
 
 const FOOTBALL_LEAGUES = [
@@ -107,7 +107,7 @@ export default function StatsSportsPage() {
   const [activeSport, setActiveSport] = useState("football");
   const [activeLeague, setActiveLeague] = useState("fra.1");
   const [activeTour, setActiveTour] = useState("atp");
-  const [activeView, setActiveView] = useState<"standings" | "leaders" | "schedule" | "injuries">("standings");
+  const [activeView, setActiveView] = useState<"standings" | "leaders" | "schedule">("standings");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -259,7 +259,7 @@ export default function StatsSportsPage() {
         </div>
 
         {/* View toggle: Standings / Leaders / Schedule / Injuries */}
-        {(currentSport?.hasLeaders || currentSport?.hasSchedule || currentSport?.hasInjuries) && (
+        {(currentSport?.hasLeaders || currentSport?.hasSchedule) && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1">
             <button
               onClick={() => setActiveView("standings")}
@@ -295,18 +295,6 @@ export default function StatsSportsPage() {
                 {t.tab_schedule}
               </button>
             )}
-            {currentSport?.hasInjuries && (
-              <button
-                onClick={() => setActiveView("injuries")}
-                className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  activeView === "injuries"
-                    ? "bg-neutral-900 text-white shadow"
-                    : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
-                }`}
-              >
-                {t.tab_injuries}
-              </button>
-            )}
           </div>
         )}
 
@@ -327,8 +315,6 @@ export default function StatsSportsPage() {
             <LeadersView data={data} t={t} />
           ) : data?.view === "schedule" ? (
             <ScheduleView data={data} t={t} locale={locale} />
-          ) : data?.view === "injuries" ? (
-            <InjuriesView data={data} t={t} />
           ) : data?.sport === "football" ? (
             <FootballTable data={data} t={t} />
           ) : data?.sport === "tennis" ? (
@@ -640,7 +626,6 @@ function ScheduleView({ data, t, locale }: { data: any; t: Record<string, string
   const matches = data?.matches || [];
   if (matches.length === 0) return <p className="text-center text-neutral-400 py-10">{t.no_upcoming}</p>;
 
-  const isTennis = data?.sport === "tennis";
   const grouped = groupMatchesByDate(matches, locale, t);
 
   return (
@@ -654,124 +639,32 @@ function ScheduleView({ data, t, locale }: { data: any; t: Record<string, string
                 key={match.id ?? mi}
                 className="overflow-hidden rounded-xl border border-neutral-200 bg-white px-3 py-3 sm:px-4 transition hover:border-neutral-300"
               >
-                {isTennis ? (
-                  /* Tennis layout */
-                  <div>
-                    {match.tournament && (
-                      <p className="text-[10px] text-neutral-400 mb-1.5">{match.tournament}</p>
+                <div className="flex items-center gap-2 sm:gap-4">
+                  {/* Home */}
+                  <div className="flex-1 flex items-center justify-end gap-2 text-right min-w-0">
+                    <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.home?.name}</span>
+                    <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.home?.shortName || match.home?.name}</span>
+                    {match.home?.logo && <img src={match.home.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
+                  </div>
+
+                  {/* Time */}
+                  <div className="flex flex-col items-center shrink-0 min-w-[56px]">
+                    <span className="text-sm font-bold text-emerald-600">{formatMatchTime(match.date, locale)}</span>
+                    {match.venue && (
+                      <span className="text-[9px] text-neutral-400 mt-0.5 hidden sm:block truncate max-w-[120px] text-center">{match.venue}</span>
                     )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-1.5">
-                        {match.players && match.players.length > 0 && match.players.some((p: any) => p.name) ? (
-                          match.players.map((p: any, pi: number) => (
-                            <div key={pi} className="flex items-center gap-2">
-                              <HeadshotWithFallback headshot={p.headshot} teamLogo={null} name={p.name} />
-                              {p.countryFlag && <img src={p.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
-                              <span className="text-xs font-semibold text-neutral-900">{p.name}</span>
-                              {p.seed && <span className="text-[10px] text-neutral-400">[{p.seed}]</span>}
-                            </div>
-                          ))
-                        ) : (
-                          /* Fallback: show match.name (e.g. "Djokovic vs Sinner") */
-                          <span className="text-xs font-semibold text-neutral-900">{match.name}</span>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-sm font-bold text-emerald-600">{formatMatchTime(match.date, locale)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Football / US sport layout */
-                  <div className="flex items-center gap-2 sm:gap-4">
-                    {/* Home */}
-                    <div className="flex-1 flex items-center justify-end gap-2 text-right min-w-0">
-                      <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.home?.name}</span>
-                      <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.home?.shortName || match.home?.name}</span>
-                      {match.home?.logo && <img src={match.home.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
-                    </div>
-
-                    {/* Time */}
-                    <div className="flex flex-col items-center shrink-0 min-w-[56px]">
-                      <span className="text-sm font-bold text-emerald-600">{formatMatchTime(match.date, locale)}</span>
-                      {match.venue && (
-                        <span className="text-[9px] text-neutral-400 mt-0.5 hidden sm:block truncate max-w-[120px] text-center">{match.venue}</span>
-                      )}
-                      {match.broadcast && (
-                        <span className="text-[9px] text-neutral-400">{match.broadcast}</span>
-                      )}
-                    </div>
-
-                    {/* Away */}
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      {match.away?.logo && <img src={match.away.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
-                      <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.away?.name}</span>
-                      <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.away?.shortName || match.away?.name}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Injury status badge color ──
-function injuryStatusColor(status: string) {
-  const s = status.toLowerCase();
-  if (s.includes("out") || s.includes("injured reserve") || s.includes("ir")) return "bg-red-500 text-white";
-  if (s.includes("doubtful")) return "bg-orange-500 text-white";
-  if (s.includes("questionable")) return "bg-yellow-500 text-neutral-900";
-  if (s.includes("day-to-day") || s.includes("dtd")) return "bg-amber-400 text-neutral-900";
-  if (s.includes("probable")) return "bg-emerald-500 text-white";
-  return "bg-neutral-400 text-white";
-}
-
-// ── Injuries view ──
-function InjuriesView({ data, t }: { data: any; t: Record<string, string> }) {
-  const teams = data?.teams || [];
-  if (teams.length === 0) {
-    // If sport is US (has injuries endpoint) but no data → "no data", not "unavailable"
-    const isUSSport = ["nba", "nhl", "nfl", "mlb"].includes(data?.sport);
-    const msg = isUSSport ? t.no_data : t.no_injuries;
-    return <p className="text-center text-neutral-400 py-10">{msg}</p>;
-  }
-
-  return (
-    <div className="space-y-4">
-      {teams.map((teamEntry: any, ti: number) => (
-        <div key={ti} className="overflow-hidden rounded-xl border border-neutral-200">
-          {/* Team header */}
-          <div className="flex items-center gap-2.5 px-4 py-3 bg-neutral-900 text-white">
-            {teamEntry.team?.logo && <img src={teamEntry.team.logo} alt="" className="h-6 w-6 object-contain" />}
-            <h3 className="text-sm font-bold">{teamEntry.team?.name}</h3>
-            <span className="ml-auto text-[10px] font-medium bg-white/10 px-2 py-0.5 rounded-full">
-              {teamEntry.injuries?.length ?? 0}
-            </span>
-          </div>
-
-          {/* Injuries list */}
-          <div className="divide-y divide-neutral-100">
-            {teamEntry.injuries?.map((inj: any, ii: number) => (
-              <div key={ii} className="flex items-start gap-2.5 px-3 py-2.5 sm:px-4">
-                <HeadshotWithFallback headshot={inj.athlete?.headshot} teamLogo={teamEntry.team?.logo} name={inj.athlete?.name || "?"} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs font-bold text-neutral-900">{inj.athlete?.name}</span>
-                    {inj.athlete?.position && (
-                      <span className="text-[10px] text-neutral-400">{inj.athlete.position}</span>
+                    {match.broadcast && (
+                      <span className="text-[9px] text-neutral-400">{match.broadcast}</span>
                     )}
                   </div>
-                  {inj.description && (
-                    <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-2">{inj.description}</p>
-                  )}
+
+                  {/* Away */}
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    {match.away?.logo && <img src={match.away.logo} alt="" className="h-6 w-6 object-contain shrink-0" />}
+                    <span className="text-xs font-semibold text-neutral-900 truncate hidden sm:inline">{match.away?.name}</span>
+                    <span className="text-xs font-semibold text-neutral-900 truncate sm:hidden">{match.away?.shortName || match.away?.name}</span>
+                  </div>
                 </div>
-                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${injuryStatusColor(inj.status)}`}>
-                  {inj.status}
-                </span>
               </div>
             ))}
           </div>
