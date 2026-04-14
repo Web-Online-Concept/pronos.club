@@ -160,14 +160,20 @@ export default function WorldCupPage() {
 // ── Flag component ──
 function Flag({ code, size = 24 }: { code: string; size?: number }) {
   if (!code) return null;
+  // Subdivisions (gb-eng, gb-sct, gb-wls) only work as SVG on flagcdn
+  const isSub = code.startsWith("gb-");
+  const src = isSub
+    ? `https://flagcdn.com/${code}.svg`
+    : `https://flagcdn.com/48x36/${code}.png`;
   return (
     <img
-      src={`https://flagcdn.com/w${size * 2}/${code}.png`}
+      src={src}
       alt={code}
       width={size}
       height={Math.round(size * 0.75)}
       className="inline-block rounded-sm object-cover"
       loading="lazy"
+      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
     />
   );
 }
