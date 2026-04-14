@@ -590,17 +590,21 @@ function TennisTable({ data, t }: { data: any; t: Record<string, string> }) {
 function groupMatchesByDate(matches: any[], locale: string, t: Record<string, string>) {
   const groups: { label: string; matches: any[] }[] = [];
   const map = new Map<string, any[]>();
+
+  // Use local date strings (not UTC) so grouping matches user's timezone
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const tom = new Date(now.getTime() + 86400000);
+  const tomorrowStr = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, "0")}-${String(tom.getDate()).padStart(2, "0")}`;
 
   for (const m of matches) {
-    const dateStr = new Date(m.date).toISOString().slice(0, 10);
+    const d = new Date(m.date);
+    // Local date string
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     let label = dateStr;
     if (dateStr === todayStr) label = t.today;
     else if (dateStr === tomorrowStr) label = t.tomorrow;
     else {
-      const d = new Date(m.date);
       label = d.toLocaleDateString(locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "en-US", {
         weekday: "short", day: "numeric", month: "short",
       });
