@@ -428,6 +428,7 @@ function TennisTable({ data, t }: { data: any; t: Record<string, string> }) {
                 <td className="py-2.5 pl-3 pr-1 text-xs font-bold text-neutral-500">{row.rank}</td>
                 <td className="py-2.5 px-2">
                   <div className="flex items-center gap-2">
+                    <HeadshotWithFallback headshot={row.headshot} teamLogo={null} name={row.name} />
                     {row.countryFlag && <img src={row.countryFlag} alt="" className="h-3.5 w-5 rounded-sm object-cover" />}
                     <span className="text-xs font-semibold text-neutral-900">{row.name}</span>
                     {diff !== 0 && (

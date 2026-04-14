@@ -106,10 +106,12 @@ function parseTennisRankings(data: any) {
   if (rankings.length === 0) return [];
   const entries: any[] = [];
   for (const r of rankings[0]?.ranks || []) {
+    const athleteId = r.athlete?.id || "";
     entries.push({
       rank: r.current || 0, previousRank: r.previous || 0,
       name: r.athlete?.displayName || "?", country: r.athlete?.flag?.alt || "",
       countryFlag: r.athlete?.flag?.href || null, points: r.points || 0,
+      headshot: athleteId ? `https://a.espncdn.com/i/headshots/tennis/players/full/${athleteId}.png` : null,
     });
   }
   return entries.slice(0, 100);
