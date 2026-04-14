@@ -6,27 +6,27 @@ import { useLocale } from "next-intl";
 
 // ── Config ──
 const SPORTS = [
-  { id: "football", label: "⚽ Football", hasLeagues: true, hasLeaders: true },
-  { id: "nba", label: "🏀 NBA", hasLeaders: true },
-  { id: "nhl", label: "🏒 NHL", hasLeaders: true },
-  { id: "tennis", label: "🎾 Tennis" },
-  { id: "nfl", label: "🏈 NFL", hasLeaders: true },
-  { id: "mlb", label: "⚾ MLB", hasLeaders: true },
+  { id: "football", label: "Football", hasLeagues: true, hasLeaders: true },
+  { id: "nba", label: "NBA", hasLeaders: true },
+  { id: "nhl", label: "NHL", hasLeaders: true },
+  { id: "tennis", label: "Tennis" },
+  { id: "nfl", label: "NFL", hasLeaders: true },
+  { id: "mlb", label: "MLB", hasLeaders: true },
 ];
 
 const FOOTBALL_LEAGUES = [
-  { id: "fra.1", name: "Ligue 1", flag: "🇫🇷" },
-  { id: "eng.1", name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { id: "esp.1", name: "La Liga", flag: "🇪🇸" },
-  { id: "ita.1", name: "Serie A", flag: "🇮🇹" },
-  { id: "ger.1", name: "Bundesliga", flag: "🇩🇪" },
-  { id: "fra.2", name: "Ligue 2", flag: "🇫🇷" },
-  { id: "por.1", name: "Liga Portugal", flag: "🇵🇹" },
-  { id: "ned.1", name: "Eredivisie", flag: "🇳🇱" },
-  { id: "bel.1", name: "Pro League", flag: "🇧🇪" },
-  { id: "tur.1", name: "Süper Lig", flag: "🇹🇷" },
-  { id: "uefa.champions", name: "Champions League", flag: "🏆" },
-  { id: "uefa.europa", name: "Europa League", flag: "🏆" },
+  { id: "fra.1", name: "Ligue 1", flag: "FR" },
+  { id: "eng.1", name: "Premier League", flag: "EN" },
+  { id: "esp.1", name: "La Liga", flag: "ES" },
+  { id: "ita.1", name: "Serie A", flag: "IT" },
+  { id: "ger.1", name: "Bundesliga", flag: "DE" },
+  { id: "fra.2", name: "Ligue 2", flag: "FR" },
+  { id: "por.1", name: "Liga Portugal", flag: "PT" },
+  { id: "ned.1", name: "Eredivisie", flag: "NL" },
+  { id: "bel.1", name: "Pro League", flag: "BE" },
+  { id: "tur.1", name: "Süper Lig", flag: "TR" },
+  { id: "uefa.champions", name: "Champions League", flag: "UCL" },
+  { id: "uefa.europa", name: "Europa League", flag: "UEL" },
 ];
 
 const TENNIS_TOURS = [
