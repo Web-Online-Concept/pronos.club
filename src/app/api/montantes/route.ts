@@ -467,6 +467,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "step_won", actual_gain: actualGain });
     }
 
+    // ── Update odds on a step ──
+    if (action === "update_odds") {
+      const { step_id, new_odds } = body;
+      if (!new_odds || new_odds <= 1) return NextResponse.json({ error: "Invalid odds" }, { status: 400 });
+
+      const { data: step } = await supabaseAdmin
+        .from("montante_steps")
+        .select("*, montantes!inner(user_id, stake_mode)")
+        .eq("id", step_id)
+        .single();
+
+      if (!step || step.montantes.user_id !== user.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      const newPotentialGain = Math.round(parseFloat(step.stake) * new_odds * 100) / 100;
+
+      const updateData: any = {
+        odds: new_odds,
+        potential_gain: newPotentialGain,
+      };
+
+      // If step was already won, recalculate actual_gain too
+      if (step.result === "won") {
+        updateData.actual_gain = newPotentialGain;
+      }
+
+      await supabaseAdmin
+        .from("montante_steps")
+        .update(updateData)
+        .eq("id", step_id);
+
+      return NextResponse.json({ success: true });
+    }
+
     // ── Cash out (libre mode — end montante with current gain) ──
     if (action === "cash_out") {
       const { montante_id } = body;

@@ -772,6 +772,8 @@ function MontanteDetailView({
   const [loading, setLoading] = useState(true);
   const [showAddStep, setShowAddStep] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
+  const [editingOddsId, setEditingOddsId] = useState<string | null>(null);
+  const [editingOddsValue, setEditingOddsValue] = useState("");
 
   const fetchDetail = useCallback(async () => {
     const res = await fetch(`/api/montantes?action=detail&id=${montanteId}`);
@@ -797,6 +799,19 @@ function MontanteDetailView({
       setCelebrating(true);
       setTimeout(() => setCelebrating(false), 3500);
     }
+    fetchDetail();
+  }
+
+  async function updateOdds(stepId: string) {
+    const newOdds = parseFloat(editingOddsValue);
+    if (!newOdds || newOdds <= 1) return;
+    await fetch("/api/montantes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update_odds", step_id: stepId, new_odds: newOdds }),
+    });
+    setEditingOddsId(null);
+    setEditingOddsValue("");
     fetchDetail();
   }
 
@@ -1050,7 +1065,30 @@ function MontanteDetailView({
                       <div className="flex-1 grid grid-cols-3 ml-4 sm:ml-5">
                         <div className="text-center">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">{step.odds}</p>
+                          {editingOddsId === step.id ? (
+                            <div className="mt-1 flex items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editingOddsValue}
+                                onChange={(e) => setEditingOddsValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") updateOdds(step.id); if (e.key === "Escape") setEditingOddsId(null); }}
+                                autoFocus
+                                className="w-16 rounded-lg bg-white/10 border border-emerald-500/50 px-2 py-1 text-center text-sm font-bold text-white outline-none"
+                              />
+                              <button onClick={() => updateOdds(step.id)} className="cursor-pointer text-emerald-400 hover:text-emerald-300">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <p
+                              onClick={() => { setEditingOddsId(step.id); setEditingOddsValue(String(step.odds)); }}
+                              className="cursor-pointer mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums hover:text-emerald-400 transition"
+                              title="Cliquer pour modifier"
+                            >
+                              {step.odds}
+                            </p>
+                          )}
                         </div>
                         <div className="text-center">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
@@ -1292,18 +1330,18 @@ function AddStepModal({
             <select
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
+              className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50"
             >
-              <option value="">—</option>
-              <option value="⚽ Football">⚽ Football</option>
-              <option value="🏀 Basketball">🏀 Basketball</option>
-              <option value="🎾 Tennis">🎾 Tennis</option>
-              <option value="🏒 Hockey">🏒 Hockey</option>
-              <option value="🏈 Football US">🏈 Football US</option>
-              <option value="⚾ Baseball">⚾ Baseball</option>
-              <option value="🥊 MMA/Boxe">🥊 MMA/Boxe</option>
-              <option value="🏉 Rugby">🏉 Rugby</option>
-              <option value="🎯 Autre">🎯 Autre</option>
+              <option value="" className="bg-neutral-800">—</option>
+              <option value="⚽ Football" className="bg-neutral-800">⚽ Football</option>
+              <option value="🏀 Basketball" className="bg-neutral-800">🏀 Basketball</option>
+              <option value="🎾 Tennis" className="bg-neutral-800">🎾 Tennis</option>
+              <option value="🏒 Hockey" className="bg-neutral-800">🏒 Hockey</option>
+              <option value="🏈 Football US" className="bg-neutral-800">🏈 Football US</option>
+              <option value="⚾ Baseball" className="bg-neutral-800">⚾ Baseball</option>
+              <option value="🥊 MMA/Boxe" className="bg-neutral-800">🥊 MMA/Boxe</option>
+              <option value="🏉 Rugby" className="bg-neutral-800">🏉 Rugby</option>
+              <option value="🎯 Autre" className="bg-neutral-800">🎯 Autre</option>
             </select>
           </div>
           <div>
