@@ -450,6 +450,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "step_won", actual_gain: actualGain });
     }
 
+    // ── Cash out (libre mode — end montante with current gain) ──
+    if (action === "cash_out") {
+      const { montante_id } = body;
+
+      const { data: montante } = await supabaseAdmin
+        .from("montantes")
+        .select("*")
+        .eq("id", montante_id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!montante) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      if (montante.status !== "active") return NextResponse.json({ error: "Not active" }, { status: 400 });
+
+      // Get last won step gain
+      const { data: lastWonStep } = await supabaseAdmin
+        .from("montante_steps")
+        .select("actual_gain")
+        .eq("montante_id", montante_id)
+        .eq("result", "won")
+        .order("step_number", { ascending: false })
+        .limit(1)
+        .single();
+
+      const cashOutAmount = lastWonStep?.actual_gain ? parseFloat(lastWonStep.actual_gain) : 0;
+      if (cashOutAmount <= 0) return NextResponse.json({ error: "Nothing to cash out" }, { status: 400 });
+
+      const profit = cashOutAmount - parseFloat(montante.initial_stake);
+
+      // Update montante
+      await supabaseAdmin
+        .from("montantes")
+        .update({ status: "won", profit, total_steps: montante.current_step })
+        .eq("id", montante_id);
+
+      // Credit bankroll
+      const { data: bankroll } = await supabaseAdmin
+        .from("montante_bankroll")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      const newBalance = parseFloat(bankroll!.balance) + cashOutAmount;
+      await supabaseAdmin
+        .from("montante_bankroll")
+        .update({ balance: newBalance })
+        .eq("user_id", user.id);
+
+      await supabaseAdmin
+        .from("montante_bankroll_logs")
+        .insert({
+          user_id: user.id,
+          montante_id: montante_id,
+          type: "win",
+          amount: cashOutAmount,
+          balance_after: newBalance,
+          note: `Montante encaissée: ${montante.name} (+${profit.toFixed(2)}€)`,
+        });
+
+      return NextResponse.json({ status: "won", profit, balance: newBalance });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 
   } catch (err: any) {

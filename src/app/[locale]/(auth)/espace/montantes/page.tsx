@@ -276,7 +276,7 @@ function MontanteCard({ montante: m, onClick, onDelete }: { montante: Montante; 
           <div className="mt-1 flex items-center gap-3 text-[11px] text-neutral-400">
             <span>Mise: {m.initial_stake}€</span>
             {m.target_amount && <span>Objectif: {m.target_amount}€</span>}
-            <span>Étapes: {m.current_step}/{m.total_steps}</span>
+            <span>Étapes: {m.current_step}</span>
             {m.status !== "active" && (
               <span className={m.profit >= 0 ? "text-emerald-600 font-bold" : "text-red-500 font-bold"}>
                 {m.profit >= 0 ? "+" : ""}{m.profit.toFixed(2)}€
@@ -309,27 +309,20 @@ function MontanteCard({ montante: m, onClick, onDelete }: { montante: Montante; 
 // ============================================================
 
 function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => void; onCreated: () => void; bankrollBalance: number }) {
-  const [mode, setMode] = useState<"objectif" | "libre">("objectif");
   const [stakeMode, setStakeMode] = useState<"auto" | "manuel">("auto");
   const [name, setName] = useState("");
   const [initialStake, setInitialStake] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
-  const [totalSteps, setTotalSteps] = useState("5");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const stake = parseFloat(initialStake) || 0;
   const target = parseFloat(targetAmount) || 0;
-  const steps = parseInt(totalSteps) || 5;
-  const avgOdds = mode === "objectif" && stake > 0 && target > stake && steps > 0
-    ? Math.pow(target / stake, 1 / steps)
-    : 0;
 
   async function handleCreate() {
     if (stake <= 0) return setError("Mise initiale requise");
     if (stake > bankrollBalance) return setError("Bankroll insuffisante");
-    if (steps < 2 || steps > 20) return setError("Entre 2 et 20 étapes");
-    if (mode === "objectif" && target <= stake) return setError("L'objectif doit être supérieur à la mise");
+    if (target > 0 && target <= stake) return setError("L'objectif doit être supérieur à la mise");
 
     setSaving(true);
     setError("");
@@ -339,11 +332,11 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
       body: JSON.stringify({
         action: "create",
         name: name || "Ma montante",
-        mode,
+        mode: target > 0 ? "objectif" : "libre",
         stake_mode: stakeMode,
         initial_stake: stake,
-        target_amount: mode === "objectif" ? target : null,
-        total_steps: steps,
+        target_amount: target > 0 ? target : null,
+        total_steps: 50,
       }),
     });
     const data = await res.json();
@@ -368,22 +361,6 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
           className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
 
-        {/* Mode */}
-        <p className="mb-1.5 text-xs font-semibold text-neutral-500">Mode</p>
-        <div className="mb-3 flex gap-2">
-          {(["objectif", "libre"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`cursor-pointer flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                mode === m ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-neutral-200 text-neutral-500"
-              }`}
-            >
-              {m === "objectif" ? "🎯 Objectif" : "🔓 Libre"}
-            </button>
-          ))}
-        </div>
-
         {/* Stake mode */}
         <p className="mb-1.5 text-xs font-semibold text-neutral-500">Calcul des mises</p>
         <div className="mb-3 flex gap-2">
@@ -395,7 +372,7 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
                 stakeMode === m ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-neutral-200 text-neutral-500"
               }`}
             >
-              {m === "auto" ? "⚡ Auto (réinvestir)" : "✏️ Manuel"}
+              {m === "auto" ? "⚡ Auto (tout réinvestir)" : "✏️ Manuel"}
             </button>
           ))}
         </div>
@@ -412,42 +389,21 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
               placeholder="100"
             />
           </div>
-          {mode === "objectif" && (
-            <div>
-              <label className="text-[10px] font-semibold text-neutral-500">Objectif (€)</label>
-              <input
-                type="number"
-                value={targetAmount}
-                onChange={(e) => setTargetAmount(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="800"
-              />
-            </div>
-          )}
           <div>
-            <label className="text-[10px] font-semibold text-neutral-500">Nombre d'étapes</label>
+            <label className="text-[10px] font-semibold text-neutral-500">Objectif (€) <span className="text-neutral-400 font-normal">optionnel</span></label>
             <input
               type="number"
-              min={2}
-              max={20}
-              value={totalSteps}
-              onChange={(e) => setTotalSteps(e.target.value)}
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
               className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              placeholder="800"
             />
           </div>
         </div>
 
-        {/* Preview */}
-        {mode === "objectif" && avgOdds > 0 && (
-          <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-center">
-            <p className="text-xs text-emerald-700">
-              Cote moyenne nécessaire : <span className="font-extrabold">{avgOdds.toFixed(2)}</span> par étape
-            </p>
-          </div>
-        )}
-
         <p className="mb-3 text-[10px] text-neutral-400 text-center">
           Bankroll disponible : {bankrollBalance.toFixed(2)}€
+          {target > 0 && <span className="ml-1">· Objectif : {target}€</span>}
         </p>
 
         {error && <p className="mb-3 text-center text-xs text-red-500">{error}</p>}
@@ -629,10 +585,9 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
     );
   }
 
-  const progress = montante.total_steps > 0 ? (montante.current_step / montante.total_steps) * 100 : 0;
   const currentGain = steps.filter((s) => s.result === "won").reduce((sum, s) => sum + (s.actual_gain || 0), 0);
   const pendingStep = steps.find((s) => s.result === "pending");
-  const canAddStep = montante.status === "active" && !pendingStep && montante.current_step < montante.total_steps;
+  const canAddStep = montante.status === "active" && !pendingStep;
 
   return (
     <div className="min-h-screen bg-white">
@@ -716,34 +671,40 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
               {montante.target_amount ? "OBJECTIF" : "ÉTAPES"}
             </p>
             <p className="mt-1 text-lg font-extrabold text-neutral-900">
-              {montante.target_amount ? `${montante.target_amount}€` : `${montante.current_step}/${montante.total_steps}`}
+              {montante.target_amount ? `${montante.target_amount}€` : montante.current_step}
             </p>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-neutral-500">Progression</span>
-            <span className="text-xs font-bold text-neutral-900">{montante.current_step} / {montante.total_steps}</span>
+        {/* Progress bar — only show for objectif mode with target */}
+        {montante.target_amount && montante.target_amount > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-neutral-500">Progression vers l'objectif</span>
+              <span className="text-xs font-bold text-neutral-900">
+                {currentGain > 0 ? currentGain.toFixed(0) : 0}€ / {montante.target_amount}€
+              </span>
+            </div>
+            <div className="h-3 rounded-full bg-neutral-100 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                  montante.status === "won" ? "bg-emerald-500" : montante.status === "lost" ? "bg-red-500" : "bg-blue-500"
+                }`}
+                style={{ width: `${Math.min(100, (currentGain / parseFloat(String(montante.target_amount))) * 100)}%` }}
+              />
+            </div>
           </div>
-          <div className="h-3 rounded-full bg-neutral-100 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                montante.status === "won" ? "bg-emerald-500" : montante.status === "lost" ? "bg-red-500" : "bg-blue-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          {/* Step dots */}
-          <div className="mt-2 flex justify-between px-1">
-            {Array.from({ length: montante.total_steps }).map((_, i) => {
-              const step = steps.find((s) => s.step_number === i + 1);
-              const color = step?.result === "won" ? "bg-emerald-500" : step?.result === "lost" ? "bg-red-500" : step?.result === "pending" ? "bg-blue-500 animate-pulse" : "bg-neutral-200";
+        )}
+
+        {/* Step dots — based on actual steps played */}
+        {steps.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-1.5 justify-center">
+            {steps.map((step, i) => {
+              const color = step.result === "won" ? "bg-emerald-500" : step.result === "lost" ? "bg-red-500" : "bg-blue-500 animate-pulse";
               return <div key={i} className={`h-3 w-3 rounded-full ${color} transition-all duration-300`} />;
             })}
           </div>
-        </div>
+        )}
 
         {/* Steps list */}
         <div className="space-y-2 mb-6">
@@ -808,12 +769,32 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
 
         {/* Add step button */}
         {canAddStep && (
-          <button
-            onClick={() => setShowAddStep(true)}
-            className="cursor-pointer w-full rounded-xl border-2 border-dashed border-neutral-300 py-4 text-sm font-semibold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
-          >
-            + Ajouter l'étape {montante.current_step + 1}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddStep(true)}
+              className="cursor-pointer flex-1 rounded-xl border-2 border-dashed border-neutral-300 py-4 text-sm font-semibold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
+            >
+              + Ajouter l'étape {montante.current_step + 1}
+            </button>
+            {currentGain > 0 && !pendingStep && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Encaisser ${currentGain.toFixed(2)}€ et terminer la montante ?`)) return;
+                  await fetch("/api/montantes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "cash_out", montante_id: montante.id }),
+                  });
+                  setCelebrating(true);
+                  setTimeout(() => setCelebrating(false), 3000);
+                  fetchDetail();
+                }}
+                className="cursor-pointer rounded-xl bg-amber-500 px-6 py-4 text-sm font-bold text-white transition hover:bg-amber-600"
+              >
+                💰 Encaisser
+              </button>
+            )}
+          </div>
         )}
 
         {/* Add step modal */}
