@@ -884,6 +884,7 @@ function MontanteDetailView({
                   {montante.stake_mode === "auto" ? "Mises auto" : "Mises manuelles"}
                 </span>
               </div>
+              </div>
             </div>
 
             {/* Metrics row */}
@@ -964,6 +965,7 @@ function MontanteDetailView({
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 
