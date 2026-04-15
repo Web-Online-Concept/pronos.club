@@ -107,6 +107,7 @@ export default function MontantesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showBankroll, setShowBankroll] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -148,6 +149,7 @@ export default function MontantesPage() {
     return (
       <MontanteDetailView
         montanteId={selectedId}
+        montanteNumber={selectedNumber}
         onBack={() => {
           setSelectedId(null);
           fetchAll();
@@ -273,7 +275,7 @@ export default function MontantesPage() {
                       <MontanteListCard
                         montante={montante}
                         number={index + 1}
-                        onClick={() => setSelectedId(montante.id)}
+                        onClick={() => { setSelectedId(montante.id); setSelectedNumber(index + 1); }}
                         onDelete={async () => {
                           if (!confirm("Supprimer cette montante ?")) return;
                           await fetch(`/api/montantes?id=${montante.id}`, { method: "DELETE" });
@@ -755,9 +757,11 @@ function BankrollModal({
 
 function MontanteDetailView({
   montanteId,
+  montanteNumber,
   onBack,
 }: {
   montanteId: string;
+  montanteNumber: number;
   onBack: () => void;
 }) {
   const [montante, setMontante] = useState<Montante | null>(null);
@@ -867,7 +871,12 @@ function MontanteDetailView({
                 </svg>
               </button>
               <div className="flex-1 text-center pr-9">
-                <h1 className="text-xl font-extrabold text-white">{montante.name}</h1>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-extrabold text-white">
+                    {montanteNumber}
+                  </div>
+                  <h1 className="text-xl font-extrabold text-white">{montante.name}</h1>
+                </div>
                 <div className="flex items-center justify-center gap-2 mt-1">
                   <span
                     className={`rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${
@@ -986,10 +995,15 @@ function MontanteDetailView({
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  {/* Description on top */}
-                  {step.description && (
-                    <div className="border-b border-white/5 px-5 py-2">
-                      <p className="text-xs text-neutral-300 text-center">{step.description}</p>
+                  {/* Description + date on top */}
+                  {(step.description || step.completed_at) && (
+                    <div className="border-b border-white/5 px-5 py-2 flex items-center justify-between">
+                      <p className="text-xs text-neutral-300">{step.description || ""}</p>
+                      {step.completed_at && (
+                        <span className="text-[10px] text-neutral-500 shrink-0 ml-3">
+                          {new Date(step.completed_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      )}
                     </div>
                   )}
 
