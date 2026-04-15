@@ -13,17 +13,31 @@ const supabaseAdmin = createAdminClient(
 
 async function getAuthUser() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError) {
+    console.error("[montantes] Auth error:", authError.message);
+    return null;
+  }
+  if (!user) {
+    console.error("[montantes] No user found in session");
+    return null;
+  }
 
   // Check premium
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from("users")
     .select("subscription_status")
     .eq("id", user.id)
     .single();
 
+  if (profileError) {
+    console.error("[montantes] Profile error:", profileError.message);
+    return null;
+  }
+
   if (!profile || (profile.subscription_status !== "active" && profile.subscription_status !== "trialing")) {
+    console.error("[montantes] Not premium. Status:", profile?.subscription_status);
     return null;
   }
 
@@ -224,7 +238,7 @@ export async function POST(req: NextRequest) {
     if (action === "create") {
       const { name, mode, stake_mode, initial_stake, target_amount, total_steps } = body;
 
-      if (!initial_stake || !total_steps || total_steps < 2 || total_steps > 20) {
+      if (!initial_stake || !total_steps || total_steps < 1 || total_steps > 50) {
         return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
       }
 
