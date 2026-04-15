@@ -966,7 +966,6 @@ function MontanteDetailView({
               </div>
             )}
           </div>
-          </div>
         </div>
 
         {/* ── Steps ── */}
