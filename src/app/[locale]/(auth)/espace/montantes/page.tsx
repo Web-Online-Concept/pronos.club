@@ -857,30 +857,27 @@ function MontanteDetailView({
         <div className="bg-neutral-900">
           <div className="mx-auto max-w-5xl px-4 pt-6 pb-6">
             {/* Back + Title */}
-            {/* Back button */}
-            <div className="mb-4">
+            <div className="flex items-center gap-3 mb-5">
               <button
                 onClick={onBack}
-                className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white/60 transition hover:bg-white/20 hover:text-white"
+                className="cursor-pointer flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/60 transition hover:bg-white/20 hover:text-white"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-            </div>
-            {/* Title centered */}
-            <div className="text-center mb-5">
-              <h1 className="text-xl font-extrabold text-white">{montante.name}</h1>
-              <div className="flex items-center justify-center gap-2 mt-1.5">
-                <span
-                  className={`rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${
-                    montante.status === "active"
-                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : montante.status === "won"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      : "bg-red-500/10 text-red-400 border-red-500/20"
-                  }`}
-                >
+              <div className="flex-1 text-center pr-9">
+                <h1 className="text-xl font-extrabold text-white">{montante.name}</h1>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${
+                      montante.status === "active"
+                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                        : montante.status === "won"
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                    }`}
+                  >
                   {montante.status === "active" ? "En cours" : montante.status === "won" ? "Réussie ✓" : "Échouée ✗"}
                 </span>
                 <span className="text-[10px] text-neutral-400">
