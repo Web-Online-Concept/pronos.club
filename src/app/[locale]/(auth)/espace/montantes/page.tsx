@@ -947,7 +947,7 @@ function MontanteDetailView({
               </div>
               <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-white">
-                  {montante.target_amount ? "Objectif" : "Étapes"}
+                  {montante.target_amount ? "Objectif" : "Paliers"}
                 </p>
                 <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
                   {montante.target_amount ? `${montante.target_amount}€` : montante.current_step}
@@ -1081,13 +1081,18 @@ function MontanteDetailView({
                               </button>
                             </div>
                           ) : (
-                            <p
+                            <div
                               onClick={() => { setEditingOddsId(step.id); setEditingOddsValue(String(step.odds)); }}
-                              className="cursor-pointer mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums hover:text-emerald-400 transition"
+                              className="cursor-pointer mt-1 flex items-center justify-center gap-1 group/odds"
                               title="Cliquer pour modifier"
                             >
-                              {step.odds}
-                            </p>
+                              <p className="text-base sm:text-xl font-extrabold text-white tabular-nums group-hover/odds:text-emerald-400 transition">
+                                {parseFloat(String(step.odds)).toFixed(3)}
+                              </p>
+                              <svg className="h-3 w-3 text-neutral-600 group-hover/odds:text-emerald-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </div>
                           )}
                         </div>
                         <div className="text-center">
