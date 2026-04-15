@@ -979,91 +979,113 @@ function MontanteDetailView({
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  <div className="flex items-center px-5 py-4">
-                    {/* Step number circle */}
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white ${
-                        step.result === "won"
-                          ? "bg-emerald-500"
-                          : step.result === "lost"
-                          ? "bg-red-500"
-                          : "bg-neutral-700"
-                      }`}
-                    >
-                      {step.step_number}
-                    </div>
-
-                    {/* Data columns — fixed width grid */}
-                    <div className="flex-1 grid grid-cols-3 ml-5">
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                        <p className="mt-1 text-xl font-extrabold text-white tabular-nums">{step.odds}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
-                        <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
-                          {parseFloat(String(step.stake)).toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
-                        <p
-                          className={`mt-1 text-xl font-extrabold tabular-nums ${
-                            step.result === "won"
-                              ? "text-emerald-400"
-                              : step.result === "lost"
-                              ? "text-red-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {step.result === "won"
-                            ? parseFloat(String(step.actual_gain)).toFixed(2)
-                            : parseFloat(String(step.potential_gain)).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Status / Actions */}
-                    <div className="shrink-0 ml-4">
-                      {step.result === "won" && (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
-                          <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      {step.result === "lost" && (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
-                          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </div>
-                      )}
-                      {step.result === "pending" && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => resolveStep(step.id, "won")}
-                            className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5"
-                          >
-                            Gagné ✓
-                          </button>
-                          <button
-                            onClick={() => resolveStep(step.id, "lost")}
-                            className="cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5"
-                          >
-                            Perdu ✗
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Description bar */}
+                  {/* Description on top */}
                   {step.description && (
-                    <div className="border-t border-white/5 px-5 py-2">
+                    <div className="border-b border-white/5 px-5 py-2">
                       <p className="text-xs text-neutral-300 text-center">{step.description}</p>
                     </div>
                   )}
+
+                  <div className="px-5 py-4">
+                    {/* Main row: circle + data + status */}
+                    <div className="flex items-center">
+                      {/* Step number circle */}
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white ${
+                          step.result === "won"
+                            ? "bg-emerald-500"
+                            : step.result === "lost"
+                            ? "bg-red-500"
+                            : "bg-neutral-700"
+                        }`}
+                      >
+                        {step.step_number}
+                      </div>
+
+                      {/* Data columns */}
+                      <div className="flex-1 grid grid-cols-3 ml-4 sm:ml-5">
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
+                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">{step.odds}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
+                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
+                            {parseFloat(String(step.stake)).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
+                          <p
+                            className={`mt-1 text-base sm:text-xl font-extrabold tabular-nums ${
+                              step.result === "won"
+                                ? "text-emerald-400"
+                                : step.result === "lost"
+                                ? "text-red-400"
+                                : "text-white"
+                            }`}
+                          >
+                            {step.result === "won"
+                              ? parseFloat(String(step.actual_gain)).toFixed(2)
+                              : parseFloat(String(step.potential_gain)).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Status icon (won/lost) — desktop only for pending */}
+                      <div className="shrink-0 ml-3 sm:ml-4">
+                        {step.result === "won" && (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
+                            <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                        {step.result === "lost" && (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
+                            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </div>
+                        )}
+                        {/* Desktop buttons for pending */}
+                        {step.result === "pending" && (
+                          <div className="hidden sm:flex gap-2">
+                            <button
+                              onClick={() => resolveStep(step.id, "won")}
+                              className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5"
+                            >
+                              Gagné ✓
+                            </button>
+                            <button
+                              onClick={() => resolveStep(step.id, "lost")}
+                              className="cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5"
+                            >
+                              Perdu ✗
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mobile buttons for pending — full width below */}
+                    {step.result === "pending" && (
+                      <div className="flex gap-2 mt-3 sm:hidden">
+                        <button
+                          onClick={() => resolveStep(step.id, "won")}
+                          className="cursor-pointer flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition active:scale-95"
+                        >
+                          Gagné ✓
+                        </button>
+                        <button
+                          onClick={() => resolveStep(step.id, "lost")}
+                          className="cursor-pointer flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-500/25 transition active:scale-95"
+                        >
+                          Perdu ✗
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
