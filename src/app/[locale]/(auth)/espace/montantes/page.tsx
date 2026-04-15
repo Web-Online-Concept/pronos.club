@@ -168,7 +168,7 @@ export default function MontantesPage() {
         <div className="bg-neutral-900">
           <div className="mx-auto max-w-5xl px-4 pt-8 pb-6 sm:pt-10 sm:pb-8">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-              <div>
+              <div className="text-center sm:text-left">
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">
                   Gestionnaire
                 </p>
@@ -185,7 +185,7 @@ export default function MontantesPage() {
                   💰
                 </div>
                 <div className="text-left">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-white/30">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-white">
                     Bankroll
                   </p>
                   <p className="text-xl font-extrabold text-white tabular-nums">
@@ -272,6 +272,7 @@ export default function MontantesPage() {
                     >
                       <MontanteListCard
                         montante={montante}
+                        number={index + 1}
                         onClick={() => setSelectedId(montante.id)}
                         onDelete={async () => {
                           if (!confirm("Supprimer cette montante ?")) return;
@@ -318,7 +319,7 @@ export default function MontantesPage() {
 function DarkStatCard({ label, value, accent }: { label: string; value: any; accent: string }) {
   return (
     <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
-      <p className="text-[9px] font-bold uppercase tracking-wider text-white/30">{label}</p>
+      <p className="text-[9px] font-bold uppercase tracking-wider text-white">{label}</p>
       <p className={`mt-1 text-xl font-extrabold tabular-nums ${accent}`}>{value}</p>
     </div>
   );
@@ -330,10 +331,12 @@ function DarkStatCard({ label, value, accent }: { label: string; value: any; acc
 
 function MontanteListCard({
   montante,
+  number,
   onClick,
   onDelete,
 }: {
   montante: Montante;
+  number: number;
   onClick: () => void;
   onDelete: () => void;
 }) {
@@ -378,9 +381,13 @@ function MontanteListCard({
       )}
 
       <div className="relative flex items-center gap-4 px-5 py-4">
-        {/* Status dot */}
+        {/* Number */}
         <div className="relative">
-          <div className={`h-3.5 w-3.5 rounded-full ${config.dotColor} ${montante.status === "active" ? "animate-pulse-ring" : ""}`} />
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white ${
+            montante.status === "active" ? "bg-blue-500" : montante.status === "won" ? "bg-emerald-500" : "bg-red-500"
+          } ${montante.status === "active" ? "animate-pulse-ring" : ""}`}>
+            {number}
+          </div>
         </div>
 
         {/* Info */}
@@ -409,7 +416,7 @@ function MontanteListCard({
         {/* Profit / Benefit */}
         {montante.status !== "active" && (
           <div className="shrink-0 text-right">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Bénéfice</p>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-white">Bénéfice</p>
             <p className={`text-lg font-extrabold tabular-nums ${montante.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
               {montante.profit >= 0 ? "+" : ""}{montante.profit.toFixed(2)}€
             </p>
@@ -541,7 +548,7 @@ function CreateMontanteModal({
         {/* Inputs */}
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Mise initiale</label>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-white">Mise initiale</label>
             <div className="mt-1 relative">
               <input
                 type="number"
@@ -850,7 +857,8 @@ function MontanteDetailView({
         <div className="bg-neutral-900">
           <div className="mx-auto max-w-5xl px-4 pt-6 pb-6">
             {/* Back + Title */}
-            <div className="flex items-center gap-3 mb-5">
+            {/* Back button */}
+            <div className="mb-4">
               <button
                 onClick={onBack}
                 className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white/60 transition hover:bg-white/20 hover:text-white"
@@ -859,35 +867,36 @@ function MontanteDetailView({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-extrabold text-white truncate">{montante.name}</h1>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span
-                    className={`rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${
-                      montante.status === "active"
-                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                        : montante.status === "won"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : "bg-red-500/10 text-red-400 border-red-500/20"
-                    }`}
-                  >
-                    {montante.status === "active" ? "En cours" : montante.status === "won" ? "Réussie ✓" : "Échouée ✗"}
-                  </span>
-                  <span className="text-[10px] text-neutral-500">
-                    {montante.stake_mode === "auto" ? "Mises auto" : "Mises manuelles"}
-                  </span>
-                </div>
+            </div>
+            {/* Title centered */}
+            <div className="text-center mb-5">
+              <h1 className="text-xl font-extrabold text-white">{montante.name}</h1>
+              <div className="flex items-center justify-center gap-2 mt-1.5">
+                <span
+                  className={`rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${
+                    montante.status === "active"
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      : montante.status === "won"
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      : "bg-red-500/10 text-red-400 border-red-500/20"
+                  }`}
+                >
+                  {montante.status === "active" ? "En cours" : montante.status === "won" ? "Réussie ✓" : "Échouée ✗"}
+                </span>
+                <span className="text-[10px] text-neutral-400">
+                  {montante.stake_mode === "auto" ? "Mises auto" : "Mises manuelles"}
+                </span>
               </div>
             </div>
 
             {/* Metrics row */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Mise initiale</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white">Mise initiale</p>
                 <p className="mt-1 text-xl font-extrabold text-white tabular-nums">{montante.initial_stake}€</p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Gain actuel</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white">Gain actuel</p>
                 <p className={`mt-1 text-xl font-extrabold tabular-nums ${currentGain > 0 ? "text-emerald-400" : "text-neutral-600"}`}>
                   {currentGain > 0 ? `${currentGain.toFixed(2)}€` : "—"}
                 </p>
@@ -901,7 +910,7 @@ function MontanteDetailView({
                     : "bg-white/5 border-white/5"
                 }`}
               >
-                <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Bénéfice</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white">Bénéfice</p>
                 <p
                   className={`mt-1 text-xl font-extrabold tabular-nums ${
                     benefit > 0 ? "text-emerald-400" : benefit < 0 ? "text-red-400" : "text-neutral-600"
@@ -911,8 +920,8 @@ function MontanteDetailView({
                 </p>
               </div>
               <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">
-                  {montante.target_amount ? "Objectif" : "Paliers"}
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white">
+                  {montante.target_amount ? "Objectif" : "Étapes"}
                 </p>
                 <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
                   {montante.target_amount ? `${montante.target_amount}€` : montante.current_step}
@@ -924,7 +933,7 @@ function MontanteDetailView({
             {montante.target_amount && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Progression</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white">Progression</span>
                   <span className="text-xs font-extrabold text-white tabular-nums">
                     {currentGain > 0 ? currentGain.toFixed(0) : 0}€ / {montante.target_amount}€
                   </span>
