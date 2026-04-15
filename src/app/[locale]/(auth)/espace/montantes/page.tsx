@@ -317,7 +317,7 @@ export default function MontantesPage() {
 
 function DarkStatCard({ label, value, accent }: { label: string; value: any; accent: string }) {
   return (
-    <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3">
+    <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
       <p className="text-[9px] font-bold uppercase tracking-wider text-white/30">{label}</p>
       <p className={`mt-1 text-xl font-extrabold tabular-nums ${accent}`}>{value}</p>
     </div>
@@ -961,9 +961,9 @@ function MontanteDetailView({
           </div>
         </div>
 
-        {/* ── Steps on white ── */}
+        {/* ── Steps ── */}
         <div className="mx-auto max-w-5xl px-4 py-6">
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {steps.map((step, index) => (
               <div
                 key={step.id}
@@ -971,49 +971,49 @@ function MontanteDetailView({
                 style={{ animationDelay: `${index * 0.07}s` }}
               >
                 <div
-                  className={`rounded-2xl border overflow-hidden transition ${
+                  className={`rounded-2xl overflow-hidden transition ${
                     step.result === "won"
-                      ? "border-emerald-200 bg-emerald-50/40"
+                      ? "bg-neutral-900 ring-2 ring-emerald-500/40"
                       : step.result === "lost"
-                      ? "border-red-200 bg-red-50/40"
-                      : "border-blue-200 bg-blue-50/30"
+                      ? "bg-neutral-900 ring-2 ring-red-500/40"
+                      : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
+                  <div className="flex items-center px-5 py-4">
                     {/* Step number circle */}
                     <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-md ${
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white ${
                         step.result === "won"
-                          ? "bg-emerald-500 shadow-emerald-500/30"
+                          ? "bg-emerald-500"
                           : step.result === "lost"
-                          ? "bg-red-500 shadow-red-500/30"
-                          : "bg-blue-500 shadow-blue-500/30"
+                          ? "bg-red-500"
+                          : "bg-neutral-700"
                       }`}
                     >
                       {step.step_number}
                     </div>
 
-                    {/* Data columns */}
-                    <div className="flex-1 grid grid-cols-3 gap-3 text-center">
-                      <div>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                        <p className="text-lg font-extrabold text-neutral-800 tabular-nums">{step.odds}</p>
+                    {/* Data columns — fixed width grid */}
+                    <div className="flex-1 grid grid-cols-3 ml-5">
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Cote</p>
+                        <p className="mt-1 text-xl font-extrabold text-white tabular-nums">{step.odds}</p>
                       </div>
-                      <div>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
-                        <p className="text-lg font-extrabold text-neutral-800 tabular-nums">
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Mise</p>
+                        <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
                           {parseFloat(String(step.stake)).toFixed(2)}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Gain</p>
                         <p
-                          className={`text-lg font-extrabold tabular-nums ${
+                          className={`mt-1 text-xl font-extrabold tabular-nums ${
                             step.result === "won"
-                              ? "text-emerald-600"
+                              ? "text-emerald-400"
                               : step.result === "lost"
-                              ? "text-red-500"
-                              : "text-neutral-800"
+                              ? "text-red-400"
+                              : "text-white"
                           }`}
                         >
                           {step.result === "won"
@@ -1023,33 +1023,33 @@ function MontanteDetailView({
                       </div>
                     </div>
 
-                    {/* Status icon / Actions */}
-                    <div className="shrink-0 flex items-center">
+                    {/* Status / Actions */}
+                    <div className="shrink-0 ml-4">
                       {step.result === "won" && (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100">
-                          <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
+                          <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       )}
                       {step.result === "lost" && (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
-                          <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
+                          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </div>
                       )}
                       {step.result === "pending" && (
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => resolveStep(step.id, "won")}
-                            className="cursor-pointer rounded-xl bg-emerald-600 px-3.5 py-2 text-[11px] font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 hover:-translate-y-0.5"
+                            className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5"
                           >
                             Gagné ✓
                           </button>
                           <button
                             onClick={() => resolveStep(step.id, "lost")}
-                            className="cursor-pointer rounded-xl bg-red-500 px-3.5 py-2 text-[11px] font-bold text-white shadow-md shadow-red-500/20 transition hover:bg-red-400 hover:-translate-y-0.5"
+                            className="cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5"
                           >
                             Perdu ✗
                           </button>
@@ -1058,10 +1058,10 @@ function MontanteDetailView({
                     </div>
                   </div>
 
-                  {/* Description */}
+                  {/* Description bar */}
                   {step.description && (
-                    <div className="px-5 pb-3 -mt-1">
-                      <p className="text-[11px] text-neutral-400 pl-[60px]">{step.description}</p>
+                    <div className="border-t border-white/5 px-5 py-2">
+                      <p className="text-[11px] text-neutral-500 pl-[68px]">{step.description}</p>
                     </div>
                   )}
                 </div>
@@ -1074,7 +1074,7 @@ function MontanteDetailView({
             <div className="mt-4 flex gap-3 animate-fade-in-up" style={{ animationDelay: `${steps.length * 0.07 + 0.1}s` }}>
               <button
                 onClick={() => setShowAddStep(true)}
-                className="cursor-pointer flex-1 rounded-2xl border-2 border-dashed border-neutral-300 py-5 text-sm font-bold text-neutral-400 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
+                className="cursor-pointer flex-1 rounded-2xl border-2 border-dashed border-neutral-700 bg-neutral-900/50 py-5 text-sm font-bold text-neutral-400 transition hover:border-emerald-500 hover:text-emerald-400 hover:bg-neutral-900"
               >
                 + Ajouter l'étape {montante.current_step + 1}
               </button>
