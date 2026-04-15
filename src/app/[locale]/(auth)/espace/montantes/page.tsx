@@ -104,7 +104,7 @@ export default function MontantesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white" suppressHydrationWarning>
       {/* Hero */}
       <section
         className="border-b border-emerald-900/50"
@@ -433,15 +433,24 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
     const val = parseFloat(amount);
     if (!val || val <= 0) return;
     setSaving(true);
-    const isInit = !bankroll || parseFloat(String(bankroll.balance)) === 0;
-    await fetch("/api/montantes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: isInit && action === "deposit" ? "bankroll_init" : `bankroll_${action}`,
-        amount: val,
-      }),
-    });
+    try {
+      const currentBalance = bankroll ? parseFloat(String(bankroll.balance)) : 0;
+      const isInit = currentBalance === 0 && action === "deposit";
+      const res = await fetch("/api/montantes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: isInit ? "bankroll_init" : `bankroll_${action}`,
+          amount: val,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Erreur");
+      }
+    } catch (e) {
+      alert("Erreur réseau");
+    }
     setAmount("");
     setSaving(false);
     onUpdate();
