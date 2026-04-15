@@ -35,6 +35,9 @@ type Step = {
   description: string | null;
   result: "pending" | "won" | "lost";
   completed_at: string | null;
+  match_date: string | null;
+  bet_type: "simple" | "combiné";
+  sport: string | null;
 };
 
 type Stats = {
@@ -779,6 +782,7 @@ function MontanteDetailView({
   }, [montanteId]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchDetail();
   }, [fetchDetail]);
 
@@ -995,13 +999,32 @@ function MontanteDetailView({
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  {/* Description + date on top */}
-                  {(step.description || step.completed_at) && (
+                  {/* Info bar: sport, type, match, date */}
+                  {(step.sport || step.bet_type || step.description || step.match_date) && (
                     <div className="border-b border-white/5 px-5 py-2 flex items-center justify-between">
-                      <p className="text-xs text-neutral-300">{step.description || ""}</p>
-                      {step.completed_at && (
+                      <div className="flex items-center gap-2 text-xs">
+                        {step.sport && (
+                          <span className="text-neutral-300">{step.sport}</span>
+                        )}
+                        {step.bet_type && (
+                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                            step.bet_type === "combiné"
+                              ? "bg-amber-500/15 text-amber-400"
+                              : "bg-white/5 text-neutral-400"
+                          }`}>
+                            {step.bet_type === "combiné" ? "Combiné" : "Simple"}
+                          </span>
+                        )}
+                        {step.description && (
+                          <span className="text-neutral-500">·</span>
+                        )}
+                        {step.description && (
+                          <span className="text-neutral-300">{step.description}</span>
+                        )}
+                      </div>
+                      {step.match_date && (
                         <span className="text-[10px] text-neutral-500 shrink-0 ml-3">
-                          {new Date(step.completed_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                          {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                         </span>
                       )}
                     </div>
@@ -1180,6 +1203,9 @@ function AddStepModal({
   const [odds, setOdds] = useState("");
   const [manualStake, setManualStake] = useState("");
   const [description, setDescription] = useState("");
+  const [matchDate, setMatchDate] = useState("");
+  const [betType, setBetType] = useState<"simple" | "combiné">("simple");
+  const [sport, setSport] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -1204,6 +1230,9 @@ function AddStepModal({
         odds: oddsVal,
         stake: montante.stake_mode === "manuel" ? stake : undefined,
         description: description || null,
+        match_date: matchDate || null,
+        bet_type: betType,
+        sport: sport || null,
       }),
     });
     const data = await res.json();
@@ -1256,18 +1285,73 @@ function AddStepModal({
           </div>
         )}
 
-        {/* Description */}
-        <div className="mb-4">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-            Match <span className="text-neutral-600 font-normal lowercase">(optionnel)</span>
-          </label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="PSG vs Marseille"
-            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
-          />
+        {/* Sport + Type */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Sport</label>
+            <select
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
+            >
+              <option value="">—</option>
+              <option value="⚽ Football">⚽ Football</option>
+              <option value="🏀 Basketball">🏀 Basketball</option>
+              <option value="🎾 Tennis">🎾 Tennis</option>
+              <option value="🏒 Hockey">🏒 Hockey</option>
+              <option value="🏈 Football US">🏈 Football US</option>
+              <option value="⚾ Baseball">⚾ Baseball</option>
+              <option value="🥊 MMA/Boxe">🥊 MMA/Boxe</option>
+              <option value="🏉 Rugby">🏉 Rugby</option>
+              <option value="🎯 Autre">🎯 Autre</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Type</label>
+            <div className="mt-1 flex gap-2">
+              {(["simple", "combiné"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setBetType(t)}
+                  className={`cursor-pointer flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                    betType === t
+                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                      : "border-white/10 bg-white/5 text-neutral-500 hover:border-white/20"
+                  }`}
+                >
+                  {t === "simple" ? "Simple" : "Combiné"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Match + Date */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+              Match <span className="text-neutral-600 font-normal lowercase">(optionnel)</span>
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="PSG vs Marseille"
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+              Date du match
+            </label>
+            <input
+              type="date"
+              value={matchDate}
+              onChange={(e) => setMatchDate(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
+            />
+          </div>
         </div>
 
         {/* Preview */}
