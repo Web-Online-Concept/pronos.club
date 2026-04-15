@@ -1061,7 +1061,7 @@ function MontanteDetailView({
                   {/* Description bar */}
                   {step.description && (
                     <div className="border-t border-white/5 px-5 py-2">
-                      <p className="text-[11px] text-neutral-400 pl-[68px]">{step.description}</p>
+                      <p className="text-xs text-neutral-300 text-center">{step.description}</p>
                     </div>
                   )}
                 </div>
