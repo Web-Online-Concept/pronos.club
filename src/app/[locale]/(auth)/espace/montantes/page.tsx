@@ -401,7 +401,7 @@ function MontanteListCard({
               </span>
             )}
             <span>
-              Étapes <span className="font-semibold text-neutral-300">{montante.current_step}</span>
+              Paliers <span className="font-semibold text-neutral-300">{montante.current_step}</span>
             </span>
           </div>
         </div>
@@ -912,7 +912,7 @@ function MontanteDetailView({
               </div>
               <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">
-                  {montante.target_amount ? "Objectif" : "Étapes"}
+                  {montante.target_amount ? "Objectif" : "Paliers"}
                 </p>
                 <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
                   {montante.target_amount ? `${montante.target_amount}€` : montante.current_step}
@@ -1098,7 +1098,7 @@ function MontanteDetailView({
                 onClick={() => setShowAddStep(true)}
                 className="cursor-pointer flex-1 rounded-2xl border-2 border-dashed border-neutral-300 bg-white py-5 text-sm font-bold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
               >
-                + Ajouter l'étape {montante.current_step + 1}
+                + Ajouter le palier {montante.current_step + 1}
               </button>
               {currentGain > 0 && !pendingStep && (
                 <button
@@ -1201,7 +1201,7 @@ function AddStepModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-extrabold text-white">Étape {montante.current_step + 1}</h2>
+          <h2 className="text-lg font-extrabold text-white">Palier {montante.current_step + 1}</h2>
           <button onClick={onClose} className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-neutral-400 hover:bg-white/20">
             ✕
           </button>
@@ -1274,7 +1274,7 @@ function AddStepModal({
           disabled={saving}
           className="cursor-pointer w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
         >
-          {saving ? "Ajout..." : "Ajouter l'étape"}
+          {saving ? "Ajout..." : "Ajouter le palier"}
         </button>
       </div>
     </div>
