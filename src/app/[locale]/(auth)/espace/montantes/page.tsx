@@ -140,13 +140,13 @@ export default function MontantesPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowBankroll(true)}
-                  className="rounded-lg bg-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-300"
+                  className="cursor-pointer rounded-lg bg-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-300"
                 >
                   Gérer
                 </button>
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                  className="cursor-pointer rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
                 >
                   + Nouvelle montante
                 </button>
@@ -173,7 +173,7 @@ export default function MontantesPage() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     filter === f ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
                   }`}
                 >
@@ -189,7 +189,7 @@ export default function MontantesPage() {
                 <p className="text-neutral-500 text-sm">Aucune montante pour le moment</p>
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
+                  className="cursor-pointer mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
                 >
                   Créer ma première montante
                 </button>
@@ -286,7 +286,7 @@ function MontanteCard({ montante: m, onClick, onDelete }: { montante: Montante; 
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="shrink-0 rounded-lg p-2 text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
+          className="cursor-pointer shrink-0 rounded-lg p-2 text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -356,7 +356,7 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-neutral-900">Nouvelle montante</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600">✕</button>
+          <button onClick={onClose} className="cursor-pointer text-neutral-400 hover:text-neutral-600">✕</button>
         </div>
 
         {/* Name */}
@@ -375,7 +375,7 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              className={`cursor-pointer flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                 mode === m ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-neutral-200 text-neutral-500"
               }`}
             >
@@ -391,7 +391,7 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
             <button
               key={m}
               onClick={() => setStakeMode(m)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              className={`cursor-pointer flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                 stakeMode === m ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-neutral-200 text-neutral-500"
               }`}
             >
@@ -455,7 +455,7 @@ function CreateModal({ onClose, onCreated, bankrollBalance }: { onClose: () => v
         <button
           onClick={handleCreate}
           disabled={saving}
-          className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          className="cursor-pointer w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
         >
           {saving ? "Création..." : "Créer la montante"}
         </button>
@@ -496,7 +496,7 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
       <div className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-neutral-900">💰 Bankroll Montantes</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600">✕</button>
+          <button onClick={onClose} className="cursor-pointer text-neutral-400 hover:text-neutral-600">✕</button>
         </div>
 
         <div className="mb-4 text-center">
@@ -510,7 +510,7 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
         <div className="mb-3 flex gap-2">
           <button
             onClick={() => setAction("deposit")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`cursor-pointer flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
               action === "deposit" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-neutral-200 text-neutral-500"
             }`}
           >
@@ -518,7 +518,7 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
           </button>
           <button
             onClick={() => setAction("withdrawal")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`cursor-pointer flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
               action === "withdrawal" ? "border-red-400 bg-red-50 text-red-600" : "border-neutral-200 text-neutral-500"
             }`}
           >
@@ -537,7 +537,7 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
           <button
             onClick={handleSubmit}
             disabled={saving}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
           >
             {saving ? "..." : "OK"}
           </button>
@@ -579,7 +579,7 @@ function BankrollModal({ bankroll, logs, onClose, onUpdate }: { bankroll: any; l
               onUpdate();
               onClose();
             }}
-            className="w-full rounded-lg border border-red-200 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+            className="cursor-pointer w-full rounded-lg border border-red-200 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
           >
             🗑️ Tout réinitialiser
           </button>
@@ -676,7 +676,7 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
       {/* Header */}
       <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-4">
         <div className="mx-auto max-w-5xl flex items-center gap-3">
-          <button onClick={onBack} className="rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-200 hover:text-neutral-600">
+          <button onClick={onBack} className="cursor-pointer rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-200 hover:text-neutral-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -785,13 +785,13 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
                     <div className="flex gap-1">
                       <button
                         onClick={() => resolveStep(step.id, "won")}
-                        className="rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-600"
+                        className="cursor-pointer rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-600"
                       >
                         Gagné
                       </button>
                       <button
                         onClick={() => resolveStep(step.id, "lost")}
-                        className="rounded-lg bg-red-500 px-2.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-red-600"
+                        className="cursor-pointer rounded-lg bg-red-500 px-2.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-red-600"
                       >
                         Perdu
                       </button>
@@ -810,7 +810,7 @@ function MontanteDetail({ montanteId, onBack, locale }: { montanteId: string; on
         {canAddStep && (
           <button
             onClick={() => setShowAddStep(true)}
-            className="w-full rounded-xl border-2 border-dashed border-neutral-300 py-4 text-sm font-semibold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
+            className="cursor-pointer w-full rounded-xl border-2 border-dashed border-neutral-300 py-4 text-sm font-semibold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
           >
             + Ajouter l'étape {montante.current_step + 1}
           </button>
@@ -878,7 +878,7 @@ function AddStepModal({ montante, lastStep, onClose, onAdded }: {
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-neutral-900">Étape {montante.current_step + 1}</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600">✕</button>
+          <button onClick={onClose} className="cursor-pointer text-neutral-400 hover:text-neutral-600">✕</button>
         </div>
 
         <div>
@@ -941,7 +941,7 @@ function AddStepModal({ montante, lastStep, onClose, onAdded }: {
         <button
           onClick={handleAdd}
           disabled={saving}
-          className="w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          className="cursor-pointer w-full rounded-lg bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
         >
           {saving ? "Ajout..." : "Ajouter l'étape"}
         </button>
