@@ -164,6 +164,10 @@ export default function MontantesPage() {
   const filtered = montantes.filter((m) => filter === "all" || m.status === filter);
   const balance = bankroll ? parseFloat(String(bankroll.balance)) : 0;
 
+  // Stable numbering: oldest = #1, regardless of filter
+  const numberMap = new Map<string, number>();
+  [...montantes].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).forEach((m, i) => numberMap.set(m.id, i + 1));
+
   return (
     <>
       <style>{GLOBAL_STYLES}</style>
@@ -277,8 +281,8 @@ export default function MontantesPage() {
                     >
                       <MontanteListCard
                         montante={montante}
-                        number={index + 1}
-                        onClick={() => { setSelectedId(montante.id); setSelectedNumber(index + 1); }}
+                        number={numberMap.get(montante.id) || index + 1}
+                        onClick={() => { setSelectedId(montante.id); setSelectedNumber(numberMap.get(montante.id) || index + 1); }}
                         onDelete={async () => {
                           if (!confirm("Supprimer cette montante ?")) return;
                           await fetch(`/api/montantes?id=${montante.id}`, { method: "DELETE" });
@@ -302,6 +306,7 @@ export default function MontantesPage() {
               fetchAll();
             }}
             bankrollBalance={balance}
+            nextNumber={montantes.length + 1}
           />
         )}
         {showBankroll && (
@@ -466,13 +471,16 @@ function CreateMontanteModal({
   onClose,
   onCreated,
   bankrollBalance,
+  nextNumber,
 }: {
   onClose: () => void;
   onCreated: () => void;
   bankrollBalance: number;
+  nextNumber: number;
 }) {
+  const defaultName = `Montante ${nextNumber}`;
   const [stakeMode, setStakeMode] = useState<"auto" | "manuel">("auto");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName);
   const [initialStake, setInitialStake] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -493,7 +501,7 @@ function CreateMontanteModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "create",
-        name: name || "Ma montante",
+        name: name.trim() || defaultName,
         mode: target > 0 ? "objectif" : "libre",
         stake_mode: stakeMode,
         initial_stake: stake,
@@ -526,7 +534,7 @@ function CreateMontanteModal({
         {/* Name */}
         <input
           type="text"
-          placeholder="Nom (ex: Montante Ligue 1)"
+          placeholder="Nom de la montante"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="mb-4 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-medium text-white placeholder-neutral-500 outline-none transition focus:border-emerald-500/50 focus:bg-white/10"
