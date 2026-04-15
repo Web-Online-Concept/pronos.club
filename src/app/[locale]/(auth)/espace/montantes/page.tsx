@@ -74,6 +74,9 @@ export default function MontantesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showBankroll, setShowBankroll] = useState(false);
   const [selectedMontante, setSelectedMontante] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -92,6 +95,31 @@ export default function MontantesPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const filtered = montantes.filter((m) => filter === "all" || m.status === filter);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-white">
+        <section
+          className="border-b border-emerald-900/50"
+          style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+        >
+          <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">📈 GESTIONNAIRE DE MONTANTES</p>
+            <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">Mes Montantes</h1>
+            <p className="mx-auto mt-3 max-w-md text-sm text-white/40">
+              Créez, suivez et analysez vos stratégies de progression de mises
+            </p>
+          </div>
+        </section>
+        <div className="flex items-center justify-center py-20">
+          <div className="flex items-center gap-3 text-neutral-400">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <span className="text-sm">Chargement...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedMontante) {
     return (
