@@ -996,17 +996,17 @@ function MontanteDetailView({
                     {/* Data columns — fixed width grid */}
                     <div className="flex-1 grid grid-cols-3 ml-5">
                       <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Cote</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
                         <p className="mt-1 text-xl font-extrabold text-white tabular-nums">{step.odds}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Mise</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
                         <p className="mt-1 text-xl font-extrabold text-white tabular-nums">
                           {parseFloat(String(step.stake)).toFixed(2)}
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Gain</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
                         <p
                           className={`mt-1 text-xl font-extrabold tabular-nums ${
                             step.result === "won"
@@ -1061,7 +1061,7 @@ function MontanteDetailView({
                   {/* Description bar */}
                   {step.description && (
                     <div className="border-t border-white/5 px-5 py-2">
-                      <p className="text-[11px] text-neutral-500 pl-[68px]">{step.description}</p>
+                      <p className="text-[11px] text-neutral-400 pl-[68px]">{step.description}</p>
                     </div>
                   )}
                 </div>
@@ -1074,7 +1074,7 @@ function MontanteDetailView({
             <div className="mt-4 flex gap-3 animate-fade-in-up" style={{ animationDelay: `${steps.length * 0.07 + 0.1}s` }}>
               <button
                 onClick={() => setShowAddStep(true)}
-                className="cursor-pointer flex-1 rounded-2xl border-2 border-dashed border-neutral-700 bg-neutral-900/50 py-5 text-sm font-bold text-neutral-400 transition hover:border-emerald-500 hover:text-emerald-400 hover:bg-neutral-900"
+                className="cursor-pointer flex-1 rounded-2xl border-2 border-dashed border-neutral-300 bg-white py-5 text-sm font-bold text-neutral-500 transition hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
               >
                 + Ajouter l'étape {montante.current_step + 1}
               </button>
