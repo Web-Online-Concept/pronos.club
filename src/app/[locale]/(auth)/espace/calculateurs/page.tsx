@@ -49,8 +49,8 @@ const CALCULATORS = [
     slug: "probabilites-cotes",
     icon: "🎲",
     title: "Probabilités des cotes",
-    desc: "Cote → probabilité implicite + vraie proba (sans marge).",
-    status: "soon",
+    desc: "Cote → probabilité implicite + réelle + TRJ + marge bookmaker.",
+    status: "ready",
   },
   {
     slug: "benefice-acquerir",
