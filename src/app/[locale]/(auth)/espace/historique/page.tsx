@@ -30,6 +30,14 @@ export default function MonHistoriquePage() {
   const t = useTranslations("history");
   const MONTH_NAMES = t("months").split(",");
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   function formatMonth(ym: string) {
     const [y, m] = ym.split("-");
     return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
@@ -115,7 +123,9 @@ export default function MonHistoriquePage() {
 
     <main className="mx-auto max-w-2xl px-4 pb-8 pt-4">
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      {/* Filters — 3 dropdowns (mobile-optimized like public page) */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+        {/* Date filter */}
         <select
           value={filterMode === "custom" ? "custom" : filterMode === "month" && selectedMonth ? `month:${selectedMonth}` : filterMode === "year" && selectedYear ? `year:${selectedYear}` : "all"}
           onChange={(e) => {
@@ -125,23 +135,40 @@ export default function MonHistoriquePage() {
             else if (val.startsWith("month:")) { setFilterMode("month"); setSelectedMonth(val.replace("month:", "")); setSelectedYear(""); }
             else if (val.startsWith("year:")) { setFilterMode("year"); setSelectedYear(val.replace("year:", "")); setSelectedMonth(""); }
           }}
-          className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold"
+          className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
         >
-          <option value="all">{t("filter_all_dates")}</option>
+          <option value="all">{isMobile ? "Dates" : t("filter_all_dates")}</option>
           <option value="custom">{t("filter_custom")}</option>
           {years.length > 0 && (<optgroup label={t("filter_by_year")}>{years.map((y) => (<option key={y} value={`year:${y}`}>{y}</option>))}</optgroup>)}
           {availableMonths.length > 0 && (<optgroup label={t("filter_by_month")}>{availableMonths.map((m) => (<option key={m} value={`month:${m}`}>{formatMonth(m)}</option>))}</optgroup>)}
         </select>
 
+        {/* Sport filter */}
         {sports.length > 1 && (
-          <select value={sport} onChange={(e) => setSport(e.target.value)} className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold">
-            <option value="all">{t("filter_all_sports")}</option>
-            {sports.map((s) => (<option key={s.slug} value={s.slug}>{s.icon} {s.name}</option>))}
+          <select
+            value={sport}
+            onChange={(e) => setSport(e.target.value)}
+            className="max-w-[120px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+          >
+            <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
+            {sports.map((s) => {
+              const shortName = isMobile && s.name.length > 10 ? s.name.slice(0, 10) + "." : s.name;
+              return (
+                <option key={s.slug} value={s.slug}>
+                  {s.icon} {shortName}
+                </option>
+              );
+            })}
           </select>
         )}
 
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="cursor-pointer rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold">
-          <option value="all">{t("filter_all_results")}</option>
+        {/* Status filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+        >
+          <option value="all">{isMobile ? "Résultats" : t("filter_all_results")}</option>
           <option value="pending">{t("filter_pending")}</option>
           <option value="awaiting">{t("filter_awaiting_result")}</option>
           <option value="won">{t("filter_won_emoji")}</option>
