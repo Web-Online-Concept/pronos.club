@@ -188,7 +188,7 @@ export default function MontantesPage() {
               {/* Bankroll button */}
               <button
                 onClick={() => setShowBankroll(true)}
-                className="cursor-pointer flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 transition hover:bg-white/10 hover:border-emerald-500/30"
+                className="cursor-pointer flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 transition hover:bg-white/10 hover:border-emerald-500/30 mx-auto sm:mx-0"
               >
                 <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
                   💰
