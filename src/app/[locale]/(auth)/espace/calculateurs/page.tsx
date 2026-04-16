@@ -63,8 +63,8 @@ const CALCULATORS = [
     slug: "roi",
     icon: "📈",
     title: "ROI %",
-    desc: "Profit ÷ mises totales → rendement global.",
-    status: "soon",
+    desc: "Rendement de tes paris avec échelle de référence (Excellent → Perdant).",
+    status: "ready",
   },
   {
     slug: "kelly",
