@@ -70,8 +70,8 @@ const CALCULATORS = [
     slug: "kelly",
     icon: "🧠",
     title: "Mise % du capital (Kelly)",
-    desc: "Kelly Criterion — Full / Half / Quarter selon aversion au risque.",
-    status: "soon",
+    desc: "Flat Betting (% fixe) ou Kelly Criterion (Full/Half/Quarter).",
+    status: "ready",
   },
   {
     slug: "trj",
