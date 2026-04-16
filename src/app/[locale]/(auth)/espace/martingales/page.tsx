@@ -948,7 +948,6 @@ function AddStepModal({
   onAdded: () => void;
 }) {
   const [odds, setOdds] = useState("");
-  const [manualStake, setManualStake] = useState("");
   const [description, setDescription] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [sport, setSport] = useState("");
@@ -961,13 +960,13 @@ function AddStepModal({
   const totalLost = parseFloat(String(martingale.total_lost)) || 0;
   const beneficeTarget = initialStake * 2;
 
-  // Palier 1: mise libre / Palier 2+: mise calculée
+  // Palier 1: mise = mise initiale / Palier 2+: mise calculée
   let calculatedStake = 0;
   if (!isFirstStep && oddsVal > 1) {
     calculatedStake = Math.ceil(((totalLost + beneficeTarget) / (oddsVal - 1)) * 100) / 100;
   }
 
-  const stake = isFirstStep ? (parseFloat(manualStake) || 0) : calculatedStake;
+  const stake = isFirstStep ? initialStake : calculatedStake;
   const potentialGain = oddsVal > 1 && stake > 0 ? Math.round(stake * oddsVal * 100) / 100 : 0;
   const netProfit = potentialGain > 0 ? potentialGain - stake - totalLost : 0;
 
@@ -978,7 +977,6 @@ function AddStepModal({
 
   async function handleAdd() {
     if (oddsVal <= 1) return setError("Cote invalide (> 1.00)");
-    if (isFirstStep && stake <= 0) return setError("Mise requise");
 
     setSaving(true);
     setError("");
@@ -989,7 +987,7 @@ function AddStepModal({
         action: "add_step",
         martingale_id: martingale.id,
         odds: oddsVal,
-        stake: isFirstStep ? stake : undefined,
+        stake: isFirstStep ? initialStake : undefined,
         description: description || null,
         match_date: matchDate || null,
         sport: sport || null,
@@ -1008,10 +1006,7 @@ function AddStepModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-3xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-extrabold text-white">
-            Palier {martingale.current_step + 1}
-            {isFirstStep && <span className="ml-2 text-xs font-normal text-neutral-400">— mise libre</span>}
-          </h2>
+          <h2 className="text-lg font-extrabold text-white">Palier {martingale.current_step + 1}</h2>
           <button onClick={onClose} className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-neutral-400 hover:bg-white/20">✕</button>
         </div>
 
@@ -1041,20 +1036,6 @@ function AddStepModal({
             className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-bold text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
           />
         </div>
-
-        {/* Mise (palier 1 only) */}
-        {isFirstStep && (
-          <div className="mb-3">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Mise (€)</label>
-            <input
-              type="number"
-              value={manualStake}
-              onChange={(e) => setManualStake(e.target.value)}
-              placeholder={String(initialStake)}
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-bold text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
-            />
-          </div>
-        )}
 
         {/* Sport */}
         <div className="mb-3">
