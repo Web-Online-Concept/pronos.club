@@ -273,6 +273,27 @@ export default function MontantesPage() {
               )}
             </>
           )}
+
+          {/* Reset all */}
+          {montantes.length > 0 && (
+            <div className="mt-10 text-center">
+              <button
+                onClick={async () => {
+                  if (!confirm("⚠️ Tout réinitialiser ?\n\nToutes les montantes et leurs paliers seront supprimés.\nAction irréversible.")) return;
+                  if (!confirm("Vraiment sûr ?")) return;
+                  await fetch("/api/montantes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "reset_all" }),
+                  });
+                  fetchAll();
+                }}
+                className="cursor-pointer rounded-xl border border-red-500/20 px-6 py-2.5 text-xs font-semibold text-red-400/60 transition hover:bg-red-500/10 hover:text-red-400"
+              >
+                🗑️ Tout réinitialiser
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Modals */}
