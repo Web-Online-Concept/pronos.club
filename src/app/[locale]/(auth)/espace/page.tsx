@@ -83,21 +83,28 @@ export default function MemberDashboard() {
             <p className="mt-1 text-sm text-white/40">{t("social_desc")}</p>
           </Link>
 
-          {/* 9. Mon Avis */}
+          {/* 9. Notifications */}
+          <Link href={`/${locale}/espace/notifications`} className={CARD_CLASS} style={CARD_STYLE}>
+            <span className="text-2xl">🔔</span>
+            <h3 className="mt-2 font-bold text-white">{t("notif_title")}</h3>
+            <p className="mt-1 text-sm text-white/40">{t("notif_desc")}</p>
+          </Link>
+
+          {/* 10. Mon Avis */}
           <Link href={`/${locale}/espace/avis`} className={CARD_CLASS} style={CARD_STYLE}>
             <span className="text-2xl">⭐</span>
             <h3 className="mt-2 font-bold text-white">{t("review_title")}</h3>
             <p className="mt-1 text-sm text-white/40">{t("review_desc")}</p>
           </Link>
 
-          {/* 10. Mon Abonnement */}
+          {/* 11. Mon Abonnement */}
           <Link href={`/${locale}/espace/abonnement`} className={CARD_CLASS} style={CARD_STYLE}>
             <span className="text-2xl">💎</span>
             <h3 className="mt-2 font-bold text-white">{t("sub_title")}</h3>
             <p className="mt-1 text-sm text-white/40">{t("sub_desc")}</p>
           </Link>
 
-          {/* 11. Administration — admins only */}
+          {/* 12. Administration — admins only */}
           {isAdmin && (
             <Link
               href={`/${locale}/admin`}
