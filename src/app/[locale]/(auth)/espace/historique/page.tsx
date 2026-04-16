@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PickCard from "@/components/picks/PickCard";
 import EspaceHero from "@/components/layout/EspaceHero";
+import ViewToggle from "@/components/layout/ViewToggle";
 import type { Pick } from "@/lib/supabase/types";
 import { useTranslations } from "next-intl";
 
@@ -108,6 +109,9 @@ export default function MonHistoriquePage() {
   return (
     <>
       <EspaceHero title={t("my_title")} />
+
+      {/* View Toggle — retour vers la vue publique */}
+      <ViewToggle privateHref="/espace/historique" publicHref="/historique" isPublic={false} />
 
     <main className="mx-auto max-w-2xl px-4 pb-8 pt-4">
 

@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, Legend
 } from "recharts";
 import EspaceHero from "@/components/layout/EspaceHero";
+import ViewToggle from "@/components/layout/ViewToggle";
 import { useTranslations } from "next-intl";
 
 const RED = "#ef4444";
@@ -91,6 +92,7 @@ export default function MesStatsPage() {
     return (
       <>
         <EspaceHero title={t("my_title")} />
+        <ViewToggle privateHref="/espace/stats" publicHref="/statistiques" isPublic={false} />
         <main className="mx-auto max-w-5xl px-4 py-8">
           <p className="text-center opacity-50">{t("loading")}</p>
         </main>
@@ -126,6 +128,9 @@ export default function MesStatsPage() {
   return (
     <>
       <EspaceHero title={t("my_title")} />
+
+      {/* View Toggle — retour vers la vue publique */}
+      <ViewToggle privateHref="/espace/stats" publicHref="/statistiques" isPublic={false} />
 
     <main className="mx-auto max-w-5xl px-4 pb-8">
 
