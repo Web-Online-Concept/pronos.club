@@ -1250,5 +1250,9 @@
     "all_sports": "Tous",
     "refreshing": "Actualisation...",
     "live_now": "matchs en direct"
+  },
+  "view_toggle": {
+    "site_view": "Vue site",
+    "personal_view": "Mes données"
   }
 }

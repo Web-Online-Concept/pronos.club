@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import PickCard from "@/components/picks/PickCard";
+import ViewToggle from "@/components/layout/ViewToggle";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -74,6 +75,9 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
           </div>
         </div>
       </div>
+
+      {/* View Toggle — s'affiche uniquement aux connectés */}
+      <ViewToggle privateHref="/espace/historique?status=pending" isPublic={true} />
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pb-4">
 

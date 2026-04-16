@@ -1250,5 +1250,9 @@
     "all_sports": "All",
     "refreshing": "Refreshing...",
     "live_now": "matches live"
+  },
+  "view_toggle": {
+    "site_view": "Site view",
+    "personal_view": "My data"
   }
 }

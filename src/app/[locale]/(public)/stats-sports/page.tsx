@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useLocale } from "next-intl";
+import ViewToggle from "@/components/layout/ViewToggle";
 
 // ── Config ──
 const SPORTS = [
@@ -175,6 +176,9 @@ export default function StatsSportsPage() {
           <p className="mx-auto mt-3 max-w-md text-sm text-white/40">{t.hero_subtitle}</p>
         </div>
       </section>
+
+      {/* View Toggle — s'affiche uniquement aux connectés */}
+      <ViewToggle privateHref="/espace/stats" isPublic={true} />
 
       <div className="mx-auto max-w-5xl px-4 py-6">
         {/* Sport + League selectors */}

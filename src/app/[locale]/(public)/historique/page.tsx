@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import PickCard from "@/components/picks/PickCard";
+import ViewToggle from "@/components/layout/ViewToggle";
 import type { Pick } from "@/lib/supabase/types";
 import { useTranslations } from "next-intl";
 
@@ -165,6 +166,9 @@ export default function HistoriquePage() {
           </div>
         </div>
       </div>
+
+      {/* View Toggle — s'affiche uniquement aux connectés */}
+      <ViewToggle privateHref="/espace/historique" isPublic={true} />
 
     <main className="mx-auto max-w-2xl px-4 pb-4">
 
