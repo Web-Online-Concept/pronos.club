@@ -17,20 +17,25 @@ export default function MemberDashboard() {
   const CARD_STYLE = { background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" };
 
   // ═══════════════════════════════════════════════════════════════
-  // SECTION HEADER COMPONENT
+  // SECTION HEADER COMPONENT — centré, icône au-dessus du titre
   // ═══════════════════════════════════════════════════════════════
   const SectionHeader = ({ icon, title }: { icon: string; title: string }) => (
-    <div className="mb-4 mt-10 flex items-center gap-3 first:mt-0">
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-lg">
+    <div className="mb-6 mt-12 flex flex-col items-center text-center first:mt-0">
+      {/* Icône dans un rond emerald affirmé */}
+      <div
+        className="flex h-14 w-14 items-center justify-center rounded-2xl text-2xl shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/20"
+        style={{ background: "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)" }}
+      >
         {icon}
-      </span>
-      <div className="flex-1">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-emerald-500">
-          {t("section_label")}
-        </p>
-        <h2 className="text-lg font-black text-neutral-900">{title}</h2>
       </div>
-      <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
+
+      {/* Titre sur une seule ligne */}
+      <h2 className="mt-4 whitespace-nowrap text-xl font-black tracking-tight text-neutral-900 sm:text-2xl">
+        {title}
+      </h2>
+
+      {/* Barre dégradée centrée */}
+      <div className="mt-3 h-0.5 w-24 rounded-full bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
     </div>
   );
 
@@ -165,7 +170,7 @@ export default function MemberDashboard() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* LOGOUT */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        <div className="mt-12 mb-16 text-center">
+        <div className="mt-14 mb-16 text-center">
           <button
             onClick={signOut}
             className="cursor-pointer rounded-xl border border-red-300 px-8 py-3 text-sm font-bold text-red-500 transition hover:bg-red-50"
