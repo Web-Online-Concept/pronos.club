@@ -1006,6 +1006,11 @@
   },
   "dashboard": {
     "hero_default": "Mi espacio",
+    "section_label": "Sección",
+    "section_suivi": "Seguimiento PRONOS.CLUB",
+    "section_gestion": "Gestión PRONOS.CLUB",
+    "section_outils": "Herramientas PRONOS.CLUB",
+    "section_prive": "Privado",
     "stats_title": "Mis Stats",
     "stats_desc": "Tu rendimiento en los pronos seguidos",
     "history_title": "Mi Historial",
@@ -1025,6 +1030,10 @@
     "review_title": "Mi Opinión",
     "review_desc": "Da tu opinión sobre PRONOS.CLUB",
     "review_soon": "Próximamente",
+    "calc_title": "Calculadoras",
+    "calc_desc": "10 herramientas para afinar tus apuestas",
+    "montantes_title": "Progresiones",
+    "montantes_desc": "Gestor de progresiones",
     "admin_title": "Administración",
     "admin_desc": "Gestionar picks y el sitio",
     "logout": "Cerrar sesión"

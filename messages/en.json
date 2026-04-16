@@ -1006,6 +1006,11 @@
   },
   "dashboard": {
     "hero_default": "My space",
+    "section_label": "Section",
+    "section_suivi": "PRONOS.CLUB Tracking",
+    "section_gestion": "PRONOS.CLUB Account",
+    "section_outils": "PRONOS.CLUB Tools",
+    "section_prive": "Private",
     "stats_title": "My Stats",
     "stats_desc": "Your performance on followed picks",
     "history_title": "My History",
@@ -1025,6 +1030,10 @@
     "review_title": "My Review",
     "review_desc": "Share your opinion on PRONOS.CLUB",
     "review_soon": "Coming soon",
+    "calc_title": "Calculators",
+    "calc_desc": "10 tools to refine your bets",
+    "montantes_title": "Progressions",
+    "montantes_desc": "Progression manager",
     "admin_title": "Administration",
     "admin_desc": "Manage picks and the site",
     "logout": "Log out"
