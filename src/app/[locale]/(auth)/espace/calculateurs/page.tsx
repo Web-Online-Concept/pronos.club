@@ -6,7 +6,7 @@ import EspaceHero from "@/components/layout/EspaceHero";
 import { useLocale } from "next-intl";
 
 // ═══════════════════════════════════════════════════════════════
-// 10 CALCULATEURS
+// 10 CALCULATEURS — TOUS READY 🏁
 // ═══════════════════════════════════════════════════════════════
 
 const CALCULATORS = [
@@ -77,8 +77,8 @@ const CALCULATORS = [
     slug: "trj",
     icon: "⚖️",
     title: "TRJ (Taux de Retour)",
-    desc: "Taux de retour joueur → marge du bookmaker.",
-    status: "soon",
+    desc: "Qualité du bookmaker sur un marché + comparateur entre options.",
+    status: "ready",
   },
 ] as const;
 
