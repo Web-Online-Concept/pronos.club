@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, Legend
 } from "recharts";
 import { useTranslations } from "next-intl";
+import ViewToggle from "@/components/layout/ViewToggle";
 
 const RED = "#ef4444";
 const GREEN = "#059669";
@@ -136,6 +137,9 @@ export default function StatistiquesPage() {
           </div>
         </div>
       </div>
+
+      {/* View Toggle — s'affiche uniquement aux connectés */}
+      <ViewToggle privateHref="/espace/stats" isPublic={true} />
 
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4">
 
