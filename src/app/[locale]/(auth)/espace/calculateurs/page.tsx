@@ -56,8 +56,8 @@ const CALCULATORS = [
     slug: "benefice-acquerir",
     icon: "💰",
     title: "Bénéfice à acquérir",
-    desc: "Gain cible → mise à placer selon la cote.",
-    status: "soon",
+    desc: "Gain cible + cote → mise exacte à placer.",
+    status: "ready",
   },
   {
     slug: "roi",
