@@ -1,5 +1,5 @@
 // src/app/api/montantes/route.ts
-// CRUD montantes + bankroll + steps
+// CRUD montantes + steps
 // Premium only — auth via Supabase cookie
 
 import { NextRequest, NextResponse } from "next/server";
@@ -44,7 +44,7 @@ async function getAuthUser() {
   return user;
 }
 
-// ── GET — List montantes + bankroll + stats ──
+// ── GET — List montantes + stats + detail ──
 export async function GET(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,34 +54,6 @@ export async function GET(req: NextRequest) {
   const montanteId = searchParams.get("id");
 
   try {
-    if (action === "bankroll") {
-      // Get or create bankroll
-      let { data: bankroll } = await supabaseAdmin
-        .from("montante_bankroll")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!bankroll) {
-        const { data: newBankroll } = await supabaseAdmin
-          .from("montante_bankroll")
-          .insert({ user_id: user.id, balance: 0 })
-          .select()
-          .single();
-        bankroll = newBankroll;
-      }
-
-      // Get logs
-      const { data: logs } = await supabaseAdmin
-        .from("montante_bankroll_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      return NextResponse.json({ bankroll, logs: logs || [] });
-    }
-
     if (action === "detail" && montanteId) {
       const { data: montante } = await supabaseAdmin
         .from("montantes")
@@ -141,7 +113,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── POST — Create montante / Add step / Bankroll operations ──
+// ── POST — Create montante / Add step / Resolve / Cash out ──
 export async function POST(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -166,72 +138,7 @@ export async function POST(req: NextRequest) {
       // Delete all montantes
       await supabaseAdmin.from("montantes").delete().eq("user_id", user.id);
 
-      // Delete all bankroll logs
-      await supabaseAdmin.from("montante_bankroll_logs").delete().eq("user_id", user.id);
-
-      // Reset bankroll to 0
-      await supabaseAdmin
-        .from("montante_bankroll")
-        .update({ balance: 0 })
-        .eq("user_id", user.id);
-
       return NextResponse.json({ success: true });
-    }
-
-    // ── Init or update bankroll ──
-    if (action === "bankroll_init" || action === "bankroll_deposit" || action === "bankroll_withdrawal") {
-      const amount = parseFloat(body.amount);
-      if (!amount || amount <= 0) return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-
-      // Get or create bankroll
-      let { data: bankroll } = await supabaseAdmin
-        .from("montante_bankroll")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!bankroll) {
-        const { data: nb } = await supabaseAdmin
-          .from("montante_bankroll")
-          .insert({ user_id: user.id, balance: 0 })
-          .select()
-          .single();
-        bankroll = nb;
-      }
-
-      let newBalance = bankroll!.balance;
-      let logType: string;
-
-      if (action === "bankroll_init") {
-        newBalance = amount;
-        logType = "deposit";
-      } else if (action === "bankroll_deposit") {
-        newBalance = parseFloat(bankroll!.balance) + amount;
-        logType = "deposit";
-      } else {
-        if (amount > parseFloat(bankroll!.balance)) {
-          return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
-        }
-        newBalance = parseFloat(bankroll!.balance) - amount;
-        logType = "withdrawal";
-      }
-
-      await supabaseAdmin
-        .from("montante_bankroll")
-        .update({ balance: newBalance })
-        .eq("user_id", user.id);
-
-      await supabaseAdmin
-        .from("montante_bankroll_logs")
-        .insert({
-          user_id: user.id,
-          type: logType,
-          amount: logType === "withdrawal" ? -amount : amount,
-          balance_after: newBalance,
-          note: body.note || (logType === "deposit" ? "Dépôt" : "Retrait"),
-        });
-
-      return NextResponse.json({ balance: newBalance });
     }
 
     // ── Create montante ──
@@ -240,17 +147,6 @@ export async function POST(req: NextRequest) {
 
       if (!initial_stake || !total_steps || total_steps < 1 || total_steps > 50) {
         return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
-      }
-
-      // Check bankroll
-      const { data: bankroll } = await supabaseAdmin
-        .from("montante_bankroll")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!bankroll || parseFloat(bankroll.balance) < initial_stake) {
-        return NextResponse.json({ error: "Insufficient bankroll" }, { status: 400 });
       }
 
       // Calculate avg odds needed for objectif mode
@@ -280,25 +176,7 @@ export async function POST(req: NextRequest) {
 
       if (createError) throw createError;
 
-      // Deduct from bankroll
-      const newBalance = parseFloat(bankroll.balance) - initial_stake;
-      await supabaseAdmin
-        .from("montante_bankroll")
-        .update({ balance: newBalance })
-        .eq("user_id", user.id);
-
-      await supabaseAdmin
-        .from("montante_bankroll_logs")
-        .insert({
-          user_id: user.id,
-          montante_id: montante!.id,
-          type: "stake",
-          amount: -initial_stake,
-          balance_after: newBalance,
-          note: `Mise montante: ${name || "Ma montante"}`,
-        });
-
-      return NextResponse.json({ montante, balance: newBalance });
+      return NextResponse.json({ montante });
     }
 
     // ── Add step ──
@@ -409,18 +287,6 @@ export async function POST(req: NextRequest) {
           .update({ status: "lost", profit })
           .eq("id", montante.id);
 
-        // Log loss
-        await supabaseAdmin
-          .from("montante_bankroll_logs")
-          .insert({
-            user_id: user.id,
-            montante_id: montante.id,
-            type: "loss",
-            amount: 0,
-            balance_after: (await supabaseAdmin.from("montante_bankroll").select("balance").eq("user_id", user.id).single()).data?.balance || 0,
-            note: `Montante perdue: ${montante.name} (étape ${step.step_number})`,
-          });
-
         return NextResponse.json({ status: "lost", montante_id: montante.id });
       }
 
@@ -437,31 +303,7 @@ export async function POST(req: NextRequest) {
           .update({ status: "won", profit })
           .eq("id", montante.id);
 
-        // Credit bankroll
-        const { data: bankroll } = await supabaseAdmin
-          .from("montante_bankroll")
-          .select("balance")
-          .eq("user_id", user.id)
-          .single();
-
-        const newBalance = parseFloat(bankroll!.balance) + actualGain;
-        await supabaseAdmin
-          .from("montante_bankroll")
-          .update({ balance: newBalance })
-          .eq("user_id", user.id);
-
-        await supabaseAdmin
-          .from("montante_bankroll_logs")
-          .insert({
-            user_id: user.id,
-            montante_id: montante.id,
-            type: "win",
-            amount: actualGain,
-            balance_after: newBalance,
-            note: `Montante réussie: ${montante.name} (+${profit.toFixed(2)}€)`,
-          });
-
-        return NextResponse.json({ status: "won", profit, balance: newBalance });
+        return NextResponse.json({ status: "won", profit });
       }
 
       return NextResponse.json({ status: "step_won", actual_gain: actualGain });
@@ -537,31 +379,7 @@ export async function POST(req: NextRequest) {
         .update({ status: "won", profit, total_steps: montante.current_step })
         .eq("id", montante_id);
 
-      // Credit bankroll
-      const { data: bankroll } = await supabaseAdmin
-        .from("montante_bankroll")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
-
-      const newBalance = parseFloat(bankroll!.balance) + cashOutAmount;
-      await supabaseAdmin
-        .from("montante_bankroll")
-        .update({ balance: newBalance })
-        .eq("user_id", user.id);
-
-      await supabaseAdmin
-        .from("montante_bankroll_logs")
-        .insert({
-          user_id: user.id,
-          montante_id: montante_id,
-          type: "win",
-          amount: cashOutAmount,
-          balance_after: newBalance,
-          note: `Montante encaissée: ${montante.name} (+${profit.toFixed(2)}€)`,
-        });
-
-      return NextResponse.json({ status: "won", profit, balance: newBalance });
+      return NextResponse.json({ status: "won", profit });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
@@ -586,40 +404,12 @@ export async function DELETE(req: NextRequest) {
     // Verify ownership
     const { data: montante } = await supabaseAdmin
       .from("montantes")
-      .select("id, user_id, status, initial_stake")
+      .select("id, user_id")
       .eq("id", montanteId)
       .eq("user_id", user.id)
       .single();
 
     if (!montante) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    // If active, refund bankroll
-    if (montante.status === "active") {
-      const { data: bankroll } = await supabaseAdmin
-        .from("montante_bankroll")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
-
-      if (bankroll) {
-        const newBalance = parseFloat(bankroll.balance) + parseFloat(montante.initial_stake);
-        await supabaseAdmin
-          .from("montante_bankroll")
-          .update({ balance: newBalance })
-          .eq("user_id", user.id);
-
-        await supabaseAdmin
-          .from("montante_bankroll_logs")
-          .insert({
-            user_id: user.id,
-            montante_id: montante.id,
-            type: "withdrawal",
-            amount: parseFloat(montante.initial_stake),
-            balance_after: newBalance,
-            note: `Montante supprimée: remboursement`,
-          });
-      }
-    }
 
     // Delete steps then montante
     await supabaseAdmin.from("montante_steps").delete().eq("montante_id", montanteId);
