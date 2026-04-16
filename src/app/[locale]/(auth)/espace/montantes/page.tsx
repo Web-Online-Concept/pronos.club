@@ -296,6 +296,168 @@ export default function MontantesPage() {
           )}
         </div>
 
+        {/* ── Tutoriel ── */}
+        <div className="mx-auto max-w-5xl px-4 pb-10">
+          <div className="mt-12">
+            <div
+              className="rounded-t-3xl px-6 py-5 text-center"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+            >
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
+                📚 Guide complet
+              </p>
+              <h2 className="mt-2 text-xl font-black text-white">Comprendre les Montantes</h2>
+              <p className="mt-1 text-xs text-white/40">
+                Le principe, les modes, et les bonnes pratiques
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-b-3xl border-x-2 border-b-2 border-neutral-200 bg-white px-5 py-6 sm:px-8">
+              {/* Section 1 — C'est quoi */}
+              <details className="group rounded-2xl border-2 border-neutral-200 transition-all open:border-emerald-300 open:shadow-lg open:shadow-emerald-50">
+                <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">📈</span>
+                  <span>C&apos;est quoi une montante ?</span>
+                  <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
+                  <p>
+                    Une <strong className="text-emerald-600">montante</strong> est une stratégie de paris où tu réinvestis tes gains d&apos;un pari dans le suivant pour faire grossir ta mise progressivement.
+                  </p>
+                  <p className="mt-3">
+                    <strong className="text-neutral-900">Exemple simple :</strong> tu mises 10€ à cote 1.50 → tu gagnes 15€. Tu remises ces 15€ à cote 1.40 → tu gagnes 21€. Tu remises 21€... et ainsi de suite.
+                  </p>
+                  <p className="mt-3">
+                    L&apos;objectif est de <strong className="text-emerald-600">transformer une petite mise en un gros gain</strong> en enchaînant les paris gagnants. Mais attention : <strong className="text-red-500">un seul pari perdu et tu perds ta mise initiale</strong>.
+                  </p>
+                  <p className="mt-3">
+                    C&apos;est un outil à haut risque / haute récompense. L&apos;important est de bien choisir ses cotes et de savoir quand encaisser.
+                  </p>
+                </div>
+              </details>
+
+              {/* Section 2 — Comment ça marche */}
+              <details className="group rounded-2xl border-2 border-neutral-200 transition-all open:border-blue-300 open:shadow-lg open:shadow-blue-50">
+                <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-base">🎯</span>
+                  <span>Comment ça marche sur PRONOS.CLUB ?</span>
+                  <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div className="space-y-3 border-t border-neutral-100 px-5 py-4 text-sm text-neutral-600">
+                  {[
+                    { step: "1", title: "Créer une montante", desc: "Donne un nom, choisis ta mise initiale (ex: 10€) et éventuellement un objectif à atteindre (ex: 500€)." },
+                    { step: "2", title: "Ajouter un palier", desc: "Entre la cote de ton pari. L'outil calcule automatiquement la mise (= le gain du palier précédent) et le gain potentiel." },
+                    { step: "3", title: "Valider le résultat", desc: "Ton pari est gagné ? Clique \"Gagné\" → le gain devient la mise du palier suivant. Perdu ? La montante s'arrête." },
+                    { step: "4", title: "Encaisser ou continuer", desc: "En mode libre, tu peux encaisser tes gains à tout moment avec le bouton 💰 Encaisser. En mode objectif, la montante se termine automatiquement quand tu atteins ton objectif." },
+                  ].map((s) => (
+                    <div key={s.step} className="flex gap-3">
+                      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 text-xs font-black text-white">{s.step}</span>
+                      <div>
+                        <p className="font-bold text-neutral-900">{s.title}</p>
+                        <p className="mt-0.5 text-xs">{s.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+
+              {/* Section 3 — Tout réinvestir vs Manuel */}
+              <details className="group rounded-2xl border-2 border-neutral-200 transition-all open:border-purple-300 open:shadow-lg open:shadow-purple-50">
+                <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-purple-100 text-base">⚡</span>
+                  <span>Tout réinvestir vs Manuel</span>
+                  <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div className="space-y-3 border-t border-neutral-100 px-5 py-4 text-sm text-neutral-600">
+                  <div className="rounded-xl bg-emerald-50 p-3">
+                    <p className="font-extrabold text-emerald-900">⚡ Tout réinvestir (recommandé)</p>
+                    <p className="mt-0.5 text-emerald-800">
+                      La mise de chaque palier = le gain du palier précédent. Tu réinvestis 100% automatiquement. C&apos;est le mode classique d&apos;une montante.
+                    </p>
+                    <p className="mt-2 text-xs text-emerald-700">
+                      Exemple : 10€ → 15€ → 21€ → 29.40€ → ... croissance rapide mais tout ou rien.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 p-3">
+                    <p className="font-extrabold text-neutral-900">✏️ Manuel</p>
+                    <p className="mt-0.5">
+                      Tu choisis toi-même la mise à chaque palier. Utile si tu veux sécuriser une partie de tes gains en ne remisant qu&apos;une fraction.
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-500">
+                      Exemple : tu gagnes 21€ mais tu ne remises que 15€ → tu sécurises 6€ de profit.
+                    </p>
+                  </div>
+                </div>
+              </details>
+
+              {/* Section 4 — Objectif vs Libre */}
+              <details className="group rounded-2xl border-2 border-neutral-200 transition-all open:border-amber-300 open:shadow-lg open:shadow-amber-50">
+                <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base">🎯</span>
+                  <span>Mode Objectif vs Mode Libre</span>
+                  <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div className="space-y-3 border-t border-neutral-100 px-5 py-4 text-sm text-neutral-600">
+                  <div className="rounded-xl bg-amber-50 p-3">
+                    <p className="font-extrabold text-amber-900">🎯 Mode Objectif</p>
+                    <p className="mt-0.5 text-amber-800">
+                      Tu définis un montant cible (ex: 500€ à partir de 10€). La montante se termine automatiquement quand tu l&apos;atteins. Une barre de progression te montre où tu en es.
+                    </p>
+                    <p className="mt-2 text-xs text-amber-700">
+                      L&apos;outil calcule la cote moyenne nécessaire par palier pour atteindre ton objectif.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 p-3">
+                    <p className="font-extrabold text-neutral-900">🔓 Mode Libre</p>
+                    <p className="mt-0.5">
+                      Pas d&apos;objectif fixé. Tu joues palier par palier et tu encaisses quand tu le sens. Le bouton &quot;💰 Encaisser&quot; est disponible dès que tu as un gain.
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-500">
+                      Idéal pour les joueurs qui préfèrent encaisser régulièrement plutôt que viser gros.
+                    </p>
+                  </div>
+                </div>
+              </details>
+
+              {/* Section 5 — Conseils pro */}
+              <div
+                className="overflow-hidden rounded-2xl"
+                style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+              >
+                <div className="px-5 py-5 sm:px-6">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-base">💎</span>
+                    <h3 className="text-sm font-extrabold text-white">Conseils de pro</h3>
+                  </div>
+                  <div className="mt-4 space-y-2.5 text-[13px] text-white/60">
+                    <p>
+                      📌 Commence avec une <span className="font-bold text-emerald-400">petite mise</span> (5-20€) — tu es là pour tester une stratégie, pas pour risquer gros
+                    </p>
+                    <p>
+                      📌 Vise des <span className="font-bold text-white">cotes entre 1.30 et 1.80</span> — plus la cote est basse, plus tes chances de passer chaque palier sont élevées
+                    </p>
+                    <p>
+                      📌 <span className="font-bold text-red-400">Ne dépasse pas 5-7 paliers</span> — au-delà, la probabilité cumulée de tout perdre devient trop élevée
+                    </p>
+                    <p>
+                      📌 En mode libre, <span className="font-bold text-emerald-400">encaisse régulièrement</span> — la gourmandise est l&apos;ennemi du parieur
+                    </p>
+                    <p>
+                      📌 <span className="font-bold text-white">Accepte la perte</span> — une montante perdue fait partie du jeu, c&apos;est ta mise initiale et rien de plus
+                    </p>
+                    <p>
+                      📌 Lance <span className="font-bold text-emerald-400">plusieurs montantes en parallèle</span> — diversifie tes risques sur différents sports/cotes
+                    </p>
+                    <p>
+                      📌 Utilise le mode <span className="font-bold text-white">Manuel</span> pour sécuriser une partie de tes gains à chaque palier
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Modals */}
         {showCreate && (
           <CreateMontanteModal
