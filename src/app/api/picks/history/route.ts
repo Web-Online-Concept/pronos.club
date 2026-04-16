@@ -13,6 +13,9 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
 
+  // count-only requests (limit=0) need all rows for accurate post-fetch filtering
+  const isCountOnly = limit === 0;
+
   let query = supabase
     .from("picks")
     .select("*, sport:sports(*), bookmaker:bookmakers(*), legs:pick_legs(*, sport:sports(*))", {
@@ -20,23 +23,18 @@ export async function GET(request: Request) {
     })
     .order("pick_number", { ascending: false });
 
-  // Only apply range if limit > 0 (limit=0 is a count-only request)
-  if (limit > 0) {
+  if (!isCountOnly) {
     query = query.range(offset, offset + limit - 1);
   }
 
   if (status) {
     if (status === "awaiting") {
-      // Pending picks where match has started — we'll filter by date post-fetch
       query = query.eq("status", "pending");
     } else {
       query = query.eq("status", status);
     }
   } else if (excludePending) {
-    // Exclude pure pending picks (not yet started) at SQL level
-    // We still need to include pending picks whose match has started (awaiting result)
-    // so we can't just do neq.pending — we fetch all and filter post-fetch
-    query = query.neq("status", "pending");
+    query = query.or(`status.neq.pending,status.eq.pending`);
   }
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
@@ -75,10 +73,14 @@ export async function GET(request: Request) {
 
   const now = new Date();
 
-  // Post-fetch filtering for awaiting status
+  // Post-fetch filtering for pending picks
   if (status === "awaiting") {
-    // Only pending picks where first match has started
     filtered = filtered.filter((pick: any) => getEarliestDate(pick) <= now);
+  } else if (excludePending) {
+    filtered = filtered.filter((pick: any) => {
+      if (pick.status !== "pending") return true;
+      return getEarliestDate(pick) <= now;
+    });
   }
 
   // Helper: check if a pick is a multi-sport combi
@@ -94,15 +96,17 @@ export async function GET(request: Request) {
   }
 
   if (sportSlug === "combines") {
-    // Only multi-sport combis
     filtered = filtered.filter(isMultiSportCombi);
   } else if (sportSlug && sportSlug !== "all") {
-    // Exclude multi-sport combis from individual sport filters
     filtered = filtered.filter((pick) => !isMultiSportCombi(pick));
   }
 
-  // Use filtered.length when post-fetch filtering changed the result set
-  const useFilteredCount = status === "awaiting" || sportSlug === "combines" || (sportSlug && sportSlug !== "all");
+  // For count-only requests: return accurate filtered count (no data needed)
+  // For paginated requests: return filtered data + Supabase count (may be off by 1-2 for pending edge cases)
+  if (isCountOnly) {
+    return NextResponse.json({ data: [], count: filtered.length });
+  }
 
+  const useFilteredCount = sportSlug === "combines" || (sportSlug && sportSlug !== "all");
   return NextResponse.json({ data: filtered, count: useFilteredCount ? filtered.length : count });
 }
