@@ -702,9 +702,6 @@ function MartingaleDetailView({
   const pendingStep = steps.find((s) => s.result === "pending");
   const canAddStep = martingale.status === "active" && !pendingStep;
 
-  // Calculate min odds for next step info
-  const nextMinOdds = totalLost > 0 ? Math.round(((totalLost + beneficeTarget) / initialStake + 1) * 1000) / 1000 : null;
-
   return (
     <>
       <style>{GLOBAL_STYLES}</style>
@@ -782,14 +779,6 @@ function MartingaleDetailView({
               </div>
             </div>
 
-            {/* Cote minimum info */}
-            {martingale.status === "active" && nextMinOdds && (
-              <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-center">
-                <p className="text-[10px] text-amber-400">
-                  Cote minimum au prochain palier (pour mise = {initialStake}€) : <span className="font-extrabold text-amber-300">{nextMinOdds.toFixed(3)}</span>
-                </p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -970,10 +959,7 @@ function AddStepModal({
   const potentialGain = oddsVal > 1 && stake > 0 ? Math.round(stake * oddsVal * 100) / 100 : 0;
   const netProfit = potentialGain > 0 ? potentialGain - stake - totalLost : 0;
 
-  // Cote minimum (info)
-  const minOdds = !isFirstStep && totalLost > 0
-    ? Math.round(((totalLost + beneficeTarget) / initialStake + 1) * 1000) / 1000
-    : null;
+  const potentialGain = oddsVal > 1 && stake > 0 ? Math.round(stake * oddsVal * 100) / 100 : 0;
 
   async function handleAdd() {
     if (oddsVal <= 1) return setError("Cote invalide (> 1.00)");
@@ -1015,11 +1001,6 @@ function AddStepModal({
           <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-center">
             <p className="text-[9px] font-bold uppercase tracking-wider text-red-400">Pertes à récupérer</p>
             <p className="mt-1 text-lg font-extrabold text-red-400 tabular-nums">{totalLost.toFixed(2)}€</p>
-            {minOdds && (
-              <p className="mt-1 text-[10px] text-neutral-400">
-                Cote min. (mise {initialStake}€) : <span className="font-bold text-amber-400">{minOdds.toFixed(3)}</span>
-              </p>
-            )}
           </div>
         )}
 
