@@ -959,8 +959,6 @@ function AddStepModal({
   const potentialGain = oddsVal > 1 && stake > 0 ? Math.round(stake * oddsVal * 100) / 100 : 0;
   const netProfit = potentialGain > 0 ? potentialGain - stake - totalLost : 0;
 
-  const potentialGain = oddsVal > 1 && stake > 0 ? Math.round(stake * oddsVal * 100) / 100 : 0;
-
   async function handleAdd() {
     if (oddsVal <= 1) return setError("Cote invalide (> 1.00)");
 
