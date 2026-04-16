@@ -35,8 +35,8 @@ const CALCULATORS = [
     slug: "repartiteur-mises",
     icon: "📊",
     title: "Répartiteur de mises",
-    desc: "Budget + cotes → mises optimales par issue.",
-    status: "soon",
+    desc: "Couvrir un pari remboursé ou sécuriser avec une Double Chance.",
+    status: "ready",
   },
   {
     slug: "cote-live-couvrir",
