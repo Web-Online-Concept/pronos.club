@@ -51,7 +51,7 @@ export default function MemberDashboard() {
             <Link href={`/${locale}/espace/montantes`} className={CARD_CLASS} style={CARD_STYLE}>
               <span className="text-2xl">📊</span>
               <h3 className="mt-2 font-bold text-white">Montantes</h3>
-              <p className="mt-1 text-sm text-white/40">Gestionnaire de montantes et bankroll</p>
+              <p className="mt-1 text-sm text-white/40">Gestionnaire de montantes</p>
             </Link>
           )}
 
