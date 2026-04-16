@@ -101,8 +101,8 @@ export async function GET(request: Request) {
     filtered = filtered.filter((pick) => !isMultiSportCombi(pick));
   }
 
-  // When post-fetch filtering was applied, use filtered.length as the real count
-  const useFilteredCount = status === "awaiting" || excludePending || sportSlug === "combines" || (sportSlug && sportSlug !== "all");
+  // When post-fetch filtering was applied and changes the result set significantly, use filtered.length
+  const useFilteredCount = status === "awaiting" || sportSlug === "combines" || (sportSlug && sportSlug !== "all");
 
   return NextResponse.json({ data: filtered, count: useFilteredCount ? filtered.length : count });
 }
