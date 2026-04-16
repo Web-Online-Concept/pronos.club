@@ -172,8 +172,8 @@ export default function HistoriquePage() {
 
     <main className="mx-auto max-w-2xl px-4 pb-4">
 
-      {/* Filters — 3 dropdowns */}
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+      {/* Filters — grid for equal widths on mobile */}
+      <div className={`mt-4 grid gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 ${sports.length > 1 ? "grid-cols-3" : "grid-cols-2"}`}>
         {/* Date filter */}
         <select
           value={
@@ -204,7 +204,7 @@ export default function HistoriquePage() {
               setSelectedMonth("");
             }
           }}
-          className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+          className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
         >
           <option value="all">{isMobile ? "Dates" : t("filter_all_dates")}</option>
           <option value="custom">{t("filter_custom")}</option>
@@ -229,7 +229,7 @@ export default function HistoriquePage() {
           <select
             value={sport}
             onChange={(e) => setSport(e.target.value)}
-            className="max-w-[120px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
           >
             <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
             {sports.map((s) => {
@@ -247,7 +247,7 @@ export default function HistoriquePage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+          className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
         >
           <option value="all">{isMobile ? "Résultats" : t("filter_all_results")}</option>
           <option value="awaiting">{t("filter_awaiting")}</option>

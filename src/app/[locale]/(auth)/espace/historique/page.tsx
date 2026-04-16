@@ -114,6 +114,8 @@ export default function MonHistoriquePage() {
 
   const years = [...new Set(availableMonths.map((m) => m.slice(0, 4)))].sort();
 
+  const hasMultipleSports = sports.length > 1;
+
   return (
     <>
       <EspaceHero title={t("my_title")} />
@@ -123,8 +125,8 @@ export default function MonHistoriquePage() {
 
     <main className="mx-auto max-w-2xl px-4 pb-8 pt-4">
 
-      {/* Filters — 3 dropdowns (mobile-optimized like public page) */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+      {/* Filters — grid for equal widths on mobile */}
+      <div className={`grid gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 ${hasMultipleSports ? "grid-cols-3" : "grid-cols-2"}`}>
         {/* Date filter */}
         <select
           value={filterMode === "custom" ? "custom" : filterMode === "month" && selectedMonth ? `month:${selectedMonth}` : filterMode === "year" && selectedYear ? `year:${selectedYear}` : "all"}
@@ -135,7 +137,7 @@ export default function MonHistoriquePage() {
             else if (val.startsWith("month:")) { setFilterMode("month"); setSelectedMonth(val.replace("month:", "")); setSelectedYear(""); }
             else if (val.startsWith("year:")) { setFilterMode("year"); setSelectedYear(val.replace("year:", "")); setSelectedMonth(""); }
           }}
-          className="w-auto cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+          className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
         >
           <option value="all">{isMobile ? "Dates" : t("filter_all_dates")}</option>
           <option value="custom">{t("filter_custom")}</option>
@@ -144,11 +146,11 @@ export default function MonHistoriquePage() {
         </select>
 
         {/* Sport filter */}
-        {sports.length > 1 && (
+        {hasMultipleSports && (
           <select
             value={sport}
             onChange={(e) => setSport(e.target.value)}
-            className="w-auto max-w-[120px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
           >
             <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
             {sports.map((s) => {
@@ -166,7 +168,7 @@ export default function MonHistoriquePage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-auto cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+          className="cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
         >
           <option value="all">{isMobile ? "Résultats" : t("filter_all_results")}</option>
           <option value="pending">{t("filter_pending")}</option>
