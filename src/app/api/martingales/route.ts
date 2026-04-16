@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
       const stepNumber = martingale.current_step + 1;
       const totalLost = parseFloat(String(martingale.total_lost)) || 0;
       const initialStake = parseFloat(String(martingale.initial_stake));
-      const beneficeTarget = initialStake * 2;
+      const beneficeTarget = initialStake;
 
       let stake: number;
       let minOdds: number | null = null;
@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
         // Recalculate stake based on new odds
         const totalLost = parseFloat(String(step.martingales.total_lost)) || 0;
         const initialStake = parseFloat(String(step.martingales.initial_stake));
-        const beneficeTarget = initialStake * 2;
+        const beneficeTarget = initialStake;
         newStake = Math.ceil(((totalLost + beneficeTarget) / (new_odds - 1)) * 100) / 100;
       }
 

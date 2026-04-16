@@ -605,7 +605,7 @@ function CreateMartingaleModal({
         />
 
         <div className="mb-4">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-white">Mise initiale (= bénéfice cible x2)</label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-white">Mise initiale</label>
           <div className="mt-1 relative">
             <input
               type="number"
@@ -621,7 +621,7 @@ function CreateMartingaleModal({
         {stake > 0 && (
           <div className="mb-5 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center">
             <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Bénéfice cible si victoire</p>
-            <p className="mt-1 text-xl font-extrabold text-emerald-400">{(stake * 2).toFixed(2)}€</p>
+            <p className="mt-1 text-xl font-extrabold text-emerald-400">{stake.toFixed(2)}€</p>
           </div>
         )}
 
@@ -698,7 +698,7 @@ function MartingaleDetailView({
 
   const initialStake = parseFloat(String(martingale.initial_stake));
   const totalLost = parseFloat(String(martingale.total_lost)) || 0;
-  const beneficeTarget = initialStake * 2;
+  const beneficeTarget = initialStake;
   const pendingStep = steps.find((s) => s.result === "pending");
   const canAddStep = martingale.status === "active" && !pendingStep;
 
@@ -947,7 +947,7 @@ function AddStepModal({
   const oddsVal = parseFloat(odds) || 0;
   const initialStake = parseFloat(String(martingale.initial_stake));
   const totalLost = parseFloat(String(martingale.total_lost)) || 0;
-  const beneficeTarget = initialStake * 2;
+  const beneficeTarget = initialStake;
 
   // Palier 1: mise = mise initiale / Palier 2+: mise calculée
   let calculatedStake = 0;
