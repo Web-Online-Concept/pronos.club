@@ -39,12 +39,12 @@ function calcFlat(capital: number, percent: number): FlatResult | null {
 
 /**
  * Kelly Criterion :
- * f* = (b·p - q) / b
- *   où b = cote - 1 (gain net par euro misé)
- *        p = probabilité estimée de gagner (0 à 1)
- *        q = 1 - p (probabilité de perdre)
+ * f* = (b * p - q) / b
+ *   ou b = cote - 1 (gain net par euro mise)
+ *        p = probabilite estimee de gagner (0 a 1)
+ *        q = 1 - p (probabilite de perdre)
  *
- * Half Kelly : f*/2, Quarter Kelly : f*/4
+ * Half Kelly : divise f* par 2, Quarter Kelly : divise f* par 4
  */
 function calcKelly(
   capital: number,
