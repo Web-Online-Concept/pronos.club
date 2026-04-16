@@ -51,15 +51,6 @@ type Stats = {
   bestProfit: number;
 };
 
-type BankrollLog = {
-  id: string;
-  type: string;
-  amount: number;
-  balance_after: number;
-  note: string;
-  created_at: string;
-};
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Global Styles
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -103,12 +94,9 @@ export default function MontantesPage() {
 
   const [montantes, setMontantes] = useState<Montante[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [bankroll, setBankroll] = useState<{ balance: number } | null>(null);
-  const [bankrollLogs, setBankrollLogs] = useState<BankrollLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "won" | "lost">("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [showBankroll, setShowBankroll] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
@@ -118,15 +106,12 @@ export default function MontantesPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [montantesRes, statsRes, bankrollRes] = await Promise.all([
+      const [montantesRes, statsRes] = await Promise.all([
         fetch("/api/montantes").then((r) => r.json()),
         fetch("/api/montantes?action=stats").then((r) => r.json()),
-        fetch("/api/montantes?action=bankroll").then((r) => r.json()),
       ]);
       setMontantes(montantesRes.montantes || []);
       setStats(statsRes);
-      setBankroll(bankrollRes.bankroll);
-      setBankrollLogs(bankrollRes.logs || []);
     } catch {}
     setLoading(false);
   }, []);
@@ -162,7 +147,6 @@ export default function MontantesPage() {
   }
 
   const filtered = montantes.filter((m) => filter === "all" || m.status === filter);
-  const balance = bankroll ? parseFloat(String(bankroll.balance)) : 0;
 
   // Stable numbering: oldest = #1, regardless of filter
   const numberMap = new Map<string, number>();
@@ -185,26 +169,22 @@ export default function MontantesPage() {
                   Mes Montantes
                 </h1>
               </div>
-              {/* Bankroll button */}
-              <button
-                onClick={() => setShowBankroll(true)}
-                className="cursor-pointer flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 transition hover:bg-white/10 hover:border-emerald-500/30 mx-auto sm:mx-0"
-              >
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
-                  💰
+              {/* Profit cumulé */}
+              {stats && stats.total > 0 && (
+                <div className="flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 mx-auto sm:mx-0">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">
+                    📊
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-white">
+                      Profit cumulé
+                    </p>
+                    <p className={`text-xl font-extrabold tabular-nums ${stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {stats.totalProfit >= 0 ? "+" : ""}{stats.totalProfit.toFixed(2)}€
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-white">
-                    Bankroll
-                  </p>
-                  <p className="text-xl font-extrabold text-white tabular-nums">
-                    {balance.toFixed(2)}€
-                  </p>
-                </div>
-                <svg className="h-4 w-4 text-white/20 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              )}
             </div>
 
             {/* Stats row inside dark block */}
@@ -305,16 +285,7 @@ export default function MontantesPage() {
               setShowCreate(false);
               fetchAll();
             }}
-            bankrollBalance={balance}
             nextNumber={montantes.length + 1}
-          />
-        )}
-        {showBankroll && (
-          <BankrollModal
-            bankroll={bankroll}
-            logs={bankrollLogs}
-            onClose={() => setShowBankroll(false)}
-            onUpdate={fetchAll}
           />
         )}
       </div>
@@ -470,12 +441,10 @@ function MontanteListCard({
 function CreateMontanteModal({
   onClose,
   onCreated,
-  bankrollBalance,
   nextNumber,
 }: {
   onClose: () => void;
   onCreated: () => void;
-  bankrollBalance: number;
   nextNumber: number;
 }) {
   const defaultName = `Montante ${nextNumber}`;
@@ -491,7 +460,6 @@ function CreateMontanteModal({
 
   async function handleCreate() {
     if (stake <= 0) return setError("Mise initiale requise");
-    if (stake > bankrollBalance) return setError("Bankroll insuffisante");
     if (target > 0 && target <= stake) return setError("L'objectif doit dépasser la mise");
 
     setSaving(true);
@@ -590,10 +558,6 @@ function CreateMontanteModal({
           </div>
         </div>
 
-        <p className="mb-5 text-center text-[10px] text-neutral-500">
-          Bankroll disponible : <span className="font-bold text-neutral-300">{bankrollBalance.toFixed(2)}€</span>
-        </p>
-
         {error && <p className="mb-3 text-center text-xs font-bold text-red-400">{error}</p>}
 
         <button
@@ -607,161 +571,6 @@ function CreateMontanteModal({
     </div>
   );
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Bankroll Modal
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-function BankrollModal({
-  bankroll,
-  logs,
-  onClose,
-  onUpdate,
-}: {
-  bankroll: any;
-  logs: BankrollLog[];
-  onClose: () => void;
-  onUpdate: () => void;
-}) {
-  const [amount, setAmount] = useState("");
-  const [action, setAction] = useState<"deposit" | "withdrawal">("deposit");
-  const [saving, setSaving] = useState(false);
-  const balance = bankroll ? parseFloat(String(bankroll.balance)) : 0;
-
-  async function handleSubmit() {
-    const val = parseFloat(amount);
-    if (!val || val <= 0) return;
-    setSaving(true);
-    try {
-      const isInit = balance === 0 && action === "deposit";
-      const res = await fetch("/api/montantes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: isInit ? "bankroll_init" : `bankroll_${action}`,
-          amount: val,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "Erreur");
-      }
-    } catch {
-      alert("Erreur réseau");
-    }
-    setAmount("");
-    setSaving(false);
-    onUpdate();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-3xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl animate-fade-in-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-extrabold text-white">💰 Bankroll</h2>
-          <button onClick={onClose} className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-neutral-400 hover:bg-white/20">
-            ✕
-          </button>
-        </div>
-
-        {/* Balance display */}
-        <div className="mb-6 rounded-2xl bg-gradient-to-br from-emerald-900/30 to-neutral-800 border border-emerald-500/10 p-6 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/60">Solde actuel</p>
-          <p className="mt-2 text-4xl font-extrabold text-white tabular-nums">{balance.toFixed(2)}€</p>
-        </div>
-
-        {/* Deposit / Withdrawal */}
-        <div className="mb-3 flex gap-2">
-          <button
-            onClick={() => setAction("deposit")}
-            className={`cursor-pointer flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
-              action === "deposit"
-                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                : "border-white/10 text-neutral-500"
-            }`}
-          >
-            ➕ Dépôt
-          </button>
-          <button
-            onClick={() => setAction("withdrawal")}
-            className={`cursor-pointer flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
-              action === "withdrawal"
-                ? "border-red-500/50 bg-red-500/10 text-red-400"
-                : "border-white/10 text-neutral-500"
-            }`}
-          >
-            ➖ Retrait
-          </button>
-        </div>
-
-        <div className="mb-5 flex gap-2">
-          <div className="flex-1 relative">
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Montant"
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 pr-8 text-sm font-bold text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-600">€</span>
-          </div>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="cursor-pointer rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {saving ? "..." : "OK"}
-          </button>
-        </div>
-
-        {/* Logs */}
-        {logs.length > 0 && (
-          <div className="mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-2">Historique</p>
-            <div className="space-y-1 max-h-[180px] overflow-y-auto">
-              {logs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-extrabold tabular-nums ${parseFloat(String(log.amount)) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {parseFloat(String(log.amount)) >= 0 ? "+" : ""}
-                      {parseFloat(String(log.amount)).toFixed(2)}€
-                    </span>
-                    <span className="text-[10px] text-neutral-500 truncate max-w-[150px]">{log.note}</span>
-                  </div>
-                  <span className="text-[9px] text-neutral-600">
-                    {new Date(log.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Reset */}
-        <button
-          onClick={async () => {
-            if (!confirm("⚠️ Tout réinitialiser ?\n\nAction irréversible.")) return;
-            if (!confirm("Vraiment sûr ?")) return;
-            await fetch("/api/montantes", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "reset_all" }),
-            });
-            onUpdate();
-            onClose();
-          }}
-          className="cursor-pointer w-full rounded-xl border border-red-500/20 py-2.5 text-xs font-semibold text-red-400/60 transition hover:bg-red-500/10 hover:text-red-400"
-        >
-          🗑️ Tout réinitialiser
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Montante Detail View
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
