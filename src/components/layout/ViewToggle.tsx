@@ -13,12 +13,10 @@ interface ViewToggleProps {
   /**
    * Destination du lien "Vue site" (chemin sans le locale).
    * Utilisé quand isPublic=false. Ex: "/historique"
-   * Si omis sur une page publique (isPublic=true), le bouton Vue site est juste disabled.
    */
   publicHref?: string;
   /**
    * La page actuelle est-elle la vue publique (true) ou la vue perso (false) ?
-   * Détermine quel bouton est actif et quel bouton est un lien.
    */
   isPublic?: boolean;
 }
@@ -40,8 +38,8 @@ export default function ViewToggle({ privateHref, publicHref, isPublic = true }:
   const fullPublicHref = publicHref ? `/${locale}${publicHref}` : null;
 
   return (
-    <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-center px-4">
-      <div className="flex w-full items-center gap-1 rounded-full border border-neutral-200 bg-white p-1 shadow-sm">
+    <div className="mx-auto mt-4 mb-2 flex max-w-2xl items-center justify-center px-4">
+      <div className="flex w-72 items-center gap-1 rounded-full border border-neutral-200 bg-white p-1 shadow-sm sm:w-80">
         {/* Vue site */}
         {isPublic ? (
           <button
@@ -51,7 +49,7 @@ export default function ViewToggle({ privateHref, publicHref, isPublic = true }:
             aria-pressed={true}
           >
             <span>🌐</span>
-            <span className="truncate">{t("site_view")}</span>
+            <span>{t("site_view")}</span>
           </button>
         ) : fullPublicHref ? (
           <Link
@@ -59,7 +57,7 @@ export default function ViewToggle({ privateHref, publicHref, isPublic = true }:
             className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-700"
           >
             <span>🌐</span>
-            <span className="truncate">{t("site_view")}</span>
+            <span>{t("site_view")}</span>
           </Link>
         ) : null}
 
@@ -70,7 +68,7 @@ export default function ViewToggle({ privateHref, publicHref, isPublic = true }:
             className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-700"
           >
             <span>👤</span>
-            <span className="truncate">{t("personal_view")}</span>
+            <span>{t("personal_view")}</span>
           </Link>
         ) : (
           <button
@@ -80,7 +78,7 @@ export default function ViewToggle({ privateHref, publicHref, isPublic = true }:
             aria-pressed={true}
           >
             <span>👤</span>
-            <span className="truncate">{t("personal_view")}</span>
+            <span>{t("personal_view")}</span>
           </button>
         )}
       </div>
