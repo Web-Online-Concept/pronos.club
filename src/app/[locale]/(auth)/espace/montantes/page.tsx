@@ -215,7 +215,7 @@ export default function MontantesPage() {
                 <DarkStatCard label="Taux" value={`${stats.winRate}%`} accent="text-amber-400" />
                 <DarkStatCard
                   label="Profit"
-                  value={`${stats.totalProfit >= 0 ? "+" : ""}${stats.totalProfit.toFixed(0)}€`}
+                  value={`${stats.totalProfit >= 0 ? "+" : ""}${stats.totalProfit.toFixed(2)}€`}
                   accent={stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}
                 />
               </div>
