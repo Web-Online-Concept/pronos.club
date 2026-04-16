@@ -29,7 +29,7 @@ const CALCULATORS = [
     icon: "🔒",
     title: "Surebet (Arbitrage)",
     desc: "Détecter les arbitrages entre 2 ou 3 bookmakers.",
-    status: "soon",
+    status: "ready",
   },
   {
     slug: "repartiteur-mises",
