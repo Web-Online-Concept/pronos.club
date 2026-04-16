@@ -22,7 +22,7 @@ const CALCULATORS = [
     icon: "♻️",
     title: "Dutching",
     desc: "Répartir sa mise sur N issues pour garantir un gain identique.",
-    status: "soon",
+    status: "ready",
   },
   {
     slug: "surebet",
