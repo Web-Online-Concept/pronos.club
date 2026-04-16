@@ -114,6 +114,9 @@ export default function MonHistoriquePage() {
 
   const years = [...new Set(availableMonths.map((m) => m.slice(0, 4)))].sort();
 
+  // Shared select class — max-w-[110px] on mobile forces compact look
+  const selectClass = "max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs";
+
   return (
     <>
       <EspaceHero title={t("my_title")} />
@@ -136,7 +139,7 @@ export default function MonHistoriquePage() {
               else if (val.startsWith("month:")) { setFilterMode("month"); setSelectedMonth(val.replace("month:", "")); setSelectedYear(""); }
               else if (val.startsWith("year:")) { setFilterMode("year"); setSelectedYear(val.replace("year:", "")); setSelectedMonth(""); }
             }}
-            className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+            className={selectClass}
           >
             <option value="all">{isMobile ? "Dates" : t("filter_all_dates")}</option>
             <option value="custom">{t("filter_custom")}</option>
@@ -149,7 +152,7 @@ export default function MonHistoriquePage() {
             <select
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-              className="max-w-[120px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+              className={selectClass}
             >
               <option value="all">{isMobile ? "Sports" : t("filter_all_sports")}</option>
               {sports.map((s) => {
@@ -167,7 +170,7 @@ export default function MonHistoriquePage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="cursor-pointer rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:px-4 sm:py-2 sm:text-xs"
+            className={selectClass}
           >
             <option value="all">{isMobile ? "Résultats" : t("filter_all_results")}</option>
             <option value="pending">{t("filter_pending")}</option>
