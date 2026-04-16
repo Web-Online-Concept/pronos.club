@@ -80,7 +80,32 @@ export default function MemberDashboard() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* SECTION 2 — GESTION PRONOS.CLUB */}
+        {/* SECTION 2 — OUTILS PRONOS.CLUB (premium only) */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {isPremium && (
+          <>
+            <SectionHeader icon="🛠️" title={t("section_outils")} />
+
+            <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Calculateurs */}
+              <Link href={`/${locale}/espace/calculateurs`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">🧮</span>
+                <h3 className="mt-2 font-bold text-white">{t("calc_title")}</h3>
+                <p className="mt-1 text-sm text-white/40">{t("calc_desc")}</p>
+              </Link>
+
+              {/* Montantes */}
+              <Link href={`/${locale}/espace/montantes`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">📊</span>
+                <h3 className="mt-2 font-bold text-white">{t("montantes_title")}</h3>
+                <p className="mt-1 text-sm text-white/40">{t("montantes_desc")}</p>
+              </Link>
+            </div>
+          </>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 3 — GESTION PRONOS.CLUB */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         <SectionHeader icon="⚙️" title={t("section_gestion")} />
 
@@ -120,31 +145,6 @@ export default function MemberDashboard() {
             <p className="mt-1 text-sm text-white/40">{t("sub_desc")}</p>
           </Link>
         </div>
-
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* SECTION 3 — OUTILS PRONOS.CLUB (premium only) */}
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {isPremium && (
-          <>
-            <SectionHeader icon="🛠️" title={t("section_outils")} />
-
-            <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Calculateurs */}
-              <Link href={`/${locale}/espace/calculateurs`} className={CARD_CLASS} style={CARD_STYLE}>
-                <span className="text-2xl">🧮</span>
-                <h3 className="mt-2 font-bold text-white">{t("calc_title")}</h3>
-                <p className="mt-1 text-sm text-white/40">{t("calc_desc")}</p>
-              </Link>
-
-              {/* Montantes */}
-              <Link href={`/${locale}/espace/montantes`} className={CARD_CLASS} style={CARD_STYLE}>
-                <span className="text-2xl">📊</span>
-                <h3 className="mt-2 font-bold text-white">{t("montantes_title")}</h3>
-                <p className="mt-1 text-sm text-white/40">{t("montantes_desc")}</p>
-              </Link>
-            </div>
-          </>
-        )}
 
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* SECTION 4 — PRIVÉ (admin only) */}
