@@ -42,8 +42,8 @@ const CALCULATORS = [
     slug: "cote-live-couvrir",
     icon: "🛡️",
     title: "Cote live pour couvrir",
-    desc: "Couvrir un pari perdant en cours avec une cote live.",
-    status: "soon",
+    desc: "Hedging live : sécuriser un pari pré-match avec une mise en direct.",
+    status: "ready",
   },
   {
     slug: "probabilites-cotes",
