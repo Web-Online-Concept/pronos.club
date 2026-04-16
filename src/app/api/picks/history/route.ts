@@ -18,19 +18,25 @@ export async function GET(request: Request) {
     .select("*, sport:sports(*), bookmaker:bookmakers(*), legs:pick_legs(*, sport:sports(*))", {
       count: "exact",
     })
-    .order("pick_number", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order("pick_number", { ascending: false });
+
+  // Only apply range if limit > 0 (limit=0 is a count-only request)
+  if (limit > 0) {
+    query = query.range(offset, offset + limit - 1);
+  }
 
   if (status) {
     if (status === "awaiting") {
-      // Pending picks where match has started — we'll filter by legs post-fetch
+      // Pending picks where match has started — we'll filter by date post-fetch
       query = query.eq("status", "pending");
     } else {
       query = query.eq("status", status);
     }
   } else if (excludePending) {
-    // Show all resolved picks + all pending picks (we'll filter pending post-fetch)
-    query = query.or(`status.neq.pending,status.eq.pending`);
+    // Exclude pure pending picks (not yet started) at SQL level
+    // We still need to include pending picks whose match has started (awaiting result)
+    // so we can't just do neq.pending — we fetch all and filter post-fetch
+    query = query.neq("status", "pending");
   }
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
@@ -69,16 +75,10 @@ export async function GET(request: Request) {
 
   const now = new Date();
 
-  // Post-fetch filtering for pending picks
+  // Post-fetch filtering for awaiting status
   if (status === "awaiting") {
     // Only pending picks where first match has started
     filtered = filtered.filter((pick: any) => getEarliestDate(pick) <= now);
-  } else if (excludePending) {
-    // Resolved picks + pending picks where first match has started
-    filtered = filtered.filter((pick: any) => {
-      if (pick.status !== "pending") return true;
-      return getEarliestDate(pick) <= now;
-    });
   }
 
   // Helper: check if a pick is a multi-sport combi
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
     filtered = filtered.filter((pick) => !isMultiSportCombi(pick));
   }
 
-  // When post-fetch filtering was applied and changes the result set significantly, use filtered.length
+  // Use filtered.length when post-fetch filtering changed the result set
   const useFilteredCount = status === "awaiting" || sportSlug === "combines" || (sportSlug && sportSlug !== "all");
 
   return NextResponse.json({ data: filtered, count: useFilteredCount ? filtered.length : count });
