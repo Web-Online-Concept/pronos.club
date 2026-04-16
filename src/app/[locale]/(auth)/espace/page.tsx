@@ -37,12 +37,12 @@ export default function MemberDashboard() {
             <p className="mt-1 text-sm text-white/40">{t("history_desc")}</p>
           </Link>
 
-          {/* 3. Value Calculator — premium only */}
+          {/* 3. Calculateurs — premium only (remplace Value Calculator) */}
           {isPremium && (
-            <Link href={`/${locale}/espace/value-calculator`} className={CARD_CLASS} style={CARD_STYLE}>
+            <Link href={`/${locale}/espace/calculateurs`} className={CARD_CLASS} style={CARD_STYLE}>
               <span className="text-2xl">🧮</span>
-              <h3 className="mt-2 font-bold text-white">Value Calculator</h3>
-              <p className="mt-1 text-sm text-white/40">Calculateur de Value Bet PS3838</p>
+              <h3 className="mt-2 font-bold text-white">Calculateurs</h3>
+              <p className="mt-1 text-sm text-white/40">10 outils pour affiner tes paris</p>
             </Link>
           )}
 
