@@ -50,7 +50,7 @@ export async function GET() {
     const { data: pendingFree, error: pendingError } = await supabaseAdmin
       .from("picks")
       .select(
-        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name_fr, name_en, name_es, icon)"
       )
       .eq("is_premium", false)
       .eq("status", "pending")
@@ -73,7 +73,7 @@ export async function GET() {
     const { data: lastWon, error: wonError } = await supabaseAdmin
       .from("picks")
       .select(
-        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name_fr, name_en, name_es, icon)"
       )
       .eq("is_premium", false)
       .in("status", ["won", "half_won"])
