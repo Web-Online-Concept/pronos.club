@@ -298,10 +298,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <span className="inline-flex items-center gap-1.5">
                 <span className="text-emerald-400">✓</span>
                 {locale === "en"
-                  ? "No credit card required"
+                  ? "Not charged during trial"
                   : locale === "es"
-                  ? "Sin tarjeta de crédito"
-                  : "Sans carte bancaire"}
+                  ? "No se cobra durante la prueba"
+                  : "Non débité pendant l'essai"}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="text-emerald-400">✓</span>
