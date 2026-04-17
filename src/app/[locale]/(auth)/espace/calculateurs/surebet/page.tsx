@@ -584,18 +584,23 @@ export default function SurebetCalculatorPage() {
             <div className="space-y-3">
               {legs.slice(0, nLegs).map((leg, i) => {
                 const legResult = result?.legs[i];
-                const accentColor = ["#059669", "#0891b2", "#7c3aed", "#e11d48"][i];
+                const accentColor = ["#10b981", "#06b6d4", "#a855f7", "#f43f5e"][i];
 
                 return (
                   <div
                     key={i}
-                    className="rounded-2xl border-2 p-4 transition-all"
+                    className="relative overflow-hidden rounded-2xl border-2 p-4 transition-all"
                     style={{
-                      background: `linear-gradient(135deg, #0a0a0a 0%, ${accentColor}35 100%)`,
-                      borderColor: `${accentColor}60`,
-                      boxShadow: `0 4px 20px -8px ${accentColor}50, inset 0 1px 0 ${accentColor}20`,
+                      background: `linear-gradient(135deg, #0a0a0a 0%, ${accentColor}1a 50%, #0a0a0a 100%)`,
+                      borderColor: accentColor,
+                      boxShadow: `0 0 0 1px ${accentColor}40, 0 8px 24px -8px ${accentColor}80`,
                     }}
                   >
+                    {/* Accent bar top */}
+                    <div
+                      className="absolute inset-x-0 top-0 h-1"
+                      style={{ background: accentColor }}
+                    />
                     <div className="mb-3 flex items-center gap-2">
                       <span
                         className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black text-white"
