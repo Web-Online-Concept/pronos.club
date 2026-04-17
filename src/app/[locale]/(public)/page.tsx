@@ -801,6 +801,159 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
+      {/* ═══════════ ARSENAL OUTILS (LIGHT) ═══════════ */}
+      <section className="bg-neutral-50 px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">
+              {locale === "en" ? "Premium tools" : locale === "es" ? "Herramientas premium" : "Outils premium"}
+            </p>
+            <h2 className="mt-2 text-2xl font-extrabold text-neutral-900 sm:text-3xl">
+              {locale === "en"
+                ? "The complete arsenal of the savvy bettor"
+                : locale === "es"
+                ? "El arsenal completo del apostador experto"
+                : "L'arsenal complet du parieur averti"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-neutral-500">
+              {locale === "en" ? (
+                <>13 professional tools. <strong className="text-neutral-700">Each comes with its own built-in tutorial.</strong></>
+              ) : locale === "es" ? (
+                <>13 herramientas profesionales. <strong className="text-neutral-700">Cada una con su tutorial integrado.</strong></>
+              ) : (
+                <>13 outils professionnels. <strong className="text-neutral-700">Chacun avec son tutoriel intégré.</strong></>
+              )}
+            </p>
+          </div>
+
+          {(() => {
+            // Destination selon statut utilisateur
+            const ctaHref = isPremium
+              ? `/${locale}/espace/calculateurs`
+              : isLoggedIn
+              ? `/${locale}/espace/abonnement`
+              : `/${locale}/login`;
+            // Pour les liens individuels : si pas premium, on renvoie vers l'abonnement
+            const toolHref = (slug: string, type: "calc" | "mont" | "mart") => {
+              if (!isPremium) return ctaHref;
+              if (type === "calc") return `/${locale}/espace/calculateurs/${slug}`;
+              if (type === "mont") return `/${locale}/espace/montantes`;
+              return `/${locale}/espace/martingales`;
+            };
+
+            const groups: Array<{
+              icon: string;
+              title: { fr: string; en: string; es: string };
+              tools: Array<{ icon: string; name: { fr: string; en: string; es: string }; slug: string; type: "calc" | "mont" | "mart" }>;
+            }> = [
+              {
+                icon: "📊",
+                title: { fr: "Calcul de base", en: "Basic calculation", es: "Cálculo básico" },
+                tools: [
+                  { icon: "💹", name: { fr: "ROI", en: "ROI", es: "ROI" }, slug: "roi", type: "calc" },
+                  { icon: "📈", name: { fr: "TRJ", en: "TRJ", es: "TRJ" }, slug: "trj", type: "calc" },
+                  { icon: "🎲", name: { fr: "Probabilités ↔ Cotes", en: "Probability ↔ Odds", es: "Probabilidad ↔ Cuotas" }, slug: "probabilites-cotes", type: "calc" },
+                  { icon: "⚖️", name: { fr: "Répartiteur de mises", en: "Stake splitter", es: "Distribuidor de apuestas" }, slug: "repartiteur-mises", type: "calc" },
+                ],
+              },
+              {
+                icon: "🧠",
+                title: { fr: "Stratégies de mise", en: "Betting strategies", es: "Estrategias de apuesta" },
+                tools: [
+                  { icon: "⬆️", name: { fr: "Montantes", en: "Parlays", es: "Montantes" }, slug: "montantes", type: "mont" },
+                  { icon: "🔁", name: { fr: "Martingales", en: "Martingales", es: "Martingalas" }, slug: "martingales", type: "mart" },
+                  { icon: "🧮", name: { fr: "Kelly", en: "Kelly", es: "Kelly" }, slug: "kelly", type: "calc" },
+                ],
+              },
+              {
+                icon: "⚡",
+                title: { fr: "Stratégies avancées", en: "Advanced strategies", es: "Estrategias avanzadas" },
+                tools: [
+                  { icon: "🔀", name: { fr: "Dutching", en: "Dutching", es: "Dutching" }, slug: "dutching", type: "calc" },
+                  { icon: "💎", name: { fr: "Value Bet", en: "Value Bet", es: "Value Bet" }, slug: "value-bet", type: "calc" },
+                  { icon: "🎁", name: { fr: "Matched Betting", en: "Matched Betting", es: "Matched Betting" }, slug: "matched-betting", type: "calc" },
+                  { icon: "🔒", name: { fr: "Surebet", en: "Surebet", es: "Surebet" }, slug: "surebet", type: "calc" },
+                ],
+              },
+              {
+                icon: "🎯",
+                title: { fr: "Couverture live", en: "Live hedging", es: "Cobertura en vivo" },
+                tools: [
+                  { icon: "⏱️", name: { fr: "Cote live à couvrir", en: "Live odds to cover", es: "Cuota live a cubrir" }, slug: "cote-live-couvrir", type: "calc" },
+                  { icon: "💰", name: { fr: "Bénéfice à acquérir", en: "Profit to acquire", es: "Beneficio a adquirir" }, slug: "benefice-acquerir", type: "calc" },
+                ],
+              },
+            ];
+
+            return (
+              <>
+                <div className="mt-10 space-y-8">
+                  {groups.map((group) => (
+                    <div key={group.title.fr}>
+                      <div className="mb-4 flex items-center gap-2">
+                        <span className="text-xl">{group.icon}</span>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-neutral-700">
+                          {locale === "en" ? group.title.en : locale === "es" ? group.title.es : group.title.fr}
+                        </h3>
+                        <div className="h-px flex-1 bg-gradient-to-r from-neutral-300 to-transparent" />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {group.tools.map((tool) => (
+                          <Link
+                            key={tool.slug}
+                            href={toolHref(tool.slug, tool.type)}
+                            className="group relative overflow-hidden rounded-xl border border-neutral-200 bg-white px-4 py-4 transition hover:-translate-y-0.5 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10"
+                          >
+                            {/* Accent emerald au hover */}
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 scale-x-0 bg-gradient-to-r from-emerald-400 to-emerald-600 transition-transform duration-300 group-hover:scale-x-100" />
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-xl ring-1 ring-emerald-500/10">
+                                {tool.icon}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-bold text-neutral-900 group-hover:text-emerald-700">
+                                  {locale === "en" ? tool.name.en : locale === "es" ? tool.name.es : tool.name.fr}
+                                </p>
+                                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
+                                  {locale === "en" ? "With tutorial" : locale === "es" ? "Con tutorial" : "Avec tutoriel"}
+                                </p>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA global */}
+                <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                  <Link
+                    href={ctaHref}
+                    className="group relative w-full overflow-hidden rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
+                  >
+                    <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                    <span className="relative flex items-center justify-center gap-2">
+                      {isPremium
+                        ? locale === "en"
+                          ? "Access my 13 tools"
+                          : locale === "es"
+                          ? "Acceder a mis 13 herramientas"
+                          : "Accéder à mes 13 outils"
+                        : locale === "en"
+                        ? "🎁 Unlock the 13 tools"
+                        : locale === "es"
+                        ? "🎁 Desbloquear las 13 herramientas"
+                        : "🎁 Débloquer les 13 outils"}
+                    </span>
+                  </Link>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </section>
+
       {/* ═══════════ PRICING (DARK) ═══════════ */}
       <section
         className="relative overflow-hidden px-4 py-16"
