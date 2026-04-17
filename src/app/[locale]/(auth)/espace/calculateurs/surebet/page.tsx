@@ -573,14 +573,6 @@ export default function SurebetCalculatorPage() {
             </p>
 
             {/* Hint astuce lock */}
-            <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-2.5 text-center">
-              <p className="text-[11px] text-cyan-200/90">
-                💡 <span className="font-bold">Astuce</span> : tu as déjà placé une mise quelque part ? Clique sur{" "}
-                <span className="font-mono font-black text-cyan-300">🔓</span> à côté d&apos;une issue pour la fixer —
-                le calculateur recalcule automatiquement les autres.
-              </p>
-            </div>
-
             <div className="space-y-3">
               {legs.slice(0, nLegs).map((leg, i) => {
                 const legResult = result?.legs[i];
@@ -794,8 +786,13 @@ export default function SurebetCalculatorPage() {
               })}
             </div>
 
+            {/* Hint astuce lock (placé sous les blocs, discret) */}
+            <p className="mt-4 text-center text-[10px] italic text-white/30">
+              💡 Astuce : clique sur 🔓 à côté d&apos;une issue pour fixer une mise déjà placée
+            </p>
+
             {/* Reset button */}
-            <div className="mt-4 text-center">
+            <div className="mt-3 text-center">
               <button
                 onClick={resetAll}
                 className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:bg-white/10 hover:text-white/70"
