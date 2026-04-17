@@ -100,6 +100,13 @@ export default function MemberDashboard() {
                 <h3 className="mt-2 font-bold text-white">{t("montantes_title")}</h3>
                 <p className="mt-1 text-sm text-white/40">{t("montantes_desc")}</p>
               </Link>
+
+              {/* Martingales */}
+              <Link href={`/${locale}/espace/martingales`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">🎲</span>
+                <h3 className="mt-2 font-bold text-white">Martingales</h3>
+                <p className="mt-1 text-sm text-white/40">Gérez vos martingales paris sportifs</p>
+              </Link>
             </div>
           </>
         )}
