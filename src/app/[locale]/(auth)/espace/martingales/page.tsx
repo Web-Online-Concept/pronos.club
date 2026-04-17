@@ -337,7 +337,7 @@ export default function MartingalesPage() {
                 </summary>
                 <div className="space-y-3 border-t border-neutral-100 px-5 py-4 text-sm text-neutral-600">
                   {[
-                    { step: "1", title: "Créer une martingale", desc: "Donne un nom et ta mise initiale (ex: 10€). C'est aussi ton bénéfice cible (x2 la mise)." },
+                    { step: "1", title: "Créer une martingale", desc: "Donne un nom et ta mise initiale (ex: 10€). Le bénéfice cible = ta mise initiale." },
                     { step: "2", title: "Palier 1 — Tu joues librement", desc: "Entre ta cote et ta mise. C'est ton premier pari, tu fais ce que tu veux. Si tu gagnes, martingale terminée !" },
                     { step: "3", title: "Palier 2+ — L'outil prend le relais", desc: "Tu donnes la cote de ton prochain pari. L'outil calcule automatiquement la mise exacte pour récupérer toutes tes pertes + ton bénéfice cible." },
                     { step: "4", title: "Victoire ou abandon", desc: "Dès que tu gagnes, la martingale est terminée avec bénéfice. Tu peux aussi clôturer à tout moment si tu veux limiter tes pertes." },
@@ -366,11 +366,11 @@ export default function MartingalesPage() {
                     <p className="text-base font-mono font-bold text-white">mise = (pertes cumulées + bénéfice cible) / (cote - 1)</p>
                   </div>
                   <p className="mt-3">
-                    <strong className="text-neutral-900">Exemple :</strong> tu as perdu 10€ au palier 1 (mise initiale). Ton bénéfice cible = 20€ (x2 la mise initiale). Au palier 2 tu prends une cote de 1.50 :
+                    <strong className="text-neutral-900">Exemple :</strong> tu as perdu 10€ au palier 1 (mise initiale). Ton bénéfice cible = 10€ (= ta mise initiale). Au palier 2 tu prends une cote de 1.50 :
                   </p>
                   <div className="mt-2 rounded-xl bg-purple-50 px-4 py-3">
-                    <p className="font-mono text-sm text-purple-900">mise = (10 + 20) / (1.50 - 1) = 30 / 0.50 = <strong>60€</strong></p>
-                    <p className="mt-1 text-xs text-purple-700">Si tu gagnes : 60 × 1.50 = 90€ → 90 - 60 - 10 = <strong>+20€ net</strong> ✅</p>
+                    <p className="font-mono text-sm text-purple-900">mise = (10 + 10) / (1.50 - 1) = 20 / 0.50 = <strong>40€</strong></p>
+                    <p className="mt-1 text-xs text-purple-700">Si tu gagnes : 40 × 1.50 = 60€ → 60 - 40 - 10 = <strong>+10€ net</strong> ✅</p>
                   </div>
                 </div>
               </details>
@@ -386,11 +386,11 @@ export default function MartingalesPage() {
                   <p>Plus la cote est basse, plus la mise calculée sera élevée. C&apos;est mathématique :</p>
                   <div className="mt-3 space-y-1.5">
                     {[
-                      { cote: "1.30", mise: "100.00€", comment: "Très cher" },
-                      { cote: "1.50", mise: "60.00€", comment: "Élevé" },
-                      { cote: "1.80", mise: "37.50€", comment: "Raisonnable" },
-                      { cote: "2.00", mise: "30.00€", comment: "Classique" },
-                      { cote: "2.50", mise: "20.00€", comment: "Agressif mais abordable" },
+                      { cote: "1.30", mise: "66.67€", comment: "Très cher" },
+                      { cote: "1.50", mise: "40.00€", comment: "Élevé" },
+                      { cote: "1.80", mise: "25.00€", comment: "Raisonnable" },
+                      { cote: "2.00", mise: "20.00€", comment: "Classique" },
+                      { cote: "2.50", mise: "13.33€", comment: "Abordable" },
                     ].map((r) => (
                       <div key={r.cote} className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-2">
                         <span className="font-bold text-neutral-900">Cote {r.cote}</span>
@@ -400,7 +400,7 @@ export default function MartingalesPage() {
                     ))}
                   </div>
                   <p className="mt-3 text-xs text-neutral-500">
-                    * Basé sur : mise initiale 10€, bénéfice cible 20€, pertes cumulées 10€ (1 palier perdu)
+                    * Basé sur : mise initiale 10€, bénéfice cible 10€, pertes cumulées 10€ (1 palier perdu)
                   </p>
                 </div>
               </details>
