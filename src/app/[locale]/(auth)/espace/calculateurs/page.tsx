@@ -6,10 +6,17 @@ import EspaceHero from "@/components/layout/EspaceHero";
 import { useLocale } from "next-intl";
 
 // ═══════════════════════════════════════════════════════════════
-// 10 CALCULATEURS — TOUS READY 🏁
+// 11 CALCULATEURS — TOUS READY 🏁
 // ═══════════════════════════════════════════════════════════════
 
 const CALCULATORS = [
+  {
+    slug: "matched-betting",
+    icon: "🎁",
+    title: "Matched Betting",
+    desc: "Extraire les bonus bookmakers en gain garanti via Back/Lay (Betfair, Smarkets).",
+    status: "ready",
+  },
   {
     slug: "value-bet",
     icon: "🎯",
@@ -122,14 +129,14 @@ export default function CalculateursLandingPage() {
             🧮 Boîte à outils Premium
           </p>
           <h2 className="mt-2 text-2xl font-black text-neutral-900">
-            10 calculateurs pour affiner tes paris
+            11 calculateurs pour affiner tes paris
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
             Toutes les maths dont tu as besoin, sans quitter PRONOS.CLUB
           </p>
         </div>
 
-        {/* Grid 10 cartes */}
+        {/* Grid 11 cartes */}
         <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CALCULATORS.map((calc) => {
             const isReady = calc.status === "ready";
