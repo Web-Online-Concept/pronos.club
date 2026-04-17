@@ -1,9 +1,62 @@
 import Link from "next/link";
 import Image from "next/image";
+import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { getTranslations } from "next-intl/server";
 import HomeVideoPlayer from "@/components/ui/VideoPlayer";
+
+// ═══════════════════════════════════════════════════════════════
+// ISR : la page est régénérée toutes les 5 minutes côté serveur.
+// Économise les requêtes Supabase sur les pics de trafic.
+// ═══════════════════════════════════════════════════════════════
+export const revalidate = 300;
+
+// ═══════════════════════════════════════════════════════════════
+// Cache des picks (stats live) — 5 min, tagué pour invalidation ciblée
+// Pour invalider manuellement après ajout d'un pick : revalidateTag("home-picks")
+// ═══════════════════════════════════════════════════════════════
+const getCachedPicks = unstable_cache(
+  async () => {
+    const { data } = await supabaseAdmin
+      .from("picks")
+      .select(
+        "status, profit, stake, odds, event_name, selection, published_at, result_entered_at, pick_number, sport:sports(icon)"
+      )
+      .neq("status", "pending")
+      .order("result_entered_at", { ascending: false });
+    return data ?? [];
+  },
+  ["home-all-picks"],
+  { revalidate: 300, tags: ["home-picks"] }
+);
+
+const getCachedPendingCount = unstable_cache(
+  async () => {
+    const { count } = await supabaseAdmin
+      .from("picks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .gt("event_date", new Date().toISOString());
+    return count ?? 0;
+  },
+  ["home-pending-count"],
+  { revalidate: 300, tags: ["home-picks"] }
+);
+
+const getCachedReviews = unstable_cache(
+  async () => {
+    const { data } = await supabaseAdmin
+      .from("reviews")
+      .select("id, pseudo, avatar_url, rating, content, created_at")
+      .eq("status", "approved")
+      .order("approved_at", { ascending: false })
+      .limit(6);
+    return data ?? [];
+  },
+  ["home-reviews"],
+  { revalidate: 600, tags: ["home-reviews"] }
+);
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -12,18 +65,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const isLoggedIn = !!user;
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
-  // ─── Fetch real stats ───
-  const { data: allPicks } = await supabaseAdmin
-    .from("picks")
-    .select("status, profit, stake, odds, event_name, selection, published_at, result_entered_at, pick_number, sport:sports(icon)")
-    .neq("status", "pending")
-    .order("result_entered_at", { ascending: false });
-
-  const { count: pendingCount } = await supabaseAdmin
-    .from("picks")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "pending")
-    .gt("event_date", new Date().toISOString());
+  // ─── Fetch real stats (cached) ───
+  const [allPicks, pendingCount, reviewsData] = await Promise.all([
+    getCachedPicks(),
+    getCachedPendingCount(),
+    getCachedReviews(),
+  ]);
 
   const picks = allPicks ?? [];
   const totalPicks = picks.length;
@@ -60,16 +107,68 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const monthSet = new Set(picks.map((p) => (p.result_entered_at ?? "").slice(0, 7)));
   const monthsActive = monthSet.size;
 
-  // Fetch approved reviews for homepage
-  const { data: reviewsData } = await supabaseAdmin
-    .from("reviews")
-    .select("id, pseudo, avatar_url, rating, content, created_at")
-    .eq("status", "approved")
-    .order("approved_at", { ascending: false })
-    .limit(6);
   const reviews = reviewsData ?? [];
 
+  // ═══════════════════════════════════════════════════════════════
+  // JSON-LD : Schema.org pour rich snippets Google
+  // Génère FAQPage (questions/réponses en résultats de recherche)
+  // + AggregateRating (étoiles visibles en SERP)
+  // ═══════════════════════════════════════════════════════════════
+  const faqItems = [
+    { q: t("faq_q1"), a: t("faq_a1") },
+    { q: t("faq_q2"), a: t("faq_a2") },
+    { q: t("faq_q3"), a: t("faq_a3") },
+    { q: t("faq_q4"), a: t("faq_a4") },
+    { q: t("faq_q5"), a: t("faq_a5") },
+    { q: t("faq_q6"), a: t("faq_a6") },
+  ];
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    })),
+  };
+
+  const avgRating =
+    reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "PRONOS.CLUB",
+    url: "https://pronos.club",
+    logo: "https://pronos.club/pronos_club_hero.png",
+    description: t("hero_subtitle"),
+    ...(reviews.length > 0 && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: avgRating.toFixed(1),
+        reviewCount: reviews.length,
+        bestRating: "5",
+        worstRating: "1",
+      },
+    }),
+  };
+
   return (
+    <>
+      {/* ═══════════ JSON-LD Schema.org pour SEO ═══════════ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+
     <main className="bg-neutral-950">
       {/* ═══════════ HERO + STATS = viewport height ═══════════ */}
       <div className="flex min-h-[calc(100vh-70px)] flex-col supports-[min-height:100svh]:min-h-[calc(100svh-70px)] lg:min-h-[calc(100vh-100px)] lg:supports-[min-height:100svh]:min-h-[calc(100svh-100px)]">
@@ -844,5 +943,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
     </main>
+    </>
   );
 }
