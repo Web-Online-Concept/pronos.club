@@ -65,7 +65,7 @@ const getCachedTeaserPick = unstable_cache(
     const { data: pendingFree } = await supabaseAdmin
       .from("picks")
       .select(
-        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+        "id, event_name, selection, odds, stake, analysis_fr, analysis_en, analysis_es, event_date, status, sport:sports(name_fr, name_en, name_es, icon)"
       )
       .eq("is_premium", false)
       .eq("status", "pending")
@@ -80,7 +80,7 @@ const getCachedTeaserPick = unstable_cache(
     const { data: lastWon } = await supabaseAdmin
       .from("picks")
       .select(
-        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+        "id, event_name, selection, odds, stake, analysis_fr, analysis_en, analysis_es, event_date, status, sport:sports(name_fr, name_en, name_es, icon)"
       )
       .eq("is_premium", false)
       .in("status", ["won", "half_won"])
@@ -444,7 +444,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     <p className="text-xs font-bold text-white">
                       {(() => {
                         const sport = Array.isArray(teaserPick.sport) ? teaserPick.sport[0] : teaserPick.sport;
-                        return sport?.name ?? "Sport";
+                        if (!sport) return "Sport";
+                        return (locale === "en" ? sport.name_en : locale === "es" ? sport.name_es : sport.name_fr) ?? "Sport";
                       })()}
                     </p>
                     <p className="text-[10px] text-white/40">
@@ -497,23 +498,31 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 </div>
 
                 {/* Analysis teaser (blur effect) */}
-                {teaserPick.analysis && (
-                  <div className="relative mt-5 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                    <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                      📊 {locale === "en" ? "Expert analysis" : locale === "es" ? "Análisis experto" : "Analyse de l'expert"}
-                    </p>
-                    <p className="text-sm leading-relaxed text-white/60 line-clamp-3">
-                      {teaserPick.analysis}
-                    </p>
-                    {/* Fade overlay (gradient noir vers transparent) */}
-                    <div
-                      className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
-                      style={{
-                        background: "linear-gradient(to top, #0a1a15 10%, transparent)",
-                      }}
-                    />
-                  </div>
-                )}
+                {(() => {
+                  const analysis = locale === "en"
+                    ? teaserPick.analysis_en
+                    : locale === "es"
+                    ? teaserPick.analysis_es
+                    : teaserPick.analysis_fr;
+                  if (!analysis) return null;
+                  return (
+                    <div className="relative mt-5 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                      <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                        📊 {locale === "en" ? "Expert analysis" : locale === "es" ? "Análisis experto" : "Analyse de l'expert"}
+                      </p>
+                      <p className="text-sm leading-relaxed text-white/60 line-clamp-3">
+                        {analysis}
+                      </p>
+                      {/* Fade overlay (gradient noir vers transparent) */}
+                      <div
+                        className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
+                        style={{
+                          background: "linear-gradient(to top, #0a1a15 10%, transparent)",
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* CTA débloquer */}
