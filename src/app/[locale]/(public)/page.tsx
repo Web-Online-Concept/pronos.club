@@ -237,43 +237,80 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </p>
 
           <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:flex-row sm:gap-3 sm:justify-center">
-            <Link
-              href={`/${locale}/pronostics`}
-              className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
-            >
-              {t("cta_see_picks")}
-            </Link>
             {isPremium ? (
-              <Link
-                href={`/${locale}/espace`}
-                className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
-              >
-                ✅ {t("cta_my_space")}
-              </Link>
-            ) : isLoggedIn ? (
-              <Link
-                href={`/${locale}/espace/abonnement`}
-                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
-              >
-                {t("cta_go_premium")}
-              </Link>
+              <>
+                {/* PREMIUM : Voir les pronos (primary) + Mon espace (secondary) */}
+                <Link
+                  href={`/${locale}/pronostics`}
+                  className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
+                >
+                  {t("cta_see_picks")}
+                </Link>
+                <Link
+                  href={`/${locale}/espace`}
+                  className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
+                >
+                  ✅ {t("cta_my_space")}
+                </Link>
+              </>
             ) : (
-              <Link
-                href={`/${locale}/login`}
-                className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
-              >
-                {t("cta_go_premium")}
-              </Link>
+              <>
+                {/* NON-PREMIUM : Essai 7j gratuits (primary) + Voir pronos (secondary) */}
+                <Link
+                  href={isLoggedIn ? `/${locale}/espace/abonnement` : `/${locale}/login`}
+                  className="group relative w-full overflow-hidden rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
+                >
+                  {/* Shimmer effect on hover */}
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    🎁{" "}
+                    {locale === "en"
+                      ? "Try 7 days free"
+                      : locale === "es"
+                      ? "Prueba 7 días gratis"
+                      : "Essayer 7 jours gratuits"}
+                  </span>
+                </Link>
+                <Link
+                  href={`/${locale}/pronostics`}
+                  className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
+                >
+                  {t("cta_see_picks")}
+                </Link>
+              </>
             )}
           </div>
 
-          {/* Promo badge */}
+          {/* Sous-CTA : code promo + sans engagement (uniquement non-premium) */}
           {!isPremium && (
-            <div className="mt-4 flex justify-center sm:mt-5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
-                <span className="text-xs">🎁</span>
-                <span className="text-xs font-semibold text-amber-400">Code <span className="font-mono font-extrabold">PRONOS7</span> = 7 jours d&apos;essai gratuit</span>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-neutral-500 sm:mt-4 sm:text-xs">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-emerald-400">✓</span>
+                {locale === "en"
+                  ? "Code"
+                  : locale === "es"
+                  ? "Código"
+                  : "Avec le code"}{" "}
+                <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 font-mono text-[11px] font-extrabold text-amber-400 ring-1 ring-amber-500/30">
+                  PRONOS7
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-emerald-400">✓</span>
+                {locale === "en"
+                  ? "No credit card required"
+                  : locale === "es"
+                  ? "Sin tarjeta de crédito"
+                  : "Sans carte bancaire"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-emerald-400">✓</span>
+                {locale === "en"
+                  ? "Cancel anytime"
+                  : locale === "es"
+                  ? "Cancela cuando quieras"
+                  : "Résiliable à tout moment"}
+              </span>
             </div>
           )}
 
