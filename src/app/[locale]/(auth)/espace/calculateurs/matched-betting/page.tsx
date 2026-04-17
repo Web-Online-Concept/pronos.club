@@ -409,6 +409,106 @@ export default function MatchedBettingPage() {
                 {/* Hero */}
                 <MatchedHeroCard result={result} />
 
+                {/* Plan d'action en langage clair */}
+                <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
+                  <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/20 text-xs">
+                      📋
+                    </span>
+                    Plan d&apos;action — en clair
+                  </p>
+                  <div className="space-y-2.5 text-[13px] leading-relaxed text-white/80">
+                    {result.betType === "qualifying" ? (
+                      <>
+                        <p>
+                          <span className="font-bold text-white">1.</span> Place une mise de{" "}
+                          <span className="font-mono font-black text-emerald-300">
+                            {parseFloat(miseBack).toFixed(2)}€
+                          </span>{" "}
+                          en <span className="font-bold text-cyan-300">Back</span> à la cote{" "}
+                          <span className="font-mono font-black text-cyan-300">{parseFloat(coteBack).toFixed(2)}</span>{" "}
+                          chez ton bookmaker.
+                        </p>
+                        <p>
+                          <span className="font-bold text-white">2.</span> Simultanément, place une mise{" "}
+                          <span className="font-bold text-amber-300">Lay</span> de{" "}
+                          <span className="font-mono font-black text-amber-300">{result.miseLay.toFixed(2)}€</span> à la
+                          cote{" "}
+                          <span className="font-mono font-black text-amber-300">{parseFloat(coteLay).toFixed(2)}</span>{" "}
+                          sur ton exchange (Betfair, Smarkets, Matchbook).
+                        </p>
+                        <p>
+                          <span className="font-bold text-white">3.</span> Assure-toi d&apos;avoir{" "}
+                          <span className="font-mono font-black text-amber-300">
+                            {result.liability.toFixed(2)}€
+                          </span>{" "}
+                          disponibles sur ton compte exchange (liability).
+                        </p>
+                        <p className="mt-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
+                          <span className="font-bold text-white">👉 Résultat :</span> quel que soit le vainqueur, ta{" "}
+                          {result.profitMin >= 0 ? (
+                            <>
+                              perte maximale est nulle — tu réalises même un{" "}
+                              <span className="font-mono font-black text-emerald-300">
+                                petit profit de {result.profitMin.toFixed(2)}€
+                              </span>
+                              .
+                            </>
+                          ) : (
+                            <>
+                              perte maximale sera de{" "}
+                              <span className="font-mono font-black text-red-300">
+                                {Math.abs(result.profitMin).toFixed(2)}€
+                              </span>
+                              . Cette qualification débloque le bonus bookmaker — le vrai profit se fera sur le freebet
+                              obtenu.
+                            </>
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          <span className="font-bold text-white">1.</span> Utilise ton freebet de{" "}
+                          <span className="font-mono font-black text-emerald-300">
+                            {parseFloat(miseBack).toFixed(2)}€
+                          </span>{" "}
+                          en <span className="font-bold text-cyan-300">Back</span> à la cote{" "}
+                          <span className="font-mono font-black text-cyan-300">{parseFloat(coteBack).toFixed(2)}</span>{" "}
+                          chez ton bookmaker
+                          {result.betType === "freebet_sr" ? " (mise rendue si gagnant)" : ""}.
+                        </p>
+                        <p>
+                          <span className="font-bold text-white">2.</span> Simultanément, place une mise{" "}
+                          <span className="font-bold text-amber-300">Lay</span> de{" "}
+                          <span className="font-mono font-black text-amber-300">{result.miseLay.toFixed(2)}€</span> à la
+                          cote{" "}
+                          <span className="font-mono font-black text-amber-300">{parseFloat(coteLay).toFixed(2)}</span>{" "}
+                          sur ton exchange (Betfair, Smarkets, Matchbook).
+                        </p>
+                        <p>
+                          <span className="font-bold text-white">3.</span> Assure-toi d&apos;avoir{" "}
+                          <span className="font-mono font-black text-amber-300">
+                            {result.liability.toFixed(2)}€
+                          </span>{" "}
+                          disponibles sur ton compte exchange (liability).
+                        </p>
+                        <p className="mt-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
+                          <span className="font-bold text-white">👉 Résultat :</span> quel que soit le vainqueur, tu
+                          extrais un profit garanti de{" "}
+                          <span className="font-mono font-black text-emerald-300">
+                            {result.profitMin.toFixed(2)}€
+                          </span>{" "}
+                          <span className="text-white/60">
+                            (soit {result.yieldPct.toFixed(1)}% de la valeur du freebet
+                            {result.betType === "freebet_sr" ? " — extraction quasi-totale, c'est le top" : ""}).
+                          </span>
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 {/* Stats */}
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <ResultCard label="Mise Lay" value={result.miseLay} suffix="€" color="cyan" icon="🎰" />
