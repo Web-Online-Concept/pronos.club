@@ -199,7 +199,7 @@ function calcSurebet(
     trj,
     arbPercent,
     isSurebet,
-    isSuspicious: isSurebet && roi > 10,
+    isSuspicious: isSurebet && roi > 5,
     hasRounding,
     roundingLoss,
     hasLay: sides.some((s) => s === "lay"),
@@ -263,7 +263,7 @@ function VerdictBanner({ result }: { result: SurebetResult }) {
             <p className="text-xs font-black text-white">⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%)</p>
             <p className="mt-1 text-[11px] text-white/80">
               Vérifie tes cotes : erreur de saisie probable, ou cote qui vient de bouger. Les vrais surebets tournent
-              entre 1% et 5%.
+              entre 1% et 3%, rarement au-dessus de 5%.
             </p>
           </div>
         )}
@@ -955,26 +955,30 @@ export default function SurebetCalculatorPage() {
                   <div className="mt-2 space-y-1 font-mono text-xs">
                     <p>
                       🎾 <strong>Nadal chez Betclic</strong> → cote{" "}
-                      <span className="font-bold text-emerald-600">2.10</span>
+                      <span className="font-bold text-emerald-600">2.02</span>
                     </p>
                     <p>
                       🎾 <strong>Djokovic chez Unibet</strong> → cote{" "}
-                      <span className="font-bold text-emerald-600">2.20</span>
+                      <span className="font-bold text-emerald-600">2.08</span>
                     </p>
                   </div>
                   <p className="mt-2 text-xs text-neutral-500">
-                    TRJ = 1/2.10 + 1/2.20 = 93.7% + 90.9% ={" "}
-                    <strong className="text-emerald-600">102%</strong>
+                    Somme des probabilités implicites = 1/2.02 + 1/2.08 = 49.50% + 48.08% ={" "}
+                    <strong className="text-emerald-600">97.58%</strong>
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    TRJ = 1 / 0.9758 × 100 ={" "}
+                    <strong className="text-emerald-600">102.48%</strong> → surebet !
                   </p>
                 </div>
                 <div className="rounded-xl bg-emerald-50 p-4">
                   <p className="font-bold text-emerald-900">Mise totale : 100€</p>
                   <div className="mt-2 space-y-1 font-mono text-xs text-emerald-800">
-                    <p>→ Mise 49€ sur Nadal (Betclic)</p>
-                    <p>→ Mise 51€ sur Djokovic (Unibet)</p>
+                    <p>→ Mise 50.73€ sur Nadal (Betclic)</p>
+                    <p>→ Mise 49.27€ sur Djokovic (Unibet)</p>
                   </div>
                   <p className="mt-2 text-xs font-bold text-emerald-700">
-                    Gain garanti ≈ 102€ (peu importe qui gagne) → profit +2€ (2%)
+                    Gain garanti ≈ 102.48€ (peu importe qui gagne) → profit +2.48€ (2.48%)
                   </p>
                 </div>
                 <p className="text-xs italic text-neutral-500">
