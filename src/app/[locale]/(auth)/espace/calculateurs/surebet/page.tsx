@@ -589,9 +589,11 @@ export default function SurebetCalculatorPage() {
                 return (
                   <div
                     key={i}
-                    className="rounded-2xl border border-white/10 p-4"
+                    className="rounded-2xl border-2 p-4 transition-all"
                     style={{
-                      background: `linear-gradient(135deg, #0a0a0a 0%, ${accentColor}20 100%)`,
+                      background: `linear-gradient(135deg, #0a0a0a 0%, ${accentColor}35 100%)`,
+                      borderColor: `${accentColor}60`,
+                      boxShadow: `0 4px 20px -8px ${accentColor}50, inset 0 1px 0 ${accentColor}20`,
                     }}
                   >
                     <div className="mb-3 flex items-center gap-2">
