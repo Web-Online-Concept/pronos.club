@@ -344,8 +344,15 @@ export default function SurebetCalculatorPage() {
 
   const result = useMemo((): SurebetResult | null => {
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return null;
-    return calcSurebet(legs, nLegs, amt, mode, rounding, useCommissions);
+    // Un lock actif rend le champ amount inutile → on autorise le calcul même si amount est vide
+    const hasLock = legs
+      .slice(0, nLegs)
+      .some((l) => l.locked && parseFloat(l.lockedStake) > 0);
+    if (!hasLock && (!amt || amt <= 0)) return null;
+    // Si pas de amount valide mais un lock actif, on passe une valeur arbitraire
+    // (elle sera ignorée par calcSurebet qui utilise lockedIdx)
+    const safeAmt = !amt || amt <= 0 ? 1 : amt;
+    return calcSurebet(legs, nLegs, safeAmt, mode, rounding, useCommissions);
   }, [legs, nLegs, amount, mode, rounding, useCommissions]);
 
   async function copyRecap() {
