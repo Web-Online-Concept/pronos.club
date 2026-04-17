@@ -58,6 +58,42 @@ const getCachedReviews = unstable_cache(
   { revalidate: 600, tags: ["home-reviews"] }
 );
 
+// Dernier pick gratuit pour le teaser home (pending prioritaire, sinon résolu récent)
+const getCachedTeaserPick = unstable_cache(
+  async () => {
+    // 1. Chercher d'abord un pick GRATUIT actuellement en cours
+    const { data: pendingFree } = await supabaseAdmin
+      .from("picks")
+      .select(
+        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+      )
+      .eq("is_premium", false)
+      .eq("status", "pending")
+      .gt("event_date", new Date().toISOString())
+      .order("event_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingFree) return pendingFree;
+
+    // 2. Fallback : dernier pick GRATUIT gagné (pour preuve de performance)
+    const { data: lastWon } = await supabaseAdmin
+      .from("picks")
+      .select(
+        "id, event_name, selection, odds, stake, analysis, event_date, status, sport:sports(name, icon)"
+      )
+      .eq("is_premium", false)
+      .in("status", ["won", "half_won"])
+      .order("result_entered_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return lastWon ?? null;
+  },
+  ["home-teaser-pick"],
+  { revalidate: 300, tags: ["home-picks"] }
+);
+
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "home" });
@@ -66,10 +102,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   // ─── Fetch real stats (cached) ───
-  const [allPicks, pendingCount, reviewsData] = await Promise.all([
+  const [allPicks, pendingCount, reviewsData, teaserPick] = await Promise.all([
     getCachedPicks(),
     getCachedPendingCount(),
     getCachedReviews(),
+    isPremium ? Promise.resolve(null) : getCachedTeaserPick(),
   ]);
 
   const picks = allPicks ?? [];
@@ -344,6 +381,178 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </section>
       )}
       </div>
+
+      {/* ═══════════ TEASER PICK GRATUIT (DARK) — non-premium uniquement ═══════════ */}
+      {!isPremium && teaserPick && (
+        <section className="relative overflow-hidden bg-neutral-950 px-4 py-16">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-0 h-[300px] w-[500px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px]" />
+          </div>
+
+          <div className="relative mx-auto max-w-3xl">
+            <div className="text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">
+                🎁{" "}
+                {locale === "en"
+                  ? "Free pick sample"
+                  : locale === "es"
+                  ? "Pronóstico gratuito"
+                  : "Pronostic offert"}
+              </p>
+              <h2 className="mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+                {teaserPick.status === "pending"
+                  ? locale === "en"
+                    ? "See what you're missing"
+                    : locale === "es"
+                    ? "Descubre lo que te pierdes"
+                    : "Découvrez un de nos pronostics"
+                  : locale === "en"
+                  ? "Recent winning pick"
+                  : locale === "es"
+                  ? "Pronóstico ganador reciente"
+                  : "Pronostic gagnant récent"}
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm text-neutral-400">
+                {teaserPick.status === "pending"
+                  ? locale === "en"
+                    ? "A taste of what Premium members receive every day, with full analysis."
+                    : locale === "es"
+                    ? "Un anticipo de lo que los miembros Premium reciben cada día, con análisis completo."
+                    : "Un aperçu de ce que nos membres Premium reçoivent chaque jour, avec l'analyse complète."
+                  : locale === "en"
+                  ? "One of our latest winning picks — transparent and verifiable."
+                  : locale === "es"
+                  ? "Uno de nuestros últimos pronósticos ganadores — transparente y verificable."
+                  : "L'un de nos derniers pronos gagnants — transparent et vérifiable."}
+              </p>
+            </div>
+
+            <div
+              className="mt-10 overflow-hidden rounded-3xl border border-emerald-500/20 shadow-2xl shadow-emerald-500/10"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+            >
+              {/* Badge status */}
+              <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-xl">
+                    {(() => {
+                      const sport = Array.isArray(teaserPick.sport) ? teaserPick.sport[0] : teaserPick.sport;
+                      return sport?.icon ?? "⚽";
+                    })()}
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-white">
+                      {(() => {
+                        const sport = Array.isArray(teaserPick.sport) ? teaserPick.sport[0] : teaserPick.sport;
+                        return sport?.name ?? "Sport";
+                      })()}
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      {new Date(teaserPick.event_date).toLocaleDateString(
+                        locale === "es" ? "es-ES" : locale === "en" ? "en-US" : "fr-FR",
+                        { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {teaserPick.status === "pending" ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    </span>
+                    {locale === "en" ? "Live" : locale === "es" ? "En vivo" : "En cours"}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+                    ✅ {locale === "en" ? "Won" : locale === "es" ? "Ganado" : "Gagné"}
+                  </span>
+                )}
+              </div>
+
+              {/* Event + selection */}
+              <div className="px-5 py-6 sm:px-6">
+                <p className="text-lg font-extrabold text-white sm:text-xl">{teaserPick.event_name}</p>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+                      {locale === "en" ? "Selection" : locale === "es" ? "Selección" : "Sélection"}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-emerald-400">{teaserPick.selection}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+                      {locale === "en" ? "Odds" : locale === "es" ? "Cuota" : "Cote"}
+                    </p>
+                    <p className="mt-1 font-mono text-sm font-black text-white">{Number(teaserPick.odds).toFixed(3)}</p>
+                  </div>
+                  <div className="col-span-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 sm:col-span-1">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+                      {locale === "en" ? "Stake" : locale === "es" ? "Apuesta" : "Mise"}
+                    </p>
+                    <p className="mt-1 font-mono text-sm font-black text-white">
+                      {Number(teaserPick.stake).toFixed(1)}U
+                    </p>
+                  </div>
+                </div>
+
+                {/* Analysis teaser (blur effect) */}
+                {teaserPick.analysis && (
+                  <div className="relative mt-5 overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                    <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                      📊 {locale === "en" ? "Expert analysis" : locale === "es" ? "Análisis experto" : "Analyse de l'expert"}
+                    </p>
+                    <p className="text-sm leading-relaxed text-white/60 line-clamp-3">
+                      {teaserPick.analysis}
+                    </p>
+                    {/* Fade overlay (gradient noir vers transparent) */}
+                    <div
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
+                      style={{
+                        background: "linear-gradient(to top, #0a1a15 10%, transparent)",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* CTA débloquer */}
+              <div className="border-t border-white/[0.06] px-5 py-5 text-center sm:px-6">
+                <p className="text-xs text-white/50">
+                  {locale === "en"
+                    ? "Want full analysis + all premium picks?"
+                    : locale === "es"
+                    ? "¿Quieres el análisis completo + todos los pronósticos premium?"
+                    : "Envie de l'analyse complète + tous les pronos premium ?"}
+                </p>
+                <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
+                  <Link
+                    href={isLoggedIn ? `/${locale}/espace/abonnement` : `/${locale}/login`}
+                    className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8"
+                  >
+                    🎁{" "}
+                    {locale === "en"
+                      ? "Try 7 days free"
+                      : locale === "es"
+                      ? "Prueba 7 días gratis"
+                      : "Essayer 7 jours gratuits"}
+                  </Link>
+                  <Link
+                    href={`/${locale}/pronostics`}
+                    className="w-full rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/70 transition hover:border-white/20 hover:text-white sm:w-auto sm:px-8"
+                  >
+                    {locale === "en"
+                      ? "See all picks"
+                      : locale === "es"
+                      ? "Ver todos los pronósticos"
+                      : "Voir tous les pronos"}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══════════ VIDÉO PRÉSENTATION ═══════════ */}
       <section
