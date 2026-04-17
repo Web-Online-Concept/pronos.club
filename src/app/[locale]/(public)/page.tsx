@@ -817,11 +817,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-neutral-500">
               {locale === "en" ? (
-                <>13 professional tools. <strong className="text-neutral-700">Each comes with its own built-in tutorial.</strong></>
+                <>Professional tools. <strong className="text-neutral-700">Each comes with its own built-in tutorial.</strong></>
               ) : locale === "es" ? (
-                <>13 herramientas profesionales. <strong className="text-neutral-700">Cada una con su tutorial integrado.</strong></>
+                <>Herramientas profesionales. <strong className="text-neutral-700">Cada una con su tutorial integrado.</strong></>
               ) : (
-                <>13 outils professionnels. <strong className="text-neutral-700">Chacun avec son tutoriel intégré.</strong></>
+                <>Des outils professionnels. <strong className="text-neutral-700">Chacun avec son tutoriel intégré.</strong></>
               )}
             </p>
           </div>
@@ -840,6 +840,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               if (type === "mont") return `/${locale}/espace/montantes`;
               return `/${locale}/espace/martingales`;
             };
+
+            // Gradients dark emerald variés pour chaque card (6 variations subtiles)
+            const gradients = [
+              "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+              "linear-gradient(135deg, #065f46 0%, #064e3b 100%)",
+              "linear-gradient(135deg, #047857 0%, #065f46 100%)",
+              "linear-gradient(135deg, #0f3e2d 0%, #064e3b 100%)",
+              "linear-gradient(135deg, #064e3b 0%, #0a3d2a 100%)",
+              "linear-gradient(135deg, #022c22 0%, #064e3b 100%)",
+            ];
 
             const groups: Array<{
               icon: string;
@@ -885,6 +895,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               },
             ];
 
+            let gradientIndex = 0;
+
             return (
               <>
                 <div className="mt-10 space-y-8">
@@ -898,29 +910,37 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                         <div className="h-px flex-1 bg-gradient-to-r from-neutral-300 to-transparent" />
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        {group.tools.map((tool) => (
-                          <Link
-                            key={tool.slug}
-                            href={toolHref(tool.slug, tool.type)}
-                            className="group relative overflow-hidden rounded-xl border border-neutral-200 bg-white px-4 py-4 transition hover:-translate-y-0.5 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10"
-                          >
-                            {/* Accent emerald au hover */}
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 scale-x-0 bg-gradient-to-r from-emerald-400 to-emerald-600 transition-transform duration-300 group-hover:scale-x-100" />
-                            <div className="flex items-center gap-3">
-                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-xl ring-1 ring-emerald-500/10">
-                                {tool.icon}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-bold text-neutral-900 group-hover:text-emerald-700">
-                                  {locale === "en" ? tool.name.en : locale === "es" ? tool.name.es : tool.name.fr}
-                                </p>
-                                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
-                                  {locale === "en" ? "With tutorial" : locale === "es" ? "Con tutorial" : "Avec tutoriel"}
-                                </p>
+                        {group.tools.map((tool) => {
+                          const currentGradient = gradients[gradientIndex % gradients.length];
+                          gradientIndex++;
+                          return (
+                            <Link
+                              key={tool.slug}
+                              href={toolHref(tool.slug, tool.type)}
+                              className="group relative overflow-hidden rounded-xl border border-emerald-900/40 px-4 py-4 shadow-md shadow-emerald-900/10 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20"
+                              style={{ background: currentGradient }}
+                            >
+                              {/* Halo emerald au hover */}
+                              <div className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-emerald-400/0 blur-2xl transition-all duration-500 group-hover:bg-emerald-400/30" />
+                              {/* Barre accent top */}
+                              <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+                              <div className="relative flex items-center gap-3">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xl ring-1 ring-white/20 backdrop-blur-sm transition group-hover:bg-white/15 group-hover:ring-emerald-400/40">
+                                  {tool.icon}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-bold text-white">
+                                    {locale === "en" ? tool.name.en : locale === "es" ? tool.name.es : tool.name.fr}
+                                  </p>
+                                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                                    {locale === "en" ? "With tutorial" : locale === "es" ? "Con tutorial" : "Avec tutoriel"}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </Link>
-                        ))}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -936,15 +956,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     <span className="relative flex items-center justify-center gap-2">
                       {isPremium
                         ? locale === "en"
-                          ? "Access my 13 tools"
+                          ? "Access my tools"
                           : locale === "es"
-                          ? "Acceder a mis 13 herramientas"
-                          : "Accéder à mes 13 outils"
+                          ? "Acceder a mis herramientas"
+                          : "Accéder à mes outils"
                         : locale === "en"
-                        ? "🎁 Unlock the 13 tools"
+                        ? "🎁 Unlock all tools"
                         : locale === "es"
-                        ? "🎁 Desbloquear las 13 herramientas"
-                        : "🎁 Débloquer les 13 outils"}
+                        ? "🎁 Desbloquear todas las herramientas"
+                        : "🎁 Débloquer tous les outils"}
                     </span>
                   </Link>
                 </div>
