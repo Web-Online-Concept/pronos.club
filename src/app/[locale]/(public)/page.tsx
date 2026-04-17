@@ -297,11 +297,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="text-emerald-400">✓</span>
-                {locale === "en"
-                  ? "Not charged during trial"
-                  : locale === "es"
-                  ? "No se cobra durante la prueba"
-                  : "Non débité pendant l'essai"}
+                {t("trust_immutable")}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="text-emerald-400">✓</span>
@@ -313,22 +309,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </span>
             </div>
           )}
-
-          {/* Trust indicators */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-neutral-500 sm:mt-10 sm:gap-x-6 sm:gap-y-2 sm:text-xs">
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-              {t("trust_screenshot")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-              {t("trust_immutable")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg className="h-4 w-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-              {t("trust_no_commitment")}
-            </span>
-          </div>
         </div>
       </section>
 
