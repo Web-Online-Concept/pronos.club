@@ -162,22 +162,20 @@ export default function MartingalesPage() {
                   Mes Martingales
                 </h1>
               </div>
-              {/* Profit cumulé */}
-              {stats && stats.total > 0 && (
-                <div className="flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 mx-auto sm:mx-0">
-                  <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center text-xl">
-                    🎲
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-white">
-                      Profit cumulé
-                    </p>
-                    <p className={`text-xl font-extrabold tabular-nums ${stats.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {stats.totalProfit >= 0 ? "+" : ""}{stats.totalProfit.toFixed(2)}€
-                    </p>
-                  </div>
+              {/* Profit cumulé — toujours visible */}
+              <div className="flex items-center justify-center sm:justify-start gap-3 rounded-2xl bg-white/5 border border-white/10 px-5 py-3 mx-auto sm:mx-0">
+                <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center text-xl">
+                  🎲
                 </div>
-              )}
+                <div className="text-left">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-white">
+                    Solde
+                  </p>
+                  <p className={`text-xl font-extrabold tabular-nums ${(stats?.totalProfit ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {(stats?.totalProfit ?? 0) >= 0 ? "+" : ""}{(stats?.totalProfit ?? 0).toFixed(2)}€
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Stats row */}
