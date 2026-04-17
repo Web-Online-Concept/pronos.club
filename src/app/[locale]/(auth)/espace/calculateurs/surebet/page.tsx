@@ -401,6 +401,12 @@ export default function SurebetCalculatorPage() {
     ? result.legs.map((l, i) => ({ ...l, origIndex: i })).sort((a, b) => a.volatilityRank - b.volatilityRank)
     : [];
 
+  // Détection d'au moins une mise verrouillée (pour griser le champ "Mise totale")
+  const lockedLeg = legs
+    .slice(0, nLegs)
+    .find((l) => l.locked && parseFloat(l.lockedStake) > 0);
+  const hasActiveLock = !!lockedLeg;
+
   return (
     <>
       <EspaceHero title="Surebet (Arbitrage)" />
@@ -452,7 +458,11 @@ export default function SurebetCalculatorPage() {
             </p>
 
             {/* Amount input */}
-            <div className="mt-4 rounded-xl bg-white/5 px-4 py-3">
+            <div
+              className={`mt-4 rounded-xl px-4 py-3 transition-opacity ${
+                hasActiveLock ? "bg-white/5 opacity-40" : "bg-white/5"
+              }`}
+            >
               <label className="mb-2 block text-center text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
                 {mode === "stake" ? "💰 Mise totale (€)" : "🎯 Gain cible (€)"}
               </label>
@@ -464,9 +474,23 @@ export default function SurebetCalculatorPage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="100"
                 inputMode="decimal"
-                className="mx-auto block w-full max-w-[200px] rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-center font-mono text-xl font-black text-emerald-300 placeholder-emerald-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20"
+                disabled={hasActiveLock}
+                className="mx-auto block w-full max-w-[200px] rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-center font-mono text-xl font-black text-emerald-300 placeholder-emerald-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed"
               />
             </div>
+
+            {/* Info quand un lock est actif */}
+            {hasActiveLock && (
+              <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center">
+                <p className="text-[11px] text-amber-200">
+                  🔒 Champ désactivé — une mise fixée est active (
+                  <span className="font-mono font-black">
+                    {parseFloat(lockedLeg!.lockedStake).toFixed(2)}€
+                  </span>{" "}
+                  sur {lockedLeg!.label || "une issue"})
+                </p>
+              </div>
+            )}
 
             {/* Number of legs selector */}
             <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-3">
@@ -537,9 +561,18 @@ export default function SurebetCalculatorPage() {
             <div className="my-6 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
 
             {/* Legs inputs */}
-            <p className="mb-4 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-400">
+            <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-400">
               📊 Cotes par bookmaker
             </p>
+
+            {/* Hint astuce lock */}
+            <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-2.5 text-center">
+              <p className="text-[11px] text-cyan-200/90">
+                💡 <span className="font-bold">Astuce</span> : tu as déjà placé une mise quelque part ? Clique sur{" "}
+                <span className="font-mono font-black text-cyan-300">🔓</span> à côté d&apos;une issue pour la fixer —
+                le calculateur recalcule automatiquement les autres.
+              </p>
+            </div>
 
             <div className="space-y-3">
               {legs.slice(0, nLegs).map((leg, i) => {
@@ -573,7 +606,7 @@ export default function SurebetCalculatorPage() {
                         <div className="flex overflow-hidden rounded-lg border border-white/10 text-[9px] font-black">
                           <button
                             onClick={() => updateLeg(i, "side", "back")}
-                            className={`px-2 py-1 transition-all ${
+                            className={`cursor-pointer px-2 py-1 transition-all ${
                               leg.side === "back"
                                 ? "bg-emerald-500 text-white"
                                 : "bg-white/5 text-white/50 hover:text-white/80"
@@ -583,7 +616,7 @@ export default function SurebetCalculatorPage() {
                           </button>
                           <button
                             onClick={() => updateLeg(i, "side", "lay")}
-                            className={`px-2 py-1 transition-all ${
+                            className={`cursor-pointer px-2 py-1 transition-all ${
                               leg.side === "lay"
                                 ? "bg-purple-500 text-white"
                                 : "bg-white/5 text-white/50 hover:text-white/80"
@@ -596,7 +629,7 @@ export default function SurebetCalculatorPage() {
                       {/* Lock toggle */}
                       <button
                         onClick={() => toggleLock(i)}
-                        className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs transition-all ${
+                        className={`flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-xs transition-all ${
                           leg.locked
                             ? "bg-amber-500/30 text-amber-300 ring-1 ring-amber-400/50"
                             : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
