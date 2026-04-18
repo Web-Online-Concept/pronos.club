@@ -273,7 +273,7 @@ async function insertPicksToDb(
       odds_comparison: oddsComparison,
       reasoning: pick.reasoning,
       ai_confidence: pick.confidence,
-      status: "pending",
+      status: "pending_review", // Sera audité par l'agent puis passé en 'pending' ou 'rejected_by_audit'
       model_used: "claude-sonnet-4-6",
       generation_batch: today,
     });
@@ -295,7 +295,7 @@ async function insertPicksToDb(
       odds_comparison: null,
       reasoning: pick.reasoning,
       ai_confidence: pick.confidence,
-      status: "pending",
+      status: "pending_review", // Sera audité par l'agent puis passé en 'pending' ou 'rejected_by_audit'
       model_used: "claude-sonnet-4-6",
       generation_batch: today,
     });
