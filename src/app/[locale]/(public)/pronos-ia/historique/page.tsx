@@ -95,7 +95,7 @@ export default async function HistoryPage({
       "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
       { count: "exact" },
     )
-    .neq("status", "pending") // On n'affiche pas les pending dans l'historique
+    .in("status", ["won", "lost", "void"]) // Seulement les picks réellement résolus
     .order("event_date", { ascending: false });
 
   if (type !== "all") query = query.eq("pick_type", type);
