@@ -27,9 +27,13 @@ body {
   overflow-x: hidden;
 }
 
-/* Pronos IA — cursor pointer sur tous les éléments cliquables */
-.pronos-ia-section button:not(:disabled),
-.pronos-ia-section a[href] {
+/* Cursor pointer par défaut sur tous les éléments interactifs */
+button:not(:disabled),
+a[href],
+[role="button"],
+select,
+summary,
+label[for] {
   cursor: pointer;
 }
 
