@@ -85,6 +85,7 @@ function formatTime(iso: string, locale: string): string {
   return date.toLocaleTimeString(map[locale] ?? "fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Paris",
   });
 }
 

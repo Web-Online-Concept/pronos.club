@@ -4,11 +4,6 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Page principale des Pronos IA.
- * - Disclaimer permanent
- * - Mini résumé stats (ou placeholder si pas encore de données)
- * - Onglets Classiques (max 5) / Buteurs (max 3)
- * - Cards compactes
- * - Message si aucun pick aujourd'hui
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -23,7 +18,6 @@ import AITabs from "@/components/ai-picks/AITabs";
 import AIPickCard, { type AIPickRow } from "@/components/ai-picks/AIPickCard";
 import AIScorerCard, { type AIScorerRow } from "@/components/ai-picks/AIScorerCard";
 
-// Revalidation côté serveur toutes les 5 min
 export const revalidate = 300;
 
 
@@ -92,8 +86,6 @@ interface StatsGlobal {
 
 const getGlobalStats = unstable_cache(
   async (): Promise<StatsGlobal> => {
-    // La vue ai_stats_global a une ligne avec pick_type=NULL + sport=NULL
-    // qui contient les stats globales grâce au GROUPING SETS
     const { data, error } = await supabaseAdmin
       .from("ai_stats_global")
       .select("*")
@@ -118,6 +110,27 @@ const getGlobalStats = unstable_cache(
 
 
 // ═══════════════════════════════════════════════════════════════════
+// HELPER — format date côté serveur uniquement (fix hydration)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Format de la date du jour en timezone Paris, formaté pour la locale.
+ * Exécuté uniquement côté serveur : le résultat est une string déjà
+ * formatée, donc pas de mismatch SSR/client possible.
+ */
+function formatTodayDateServer(locale: string): string {
+  const map: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
+  return new Date().toLocaleDateString(map[locale] ?? "fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Paris", // Force timezone fixe pour éviter les mismatches
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
 // PAGE
 // ═══════════════════════════════════════════════════════════════════
 
@@ -133,10 +146,11 @@ export default async function PronosIAPage({
   const { classics, scorers } = picksData;
 
   const totalToday = classics.length + scorers.length;
+  const todayLabel = formatTodayDateServer(locale);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-neutral-100">
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <main className="pronos-ia-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
 
         {/* ═══ HEADER ═══ */}
         <header className="mb-8 text-center">
@@ -166,10 +180,11 @@ export default async function PronosIAPage({
           />
         </div>
 
-        {/* ═══ LIENS UTILES ═══ */}
+        {/* ═══ LIENS UTILES (prefetch désactivé car pages Session 4/5) ═══ */}
         <div className="my-6 flex flex-wrap items-center justify-center gap-3 text-sm">
           <Link
             href={`/${locale}/pronos-ia/comment-ca-marche`}
+            prefetch={false}
             className="inline-flex items-center gap-1.5 rounded-full bg-neutral-800/60 px-4 py-2 font-medium text-neutral-200 transition hover:bg-neutral-800"
           >
             <span>❓</span>
@@ -177,6 +192,7 @@ export default async function PronosIAPage({
           </Link>
           <Link
             href={`/${locale}/pronos-ia/stats`}
+            prefetch={false}
             className="inline-flex items-center gap-1.5 rounded-full bg-neutral-800/60 px-4 py-2 font-medium text-neutral-200 transition hover:bg-neutral-800"
           >
             <span>📊</span>
@@ -184,6 +200,7 @@ export default async function PronosIAPage({
           </Link>
           <Link
             href={`/${locale}/pronos-ia/historique`}
+            prefetch={false}
             className="inline-flex items-center gap-1.5 rounded-full bg-neutral-800/60 px-4 py-2 font-medium text-neutral-200 transition hover:bg-neutral-800"
           >
             <span>🕐</span>
@@ -197,11 +214,11 @@ export default async function PronosIAPage({
             {t("today_label")}
           </div>
           <h2 className="mt-3 text-2xl font-bold text-neutral-100">
-            {formatTodayDate(locale)}
+            {todayLabel}
           </h2>
         </div>
 
-        {/* ═══ CONTENU — soit empty state, soit onglets + cards ═══ */}
+        {/* ═══ CONTENU ═══ */}
         {totalToday === 0 ? (
           <EmptyStateContent
             title={t("empty_state_title")}
@@ -274,19 +291,4 @@ function EmptyTabMessage({ message }: { message: string }) {
       {message}
     </div>
   );
-}
-
-
-// ═══════════════════════════════════════════════════════════════════
-// HELPER — format date selon locale
-// ═══════════════════════════════════════════════════════════════════
-
-function formatTodayDate(locale: string): string {
-  const map: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
-  return new Date().toLocaleDateString(map[locale] ?? "fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
