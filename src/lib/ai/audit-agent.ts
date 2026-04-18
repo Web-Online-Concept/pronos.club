@@ -1,27 +1,18 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * AUDIT AGENT — Pronos IA
+ * AUDIT AGENT v2 — Pronos IA avec WEB SEARCH
  * ═══════════════════════════════════════════════════════════════════
  *
  * Agent automatique de vérification des picks après génération.
+ * Utilise le tool web_search d'Anthropic pour vérifier les faits
+ * en temps réel (transferts, relégations, etc.).
  *
- * Principe :
- *   Après la génération par Claude #1, Claude #2 relit chaque pick
- *   avec la possibilité de faire des recherches web pour vérifier :
- *     - Le joueur joue-t-il toujours dans ce club ? (transferts)
- *     - L'équipe est-elle toujours dans cette ligue ? (relégations)
- *     - Le pick est-il factuellement cohérent ?
- *
- * Décision 100% automatique (pas de validation humaine).
- * 3 statuts possibles :
- *   - "valid"    → le pick passe en status='pending' (visible public)
- *   - "rejected" → le pick passe en status='rejected_by_audit' (masqué)
+ * 3 statuts possibles après audit :
+ *   - "valid"    → status='pending' (visible public)
+ *   - "rejected" → status='rejected_by_audit' (masqué)
  *   - "error"    → en cas d'erreur on valide par défaut (fail-safe)
  *
- * Niveau de strictness : MODÉRÉ
- *   - Rejet uniquement si fait vérifiable (transfert, relégation, erreur factuelle)
- *   - Pas de rejet sur "intuition" ou "contexte flou"
- *
+ * Coût : ~0.10$/jour (web_search = $10/1000 recherches)
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -35,12 +26,16 @@ import { createClient } from "@supabase/supabase-js";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MODEL = "claude-sonnet-4-6";
-const MAX_OUTPUT_TOKENS = 1000;
-const API_TIMEOUT_MS = 90000;
+const MAX_OUTPUT_TOKENS = 2000;
+const API_TIMEOUT_MS = 120000; // 2 min (web search peut prendre du temps)
 
-/** Prix Sonnet 4.6 (référence avril 2026) */
+/** Limite le nombre de recherches web par pick (coût + temps) */
+const MAX_WEB_SEARCHES_PER_PICK = 3;
+
+/** Prix Sonnet 4.6 + web search */
 const PRICE_INPUT_PER_MTOKENS = 3.0;
 const PRICE_OUTPUT_PER_MTOKENS = 15.0;
+const PRICE_WEB_SEARCH_PER_1000 = 10.0; // $10 pour 1000 recherches
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -64,6 +59,7 @@ interface AuditDecision {
   decision: "valid" | "rejected";
   reason: string | null;
   category: "player_transferred" | "team_relegated" | "factual_error" | "other" | null;
+  webSearches: number;
 }
 
 export interface AuditReport {
@@ -73,6 +69,7 @@ export interface AuditReport {
   rejected: number;
   decisions: AuditDecision[];
   tokensUsed: number;
+  webSearchesTotal: number;
   estimatedCostUsd: number;
   durationMs: number;
   errors: string[];
@@ -80,40 +77,44 @@ export interface AuditReport {
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SYSTEM PROMPT pour l'auditeur
+// SYSTEM PROMPT
 // ═══════════════════════════════════════════════════════════════════
 
-const AUDIT_SYSTEM_PROMPT = `Tu es un agent d'audit chargé de vérifier la cohérence factuelle de pronostics sportifs générés par une autre IA.
+const AUDIT_SYSTEM_PROMPT = `Tu es un agent d'audit chargé de vérifier la cohérence factuelle de pronostics sportifs.
+
+Tu as accès à l'outil web_search pour vérifier les faits en temps réel.
 
 Ton rôle :
-  - Relire chaque pronostic
-  - Identifier les ERREURS FACTUELLES VÉRIFIABLES
-  - Rejeter uniquement si tu es CERTAIN qu'il y a une erreur factuelle
+  - Vérifier les faits mentionnés dans le pronostic (joueurs, équipes, ligues)
+  - Utiliser web_search EN PRIORITÉ pour les faits vérifiables
+  - Rejeter uniquement si tu es CERTAIN qu'il y a une erreur factuelle avérée
 
 Types d'erreurs à détecter et REJETER :
-  1. Joueur transféré : "Buteur X de l'équipe Y" alors que X a été transféré ailleurs
-  2. Équipe reléguée : L'équipe n'est plus dans la ligue indiquée
-  3. Erreur factuelle manifeste : Le reasoning contient une affirmation vérifiablement fausse
-  4. Joueur retraité : Le joueur mentionné a pris sa retraite
+  1. Joueur transféré dans un autre club
+  2. Équipe qui n'évolue plus dans la ligue indiquée
+  3. Joueur retraité
+  4. Affirmation manifestement fausse dans la justification
 
 Règles ABSOLUES :
-  - STRICTNESS MODÉRÉE : rejette uniquement sur des faits vérifiables
-  - Ne rejette JAMAIS sur l'intuition ou le ressenti
-  - Ne juge JAMAIS la qualité sportive du pick (cote trop basse/haute, favori logique, etc.)
-  - En cas de doute sérieux, VALIDE le pick (on préfère un pick douteux à une censure injustifiée)
-  - Tes connaissances peuvent être périmées : si tu n'es pas sûr à 100%, VALIDE
+  - Utilise web_search quand tu as un doute (c'est gratuit pour toi)
+  - Vérifie TOUJOURS pour les pronos buteurs (les transferts sont fréquents)
+  - STRICTNESS MODÉRÉE : rejette seulement sur des faits VÉRIFIÉS par web_search
+  - En cas de doute persistant après recherche, VALIDE (on préfère un doute à une censure injustifiée)
+  - Ne juge JAMAIS la qualité sportive du pick (cote, favori logique, etc.)
 
-Format de réponse attendu :
-  Tu dois répondre uniquement en JSON strict, sans aucun texte avant ou après.
+Format de réponse FINAL attendu :
+  Après tes recherches, ton dernier message doit être UNIQUEMENT ce JSON strict :
   {
     "decision": "valid" | "rejected",
     "category": "player_transferred" | "team_relegated" | "factual_error" | "other" | null,
-    "reason": "Explication courte (1 phrase) si rejeté, null sinon"
-  }`;
+    "reason": "Explication courte avec source si rejeté, null sinon"
+  }
+
+  Pas de texte avant ou après le JSON. Pas de markdown fences.`;
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SUPABASE CLIENT
+// SUPABASE
 // ═══════════════════════════════════════════════════════════════════
 
 function getSupabaseAdmin() {
@@ -129,12 +130,29 @@ function getSupabaseAdmin() {
 
 
 // ═══════════════════════════════════════════════════════════════════
-// FETCH ANTHROPIC
+// APPEL ANTHROPIC AVEC WEB SEARCH
 // ═══════════════════════════════════════════════════════════════════
 
-async function callClaudeAuditor(
-  userPrompt: string,
-): Promise<{ text: string; tokensInput: number; tokensOutput: number }> {
+interface AnthropicResponse {
+  content: Array<{
+    type: "text" | "server_tool_use" | "web_search_tool_result";
+    text?: string;
+  }>;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    server_tool_use?: {
+      web_search_requests?: number;
+    };
+  };
+}
+
+async function callClaudeAuditor(userPrompt: string): Promise<{
+  text: string;
+  tokensInput: number;
+  tokensOutput: number;
+  webSearches: number;
+}> {
   const apiKey = process.env.CLAUDE_API_KEY_AI_PICKS ?? "";
   if (!apiKey) throw new Error("CLAUDE_API_KEY_AI_PICKS manquante");
 
@@ -155,6 +173,13 @@ async function callClaudeAuditor(
         max_tokens: MAX_OUTPUT_TOKENS,
         system: AUDIT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: MAX_WEB_SEARCHES_PER_PICK,
+          },
+        ],
       }),
     });
 
@@ -163,14 +188,24 @@ async function callClaudeAuditor(
       throw new Error(`HTTP ${response.status}: ${body.slice(0, 200)}`);
     }
 
-    const data = await response.json();
-    const textBlock = data.content?.find((c: { type: string }) => c.type === "text");
-    const text = textBlock?.text ?? "";
+    const data = (await response.json()) as AnthropicResponse;
+
+    // La réponse peut contenir plusieurs blocs :
+    //   - text (raisonnement initial)
+    //   - server_tool_use (décision de chercher)
+    //   - web_search_tool_result (résultats)
+    //   - text (réponse finale avec JSON)
+    // On prend le DERNIER bloc text (qui contient le JSON final)
+    const textBlocks = data.content.filter((c) => c.type === "text" && c.text);
+    const finalText = textBlocks[textBlocks.length - 1]?.text ?? "";
+
+    const webSearches = data.usage?.server_tool_use?.web_search_requests ?? 0;
 
     return {
-      text,
+      text: finalText,
       tokensInput: data.usage?.input_tokens ?? 0,
       tokensOutput: data.usage?.output_tokens ?? 0,
+      webSearches,
     };
   } finally {
     clearTimeout(timeout);
@@ -179,7 +214,7 @@ async function callClaudeAuditor(
 
 
 // ═══════════════════════════════════════════════════════════════════
-// BUILD USER PROMPT pour un pick
+// BUILD USER PROMPT
 // ═══════════════════════════════════════════════════════════════════
 
 function buildAuditPrompt(pick: PickToAudit): string {
@@ -190,7 +225,7 @@ function buildAuditPrompt(pick: PickToAudit): string {
   });
 
   if (pick.pick_type === "scorer") {
-    return `Vérifie ce pronostic de buteur :
+    return `Vérifie ce pronostic de buteur en utilisant web_search :
 
 Match : ${pick.event_name}
 Ligue : ${pick.league}
@@ -198,16 +233,17 @@ Date : ${eventDate}
 Joueur sélectionné : ${pick.selection}
 Justification de l'IA : "${pick.reasoning}"
 
-Question clé : le joueur "${pick.selection}" joue-t-il actuellement dans l'équipe dont il est censé être buteur ?
+Utilise web_search pour vérifier :
+  1. Dans quel club joue actuellement "${pick.selection}" ?
+  2. Ce joueur est-il bien dans l'équipe dont il est censé être buteur ?
 
-Vérifie aussi :
-  - Le joueur n'est-il pas retraité ?
-  - N'y a-t-il pas une erreur manifeste dans la justification ?
+Si le joueur n'est plus dans l'équipe → rejette avec category="player_transferred".
+Si tu ne trouves rien de concluant après tes recherches → valide.
 
-Réponds en JSON strict.`;
+Finis ta réponse par le JSON strict attendu.`;
   }
 
-  return `Vérifie ce pronostic classique :
+  return `Vérifie ce pronostic classique en utilisant web_search :
 
 Match : ${pick.event_name}
 Ligue : ${pick.league}
@@ -216,16 +252,19 @@ Marché : ${pick.market}
 Pick : ${pick.selection}
 Justification de l'IA : "${pick.reasoning}"
 
-Questions clés :
-  - Les équipes évoluent-elles bien dans la ligue indiquée (${pick.league}) ?
-  - La justification contient-elle des faits manifestement faux ? (ex: joueur cité qui n'est plus dans l'équipe)
+Utilise web_search pour vérifier :
+  1. Les équipes ${pick.event_name} évoluent-elles bien dans la ligue "${pick.league}" en 2025-2026 ?
+  2. Si la justification mentionne un joueur, vérifie qu'il joue encore dans cette équipe.
 
-Réponds en JSON strict.`;
+Si une équipe n'est pas dans la bonne ligue → rejette avec category="team_relegated".
+Si la justification cite un joueur transféré → rejette avec category="factual_error".
+
+Finis ta réponse par le JSON strict attendu.`;
 }
 
 
 // ═══════════════════════════════════════════════════════════════════
-// PARSE JSON RESPONSE
+// PARSE JSON
 // ═══════════════════════════════════════════════════════════════════
 
 function parseAuditResponse(text: string): {
@@ -233,21 +272,15 @@ function parseAuditResponse(text: string): {
   reason: string | null;
   category: AuditDecision["category"];
 } {
-  // Nettoyer les markdown fences éventuels
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-
-  // Extraire l'objet JSON (au cas où il y aurait du texte autour malgré les consignes)
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error("Pas de JSON trouvé dans la réponse");
   }
-
   const parsed = JSON.parse(jsonMatch[0]);
-
   if (parsed.decision !== "valid" && parsed.decision !== "rejected") {
     throw new Error(`Decision invalide: ${parsed.decision}`);
   }
-
   return {
     decision: parsed.decision,
     reason: parsed.reason ?? null,
@@ -264,11 +297,13 @@ async function auditSinglePick(pick: PickToAudit): Promise<{
   decision: AuditDecision;
   tokensInput: number;
   tokensOutput: number;
+  webSearches: number;
   error?: string;
 }> {
   try {
     const prompt = buildAuditPrompt(pick);
-    const { text, tokensInput, tokensOutput } = await callClaudeAuditor(prompt);
+    const { text, tokensInput, tokensOutput, webSearches } =
+      await callClaudeAuditor(prompt);
 
     const parsed = parseAuditResponse(text);
 
@@ -278,23 +313,27 @@ async function auditSinglePick(pick: PickToAudit): Promise<{
         decision: parsed.decision,
         reason: parsed.reason,
         category: parsed.category,
+        webSearches,
       },
       tokensInput,
       tokensOutput,
+      webSearches,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[Audit] Erreur sur pick ${pick.id}: ${message}`);
-    // Fail-safe : en cas d'erreur, on VALIDE par défaut (pas de censure injustifiée)
+    // Fail-safe : en cas d'erreur, on VALIDE par défaut
     return {
       decision: {
         pickId: pick.id,
         decision: "valid",
         reason: null,
         category: null,
+        webSearches: 0,
       },
       tokensInput: 0,
       tokensOutput: 0,
+      webSearches: 0,
       error: message,
     };
   }
@@ -305,10 +344,6 @@ async function auditSinglePick(pick: PickToAudit): Promise<{
 // FONCTION PRINCIPALE
 // ═══════════════════════════════════════════════════════════════════
 
-/**
- * Audite tous les picks générés aujourd'hui qui sont en status 'pending_review'.
- * Met à jour leur status selon la décision de l'auditeur.
- */
 export async function auditTodayPicks(): Promise<AuditReport> {
   const startTime = Date.now();
   const errors: string[] = [];
@@ -320,6 +355,7 @@ export async function auditTodayPicks(): Promise<AuditReport> {
     rejected: 0,
     decisions: [],
     tokensUsed: 0,
+    webSearchesTotal: 0,
     estimatedCostUsd: 0,
     durationMs: 0,
     errors,
@@ -329,7 +365,6 @@ export async function auditTodayPicks(): Promise<AuditReport> {
     const supabase = getSupabaseAdmin();
     const today = new Date().toISOString().split("T")[0];
 
-    // Fetch les picks à auditer (status 'pending_review', d'aujourd'hui)
     const { data: picksData, error: fetchError } = await supabase
       .from("ai_picks")
       .select(
@@ -354,23 +389,24 @@ export async function auditTodayPicks(): Promise<AuditReport> {
       return report;
     }
 
-    console.log(`[Audit] ${picks.length} picks à auditer`);
+    console.log(`[Audit] ${picks.length} picks à auditer avec web search`);
 
-    // Auditer chaque pick SÉQUENTIELLEMENT (évite le rate limit)
     let totalTokensInput = 0;
     let totalTokensOutput = 0;
+    let totalWebSearches = 0;
 
+    // Audit séquentiel (évite rate limits)
     for (const pick of picks) {
       const result = await auditSinglePick(pick);
       report.decisions.push(result.decision);
       totalTokensInput += result.tokensInput;
       totalTokensOutput += result.tokensOutput;
+      totalWebSearches += result.webSearches;
 
       if (result.error) {
         errors.push(`Pick ${pick.id}: ${result.error}`);
       }
 
-      // Mettre à jour le pick en base
       const newStatus =
         result.decision.decision === "valid" ? "pending" : "rejected_by_audit";
 
@@ -393,23 +429,26 @@ export async function auditTodayPicks(): Promise<AuditReport> {
       } else {
         report.rejected++;
         console.log(
-          `[Audit] ❌ REJETÉ: ${pick.event_name} — ${pick.selection} — ${result.decision.reason}`,
+          `[Audit] ❌ REJETÉ: ${pick.event_name} — ${pick.selection} — ${result.decision.reason} (${result.webSearches} recherches)`,
         );
       }
     }
 
-    // Calcul coûts
+    // Coûts
     const tokensTotal = totalTokensInput + totalTokensOutput;
-    const cost =
+    const tokenCost =
       (totalTokensInput / 1_000_000) * PRICE_INPUT_PER_MTOKENS +
       (totalTokensOutput / 1_000_000) * PRICE_OUTPUT_PER_MTOKENS;
+    const searchCost = (totalWebSearches / 1000) * PRICE_WEB_SEARCH_PER_1000;
+    const totalCost = tokenCost + searchCost;
 
     report.tokensUsed = tokensTotal;
-    report.estimatedCostUsd = cost;
+    report.webSearchesTotal = totalWebSearches;
+    report.estimatedCostUsd = totalCost;
     report.success = true;
     report.durationMs = Date.now() - startTime;
 
-    // Logger l'exécution
+    // Log
     await supabase.from("ai_generation_logs").insert({
       run_type: "audit",
       run_date: today,
@@ -419,12 +458,12 @@ export async function auditTodayPicks(): Promise<AuditReport> {
       errors_count: errors.length,
       errors: errors.length > 0 ? errors : null,
       tokens_used: tokensTotal,
-      estimated_cost: cost,
+      estimated_cost: totalCost,
       duration_ms: report.durationMs,
     });
 
     console.log(
-      `[Audit] ✅ Terminé — ${report.validated}/${report.totalPicks} validés, ${report.rejected} rejetés (${report.durationMs}ms, $${cost.toFixed(4)})`,
+      `[Audit] ✅ Terminé — ${report.validated}/${report.totalPicks} validés, ${report.rejected} rejetés, ${totalWebSearches} recherches ($${totalCost.toFixed(4)})`,
     );
 
     return report;
