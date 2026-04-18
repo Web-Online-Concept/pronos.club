@@ -1,22 +1,14 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIPickDetailsModal
- * ═══════════════════════════════════════════════════════════════════
- *
- * Modale de détails enrichis pour un pick IA.
- * Affiche : header, pick+confidence, 5 cotes bookmakers, justification,
- *           statut audit, score final (si résolu).
- *
- * Desktop : modale centrée 700px.
- * Mobile  : bottom sheet plein écran.
+ * COMPOSANT — AIPickDetailsModal (CORRIGÉ)
  * ═══════════════════════════════════════════════════════════════════
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { X, Medal, Shield, Search, Trophy } from "lucide-react";
+import { X, Medal, Shield, Trophy } from "lucide-react";
 import PronosIAStatusBadge from "./ui/PronosIAStatusBadge";
 
 
@@ -83,26 +75,22 @@ interface Props {
 
 export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
   const t = useTranslations("ai_picks");
-  const [mounted, setMounted] = useState(false);
 
+  // Lock scroll + gestion touche Escape
   useEffect(() => {
-    setMounted(true);
-    // Lock scroll body
+    const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // Close on Escape
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKey);
 
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKey);
     };
   }, [onClose]);
-
-  if (!mounted) return null;
 
   const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
@@ -123,21 +111,21 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
     { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" },
   );
 
-  // Tri des cotes (meilleure en premier)
   const sortedOdds = pick.odds_comparison
     ? [...pick.odds_comparison].sort((a, b) => b.odds - a.odds)
     : [];
 
-  // Confiance IA (sur 10)
   const confidence = Math.max(0, Math.min(10, pick.ai_confidence));
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
-        className="relative max-h-[90vh] w-full overflow-hidden overflow-y-auto rounded-t-3xl border border-violet-400/30 shadow-2xl sm:max-w-2xl sm:rounded-3xl"
+        className="relative max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-violet-400/30 shadow-2xl sm:max-w-2xl sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
         style={{
           background:
@@ -184,8 +172,8 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
         {/* Contenu */}
         <div className="relative z-10 p-6 sm:p-8">
 
-          {/* ═══ HEADER ═══ */}
-          <div className="mb-6">
+          {/* HEADER */}
+          <div className="mb-6 pr-12">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
                 <span className="text-sm">{sportEmoji}</span>
@@ -205,7 +193,7 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
             </p>
           </div>
 
-          {/* ═══ RECOMMANDATION + CONFIANCE ═══ */}
+          {/* RECOMMANDATION + CONFIANCE */}
           <Section icon="🎯" title={t("modal_recommendation_title")}>
             <div className="rounded-xl border border-violet-400/30 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 p-5 backdrop-blur">
               <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200">
@@ -224,7 +212,6 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
                 {pick.selection}
               </div>
 
-              {/* Confiance IA */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between text-xs">
                   <span className="font-semibold text-white/70">
@@ -238,7 +225,7 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
                   {Array.from({ length: 10 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-2 flex-1 rounded-full transition-all"
+                      className="h-2 flex-1 rounded-full"
                       style={{
                         background:
                           i < confidence
@@ -252,7 +239,7 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
             </div>
           </Section>
 
-          {/* ═══ 5 COTES BOOKMAKERS ═══ */}
+          {/* 5 COTES BOOKMAKERS */}
           {sortedOdds.length > 0 && (
             <Section icon="💰" title={t("modal_odds_comparison_title")}>
               <div className="space-y-1.5">
@@ -310,14 +297,14 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
             </Section>
           )}
 
-          {/* ═══ JUSTIFICATION ═══ */}
+          {/* JUSTIFICATION */}
           <Section icon="💬" title={t("modal_reasoning_title")}>
             <p className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm italic leading-relaxed text-white/80">
               {pick.reasoning}
             </p>
           </Section>
 
-          {/* ═══ AUDIT ═══ */}
+          {/* AUDIT */}
           <Section icon={null} title={t("modal_audit_title")}>
             <div className="flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-4">
               <Shield
@@ -336,7 +323,7 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
             </div>
           </Section>
 
-          {/* ═══ SCORE FINAL (si résolu) ═══ */}
+          {/* SCORE FINAL */}
           {pick.status !== "pending" && pick.final_score && (
             <Section icon={null} title={t("modal_final_result_title")}>
               <div className="flex items-center justify-center gap-4 rounded-xl border border-white/10 bg-black/30 py-5 backdrop-blur">
@@ -357,10 +344,6 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════════
-// SOUS-COMPOSANT : section titrée
-// ═══════════════════════════════════════════════════════════════════
 
 function Section({
   icon,
