@@ -1418,6 +1418,16 @@
     "howitworks_faq_a9": "Después de cada generación, un segundo agente IA con acceso a la web realiza búsquedas para verificar los hechos mencionados (transferencias recientes, equipos en la liga correcta, etc.). Si se detecta un error factual, el pronóstico se rechaza automáticamente y no aparece en la página pública. Este filtro no es infalible, así que en caso de un error que pase a pesar de todo, podemos cancelarlo manualmente.",
     "pick_label": "Pick",
     "odds_label": "Cuota",
-    "final_score_label": "Resultado final"
+    "final_score_label": "Resultado final",
+    "modal_trigger_label": "Ver detalles",
+    "modal_recommendation_title": "Recomendación de la IA",
+    "modal_ai_confidence": "Confianza de la IA",
+    "modal_odds_comparison_title": "Cuotas de las 5 casas de apuestas",
+    "modal_best_odds": "Mejor",
+    "modal_reasoning_title": "Justificación",
+    "modal_audit_title": "Auditoría automática",
+    "modal_audit_passed": "Hechos verificados por el agente de auditoría",
+    "modal_audit_description": "Un segundo agente IA con acceso a la web verificó que este pronóstico no contiene errores factuales graves (jugador transferido, equipo en la liga equivocada, etc.).",
+    "modal_final_result_title": "Resultado final"
   }
 }

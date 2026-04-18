@@ -12,6 +12,7 @@
 import { getTranslations } from "next-intl/server";
 import PronosIACard from "./ui/PronosIACard";
 import PronosIAStatusBadge from "./ui/PronosIAStatusBadge";
+import AIPickDetailsTrigger from "./AIPickDetailsTrigger";
 
 
 export interface AIScorerRow {
@@ -24,6 +25,8 @@ export interface AIScorerRow {
   selection: string;
   market: string;
   odds: number | null;
+  odds_bookmaker?: string | null;
+  odds_comparison: Array<{ book: string; odds: number }> | null;
   reasoning: string;
   ai_confidence: number;
   status: "pending" | "won" | "lost" | "void";
@@ -123,6 +126,12 @@ export default async function AIScorerCard({ pick, locale }: Props) {
           <span className="font-mono text-lg font-bold text-white">{pick.final_score}</span>
         </div>
       )}
+
+      {/* BOUTON VOIR DÉTAILS */}
+      <AIPickDetailsTrigger
+        pick={{ ...pick, odds_bookmaker: pick.odds_bookmaker ?? null }}
+        locale={locale}
+      />
     </PronosIACard>
   );
 }

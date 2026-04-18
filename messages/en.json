@@ -1418,6 +1418,16 @@
     "howitworks_faq_a9": "After each generation, a second AI agent with web access searches to verify the facts mentioned (recent transfers, teams in the correct league, etc.). If a factual error is detected, the pick is automatically rejected and doesn't appear on the public page. This filter isn't infallible, so in case of an error that slips through, we can cancel it manually.",
     "pick_label": "Pick",
     "odds_label": "Odds",
-    "final_score_label": "Final score"
+    "final_score_label": "Final score",
+    "modal_trigger_label": "View details",
+    "modal_recommendation_title": "AI recommendation",
+    "modal_ai_confidence": "AI confidence",
+    "modal_odds_comparison_title": "Odds from 5 bookmakers",
+    "modal_best_odds": "Best",
+    "modal_reasoning_title": "Justification",
+    "modal_audit_title": "Automatic audit",
+    "modal_audit_passed": "Facts verified by the audit agent",
+    "modal_audit_description": "A second AI agent with web access verified that this pick doesn't contain any blatant factual error (transferred player, team in the wrong league, etc.).",
+    "modal_final_result_title": "Final result"
   }
 }
