@@ -1415,6 +1415,9 @@
     "howitworks_cta_button": "Ver los pronósticos del día",
     "howitworks_s6_limit6": "La IA puede cometer errores factuales graves (ej: citar un jugador transferido, un equipo en la liga equivocada). Para minimizar este riesgo, un segundo agente IA con acceso a la web verifica cada pronóstico antes de su publicación y rechaza automáticamente los que contienen errores factuales manifiestos.",
     "howitworks_faq_q9": "¿Cómo evitáis que la IA cite a un jugador que ha sido transferido?",
-    "howitworks_faq_a9": "Después de cada generación, un segundo agente IA con acceso a la web realiza búsquedas para verificar los hechos mencionados (transferencias recientes, equipos en la liga correcta, etc.). Si se detecta un error factual, el pronóstico se rechaza automáticamente y no aparece en la página pública. Este filtro no es infalible, así que en caso de un error que pase a pesar de todo, podemos cancelarlo manualmente."
+    "howitworks_faq_a9": "Después de cada generación, un segundo agente IA con acceso a la web realiza búsquedas para verificar los hechos mencionados (transferencias recientes, equipos en la liga correcta, etc.). Si se detecta un error factual, el pronóstico se rechaza automáticamente y no aparece en la página pública. Este filtro no es infalible, así que en caso de un error que pase a pesar de todo, podemos cancelarlo manualmente.",
+    "pick_label": "Pick",
+    "odds_label": "Cuota",
+    "final_score_label": "Resultado final"
   }
 }

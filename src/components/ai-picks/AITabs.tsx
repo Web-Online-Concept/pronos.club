@@ -1,23 +1,10 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AITabs
+ * COMPOSANT — AITabs (V2 DESIGN)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Onglets Classiques / Buteurs pour la page Pronos IA.
- *
- * Particularité : client component (nécessite state pour l'onglet actif).
- * Les cards sont rendues en SERVER depuis la page parent,
- * puis passées en props via classicsContent / scorersContent.
- * Cela évite de re-hydrater les cards côté client.
- *
- * Usage :
- *   <AITabs
- *     classicsCount={5}
- *     scorersCount={3}
- *     classicsContent={<ServerRenderedCards />}
- *     scorersContent={<ServerRenderedCards />}
- *     locale="fr"
- *   />
+ * Tabs Classiques / Buteurs.
+ * Style : pills sur fond blanc, gradient bleu-violet pour le tab actif.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -35,8 +22,6 @@ interface Props {
   locale: string;
 }
 
-type Tab = "classics" | "scorers";
-
 
 export default function AITabs({
   classicsCount,
@@ -46,34 +31,36 @@ export default function AITabs({
 }: Props) {
   const t = useTranslations("ai_picks");
 
-  // Tab par défaut : classiques si au moins 1, sinon scorers
-  const [activeTab, setActiveTab] = useState<Tab>(
-    classicsCount > 0 ? "classics" : "scorers",
+  // Default : tab avec le plus de picks
+  const [activeTab, setActiveTab] = useState<"classics" | "scorers">(
+    classicsCount >= scorersCount ? "classics" : "scorers",
   );
 
   return (
     <div>
-      {/* ═══ HEADER ONGLETS ═══ */}
+      {/* Tabs */}
       <div
         role="tablist"
         aria-label={t("tabs_aria_label")}
-        className="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-neutral-800 bg-neutral-900/40 p-1.5"
+        className="mb-6 flex justify-center"
       >
-        <TabButton
-          label={t("tab_classics")}
-          count={classicsCount}
-          active={activeTab === "classics"}
-          onClick={() => setActiveTab("classics")}
-        />
-        <TabButton
-          label={t("tab_scorers")}
-          count={scorersCount}
-          active={activeTab === "scorers"}
-          onClick={() => setActiveTab("scorers")}
-        />
+        <div className="inline-flex rounded-full border border-neutral-200 bg-neutral-50 p-1 shadow-sm">
+          <TabButton
+            active={activeTab === "classics"}
+            onClick={() => setActiveTab("classics")}
+            label={t("tab_classics")}
+            count={classicsCount}
+          />
+          <TabButton
+            active={activeTab === "scorers"}
+            onClick={() => setActiveTab("scorers")}
+            label={t("tab_scorers")}
+            count={scorersCount}
+          />
+        </div>
       </div>
 
-      {/* ═══ CONTENU ONGLET ACTIF ═══ */}
+      {/* Contenu */}
       <div
         role="tabpanel"
         aria-label={activeTab === "classics" ? t("tab_classics") : t("tab_scorers")}
@@ -85,20 +72,16 @@ export default function AITabs({
 }
 
 
-// ═══════════════════════════════════════════════════════════════════
-// TAB BUTTON — bouton individuel
-// ═══════════════════════════════════════════════════════════════════
-
 function TabButton({
-  label,
-  count,
   active,
   onClick,
+  label,
+  count,
 }: {
-  label: string;
-  count: number;
   active: boolean;
   onClick: () => void;
+  label: string;
+  count: number;
 }) {
   return (
     <button
@@ -106,18 +89,24 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`relative flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
+      className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all ${
         active
-          ? "bg-emerald-500/15 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.35)]"
-          : "text-neutral-400 hover:bg-neutral-800/60 hover:text-neutral-200"
+          ? "text-white shadow-md"
+          : "text-neutral-600 hover:text-neutral-900"
       }`}
+      style={
+        active
+          ? {
+              background:
+                "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+            }
+          : undefined
+      }
     >
       <span>{label}</span>
       <span
-        className={`inline-flex min-w-[24px] items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-          active
-            ? "bg-emerald-500/25 text-emerald-100"
-            : "bg-neutral-800 text-neutral-400"
+        className={`inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+          active ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-600"
         }`}
       >
         {count}

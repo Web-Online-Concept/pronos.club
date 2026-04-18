@@ -1,26 +1,17 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIPickCard
+ * COMPOSANT — AIPickCard (V2 DESIGN)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Card compacte pour un pronostic classique IA (1N2, Over/Under, BTTS).
- *
- * États :
- *  - pending : bordure neutre, badge "À venir" jaune
- *  - won     : bordure emerald, badge "Gagné" vert + score final
- *  - lost    : bordure rouge, badge "Perdu" rouge + score final
- *  - void    : bordure grise, badge "Annulé"
- *
- * Server component (pas de state).
+ * Card d'un pronostic classique.
+ * Style : card sombre sur fond blanc, accent violet, boutons gradient.
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import { getTranslations } from "next-intl/server";
+import PronosIACard from "./ui/PronosIACard";
+import PronosIAStatusBadge from "./ui/PronosIAStatusBadge";
 
-
-// ═══════════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════════
 
 export interface AIPickRow {
   id: string;
@@ -33,12 +24,27 @@ export interface AIPickRow {
   market: string;
   odds: number | null;
   odds_bookmaker: string | null;
-  odds_comparison: Array<{ book: string; odds: number }> | null;
   reasoning: string;
   ai_confidence: number;
   status: "pending" | "won" | "lost" | "void";
   final_score: string | null;
 }
+
+
+const SPORT_EMOJI: Record<string, string> = {
+  soccer: "⚽",
+  tennis: "🎾",
+  basketball: "🏀",
+};
+
+const BOOKMAKER_LABELS: Record<string, string> = {
+  pinnacle: "Pinnacle",
+  onexbet: "1xBet",
+  winamax_fr: "Winamax",
+  betclic_fr: "Betclic",
+  unibet_fr: "Unibet",
+};
+
 
 interface Props {
   pick: AIPickRow;
@@ -46,184 +52,91 @@ interface Props {
 }
 
 
-// ═══════════════════════════════════════════════════════════════════
-// MAPPINGS VISUELS
-// ═══════════════════════════════════════════════════════════════════
-
-const LEAGUE_CONFIG: Record<string, { name: string; emoji: string }> = {
-  soccer_epl: { name: "Premier League", emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  soccer_france_ligue_one: { name: "Ligue 1", emoji: "🇫🇷" },
-  soccer_spain_la_liga: { name: "La Liga", emoji: "🇪🇸" },
-  soccer_germany_bundesliga: { name: "Bundesliga", emoji: "🇩🇪" },
-  soccer_italy_serie_a: { name: "Serie A", emoji: "🇮🇹" },
-  soccer_uefa_champs_league: { name: "Champions League", emoji: "🏆" },
-  tennis_atp: { name: "ATP", emoji: "🎾" },
-  tennis_wta: { name: "WTA", emoji: "🎾" },
-  basketball_nba: { name: "NBA", emoji: "🏀" },
-};
-
-const BOOKMAKER_LABELS: Record<string, string> = {
-  pinnacle: "Pinnacle",
-  winamax_fr: "Winamax",
-  betclic_fr: "Betclic",
-  unibet_fr: "Unibet",
-  onexbet: "1xBet",
-};
-
-
-// ═══════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════
-
-function getLeagueInfo(league: string): { name: string; emoji: string } {
-  return LEAGUE_CONFIG[league] ?? { name: league, emoji: "⚽" };
-}
-
-function formatTime(iso: string, locale: string): string {
-  const date = new Date(iso);
-  const map: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
-  return date.toLocaleTimeString(map[locale] ?? "fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Paris",
-  });
-}
-
-function formatMarketLabel(market: string, selection: string, t: (k: string) => string): string {
-  switch (market) {
-    case "h2h":
-      return selection;
-    case "ou25":
-      return selection; // "Over 2.5" ou "Under 2.5"
-    case "btts":
-      return selection.toLowerCase() === "yes"
-        ? t("market_btts_yes")
-        : t("market_btts_no");
-    case "totals":
-      return selection; // "Over 225.5" etc.
-    default:
-      return selection;
-  }
-}
-
-function getStatusStyles(status: AIPickRow["status"]): {
-  cardBorder: string;
-  badgeBg: string;
-  badgeText: string;
-} {
-  switch (status) {
-    case "won":
-      return {
-        cardBorder: "border-emerald-500/40 bg-emerald-950/20",
-        badgeBg: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40",
-        badgeText: "",
-      };
-    case "lost":
-      return {
-        cardBorder: "border-red-500/40 bg-red-950/20",
-        badgeBg: "bg-red-500/20 text-red-300 border border-red-500/40",
-        badgeText: "",
-      };
-    case "void":
-      return {
-        cardBorder: "border-neutral-700 bg-neutral-900/40",
-        badgeBg: "bg-neutral-700/40 text-neutral-400 border border-neutral-600",
-        badgeText: "",
-      };
-    case "pending":
-    default:
-      return {
-        cardBorder: "border-neutral-800 bg-neutral-900/40",
-        badgeBg: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
-        badgeText: "",
-      };
-  }
-}
-
-
-// ═══════════════════════════════════════════════════════════════════
-// COMPOSANT
-// ═══════════════════════════════════════════════════════════════════
-
 export default async function AIPickCard({ pick, locale }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
-  const league = getLeagueInfo(pick.league);
-  const time = formatTime(pick.event_date, locale);
-  const styles = getStatusStyles(pick.status);
 
-  const statusLabel = {
-    pending: t("status_pending"),
-    won: t("status_won"),
-    lost: t("status_lost"),
-    void: t("status_void"),
-  }[pick.status];
+  const isResolved = pick.status !== "pending";
+  const accent =
+    pick.status === "won"
+      ? "emerald"
+      : pick.status === "lost"
+        ? "red"
+        : pick.status === "void"
+          ? "neutral"
+          : "violet";
 
-  const statusIcon = { pending: "⏳", won: "✅", lost: "❌", void: "⊘" }[pick.status];
-
-  const selectionLabel = formatMarketLabel(pick.market, pick.selection, t);
+  const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
   const bookmakerLabel = pick.odds_bookmaker
-    ? BOOKMAKER_LABELS[pick.odds_bookmaker] ?? pick.odds_bookmaker
+    ? (BOOKMAKER_LABELS[pick.odds_bookmaker] ?? pick.odds_bookmaker)
     : null;
 
+  const eventTime = new Date(pick.event_date).toLocaleTimeString(
+    { fr: "fr-FR", en: "en-US", es: "es-ES" }[locale] ?? "fr-FR",
+    { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" },
+  );
+
+  const statusLabel = t(`status_${pick.status}`);
+
   return (
-    <article
-      className={`rounded-xl border p-5 transition-colors ${styles.cardBorder}`}
-    >
-      {/* ═══ Ligne du haut : ligue + heure + statut ═══ */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-medium text-neutral-400">
-          <span>{league.emoji}</span>
-          <span className="truncate">{league.name}</span>
-          <span className="text-neutral-600">·</span>
-          <span>{time}</span>
+    <PronosIACard accent={accent} hoverable>
+      {/* HEADER — Sport, ligue, heure, statut */}
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
+          <span className="flex items-center gap-1.5">
+            <span className="text-base">{sportEmoji}</span>
+            <span className="font-medium text-white/70">{pick.league}</span>
+          </span>
+          <span className="text-white/30">·</span>
+          <span className="font-mono">{eventTime}</span>
         </div>
-        <div
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles.badgeBg}`}
-        >
-          <span>{statusIcon}</span>
-          <span>{statusLabel}</span>
-        </div>
+        <PronosIAStatusBadge status={pick.status} label={statusLabel} size="sm" />
       </div>
 
-      {/* ═══ Titre match ═══ */}
-      <h3 className="mb-3 text-lg font-bold text-neutral-100">
+      {/* MATCH */}
+      <h3 className="mb-4 text-base font-bold text-white sm:text-lg">
         {pick.event_name}
-        {pick.final_score && (
-          <span className="ml-2 text-sm font-normal text-neutral-400">
-            ({pick.final_score})
-          </span>
-        )}
       </h3>
 
-      {/* ═══ Séparateur ═══ */}
-      <div className="mb-3 border-t border-neutral-800" />
-
-      {/* ═══ Pick + cote ═══ */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-emerald-400">🎯</span>
-          <span className="font-semibold text-neutral-100">{selectionLabel}</span>
+      {/* PICK + COTE */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+        <div>
+          <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+            {t("pick_label")}
+          </div>
+          <div className="text-lg font-bold text-white">{pick.selection}</div>
         </div>
         {pick.odds !== null && (
-          <div className="flex items-center gap-2 text-sm text-neutral-300">
-            <span className="text-cyan-400">💰</span>
-            <span className="font-mono font-semibold">
-              {pick.odds.toFixed(2)}
-            </span>
-            {bookmakerLabel && (
-              <span className="text-xs text-neutral-500">
-                · {bookmakerLabel}
+          <div className="text-right">
+            <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/40">
+              {t("odds_label")}
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-mono text-2xl font-bold text-white">
+                {pick.odds.toFixed(2)}
               </span>
-            )}
+              {bookmakerLabel && (
+                <span className="text-[10px] text-white/40">
+                  {bookmakerLabel}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* ═══ Justification IA ═══ */}
-      <div className="flex items-start gap-2 text-sm text-neutral-400">
-        <span className="mt-0.5 flex-shrink-0">💬</span>
-        <p className="italic">{pick.reasoning}</p>
+      {/* REASONING */}
+      <div className="flex items-start gap-2 text-xs italic text-white/60">
+        <span className="mt-0.5 flex-shrink-0 text-violet-300">💬</span>
+        <p className="leading-relaxed">{pick.reasoning}</p>
       </div>
-    </article>
+
+      {/* FINAL SCORE (si résolu) */}
+      {isResolved && pick.final_score && (
+        <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 text-xs text-white/70">
+          <span className="text-white/40">{t("final_score_label")}</span>
+          <span className="font-mono font-bold text-white">{pick.final_score}</span>
+        </div>
+      )}
+    </PronosIACard>
   );
 }
