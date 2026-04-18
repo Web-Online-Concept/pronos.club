@@ -62,7 +62,7 @@ export default async function AdminAIPicksPage({
       "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, audit_reason, audit_category, audited_at, generation_batch, created_at",
       { count: "exact" },
     )
-    .order("created_at", { ascending: false });
+    .order("event_date", { ascending: false });
 
   if (statusFilter !== "all") {
     query = query.eq("status", statusFilter);
