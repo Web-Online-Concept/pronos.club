@@ -18,6 +18,7 @@ import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import AdminPickRow from "@/components/admin/AdminPickRow";
+import AdminForceResolveButton from "@/components/admin/AdminForceResolveButton";
 
 export const dynamic = "force-dynamic";
 
@@ -95,19 +96,22 @@ export default async function AdminAIPicksPage({
 
         {/* HEADER */}
         <header className="mb-8">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold">🤖 Admin — Pronos IA</h1>
               <p className="mt-1 text-sm text-neutral-400">
                 Gestion manuelle des pronostics générés par l'IA
               </p>
             </div>
-            <Link
-              href={`/${locale}/admin`}
-              className="text-sm text-neutral-400 hover:text-neutral-200"
-            >
-              ← Retour admin
-            </Link>
+            <div className="flex flex-col items-end gap-3">
+              <Link
+                href={`/${locale}/admin`}
+                className="text-sm text-neutral-400 hover:text-neutral-200"
+              >
+                ← Retour admin
+              </Link>
+              <AdminForceResolveButton />
+            </div>
           </div>
         </header>
 
