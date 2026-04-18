@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/auto-videos",
       "schedule": "30 */2 * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-resolve",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-generate",
+      "schedule": "0 7 * * *"
     }
   ]
 }
