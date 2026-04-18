@@ -1323,6 +1323,20 @@
     "stats_by_sport_title": "Por deporte (clásicos)",
     "sport_soccer": "Fútbol",
     "sport_tennis": "Tenis",
-    "sport_basketball": "Baloncesto"
+    "sport_basketball": "Baloncesto",
+    "history_meta_title": "Historial de Pronósticos IA — PRONOS.CLUB",
+    "history_meta_description": "Todos los pronósticos IA anteriores, con filtros por tipo, resultado y deporte.",
+    "history_badge": "Historial completo",
+    "history_page_title": "Historial de Pronósticos",
+    "history_page_subtitle": "{total} pronósticos resueltos en total",
+    "history_empty_title": "No hay pronósticos en el historial",
+    "history_empty_description": "Los pronósticos resueltos aparecerán aquí con el tiempo. Prueba a ajustar los filtros o vuelve más tarde.",
+    "history_count_info": "Página {page} de {totalPages} — mostrando {count} pronósticos de {total}",
+    "history_filter_type_label": "Tipo",
+    "history_filter_status_label": "Resultado",
+    "history_filter_sport_label": "Deporte",
+    "history_filter_all": "Todos",
+    "history_pagination_prev": "Anterior",
+    "history_pagination_next": "Siguiente"
   }
 }

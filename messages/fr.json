@@ -1323,6 +1323,20 @@
     "stats_by_sport_title": "Par sport (classiques)",
     "sport_soccer": "Football",
     "sport_tennis": "Tennis",
-    "sport_basketball": "Basketball"
+    "sport_basketball": "Basketball",
+    "history_meta_title": "Historique des Pronos IA — PRONOS.CLUB",
+    "history_meta_description": "Tous les pronostics IA passés, avec filtres par type, résultat et sport.",
+    "history_badge": "Historique complet",
+    "history_page_title": "Historique des Pronos",
+    "history_page_subtitle": "{total} pronostics résolus au total",
+    "history_empty_title": "Aucun pronostic dans l'historique",
+    "history_empty_description": "Les pronostics résolus apparaîtront ici au fur et à mesure. Essayez de modifier les filtres ou revenez plus tard.",
+    "history_count_info": "Page {page} sur {totalPages} — {count} pronostics affichés sur {total}",
+    "history_filter_type_label": "Type",
+    "history_filter_status_label": "Résultat",
+    "history_filter_sport_label": "Sport",
+    "history_filter_all": "Tous",
+    "history_pagination_prev": "Précédent",
+    "history_pagination_next": "Suivant"
   }
 }

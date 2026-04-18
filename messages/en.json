@@ -1323,6 +1323,20 @@
     "stats_by_sport_title": "By sport (classics)",
     "sport_soccer": "Soccer",
     "sport_tennis": "Tennis",
-    "sport_basketball": "Basketball"
+    "sport_basketball": "Basketball",
+    "history_meta_title": "AI Picks History — PRONOS.CLUB",
+    "history_meta_description": "All past AI predictions, with filters by type, result, and sport.",
+    "history_badge": "Full history",
+    "history_page_title": "Picks History",
+    "history_page_subtitle": "{total} picks resolved in total",
+    "history_empty_title": "No picks in history",
+    "history_empty_description": "Resolved picks will appear here over time. Try adjusting the filters or come back later.",
+    "history_count_info": "Page {page} of {totalPages} — showing {count} picks out of {total}",
+    "history_filter_type_label": "Type",
+    "history_filter_status_label": "Result",
+    "history_filter_sport_label": "Sport",
+    "history_filter_all": "All",
+    "history_pagination_prev": "Previous",
+    "history_pagination_next": "Next"
   }
 }
