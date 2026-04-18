@@ -50,28 +50,14 @@ export default async function AdminDashboard() {
     { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
   ];
 
-  // Nouvelle section Pronos IA
+  // Nouvelle section Pronos IA (admin uniquement)
   const aiLinks = [
     {
       href: "/admin/ai-picks",
       label: `Gérer les picks IA${(aiPicksToReview ?? 0) > 0 ? ` (${aiPicksToReview})` : ""}`,
       icon: "🤖",
       accent: (aiPicksToReview ?? 0) > 0 ? "#06b6d4" : "#8b5cf6",
-      desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : "Supervision & annulation",
-    },
-    {
-      href: "/pronos-ia/stats",
-      label: "Stats Pronos IA",
-      icon: "📊",
-      accent: "#06b6d4",
-      desc: "Performances globales",
-    },
-    {
-      href: "/pronos-ia/historique",
-      label: "Historique IA",
-      icon: "🕐",
-      accent: "#8b5cf6",
-      desc: `${aiPicksRejected ?? 0} rejetés par audit`,
+      desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : `${aiPicksRejected ?? 0} rejetés par audit`,
     },
   ];
 
