@@ -1,10 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIScorerCard (V2 DESIGN)
+ * COMPOSANT — AIScorerCard
  * ═══════════════════════════════════════════════════════════════════
  *
  * Card d'un pronostic buteur.
- * Style : card sombre, accent violet, pas de cote affichée.
+ * Contenu optimisé pour le fond violet-bleu profond.
+ * Pas de cote affichée (contrainte du projet).
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -30,6 +31,16 @@ export interface AIScorerRow {
 }
 
 
+const LEAGUE_LABELS: Record<string, string> = {
+  soccer_epl: "Premier League",
+  soccer_france_ligue_one: "Ligue 1",
+  soccer_germany_bundesliga: "Bundesliga",
+  soccer_italy_serie_a: "Serie A",
+  soccer_spain_la_liga: "La Liga",
+  soccer_uefa_champs_league: "Champions League",
+};
+
+
 interface Props {
   pick: AIScorerRow;
   locale: string;
@@ -48,6 +59,8 @@ export default async function AIScorerCard({ pick, locale }: Props) {
           ? "neutral"
           : "violet";
 
+  const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
+
   const eventTime = new Date(pick.event_date).toLocaleTimeString(
     { fr: "fr-FR", en: "en-US", es: "es-ES" }[locale] ?? "fr-FR",
     { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" },
@@ -58,43 +71,56 @@ export default async function AIScorerCard({ pick, locale }: Props) {
   return (
     <PronosIACard accent={accent} hoverable>
       {/* HEADER */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/50">
-          <span className="flex items-center gap-1.5">
-            <span className="text-base">⚽</span>
-            <span className="font-medium text-white/70">{pick.league}</span>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+            <span className="text-sm">⚽</span>
+            <span>{leagueLabel}</span>
           </span>
-          <span className="text-white/30">·</span>
-          <span className="font-mono">{eventTime}</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs font-semibold text-white/80">
+            {eventTime}
+          </span>
         </div>
         <PronosIAStatusBadge status={pick.status} label={statusLabel} size="sm" />
       </div>
 
       {/* MATCH */}
-      <h3 className="mb-4 text-base font-bold text-white sm:text-lg">
+      <h3 className="mb-5 text-lg font-bold leading-tight text-white sm:text-xl">
         {pick.event_name}
       </h3>
 
-      {/* JOUEUR (buteur) */}
-      <div className="mb-4 rounded-xl border border-violet-400/20 bg-violet-500/5 p-4">
-        <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+      {/* JOUEUR BUTEUR — zone mise en valeur */}
+      <div className="mb-5 rounded-xl border border-violet-400/30 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 p-4 backdrop-blur">
+        <div className="mb-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200">
           <span>⚽</span>
           <span>{t("scorer_label")}</span>
         </div>
-        <div className="text-xl font-extrabold text-white">{pick.selection}</div>
+        <div
+          className="text-2xl font-black leading-tight tracking-tight"
+          style={{
+            background: "linear-gradient(135deg, #ffffff 0%, #e9d5ff 50%, #c4b5fd 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          {pick.selection}
+        </div>
       </div>
 
       {/* REASONING */}
-      <div className="flex items-start gap-2 text-xs italic text-white/60">
+      <div className="flex items-start gap-2.5 text-sm italic text-white/70">
         <span className="mt-0.5 flex-shrink-0 text-violet-300">💬</span>
         <p className="leading-relaxed">{pick.reasoning}</p>
       </div>
 
-      {/* FINAL SCORE */}
+      {/* FINAL SCORE (si résolu) */}
       {pick.status !== "pending" && pick.final_score && (
-        <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 text-xs text-white/70">
-          <span className="text-white/40">{t("final_score_label")}</span>
-          <span className="font-mono font-bold text-white">{pick.final_score}</span>
+        <div className="mt-5 flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/20 py-2.5 backdrop-blur">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+            {t("final_score_label")}
+          </span>
+          <span className="font-mono text-lg font-bold text-white">{pick.final_score}</span>
         </div>
       )}
     </PronosIACard>
