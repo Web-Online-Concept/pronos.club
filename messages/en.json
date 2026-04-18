@@ -1412,6 +1412,9 @@
     "howitworks_faq_a8": "We're listening. If you notice a bug, a result error, or have a suggestion, use the Contact page. We read everything and take feedback into account to improve the tool.",
     "howitworks_cta_title": "Ready to see the AI Picks?",
     "howitworks_cta_text": "Today's picks are updated every morning at 9 AM. Happy browsing.",
-    "howitworks_cta_button": "See today's picks"
+    "howitworks_cta_button": "See today's picks",
+    "howitworks_s6_limit6": "The AI can make blatant factual errors (e.g. citing a transferred player, a team in the wrong league). To minimize this risk, a second AI agent with web access verifies each pick before publication and automatically rejects those containing obvious factual errors.",
+    "howitworks_faq_q9": "How do you prevent the AI from citing a transferred player?",
+    "howitworks_faq_a9": "After each generation, a second AI agent with web access searches to verify the facts mentioned (recent transfers, teams in the correct league, etc.). If a factual error is detected, the pick is automatically rejected and doesn't appear on the public page. This filter isn't infallible, so in case of an error that slips through, we can cancel it manually."
   }
 }

@@ -1412,6 +1412,9 @@
     "howitworks_faq_a8": "Nous sommes à l'écoute. Si vous remarquez un bug, une erreur de résultat, ou que vous avez une suggestion, utilisez la page Contact. Nous lisons tout et prenons en compte les retours pour améliorer l'outil.",
     "howitworks_cta_title": "Prêt à consulter les Pronos IA ?",
     "howitworks_cta_text": "Les sélections du jour sont mises à jour chaque matin à 9h. Bonne consultation.",
-    "howitworks_cta_button": "Voir les pronos du jour"
+    "howitworks_cta_button": "Voir les pronos du jour",
+    "howitworks_s6_limit6": "L'IA peut faire des erreurs factuelles grossières (ex: citer un joueur transféré, une équipe dans la mauvaise ligue). Pour minimiser ce risque, un second agent IA avec accès au web vérifie chaque pronostic avant publication et rejette automatiquement ceux qui contiennent des erreurs factuelles manifestes.",
+    "howitworks_faq_q9": "Comment évitez-vous que l'IA cite un joueur qui a été transféré ?",
+    "howitworks_faq_a9": "Après chaque génération, un second agent IA avec accès au web fait des recherches pour vérifier les faits mentionnés (transferts récents, équipes en bonne ligue, etc.). Si une erreur factuelle est détectée, le pronostic est automatiquement rejeté et n'apparaît pas sur la page publique. Ce filtre n'est pas infaillible, donc en cas d'erreur qui passerait malgré tout, nous pouvons l'annuler manuellement."
   }
 }

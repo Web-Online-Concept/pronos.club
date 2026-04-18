@@ -211,6 +211,7 @@ export default async function HowItWorksPage({
               <LimitItem>{t("howitworks_s6_limit3")}</LimitItem>
               <LimitItem>{t("howitworks_s6_limit4")}</LimitItem>
               <LimitItem>{t("howitworks_s6_limit5")}</LimitItem>
+              <LimitItem>{t("howitworks_s6_limit6")}</LimitItem>
             </ul>
           </Section>
 
@@ -258,6 +259,10 @@ export default async function HowItWorksPage({
               <FaqItem
                 question={t("howitworks_faq_q8")}
                 answer={t("howitworks_faq_a8")}
+              />
+              <FaqItem
+                question={t("howitworks_faq_q9")}
+                answer={t("howitworks_faq_a9")}
               />
             </div>
           </section>
