@@ -162,7 +162,7 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
             >
               {showDetails ? "Masquer" : "Détails"}
             </button>
-            {(pick.status === "pending" || pick.status === "pending_review") && (
+            {pick.status !== "void" && (
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
