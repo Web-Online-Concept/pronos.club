@@ -25,6 +25,17 @@ export default async function AdminDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("status", "pending");
 
+  // Stats Pronos IA
+  const { count: aiPicksToReview } = await supabaseAdmin
+    .from("ai_picks")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending_review");
+
+  const { count: aiPicksRejected } = await supabaseAdmin
+    .from("ai_picks")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "rejected_by_audit");
+
   const stats = [
     { label: "Picks publiés", value: totalPicks ?? 0, accent: "#10b981" },
     { label: "En attente", value: pendingPicks ?? 0, accent: "#f59e0b" },
@@ -37,6 +48,31 @@ export default async function AdminDashboard() {
     { href: "/admin/picks/results", label: "Saisir résultats", icon: "✅", accent: "#f59e0b", desc: "Mettre à jour les picks" },
     { href: "/admin/picks", label: "Tous les picks", icon: "📋", accent: "#3b82f6", desc: "Gérer les publications" },
     { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
+  ];
+
+  // Nouvelle section Pronos IA
+  const aiLinks = [
+    {
+      href: "/admin/ai-picks",
+      label: `Gérer les picks IA${(aiPicksToReview ?? 0) > 0 ? ` (${aiPicksToReview})` : ""}`,
+      icon: "🤖",
+      accent: (aiPicksToReview ?? 0) > 0 ? "#06b6d4" : "#8b5cf6",
+      desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : "Supervision & annulation",
+    },
+    {
+      href: "/pronos-ia/stats",
+      label: "Stats Pronos IA",
+      icon: "📊",
+      accent: "#06b6d4",
+      desc: "Performances globales",
+    },
+    {
+      href: "/pronos-ia/historique",
+      label: "Historique IA",
+      icon: "🕐",
+      accent: "#8b5cf6",
+      desc: `${aiPicksRejected ?? 0} rejetés par audit`,
+    },
   ];
 
   const adminLinks = [
@@ -96,6 +132,39 @@ export default async function AdminDashboard() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {tipsterLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={`/fr${link.href}`}
+              className="group relative overflow-hidden rounded-xl border border-white/[0.08] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${link.accent}08 100%)` }}
+            >
+              <div
+                className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: `radial-gradient(circle at 50% 50%, ${link.accent}10 0%, transparent 70%)` }}
+              />
+              <div className="relative flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${link.accent}15` }}>
+                  <span className="text-lg">{link.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{link.label}</p>
+                  <p className="mt-0.5 text-[10px] text-white/30">{link.desc}</p>
+                </div>
+              </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/10 transition-all group-hover:translate-x-1 group-hover:text-white/30">→</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Pronos IA section (NOUVEAU) */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🤖</span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-cyan-400">Pronos IA</p>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {aiLinks.map((link) => (
             <Link
               key={link.href}
               href={`/fr${link.href}`}
