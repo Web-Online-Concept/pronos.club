@@ -1,24 +1,12 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia/stats (VERSION FINALE)
- * ═══════════════════════════════════════════════════════════════════
- *
- * Stats détaillées des Pronos IA.
- *
- * Blocs :
- *   1. Vue d'ensemble Classiques
- *   2. Simulation 1U
- *   3. Vue d'ensemble Buteurs
- *   4. Classiques par sport (3 mini-cards)
- *   5. Buteurs par ligue (mini-cards)
- *   6. Analyse de la confidence IA
+ * PAGE — /fr/pronos-ia/stats (AVEC HERO COHÉRENT)
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { getTranslations } from "next-intl/server";
-import { ArrowLeft, Sparkles } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
   ClassicStatsRow,
@@ -30,7 +18,7 @@ import AISimulationBlock from "@/components/ai-picks/stats/AISimulationBlock";
 import AIStatsBySport from "@/components/ai-picks/stats/AIStatsBySport";
 import AIStatsByLeague from "@/components/ai-picks/stats/AIStatsByLeague";
 import AIConfidenceAnalysis from "@/components/ai-picks/stats/AIConfidenceAnalysis";
-import PronosIAButton from "@/components/ai-picks/ui/PronosIAButton";
+import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
 
 export const revalidate = 600;
 
@@ -50,10 +38,6 @@ export async function generateMetadata({
   };
 }
 
-
-// ═══════════════════════════════════════════════════════════════════
-// DATA FETCHING
-// ═══════════════════════════════════════════════════════════════════
 
 const getStats = unstable_cache(
   async () => {
@@ -97,10 +81,6 @@ const getFirstPickDate = unstable_cache(
 );
 
 
-// ═══════════════════════════════════════════════════════════════════
-// PAGE
-// ═══════════════════════════════════════════════════════════════════
-
 export default async function StatsPage({
   params,
 }: {
@@ -114,18 +94,14 @@ export default async function StatsPage({
     getFirstPickDate(),
   ]);
 
-  // Totaux globaux (ligne où sport IS NULL et league IS NULL)
   const classicsTotal = classics.find(
     (r) => r.sport === null && r.league === null,
   );
   const scorersTotal = scorers.find((r) => r.league === null);
 
-  // Classiques par sport (sport != null, league == null)
   const classicsBySport = classics.filter(
     (r) => r.sport !== null && r.league === null,
   );
-
-  // Buteurs par ligue (league != null)
   const scorersByLeague = scorers.filter((r) => r.league !== null);
 
   const totalResolvedClassics = classicsTotal?.total_resolved ?? 0;
@@ -150,146 +126,101 @@ export default async function StatsPage({
 
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
-      <div className="relative">
-        {/* Halo violet décoratif en haut */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[400px] opacity-[0.05]"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 0%, #8b5cf6 0%, transparent 60%)",
-          }}
-        />
 
-        <main className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      {/* HERO FULL-WIDTH */}
+      <PronosIAHero
+        locale={locale}
+        currentPage="stats"
+        title={t("stats_page_title")}
+        badgeLabel={
+          totalResolved > 0
+            ? t("stats_badge_resolved_count", { count: totalResolved })
+            : null
+        }
+      />
 
-          {/* ═══ BACK LINK ═══ */}
-          <div className="mb-6">
-            <PronosIAButton
-              href={`/${locale}/pronos-ia`}
-              variant="ghost"
-              size="sm"
-            >
-              <ArrowLeft size={14} strokeWidth={2.5} />
-              {t("link_back_to_picks")}
-            </PronosIAButton>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+        {/* Sous-titre */}
+        <p className="mb-10 text-center text-sm text-neutral-600 sm:text-base">
+          {firstDateFormatted
+            ? t("stats_page_subtitle_since", { date: firstDateFormatted })
+            : t("stats_page_subtitle_generic")}
+        </p>
+
+        {totalResolved === 0 ? (
+          <EmptyStats locale={locale} />
+        ) : (
+          <div className="space-y-8">
+
+            {classicsTotal && classicsTotal.total_resolved > 0 && (
+              <AIStatsOverview
+                title={t("stats_classics_title")}
+                subtitle={t("stats_classics_subtitle")}
+                accent="violet"
+                wins={classicsTotal.wins}
+                losses={classicsTotal.losses}
+                winRate={classicsTotal.win_rate_pct}
+                avgOdds={classicsTotal.avg_odds}
+                avgOddsWon={classicsTotal.avg_odds_won}
+                avgOddsLost={classicsTotal.avg_odds_lost}
+                locale={locale}
+              />
+            )}
+
+            {classicsTotal && classicsTotal.simulation_stake > 0 && (
+              <AISimulationBlock
+                stake={classicsTotal.simulation_stake}
+                returnAmount={classicsTotal.simulation_return}
+                profit={classicsTotal.simulation_profit}
+                roiPct={classicsTotal.simulation_roi_pct}
+                locale={locale}
+              />
+            )}
+
+            {scorersTotal && scorersTotal.total_resolved > 0 && (
+              <AIStatsOverview
+                title={t("stats_scorers_title")}
+                subtitle={t("stats_scorers_subtitle")}
+                accent="fuchsia"
+                wins={scorersTotal.wins}
+                losses={scorersTotal.losses}
+                winRate={scorersTotal.win_rate_pct}
+                avgOdds={null}
+                avgOddsWon={null}
+                avgOddsLost={null}
+                locale={locale}
+                compact
+              />
+            )}
+
+            {classicsBySport.length > 0 && (
+              <AIStatsBySport stats={classicsBySport} locale={locale} />
+            )}
+
+            {scorersByLeague.length > 0 && (
+              <AIStatsByLeague stats={scorersByLeague} locale={locale} />
+            )}
+
+            {(classicsTotal?.avg_confidence_all !== null ||
+              scorersTotal?.avg_confidence_all !== null) && (
+              <AIConfidenceAnalysis
+                classicsTotal={classicsTotal ?? null}
+                scorersTotal={scorersTotal ?? null}
+                locale={locale}
+              />
+            )}
+
           </div>
+        )}
 
-          {/* ═══ HERO ═══ */}
-          <header className="mb-10 text-center">
-            {/* Badge */}
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-violet-700">
-              <Sparkles size={12} strokeWidth={2.5} className="text-violet-500" />
-              {t("stats_badge")}
-            </div>
-
-            <h1 className="mb-4 text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-              <span
-                className="bg-clip-text text-transparent"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #a855f7 100%)",
-                }}
-              >
-                {t("stats_page_title")}
-              </span>
-            </h1>
-
-            <p className="mx-auto max-w-2xl text-base text-neutral-600 sm:text-lg">
-              {firstDateFormatted
-                ? t("stats_page_subtitle_since", { date: firstDateFormatted })
-                : t("stats_page_subtitle_generic")}
-            </p>
-          </header>
-
-          {/* ═══ CONTENU ═══ */}
-          {totalResolved === 0 ? (
-            <EmptyStats locale={locale} />
-          ) : (
-            <div className="space-y-8">
-
-              {/* BLOC 1 — Vue d'ensemble Classiques */}
-              {classicsTotal && classicsTotal.total_resolved > 0 && (
-                <AIStatsOverview
-                  title={t("stats_classics_title")}
-                  subtitle={t("stats_classics_subtitle")}
-                  accent="violet"
-                  wins={classicsTotal.wins}
-                  losses={classicsTotal.losses}
-                  winRate={classicsTotal.win_rate_pct}
-                  avgOdds={classicsTotal.avg_odds}
-                  avgOddsWon={classicsTotal.avg_odds_won}
-                  avgOddsLost={classicsTotal.avg_odds_lost}
-                  locale={locale}
-                />
-              )}
-
-              {/* BLOC 2 — Simulation 1U */}
-              {classicsTotal && classicsTotal.simulation_stake > 0 && (
-                <AISimulationBlock
-                  stake={classicsTotal.simulation_stake}
-                  returnAmount={classicsTotal.simulation_return}
-                  profit={classicsTotal.simulation_profit}
-                  roiPct={classicsTotal.simulation_roi_pct}
-                  locale={locale}
-                />
-              )}
-
-              {/* BLOC 3 — Vue d'ensemble Buteurs */}
-              {scorersTotal && scorersTotal.total_resolved > 0 && (
-                <AIStatsOverview
-                  title={t("stats_scorers_title")}
-                  subtitle={t("stats_scorers_subtitle")}
-                  accent="fuchsia"
-                  wins={scorersTotal.wins}
-                  losses={scorersTotal.losses}
-                  winRate={scorersTotal.win_rate_pct}
-                  avgOdds={null}
-                  avgOddsWon={null}
-                  avgOddsLost={null}
-                  locale={locale}
-                  compact
-                />
-              )}
-
-              {/* BLOC 4 — Classiques par sport */}
-              {classicsBySport.length > 0 && (
-                <AIStatsBySport stats={classicsBySport} locale={locale} />
-              )}
-
-              {/* BLOC 5 — Buteurs par ligue */}
-              {scorersByLeague.length > 0 && (
-                <AIStatsByLeague stats={scorersByLeague} locale={locale} />
-              )}
-
-              {/* BLOC 6 — Analyse de la confidence IA */}
-              {(classicsTotal?.avg_confidence_all !== null ||
-                scorersTotal?.avg_confidence_all !== null) && (
-                <AIConfidenceAnalysis
-                  classicsTotal={classicsTotal ?? null}
-                  scorersTotal={scorersTotal ?? null}
-                  locale={locale}
-                />
-              )}
-
-            </div>
-          )}
-
-          {/* ═══ DISCLAIMER BAS ═══ */}
-          <div className="mt-16">
-            <AIDisclaimer locale={locale} />
-          </div>
-
-        </main>
-      </div>
+        <div className="mt-16">
+          <AIDisclaimer locale={locale} />
+        </div>
+      </main>
     </div>
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════════
-// EMPTY STATE
-// ═══════════════════════════════════════════════════════════════════
 
 async function EmptyStats({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });

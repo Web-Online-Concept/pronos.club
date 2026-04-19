@@ -1454,6 +1454,14 @@
     "stats_confidence_lost": "Avg. conf. · Lost",
     "stats_confidence_gap_positive": "The AI is more confident on its winning picks (gap: +{gap}). Its confidence is therefore a reliable indicator.",
     "stats_confidence_gap_negative": "The AI is strangely more confident on its losing picks (gap: -{gap}). Its confidence is not a good indicator.",
-    "stats_confidence_gap_neutral": "No significant gap between confidence on wins and losses. AI confidence doesn't seem correlated to the outcome."
+    "stats_confidence_gap_neutral": "No significant gap between confidence on wins and losses. AI confidence doesn't seem correlated to the outcome.",
+    "hero_tag": "PRONOS CLUB · AI",
+    "nav_live": "Live picks",
+    "nav_how": "How it works",
+    "nav_stats": "Detailed stats",
+    "nav_history": "History",
+    "stats_badge_resolved_count": "{count} resolved picks",
+    "history_badge_count": "{count} total picks",
+    "history_page_subtitle_generic": "All past picks and those awaiting results, filterable by type, status and sport."
   }
 }

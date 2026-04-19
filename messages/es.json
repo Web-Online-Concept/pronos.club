@@ -1454,6 +1454,14 @@
     "stats_confidence_lost": "Conf. media · Perdidos",
     "stats_confidence_gap_positive": "La IA es más confiada en sus pronósticos ganados (diferencia: +{gap}). Su confianza es por tanto un indicador fiable.",
     "stats_confidence_gap_negative": "La IA es extrañamente más confiada en sus pronósticos perdidos (diferencia: -{gap}). Su confianza no es un buen indicador.",
-    "stats_confidence_gap_neutral": "Sin diferencia significativa entre la confianza en los ganados y los perdidos. La confianza IA no parece correlacionada con el resultado."
+    "stats_confidence_gap_neutral": "Sin diferencia significativa entre la confianza en los ganados y los perdidos. La confianza IA no parece correlacionada con el resultado.",
+    "hero_tag": "PRONOS CLUB · IA",
+    "nav_live": "Pronósticos en curso",
+    "nav_how": "Cómo funciona",
+    "nav_stats": "Estadísticas",
+    "nav_history": "Historial",
+    "stats_badge_resolved_count": "{count} pronósticos resueltos",
+    "history_badge_count": "{count} pronósticos en total",
+    "history_page_subtitle_generic": "Todos los pronósticos pasados y a la espera de resultado, filtrables por tipo, estado y deporte."
   }
 }
