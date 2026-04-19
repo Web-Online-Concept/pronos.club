@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html>
+    <html suppressHydrationWarning>
       <head>
         {/* Theme color — barre navigateur mobile */}
         <meta name="theme-color" content="#0a0a0a" />
@@ -51,7 +51,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>
