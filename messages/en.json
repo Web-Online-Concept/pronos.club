@@ -27,7 +27,9 @@
     "ai_picks_live": "Live picks",
     "ai_picks_history": "History",
     "ai_picks_stats": "Statistics",
-    "ai_picks_how": "How it works"
+    "ai_picks_how": "How it works",
+    "ai_picks_live_short": "Live",
+    "ai_picks_stats_short": "Stats"
   },
   "home": {
     "hero_title_line1": "Professional",

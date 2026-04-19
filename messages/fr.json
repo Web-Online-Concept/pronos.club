@@ -27,7 +27,9 @@
     "ai_picks_live": "Pronos en cours",
     "ai_picks_history": "Historique",
     "ai_picks_stats": "Statistiques",
-    "ai_picks_how": "Fonctionnement"
+    "ai_picks_how": "Fonctionnement",
+    "ai_picks_live_short": "En Cours",
+    "ai_picks_stats_short": "Stats"
   },
   "home": {
     "hero_title_line1": "Pronostics sportifs",

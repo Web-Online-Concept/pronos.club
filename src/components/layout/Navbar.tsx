@@ -491,9 +491,9 @@ export default function Navbar() {
               <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🤖 Pronos IA</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { href: `/${locale}/pronos-ia`, label: "En Cours", icon: "🎯" },
+                  { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
-                  { href: `/${locale}/pronos-ia/stats`, label: "Stats", icon: "📊" },
+                  { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
                   { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("ai_picks_how"), icon: "❓" },
                 ].map((link) => (
                   <Link
