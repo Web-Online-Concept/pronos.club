@@ -47,15 +47,14 @@ const LEAGUE_LABELS: Record<string, string> = {
 interface Props {
   pick: AIScorerRow;
   locale: string;
+  /** Calculé côté serveur pour éviter les mismatches d'hydratation */
+  isAwaiting?: boolean;
 }
 
 
-export default async function AIScorerCard({ pick, locale }: Props) {
+export default async function AIScorerCard({ pick, locale, isAwaiting = false }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
-  // Détection du statut affiché : si pending mais match passé → "awaiting"
-  const eventTimestamp = new Date(pick.event_date).getTime();
-  const isAwaiting = pick.status === "pending" && eventTimestamp <= Date.now();
   const displayStatus = isAwaiting ? "awaiting" : pick.status;
 
   const accent =

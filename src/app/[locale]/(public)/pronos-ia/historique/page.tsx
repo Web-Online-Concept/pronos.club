@@ -155,6 +155,10 @@ export default async function HistoryPage({
             <div className="space-y-4">
               {picks.map((pick) => {
                 const base = pick as unknown;
+                // Calcul côté serveur pour éviter les mismatches d'hydratation
+                const isAwaiting =
+                  pick.status === "pending" &&
+                  new Date(pick.event_date) <= new Date(nowISO);
 
                 if (pick.pick_type === "classic") {
                   return (
@@ -162,6 +166,7 @@ export default async function HistoryPage({
                       key={pick.id}
                       pick={base as AIPickRow}
                       locale={locale}
+                      isAwaiting={isAwaiting}
                     />
                   );
                 }
@@ -170,6 +175,7 @@ export default async function HistoryPage({
                     key={pick.id}
                     pick={base as AIScorerRow}
                     locale={locale}
+                    isAwaiting={isAwaiting}
                   />
                 );
               })}
