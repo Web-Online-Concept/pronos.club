@@ -1439,6 +1439,8 @@
     "empty_live_description": "All today's matches have already started or haven't been generated yet. Head to the history to check the results.",
     "empty_live_next_generation": "New picks daily at 9 AM (Paris time)",
     "empty_live_cta_history": "View history",
-    "status_awaiting": "Awaiting"
+    "status_awaiting": "Awaiting results",
+    "type_classic_label": "Classic",
+    "type_scorer_label": "Goal scorer"
   }
 }

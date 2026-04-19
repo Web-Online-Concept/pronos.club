@@ -117,7 +117,11 @@ export default async function AIPickCard({ pick, locale }: Props) {
     <PronosIACard accent={accent} hoverable>
       {/* HEADER — Sport, ligue, date+heure, statut */}
       <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1.5 rounded-full bg-violet-500/20 border border-violet-400/30 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-200 backdrop-blur">
+            <span className="text-sm">🎯</span>
+            <span>{t("type_classic_label")}</span>
+          </span>
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             <span className="text-sm">{sportEmoji}</span>
             <span>{leagueLabel}</span>

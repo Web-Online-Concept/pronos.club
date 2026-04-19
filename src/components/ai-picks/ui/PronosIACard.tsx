@@ -18,7 +18,7 @@
 import type { ReactNode } from "react";
 
 
-export type PronosIAAccent = "violet" | "emerald" | "red" | "neutral" | "amber";
+export type PronosIAAccent = "violet" | "fuchsia" | "emerald" | "red" | "neutral" | "amber";
 
 
 const THEMES: Record<
@@ -40,6 +40,16 @@ const THEMES: Record<
       "radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)",
     topBar: "linear-gradient(90deg, transparent 0%, #a855f7 30%, #3b82f6 70%, transparent 100%)",
     border: "rgba(168, 85, 247, 0.25)",
+  },
+  fuchsia: {
+    bgGradient:
+      "linear-gradient(135deg, #0f0515 0%, #3b0764 35%, #6b21a8 70%, #a21caf 100%)",
+    glowTopRight:
+      "radial-gradient(circle at 100% 0%, rgba(232, 121, 249, 0.40) 0%, transparent 50%)",
+    glowBottomLeft:
+      "radial-gradient(circle at 0% 100%, rgba(168, 85, 247, 0.25) 0%, transparent 50%)",
+    topBar: "linear-gradient(90deg, transparent 0%, #e879f9 30%, #c026d3 70%, transparent 100%)",
+    border: "rgba(232, 121, 249, 0.3)",
   },
   amber: {
     bgGradient:

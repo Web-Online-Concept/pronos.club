@@ -65,7 +65,7 @@ export default async function AIScorerCard({ pick, locale }: Props) {
         ? "red"
         : displayStatus === "void"
           ? "neutral"
-          : "violet";
+          : "fuchsia"; // scorer = fuchsia pour distinction visuelle
 
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
 
@@ -94,9 +94,12 @@ export default async function AIScorerCard({ pick, locale }: Props) {
     <PronosIACard accent={accent} hoverable>
       {/* HEADER */}
       <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1.5 rounded-full bg-fuchsia-500/20 border border-fuchsia-400/30 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-fuchsia-200 backdrop-blur">
             <span className="text-sm">⚽</span>
+            <span>{t("type_scorer_label")}</span>
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             <span>{leagueLabel}</span>
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
