@@ -28,11 +28,11 @@ export const dynamic = "force-dynamic"; // Toujours à jour (filtres)
 const PER_PAGE = 20;
 
 type FilterType = "all" | "classic" | "scorer";
-type FilterStatus = "all" | "won" | "lost" | "void";
+type FilterStatus = "all" | "awaiting" | "won" | "lost" | "void";
 type FilterSport = "all" | "soccer" | "tennis" | "basketball";
 
 const VALID_TYPES: FilterType[] = ["all", "classic", "scorer"];
-const VALID_STATUSES: FilterStatus[] = ["all", "won", "lost", "void"];
+const VALID_STATUSES: FilterStatus[] = ["all", "awaiting", "won", "lost", "void"];
 const VALID_SPORTS: FilterSport[] = ["all", "soccer", "tennis", "basketball"];
 
 
@@ -89,18 +89,29 @@ export default async function HistoryPage({
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
   // Construire la query
+  const nowISO = new Date().toISOString();
+
   let query = supabaseAdmin
     .from("ai_picks")
     .select(
       "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
       { count: "exact" },
     )
-    .in("status", ["won", "lost", "void"]) // Seulement les picks réellement résolus
+    // Picks résolus OU picks pending dont le match est déjà passé (en attente de résultat)
+    .or(
+      `status.in.(won,lost,void),and(status.eq.pending,event_date.lte.${nowISO})`,
+    )
     .order("event_date", { ascending: false });
 
   if (type !== "all") query = query.eq("pick_type", type);
-  if (status !== "all") query = query.eq("status", status);
   if (sport !== "all") query = query.eq("sport", sport);
+
+  // Filtre par statut — cas spécial pour "awaiting"
+  if (status === "awaiting") {
+    query = query.eq("status", "pending").lte("event_date", nowISO);
+  } else if (status !== "all") {
+    query = query.eq("status", status);
+  }
 
   // Pagination
   const from = (page - 1) * PER_PAGE;

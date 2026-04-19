@@ -4,14 +4,26 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Badge de statut pour un pick.
- * Utilise les icônes lucide-react pour un rendu propre sur fond sombre.
+ *
+ * Statuts :
+ *   - pending  : match pas encore commencé (badge bleu)
+ *   - awaiting : match passé, pas encore résolu (badge cyan)
+ *   - won      : pick gagnant (badge vert)
+ *   - lost     : pick perdant (badge rouge)
+ *   - void     : pick annulé (badge neutre)
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { CircleCheck, CircleX, CircleMinus, Clock } from "lucide-react";
+import {
+  CircleCheck,
+  CircleX,
+  CircleMinus,
+  Clock,
+  Hourglass,
+} from "lucide-react";
 
 
-type Status = "pending" | "won" | "lost" | "void";
+type Status = "pending" | "awaiting" | "won" | "lost" | "void";
 
 
 interface Props {
@@ -21,13 +33,23 @@ interface Props {
 }
 
 
-export default function PronosIAStatusBadge({ status, label, size = "md" }: Props) {
+export default function PronosIAStatusBadge({
+  status,
+  label,
+  size = "md",
+}: Props) {
   const config = {
     pending: {
       Icon: Clock,
       bg: "bg-amber-500/15",
       border: "border-amber-400/40",
       text: "text-amber-300",
+    },
+    awaiting: {
+      Icon: Hourglass,
+      bg: "bg-cyan-500/15",
+      border: "border-cyan-400/40",
+      text: "text-cyan-300",
     },
     won: {
       Icon: CircleCheck,

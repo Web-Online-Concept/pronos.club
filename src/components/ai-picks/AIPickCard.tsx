@@ -71,14 +71,20 @@ interface Props {
 export default async function AIPickCard({ pick, locale }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
+  // Détection du statut affiché : si pending mais match passé → "awaiting"
+  const eventTimestamp = new Date(pick.event_date).getTime();
+  const isAwaiting = pick.status === "pending" && eventTimestamp <= Date.now();
+
+  const displayStatus = isAwaiting ? "awaiting" : pick.status;
+
   const accent =
-    pick.status === "won"
+    displayStatus === "won"
       ? "emerald"
-      : pick.status === "lost"
+      : displayStatus === "lost"
         ? "red"
-        : pick.status === "void"
+        : displayStatus === "void"
           ? "neutral"
-          : "violet";
+          : "violet"; // pending et awaiting utilisent le violet
 
   const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
@@ -86,27 +92,47 @@ export default async function AIPickCard({ pick, locale }: Props) {
     ? (BOOKMAKER_LABELS[pick.odds_bookmaker] ?? pick.odds_bookmaker)
     : null;
 
-  const eventTime = new Date(pick.event_date).toLocaleTimeString(
-    { fr: "fr-FR", en: "en-US", es: "es-ES" }[locale] ?? "fr-FR",
-    { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" },
-  );
+  const localeMap: Record<string, string> = {
+    fr: "fr-FR",
+    en: "en-US",
+    es: "es-ES",
+  };
+  const dateLocale = localeMap[locale] ?? "fr-FR";
 
-  const statusLabel = t(`status_${pick.status}`);
+  const eventDate = new Date(pick.event_date);
+  const formattedDate = eventDate.toLocaleDateString(dateLocale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Paris",
+  });
+  const formattedTime = eventDate.toLocaleTimeString(dateLocale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Paris",
+  });
+
+  const statusLabel = t(`status_${displayStatus}`);
 
   return (
     <PronosIACard accent={accent} hoverable>
-      {/* HEADER — Sport, ligue, heure, statut */}
+      {/* HEADER — Sport, ligue, date+heure, statut */}
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
             <span className="text-sm">{sportEmoji}</span>
             <span>{leagueLabel}</span>
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs font-semibold text-white/80">
-            {eventTime}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
+            <span>{formattedDate}</span>
+            <span className="text-white/30">·</span>
+            <span className="font-mono">{formattedTime}</span>
           </span>
         </div>
-        <PronosIAStatusBadge status={pick.status} label={statusLabel} size="sm" />
+        <PronosIAStatusBadge
+          status={displayStatus}
+          label={statusLabel}
+          size="sm"
+        />
       </div>
 
       {/* MATCH */}

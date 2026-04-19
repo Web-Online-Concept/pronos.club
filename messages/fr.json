@@ -1438,6 +1438,7 @@
     "empty_live_title": "Aucun pronostic en cours",
     "empty_live_description": "Tous les matchs du jour ont déjà commencé ou ne sont pas encore générés. Rendez-vous dans l'historique pour consulter les résultats.",
     "empty_live_next_generation": "Nouveaux pronos chaque jour à 9h (heure de Paris)",
-    "empty_live_cta_history": "Consulter l'historique"
+    "empty_live_cta_history": "Consulter l'historique",
+    "status_awaiting": "En attente"
   }
 }

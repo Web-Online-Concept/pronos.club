@@ -53,23 +53,42 @@ interface Props {
 export default async function AIScorerCard({ pick, locale }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
+  // Détection du statut affiché : si pending mais match passé → "awaiting"
+  const eventTimestamp = new Date(pick.event_date).getTime();
+  const isAwaiting = pick.status === "pending" && eventTimestamp <= Date.now();
+  const displayStatus = isAwaiting ? "awaiting" : pick.status;
+
   const accent =
-    pick.status === "won"
+    displayStatus === "won"
       ? "emerald"
-      : pick.status === "lost"
+      : displayStatus === "lost"
         ? "red"
-        : pick.status === "void"
+        : displayStatus === "void"
           ? "neutral"
           : "violet";
 
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
 
-  const eventTime = new Date(pick.event_date).toLocaleTimeString(
-    { fr: "fr-FR", en: "en-US", es: "es-ES" }[locale] ?? "fr-FR",
-    { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" },
-  );
+  const localeMap: Record<string, string> = {
+    fr: "fr-FR",
+    en: "en-US",
+    es: "es-ES",
+  };
+  const dateLocale = localeMap[locale] ?? "fr-FR";
 
-  const statusLabel = t(`status_${pick.status}`);
+  const eventDate = new Date(pick.event_date);
+  const formattedDate = eventDate.toLocaleDateString(dateLocale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Paris",
+  });
+  const formattedTime = eventDate.toLocaleTimeString(dateLocale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Paris",
+  });
+
+  const statusLabel = t(`status_${displayStatus}`);
 
   return (
     <PronosIACard accent={accent} hoverable>
@@ -80,11 +99,17 @@ export default async function AIScorerCard({ pick, locale }: Props) {
             <span className="text-sm">⚽</span>
             <span>{leagueLabel}</span>
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs font-semibold text-white/80">
-            {eventTime}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
+            <span>{formattedDate}</span>
+            <span className="text-white/30">·</span>
+            <span className="font-mono">{formattedTime}</span>
           </span>
         </div>
-        <PronosIAStatusBadge status={pick.status} label={statusLabel} size="sm" />
+        <PronosIAStatusBadge
+          status={displayStatus}
+          label={statusLabel}
+          size="sm"
+        />
       </div>
 
       {/* MATCH */}

@@ -108,7 +108,12 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
 
   const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
-  const statusLabel = t(`status_${pick.status}`);
+  // Détection du statut affiché : si pending mais match passé → "awaiting"
+  const eventTimestamp = new Date(pick.event_date).getTime();
+  const isAwaiting = pick.status === "pending" && eventTimestamp <= Date.now();
+  const displayStatus = isAwaiting ? "awaiting" : pick.status;
+
+  const statusLabel = t(`status_${displayStatus}`);
 
   const eventDate = new Date(pick.event_date);
   const formattedDate = eventDate.toLocaleDateString(

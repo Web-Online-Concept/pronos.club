@@ -1438,6 +1438,7 @@
     "empty_live_title": "No picks currently live",
     "empty_live_description": "All today's matches have already started or haven't been generated yet. Head to the history to check the results.",
     "empty_live_next_generation": "New picks daily at 9 AM (Paris time)",
-    "empty_live_cta_history": "View history"
+    "empty_live_cta_history": "View history",
+    "status_awaiting": "Awaiting"
   }
 }

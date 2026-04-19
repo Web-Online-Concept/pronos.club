@@ -70,6 +70,7 @@ export default function AIHistoryFilters({
           onChange={(v) => updateFilter("status", v)}
           options={[
             { value: "all", label: t("history_filter_all") },
+            { value: "awaiting", label: t("status_awaiting") },
             { value: "won", label: t("status_won") },
             { value: "lost", label: t("status_lost") },
             { value: "void", label: t("status_void") },
