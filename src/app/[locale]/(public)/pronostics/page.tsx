@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import PickCard from "@/components/picks/PickCard";
 import ViewToggle from "@/components/layout/ViewToggle";
+import TipsterHero from "@/components/layout/TipsterHero";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -27,11 +28,11 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
       .map((l: any) => l.event_date)
       .filter(Boolean)
       .map((d: string) => new Date(d).getTime());
-    
+
     const earliestDate = legDates.length > 0
       ? new Date(Math.min(...legDates))
       : new Date(p.event_date);
-    
+
     return earliestDate > now;
   });
 
@@ -41,40 +42,35 @@ export default async function PronosticsPage({ params }: { params: Promise<{ loc
   return (
     <div className="flex min-h-[calc(100vh-100px)] flex-col">
 
-      {/* Hero full-width */}
-      <div
-        className="border-b border-emerald-900/50"
-        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      {/* Hero full-width avec 4 boutons nav */}
+      <TipsterHero
+        locale={locale}
+        currentPage="pronos"
+        tag={t("tag")}
+        title={t("title")}
       >
-        <div className="mx-auto max-w-2xl px-4 py-10">
-          <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-white">
-              {t("title")}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                </span>
-                <span className="text-xs font-semibold text-emerald-400">
-                  {activePicks.length > 1 ? t("badge_many", { count: activePicks.length }) : t("badge_one", { count: activePicks.length })}
-                </span>
-              </div>
-              {activePicks.length > 0 && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
-                  <span className="text-xs font-semibold text-sky-400">
-                    {freeCount > 1
-                      ? t("badge_premium_plural", { premium: premiumCount, free: freeCount })
-                      : t("badge_premium", { premium: premiumCount, free: freeCount })}
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Badges existants placés APRÈS les 4 boutons */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-xs font-semibold text-emerald-400">
+              {activePicks.length > 1 ? t("badge_many", { count: activePicks.length }) : t("badge_one", { count: activePicks.length })}
+            </span>
           </div>
+          {activePicks.length > 0 && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
+              <span className="text-xs font-semibold text-sky-400">
+                {freeCount > 1
+                  ? t("badge_premium_plural", { premium: premiumCount, free: freeCount })
+                  : t("badge_premium", { premium: premiumCount, free: freeCount })}
+              </span>
+            </div>
+          )}
         </div>
-      </div>
+      </TipsterHero>
 
       {/* View Toggle — s'affiche uniquement aux connectés */}
       <ViewToggle privateHref="/espace/historique?status=pending" isPublic={true} />
