@@ -1428,6 +1428,16 @@
     "modal_audit_title": "Audit automatique",
     "modal_audit_passed": "Faits vérifiés par l'agent d'audit",
     "modal_audit_description": "Un second agent IA avec accès au web a vérifié que ce pronostic ne contient pas d'erreur factuelle grossière (joueur transféré, équipe dans la mauvaise ligue, etc.).",
-    "modal_final_result_title": "Résultat final"
+    "modal_final_result_title": "Résultat final",
+    "badge_live": "En cours",
+    "page_title_live": "Pronos en cours",
+    "page_subtitle_live_count": "{count} pronostics actuellement disponibles. Dès qu'un match commence, le pronostic passe dans l'historique.",
+    "page_subtitle_live_generic": "Tous les pronostics dont le match n'a pas encore commencé.",
+    "section_classics_title": "Pronos classiques",
+    "section_scorers_title": "Pronos buteurs",
+    "empty_live_title": "Aucun pronostic en cours",
+    "empty_live_description": "Tous les matchs du jour ont déjà commencé ou ne sont pas encore générés. Rendez-vous dans l'historique pour consulter les résultats.",
+    "empty_live_next_generation": "Nouveaux pronos chaque jour à 9h (heure de Paris)",
+    "empty_live_cta_history": "Consulter l'historique"
   }
 }

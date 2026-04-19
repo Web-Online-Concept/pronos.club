@@ -1428,6 +1428,16 @@
     "modal_audit_title": "Automatic audit",
     "modal_audit_passed": "Facts verified by the audit agent",
     "modal_audit_description": "A second AI agent with web access verified that this pick doesn't contain any blatant factual error (transferred player, team in the wrong league, etc.).",
-    "modal_final_result_title": "Final result"
+    "modal_final_result_title": "Final result",
+    "badge_live": "Live",
+    "page_title_live": "Live AI Picks",
+    "page_subtitle_live_count": "{count} picks currently available. As soon as a match starts, the pick moves to the history.",
+    "page_subtitle_live_generic": "All picks for matches that haven't started yet.",
+    "section_classics_title": "Classic picks",
+    "section_scorers_title": "Goal scorer picks",
+    "empty_live_title": "No picks currently live",
+    "empty_live_description": "All today's matches have already started or haven't been generated yet. Head to the history to check the results.",
+    "empty_live_next_generation": "New picks daily at 9 AM (Paris time)",
+    "empty_live_cta_history": "View history"
   }
 }

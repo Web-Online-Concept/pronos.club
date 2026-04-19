@@ -1,25 +1,31 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia (V2 DESIGN)
+ * PAGE — /fr/pronos-ia (V3)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Fond blanc + cards sombres (style Calculateurs) + accent violet/bleu.
+ * Logique : affiche uniquement les picks dont le match n'a pas encore
+ * commencé (status='pending' ET event_date > now).
+ *
+ * Dès qu'un match démarre, le pick disparaît → part dans l'historique.
+ *
+ * Organisation : 2 sections séparées (Classiques / Buteurs), pas de tabs.
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { getTranslations } from "next-intl/server";
-import { HelpCircle, BarChart3, History } from "lucide-react";
+import { HelpCircle, BarChart3, History, Clock } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
 import AIStatsMiniBanner from "@/components/ai-picks/AIStatsMiniBanner";
-import AITabs from "@/components/ai-picks/AITabs";
 import AIPickCard, { type AIPickRow } from "@/components/ai-picks/AIPickCard";
 import AIScorerCard, { type AIScorerRow } from "@/components/ai-picks/AIScorerCard";
 import PronosIAButton from "@/components/ai-picks/ui/PronosIAButton";
 
-export const revalidate = 300;
+// Pas de cache long car on veut que les picks passent en historique dès que le match commence
+export const dynamic = "force-dynamic";
+export const revalidate = 60; // Refresh toutes les 60s
 
 
 export async function generateMetadata({
@@ -38,17 +44,21 @@ export async function generateMetadata({
 }
 
 
-const getTodayPicks = unstable_cache(
+/**
+ * Récupère uniquement les picks dont le match n'a PAS encore commencé.
+ * Dès que event_date <= now(), le pick passe dans l'historique.
+ */
+const getCurrentPicks = unstable_cache(
   async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const nowISO = new Date().toISOString();
 
     const { data, error } = await supabaseAdmin
       .from("ai_picks")
       .select(
         "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
       )
-      .eq("generation_batch", today)
-      .in("status", ["pending", "won", "lost", "void"])
+      .eq("status", "pending")
+      .gt("event_date", nowISO) // Match pas encore commencé
       .order("event_date", { ascending: true });
 
     if (error) {
@@ -62,8 +72,8 @@ const getTodayPicks = unstable_cache(
       scorers: rows.filter((r) => r.pick_type === "scorer") as AIScorerRow[],
     };
   },
-  ["ai-picks-today"],
-  { revalidate: 300, tags: ["ai-picks-today"] },
+  ["ai-picks-current"],
+  { revalidate: 60, tags: ["ai-picks-current"] },
 );
 
 
@@ -107,16 +117,18 @@ export default async function PronosIAPage({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
-  const [picksData, stats] = await Promise.all([getTodayPicks(), getGlobalStats()]);
+  const [picksData, stats] = await Promise.all([
+    getCurrentPicks(),
+    getGlobalStats(),
+  ]);
   const { classics, scorers } = picksData;
 
-  const totalToday = classics.length + scorers.length;
-  const todayLabel = formatTodayDateServer(locale);
+  const totalCurrent = classics.length + scorers.length;
 
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
-      {/* Fond décoratif subtil : gradient radial violet en haut */}
       <div className="relative">
+        {/* Halo violet décoratif en haut */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-[400px] opacity-[0.05]"
@@ -130,10 +142,13 @@ export default async function PronosIAPage({
 
           {/* ═══ HERO ═══ */}
           <header className="mb-10 text-center">
-            {/* Badge expérimental */}
+            {/* Badge "En cours" avec pulse */}
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-violet-700">
-              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500"></span>
-              {t("badge_experimental")}
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-75"></span>
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-500"></span>
+              </span>
+              {t("badge_live")}
             </div>
 
             {/* Titre avec gradient */}
@@ -145,12 +160,14 @@ export default async function PronosIAPage({
                     "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #a855f7 100%)",
                 }}
               >
-                {t("page_title")}
+                {t("page_title_live")}
               </span>
             </h1>
 
             <p className="mx-auto max-w-2xl text-base text-neutral-600 sm:text-lg">
-              {t("page_subtitle")}
+              {totalCurrent > 0
+                ? t("page_subtitle_live_count", { count: totalCurrent })
+                : t("page_subtitle_live_generic")}
             </p>
           </header>
 
@@ -196,56 +213,45 @@ export default async function PronosIAPage({
             </PronosIAButton>
           </div>
 
-          {/* ═══ DATE DU JOUR ═══ */}
-          <div className="my-12 text-center">
-            <div
-              className="inline-block rounded-full px-4 py-1 text-[11px] font-bold uppercase tracking-[0.25em] text-white"
-              style={{
-                background:
-                  "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-              }}
-            >
-              {t("today_label")}
-            </div>
-            <h2 className="mt-4 text-2xl font-bold capitalize text-neutral-900 sm:text-3xl">
-              {todayLabel}
-            </h2>
-          </div>
-
           {/* ═══ CONTENU ═══ */}
-          {totalToday === 0 ? (
-            <EmptyStateContent
-              title={t("empty_state_title")}
-              description={t("empty_state_description")}
-            />
+          {totalCurrent === 0 ? (
+            <EmptyStateNoPicks locale={locale} />
           ) : (
-            <AITabs
-              classicsCount={classics.length}
-              scorersCount={scorers.length}
-              locale={locale}
-              classicsContent={
-                <div className="space-y-4">
-                  {classics.length === 0 ? (
-                    <EmptyTabMessage message={t("no_classics_today")} />
-                  ) : (
-                    classics.map((pick) => (
+            <div className="mt-12 space-y-12">
+              {/* Section Classiques */}
+              {classics.length > 0 && (
+                <section>
+                  <SectionHeader
+                    emoji="🎯"
+                    title={t("section_classics_title")}
+                    count={classics.length}
+                    accent="violet"
+                  />
+                  <div className="space-y-4">
+                    {classics.map((pick) => (
                       <AIPickCard key={pick.id} pick={pick} locale={locale} />
-                    ))
-                  )}
-                </div>
-              }
-              scorersContent={
-                <div className="space-y-4">
-                  {scorers.length === 0 ? (
-                    <EmptyTabMessage message={t("no_scorers_today")} />
-                  ) : (
-                    scorers.map((pick) => (
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Section Buteurs */}
+              {scorers.length > 0 && (
+                <section>
+                  <SectionHeader
+                    emoji="⚽"
+                    title={t("section_scorers_title")}
+                    count={scorers.length}
+                    accent="fuchsia"
+                  />
+                  <div className="space-y-4">
+                    {scorers.map((pick) => (
                       <AIScorerCard key={pick.id} pick={pick} locale={locale} />
-                    ))
-                  )}
-                </div>
-              }
-            />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
           )}
 
           {/* ═══ DISCLAIMER BAS ═══ */}
@@ -261,54 +267,123 @@ export default async function PronosIAPage({
 
 
 // ═══════════════════════════════════════════════════════════════════
-// EMPTY STATES (en version card sombre)
+// SOUS-COMPOSANT : titre de section
 // ═══════════════════════════════════════════════════════════════════
 
-function EmptyStateContent({
+function SectionHeader({
+  emoji,
   title,
-  description,
+  count,
+  accent,
 }: {
+  emoji: string;
   title: string;
-  description: string;
+  count: number;
+  accent: "violet" | "fuchsia";
 }) {
+  const colors = {
+    violet: {
+      text: "text-violet-700",
+      bg: "bg-violet-100",
+      line: "from-violet-500/40",
+    },
+    fuchsia: {
+      text: "text-fuchsia-700",
+      bg: "bg-fuchsia-100",
+      line: "from-fuchsia-500/40",
+    },
+  }[accent];
+
+  return (
+    <div className="mb-6 flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{emoji}</span>
+        <h2 className="text-lg font-bold uppercase tracking-wider text-neutral-800">
+          {title}
+        </h2>
+        <span
+          className={`inline-flex min-w-[1.75rem] items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${colors.bg} ${colors.text}`}
+        >
+          {count}
+        </span>
+      </div>
+      <div
+        className={`h-px flex-1 bg-gradient-to-r ${colors.line} to-transparent`}
+      />
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// EMPTY STATE — aucun prono en cours
+// ═══════════════════════════════════════════════════════════════════
+
+async function EmptyStateNoPicks({ locale }: { locale: string }) {
+  const t = await getTranslations({ locale, namespace: "ai_picks" });
+
   return (
     <div
-      className="relative my-12 overflow-hidden rounded-2xl border border-white/[0.08] p-12 text-center text-white"
+      className="relative my-12 overflow-hidden rounded-2xl border p-10 text-center text-white sm:p-14"
       style={{
         background:
-          "linear-gradient(135deg, #0a0a0a 0%, #8b5cf60c 100%)",
+          "linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #312e81 70%, #4c1d95 100%)",
+        borderColor: "rgba(168, 85, 247, 0.25)",
       }}
     >
+      {/* Halos lumineux */}
       <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.35) 0%, transparent 50%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)",
+        }}
+      />
+      <div
+        aria-hidden
         className="absolute left-0 top-0 h-[2px] w-full"
         style={{
           background:
-            "linear-gradient(90deg, transparent 0%, #8b5cf6 50%, transparent 100%)",
+            "linear-gradient(90deg, transparent 0%, #a855f7 30%, #3b82f6 70%, transparent 100%)",
         }}
       />
-      <div className="mb-4 text-5xl">🤖</div>
-      <h3 className="mb-2 text-xl font-bold">{title}</h3>
-      <p className="mx-auto max-w-md text-sm text-white/60">{description}</p>
+
+      <div className="relative z-10">
+        <div className="mb-4 text-6xl">🤖</div>
+        <h3 className="mb-3 text-2xl font-extrabold">
+          {t("empty_live_title")}
+        </h3>
+        <p className="mx-auto mb-6 max-w-md text-sm text-white/70">
+          {t("empty_live_description")}
+        </p>
+
+        {/* Info horaire */}
+        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80 backdrop-blur">
+          <Clock size={14} strokeWidth={2.5} className="text-violet-300" />
+          <span>{t("empty_live_next_generation")}</span>
+        </div>
+
+        {/* Lien vers historique */}
+        <div className="flex justify-center">
+          <PronosIAButton
+            href={`/${locale}/pronos-ia/historique`}
+            variant="primary"
+            size="md"
+          >
+            <History size={14} strokeWidth={2.5} />
+            {t("empty_live_cta_history")}
+          </PronosIAButton>
+        </div>
+      </div>
     </div>
   );
-}
-
-function EmptyTabMessage({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">
-      {message}
-    </div>
-  );
-}
-
-
-function formatTodayDateServer(locale: string): string {
-  const map: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
-  return new Date().toLocaleDateString(map[locale] ?? "fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Paris",
-  });
 }
