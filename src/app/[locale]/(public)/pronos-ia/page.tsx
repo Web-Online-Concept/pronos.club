@@ -86,10 +86,6 @@ export default async function PronosIAPage({
           <EmptyStateNoPicks locale={locale} />
         ) : (
           <div className="space-y-12">
-            <p className="text-center text-sm text-neutral-600 sm:text-base">
-              {t("page_subtitle_live_generic")}
-            </p>
-
             {classics.length > 0 && (
               <section>
                 <SectionHeader
