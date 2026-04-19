@@ -578,20 +578,51 @@ export default function CalculatorProPage() {
   }
 
   function resetAll() {
-    const f = getFormulas(2)[0];
-    setLegs(
-      Array.from({ length: MAX_LEGS }, (_, i) => ({
-        odd: "", bookmaker: "", label: f.legLabels[i] ?? `Issue ${i + 1}`, commission: "0",
-        side: "back" as BetSide, locked: false, lockedStake: "",
-        currency: "EUR" as Currency, distribute: true, layStakeMode: "backer" as LayStakeMode,
-      }))
-    );
+    // Reset simple de tous les états à leurs valeurs de départ
     setAmount("100");
     setRounding(0);
     setRoundInMain(false);
     setCommonBookmaker("");
     setFormulaIdx(0);
-    applyTab(activeTab);
+    setNLegs(2);
+
+    // Construction des legs fraiches
+    const fresh: Leg[] = Array.from({ length: MAX_LEGS }, (_, i) => ({
+      odd: "", bookmaker: "", label: `Issue ${i + 1}`, commission: "0",
+      side: "back" as BetSide, locked: false, lockedStake: "",
+      currency: "EUR" as Currency, distribute: true, layStakeMode: "backer" as LayStakeMode,
+    }));
+
+    // Application du preset correspondant à l'onglet actif (sans lire le state stale)
+    if (activeTab === "matched") {
+      setUseCommissions(true);
+      setUseCurrencies(false);
+      setUseDistribution(false);
+      setLegs(
+        fresh.map((l, i) => ({
+          ...l,
+          side: i === 0 ? "back" : i === 1 ? "lay" : "back",
+          commission: i === 1 ? "5" : "0",
+          label: i === 0 ? "Back bookmaker" : i === 1 ? "Lay exchange" : `Issue ${i + 1}`,
+        }))
+      );
+    } else if (activeTab === "dutching") {
+      setUseCommissions(false);
+      setUseCurrencies(false);
+      setUseDistribution(true);
+      const f = getFormulas(2)[0];
+      setLegs(fresh.map((l, i) => ({ ...l, label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}` })));
+    } else if (activeTab === "surebet" || activeTab === "sameBook") {
+      setUseCommissions(false);
+      setUseCurrencies(false);
+      setUseDistribution(false);
+      const f = getFormulas(2)[0];
+      setLegs(fresh.map((l, i) => ({ ...l, label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}` })));
+    } else {
+      // allInOne : on garde les options actives (ne force rien), juste les legs fresh avec formule 1-2
+      const f = getFormulas(2)[0];
+      setLegs(fresh.map((l, i) => ({ ...l, label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}` })));
+    }
   }
 
   const result = useMemo((): CalcResult | null => {
@@ -1323,51 +1354,57 @@ export default function CalculatorProPage() {
       {activeTab !== "freebet" && result && <VerdictMini result={result} mainSymbol={mainSymbol} />}
 
       {activeTab !== "freebet" && result?.isSurebet && (
-        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3 sm:p-4">
-          <p className="mb-2.5 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
-            <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500/20">⚡</span>
-            Ordre de placement — cote la plus haute en premier
-          </p>
-          <div className="space-y-1.5">
-            {placementOrder.map((leg, rank) => {
-              const orig = legs[leg.origIndex];
-              const legSymbol = CURRENCY_SYMBOLS[orig.currency];
-              const legColor = LEG_COLORS[leg.origIndex % LEG_COLORS.length];
-              return (
-                <div
-                  key={leg.origIndex}
-                  className="flex items-center gap-2.5 rounded-lg border p-2"
-                  style={{
-                    background: `linear-gradient(90deg, ${legColor}22 0%, #0a0a0a 35%, #0a0a0a 100%)`,
-                    borderColor: `${legColor}40`,
-                  }}
-                >
-                  <span
-                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black text-white"
-                    style={{ background: legColor, boxShadow: `0 2px 8px -2px ${legColor}80` }}
+        <div
+          className="mt-3 overflow-hidden rounded-xl border border-emerald-500/30 shadow-xl"
+          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
+        >
+          <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
+          <div className="p-3 sm:p-4">
+            <p className="mb-2.5 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
+              <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500/20">⚡</span>
+              Ordre de placement — cote la plus haute en premier
+            </p>
+            <div className="space-y-1.5">
+              {placementOrder.map((leg, rank) => {
+                const orig = legs[leg.origIndex];
+                const legSymbol = CURRENCY_SYMBOLS[orig.currency];
+                const legColor = LEG_COLORS[leg.origIndex % LEG_COLORS.length];
+                return (
+                  <div
+                    key={leg.origIndex}
+                    className="flex items-center gap-2.5 rounded-lg border p-2"
+                    style={{
+                      background: `linear-gradient(90deg, ${legColor}26 0%, rgba(13,31,23,0.9) 35%, rgba(10,10,10,0.9) 100%)`,
+                      borderColor: `${legColor}55`,
+                    }}
                   >
-                    {rank + 1}
-                  </span>
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[12px] font-extrabold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
-                      {leg.side === "lay" && <span className="rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
-                      {leg.isLocked && <span className="rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
-                      {!orig.distribute && useDistribution && (<span className="rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>)}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-white/65">
-                      {leg.side === "lay" ? "Lay " : ""}
-                      <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
-                      <span className="mx-1 text-white/30">@</span>
-                      <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
-                      <span className="mx-1 text-white/30">chez</span>
-                      <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
-                      {leg.side === "lay" && (<span className="ml-1 text-white/40">(liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)</span>)}
+                    <span
+                      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black text-white"
+                      style={{ background: legColor, boxShadow: `0 2px 8px -2px ${legColor}80` }}
+                    >
+                      {rank + 1}
+                    </span>
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[12px] font-extrabold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
+                        {leg.side === "lay" && <span className="rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
+                        {leg.isLocked && <span className="rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
+                        {!orig.distribute && useDistribution && (<span className="rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>)}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-white/70">
+                        {leg.side === "lay" ? "Lay " : ""}
+                        <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
+                        <span className="mx-1 text-white/30">@</span>
+                        <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
+                        <span className="mx-1 text-white/30">chez</span>
+                        <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
+                        {leg.side === "lay" && (<span className="ml-1 text-white/40">(liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)</span>)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
