@@ -208,33 +208,58 @@ function parseSoccerResult(data: Record<string, unknown>): MatchResult | null {
 
 
 /**
- * Extrait les noms des buteurs depuis les plays ESPN foot.
+ * Extrait les noms des buteurs depuis les events ESPN foot.
  * Retourne un tableau dédupliqué de noms.
+ *
+ * ESPN structure ses données ainsi :
+ *   - `keyEvents[]` : TOUS les events (kickoffs, cartons, buts, etc.)
+ *     → on filtre sur `scoringPlay === true` pour garder uniquement les buts
+ *     → le buteur est dans `participants[0].athlete.displayName`
+ *
+ * Fallbacks legacy (au cas où ESPN changerait de structure selon les ligues) :
+ *   - `scoringPlays[]` (ancien format)
+ *   - `plays[]` avec type.text contenant "goal"
  */
 function extractSoccerScorers(data: Record<string, unknown>): string[] {
   const scorers = new Set<string>();
 
-  // Plusieurs endroits possibles dans l'API ESPN
-  const plays = (data?.plays as Array<Record<string, unknown>> | undefined) ?? [];
-  for (const play of plays) {
-    const type = (play.type as { text?: string } | undefined)?.text ?? "";
+  // ═══ PRIORITÉ 1 : keyEvents (format actuel ESPN pour la plupart des ligues)
+  const keyEvents =
+    (data?.keyEvents as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const event of keyEvents) {
+    if (event.scoringPlay !== true) continue;
 
-    // ESPN utilise des clés comme "Goal", "Penalty Goal", etc.
-    if (type.toLowerCase().includes("goal")) {
-      const participants =
-        (play.participants as Array<Record<string, unknown>> | undefined) ?? [];
-      for (const p of participants) {
-        const athlete = p.athlete as { displayName?: string } | undefined;
-        if (athlete?.displayName) {
-          scorers.add(athlete.displayName);
-        }
+    const participants =
+      (event.participants as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const p of participants) {
+      const athlete = p.athlete as { displayName?: string } | undefined;
+      if (athlete?.displayName) {
+        scorers.add(athlete.displayName);
       }
     }
   }
 
-  // Alternative : "scoringPlays" (parfois utilisé par ESPN)
-  const scoringPlays = (data?.scoringPlays as Array<Record<string, unknown>> | undefined) ?? [];
+  // ═══ FALLBACK 1 : scoringPlays (format alternatif)
+  const scoringPlays =
+    (data?.scoringPlays as Array<Record<string, unknown>> | undefined) ?? [];
   for (const play of scoringPlays) {
+    const participants =
+      (play.participants as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const p of participants) {
+      const athlete = p.athlete as { displayName?: string } | undefined;
+      if (athlete?.displayName) {
+        scorers.add(athlete.displayName);
+      }
+    }
+  }
+
+  // ═══ FALLBACK 2 : plays (ancien format)
+  const plays =
+    (data?.plays as Array<Record<string, unknown>> | undefined) ?? [];
+  for (const play of plays) {
+    const type = (play.type as { text?: string } | undefined)?.text ?? "";
+    if (!type.toLowerCase().includes("goal")) continue;
+
     const participants =
       (play.participants as Array<Record<string, unknown>> | undefined) ?? [];
     for (const p of participants) {
