@@ -1493,7 +1493,11 @@
     "history_filter_all_statuses": "All results",
     "history_filter_types_short": "Types",
     "history_filter_sports_short": "Sports",
-    "history_filter_statuses_short": "Results"
+    "history_filter_statuses_short": "Results",
+    "history_badge_awaiting_one": "{count} awaiting result",
+    "history_badge_awaiting_many": "{count} awaiting results",
+    "history_badge_finished_one": "{count} pick resolved",
+    "history_badge_finished_many": "{count} picks resolved"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

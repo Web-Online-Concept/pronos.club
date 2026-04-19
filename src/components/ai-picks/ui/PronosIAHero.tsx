@@ -4,18 +4,14 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Hero full-width réutilisé dans les 4 pages Pronos IA.
- * Structure calquée sur le hero tipster (/pronos) pour cohérence,
- * mais avec les couleurs IA (gradient bleu-violet au lieu d'emerald).
  *
  * Props :
  *   - locale          : langue courante
  *   - currentPage     : "live" | "how" | "stats" | "history"
- *                       → le bouton correspondant est en mode actif (gradient)
  *   - title           : titre spécifique à la page
- *   - badgeCount      : nombre à afficher dans le badge (si défini)
- *   - badgeLabel      : libellé custom du badge (ex: "X en cours" sur /pronos-ia)
- *
- * Si badgeCount/badgeLabel sont null, le badge n'est pas affiché.
+ *   - badgeLabel      : libellé du badge simple (ex: "X en cours")
+ *   - children        : contenu libre (ex: 2 badges custom).
+ *                       Si fourni, remplace badgeLabel.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -33,6 +29,7 @@ interface Props {
   title: string;
   badgeCount?: number | null;
   badgeLabel?: string | null;
+  children?: React.ReactNode;
 }
 
 
@@ -40,8 +37,8 @@ export default async function PronosIAHero({
   locale,
   currentPage,
   title,
-  badgeCount = null,
   badgeLabel = null,
+  children,
 }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
@@ -64,7 +61,7 @@ export default async function PronosIAHero({
 
       <div className="relative mx-auto max-w-2xl px-4 py-10">
         <div className="text-center">
-          {/* Tag (style tipster) */}
+          {/* Tag */}
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-violet-400">
             {t("hero_tag")}
           </p>
@@ -83,8 +80,12 @@ export default async function PronosIAHero({
             {title}
           </h1>
 
-          {/* Badge (si défini) */}
-          {badgeLabel !== null && (
+          {/* Badges : children > badgeLabel > rien */}
+          {children ? (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+              {children}
+            </div>
+          ) : badgeLabel !== null ? (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
                 <span className="relative flex h-2 w-2">
@@ -96,9 +97,9 @@ export default async function PronosIAHero({
                 </span>
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Nav buttons (4 boutons, un par page) */}
+          {/* Nav buttons (4 boutons) */}
           <nav className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <NavButton
               href={`/${locale}/pronos-ia`}
@@ -137,7 +138,7 @@ export default async function PronosIAHero({
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SOUS-COMPOSANT — Bouton de navigation (actif ou inactif)
+// SOUS-COMPOSANT — Bouton de navigation
 // ═══════════════════════════════════════════════════════════════════
 
 function NavButton({
@@ -158,7 +159,6 @@ function NavButton({
   active: boolean;
 }) {
   if (active) {
-    // Bouton actif : gradient bleu-violet plein
     return (
       <span
         className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-4 py-2 text-xs font-semibold text-white shadow-md"
@@ -174,7 +174,6 @@ function NavButton({
     );
   }
 
-  // Bouton inactif : bordure fine, fond sombre translucide
   return (
     <Link
       href={href}

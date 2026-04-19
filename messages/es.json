@@ -1493,7 +1493,11 @@
     "history_filter_all_statuses": "Todos los resultados",
     "history_filter_types_short": "Tipos",
     "history_filter_sports_short": "Deportes",
-    "history_filter_statuses_short": "Resultados"
+    "history_filter_statuses_short": "Resultados",
+    "history_badge_awaiting_one": "{count} a la espera del resultado",
+    "history_badge_awaiting_many": "{count} a la espera de resultados",
+    "history_badge_finished_one": "{count} pronóstico finalizado",
+    "history_badge_finished_many": "{count} pronósticos finalizados"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

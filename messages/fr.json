@@ -1493,7 +1493,11 @@
     "history_filter_all_statuses": "Tous les résultats",
     "history_filter_types_short": "Types",
     "history_filter_sports_short": "Sports",
-    "history_filter_statuses_short": "Résultats"
+    "history_filter_statuses_short": "Résultats",
+    "history_badge_awaiting_one": "{count} en attente de résultat",
+    "history_badge_awaiting_many": "{count} en attente de résultat",
+    "history_badge_finished_one": "{count} prono terminé",
+    "history_badge_finished_many": "{count} pronos terminés"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

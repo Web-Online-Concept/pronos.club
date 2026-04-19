@@ -108,20 +108,58 @@ export default async function HistoryPage({
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
 
+  // ═══════════════════════════════════════════════════════════════════
+  // COMPTEURS POUR LES 2 BADGES DU HERO
+  // (ignorent les filtres courants — on veut les totaux globaux)
+  // ═══════════════════════════════════════════════════════════════════
+  const [awaitingRes, finishedRes] = await Promise.all([
+    supabaseAdmin
+      .from("ai_picks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .lte("event_date", nowISO),
+    supabaseAdmin
+      .from("ai_picks")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["won", "lost", "void"]),
+  ]);
+
+  const awaitingCount = awaitingRes.count ?? 0;
+  const finishedCount = finishedRes.count ?? 0;
+
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
 
-      {/* HERO FULL-WIDTH */}
+      {/* HERO FULL-WIDTH avec 2 badges */}
       <PronosIAHero
         locale={locale}
         currentPage="history"
         title={t("history_page_title")}
-        badgeLabel={
-          totalCount > 0
-            ? t("history_badge_count", { count: totalCount })
-            : null
-        }
-      />
+      >
+        {/* Badge AWAITING (amber) - seulement si > 0 */}
+        {awaitingCount > 0 && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+            </span>
+            <span className="text-xs font-semibold text-amber-400">
+              {awaitingCount > 1
+                ? t("history_badge_awaiting_many", { count: awaitingCount })
+                : t("history_badge_awaiting_one", { count: awaitingCount })}
+            </span>
+          </div>
+        )}
+
+        {/* Badge FINISHED (violet) - toujours affiché */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
+          <span className="text-xs font-semibold text-violet-300">
+            {finishedCount > 1
+              ? t("history_badge_finished_many", { count: finishedCount })
+              : t("history_badge_finished_one", { count: finishedCount })}
+          </span>
+        </div>
+      </PronosIAHero>
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
 
@@ -150,7 +188,6 @@ export default async function HistoryPage({
             <div className="space-y-4">
               {picks.map((pick) => {
                 const base = pick as unknown;
-                // Calcul côté serveur pour éviter les mismatches d'hydratation
                 const isAwaiting =
                   pick.status === "pending" &&
                   new Date(pick.event_date) <= new Date(nowISO);
