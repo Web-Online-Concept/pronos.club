@@ -494,7 +494,6 @@ export default function Navbar() {
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
                   { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
-                  { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("ai_picks_how"), icon: "❓" },
                 ].map((link) => (
                   <Link
                     key={link.href}
