@@ -6,8 +6,9 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend
 } from "recharts";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import ViewToggle from "@/components/layout/ViewToggle";
+import TipsterHero from "@/components/layout/TipsterHero";
 
 const RED = "#ef4444";
 const GREEN = "#059669";
@@ -42,6 +43,7 @@ interface StatsData {
 
 export default function StatistiquesPage() {
   const t = useTranslations("statistics");
+  const locale = useLocale();
   const MONTH_NAMES = t("months").split(",");
 
   function formatMonth(ym: string) {
@@ -118,25 +120,22 @@ export default function StatistiquesPage() {
   return (
     <>
       <div className="flex min-h-[calc(100vh-100px)] flex-col">
-      {/* Hero full-width */}
-      <div
-        className="border-b border-emerald-900/50"
-        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      {/* Hero full-width avec 4 boutons nav */}
+      <TipsterHero
+        locale={locale}
+        currentPage="stats"
+        tag={t("tag")}
+        title={t("title")}
       >
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-white">{t("title")}</h1>
-            <p className="mt-2 text-sm text-white/40">{t("subtitle")}</p>
-            {showEuro && bk && uv > 0 && (
-              <div className="mt-3 inline-flex items-center gap-4 rounded-full bg-white/5 px-5 py-2">
-                <span className="text-xs text-white/40">{t("bankroll_label")} : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
-                <span className="text-xs text-white/40">{t("unit_label")} = <span className="font-bold text-emerald-400">{uv.toFixed(2)}€</span></span>
-              </div>
-            )}
+        {/* Sous-titre + bandeau bankroll placés AVANT les 4 boutons */}
+        <p className="text-sm text-white/40">{t("subtitle")}</p>
+        {showEuro && bk && uv > 0 && (
+          <div className="mt-3 inline-flex items-center gap-4 rounded-full bg-white/5 px-5 py-2">
+            <span className="text-xs text-white/40">{t("bankroll_label")} : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
+            <span className="text-xs text-white/40">{t("unit_label")} = <span className="font-bold text-emerald-400">{uv.toFixed(2)}€</span></span>
           </div>
-        </div>
-      </div>
+        )}
+      </TipsterHero>
 
       {/* View Toggle — s'affiche uniquement aux connectés */}
       <ViewToggle privateHref="/espace/stats" isPublic={true} />

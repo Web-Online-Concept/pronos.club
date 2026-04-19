@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import PickCard from "@/components/picks/PickCard";
 import ViewToggle from "@/components/layout/ViewToggle";
+import TipsterHero from "@/components/layout/TipsterHero";
 import type { Pick } from "@/lib/supabase/types";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 function lastDayOfMonth(ym: string) {
   const [y, m] = ym.split("-");
@@ -20,6 +21,7 @@ interface SportOption {
 
 export default function HistoriquePage() {
   const t = useTranslations("history");
+  const locale = useLocale();
   const MONTH_NAMES = t("months").split(",");
 
   const [isMobile, setIsMobile] = useState(false);
@@ -134,38 +136,33 @@ export default function HistoriquePage() {
 
   return (
     <>
-      {/* Hero full-width */}
-      <div
-        className="border-b border-emerald-900/50"
-        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      {/* Hero full-width avec 4 boutons nav */}
+      <TipsterHero
+        locale={locale}
+        currentPage="history"
+        tag={t("tag")}
+        title={t("title")}
       >
-        <div className="mx-auto max-w-2xl px-4 py-10">
-          <div className="text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("tag")}</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-white">
-              {t("title")}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-              {awaitingCount > 0 && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-                  </span>
-                  <span className="text-xs font-semibold text-amber-400">
-                    {awaitingCount > 1 ? t("awaiting_many", { count: awaitingCount }) : t("awaiting_one", { count: awaitingCount })}
-                  </span>
-                </div>
-              )}
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
-                <span className="text-xs font-semibold text-emerald-400">
-                  {finishedCount > 1 ? t("finished_many", { count: finishedCount }) : t("finished_one", { count: finishedCount })}
-                </span>
-              </div>
+        {/* Badges existants placés AVANT les 4 boutons */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {awaitingCount > 0 && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              </span>
+              <span className="text-xs font-semibold text-amber-400">
+                {awaitingCount > 1 ? t("awaiting_many", { count: awaitingCount }) : t("awaiting_one", { count: awaitingCount })}
+              </span>
             </div>
+          )}
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
+            <span className="text-xs font-semibold text-emerald-400">
+              {finishedCount > 1 ? t("finished_many", { count: finishedCount }) : t("finished_one", { count: finishedCount })}
+            </span>
           </div>
         </div>
-      </div>
+      </TipsterHero>
 
       {/* View Toggle — s'affiche uniquement aux connectés */}
       <ViewToggle privateHref="/espace/historique" isPublic={true} />

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
+import TipsterHero from "@/components/layout/TipsterHero";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -36,45 +37,39 @@ export default async function TipsterPage({ params }: { params: Promise<{ locale
 
   return (
     <>
-      {/* ═══════════ HERO ═══════════ */}
-      <section
-        className="relative overflow-hidden border-b border-emerald-900/50"
-        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      {/* ═══════════ HERO avec 4 boutons nav ═══════════ */}
+      <TipsterHero
+        locale={locale}
+        currentPage="tipster"
+        tag={t("hero_tag")}
+        title={t("hero_title")}
       >
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 -top-32 h-[400px] w-[400px] rounded-full bg-emerald-500/15 blur-[120px]" />
-          <div className="absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-emerald-400/10 blur-[100px]" />
-        </div>
+        {/* Sous-titre + 4 KPI placés AVANT les 4 boutons */}
+        <p className="mx-auto max-w-lg text-sm leading-relaxed text-white/40">
+          {t("hero_subtitle")}
+        </p>
 
-        <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("hero_tag")}</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">{t("hero_title")}</h1>
-          <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/40">
-            {t("hero_subtitle")}
-          </p>
-
-          {/* Live stats */}
-          {totalPicks > 0 && (
-            <div className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-6">
-              {[
-                { label: t("kpi_picks"), value: totalPicks.toString() },
-                { label: t("kpi_winrate"), value: `${Number(winRate).toFixed(2)}%`, green: winRate >= 50 },
-                { label: t("kpi_roi"), value: `${roi >= 0 ? "+" : ""}${Number(roi).toFixed(2)}%`, green: roi >= 0 },
-                { label: t("kpi_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, green: totalProfit >= 0 },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className={`text-xl font-extrabold ${
-                    "green" in stat && stat.green !== undefined
-                      ? stat.green ? "text-emerald-400" : "text-red-400"
-                      : "text-white"
-                  }`}>{stat.value}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+        {/* Live stats (4 KPI) */}
+        {totalPicks > 0 && (
+          <div className="mx-auto mt-5 flex flex-wrap items-center justify-center gap-6">
+            {[
+              { label: t("kpi_picks"), value: totalPicks.toString() },
+              { label: t("kpi_winrate"), value: `${Number(winRate).toFixed(2)}%`, green: winRate >= 50 },
+              { label: t("kpi_roi"), value: `${roi >= 0 ? "+" : ""}${Number(roi).toFixed(2)}%`, green: roi >= 0 },
+              { label: t("kpi_profit"), value: `${totalProfit >= 0 ? "+" : ""}${totalProfit.toFixed(3)}U`, green: totalProfit >= 0 },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className={`text-xl font-extrabold ${
+                  "green" in stat && stat.green !== undefined
+                    ? stat.green ? "text-emerald-400" : "text-red-400"
+                    : "text-white"
+                }`}>{stat.value}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </TipsterHero>
 
       <main className="mx-auto max-w-4xl px-4 pb-16">
 
