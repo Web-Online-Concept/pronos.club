@@ -82,6 +82,9 @@ export default async function TipsterHero({
             {title}
           </h1>
 
+          {/* Slot children : badges/stats custom par page (AVANT les boutons) */}
+          {children && <div className="mt-4">{children}</div>}
+
           {/* Nav buttons (4 boutons, un par page) */}
           <nav className="mt-6 flex flex-wrap items-center justify-center gap-2">
             <NavButton
@@ -113,9 +116,6 @@ export default async function TipsterHero({
               active={currentPage === "tipster"}
             />
           </nav>
-
-          {/* Slot children : badges/stats custom par page */}
-          {children && <div className="mt-5">{children}</div>}
         </div>
       </div>
     </div>
