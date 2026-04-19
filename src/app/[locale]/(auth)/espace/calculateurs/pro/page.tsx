@@ -13,6 +13,7 @@ type NLegs = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Rounding = 0 | 0.1 | 0.5 | 1 | 2 | 5;
 type BetSide = "back" | "lay";
 type Currency = "EUR" | "USD" | "GBP" | "BRL" | "CHF" | "CAD" | "AUD" | "JPY" | "BTC" | "ETH";
+type TabKey = "surebet" | "matched" | "freebet" | "dutching" | "sameBook" | "allInOne";
 
 interface Leg {
   odd: string;
@@ -70,29 +71,13 @@ const MAX_LEGS = 10;
 const CURRENCIES: Currency[] = ["EUR", "USD", "GBP", "BRL", "CHF", "CAD", "AUD", "JPY", "BTC", "ETH"];
 
 const DEFAULT_RATES: Record<Currency, number> = {
-  EUR: 1,
-  USD: 1.08,
-  GBP: 0.85,
-  BRL: 5.5,
-  CHF: 0.95,
-  CAD: 1.48,
-  AUD: 1.65,
-  JPY: 168,
-  BTC: 0.000015,
-  ETH: 0.00040,
+  EUR: 1, USD: 1.08, GBP: 0.85, BRL: 5.5, CHF: 0.95,
+  CAD: 1.48, AUD: 1.65, JPY: 168, BTC: 0.000015, ETH: 0.00040,
 };
 
 const LEG_COLORS = [
-  "#10b981", // emerald
-  "#06b6d4", // cyan
-  "#a855f7", // purple
-  "#f43f5e", // rose
-  "#eab308", // yellow
-  "#84cc16", // lime
-  "#f97316", // orange
-  "#3b82f6", // blue
-  "#ec4899", // pink
-  "#14b8a6", // teal
+  "#10b981", "#06b6d4", "#a855f7", "#f43f5e", "#eab308",
+  "#84cc16", "#f97316", "#3b82f6", "#ec4899", "#14b8a6",
 ];
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
@@ -100,8 +85,17 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
   CAD: "C$", AUD: "A$", JPY: "¥", BTC: "₿", ETH: "Ξ",
 };
 
+const TABS: { key: TabKey; icon: string; label: string; hint: string; color: string }[] = [
+  { key: "surebet", icon: "🎯", label: "Surebet", hint: "Arbitrage pur : 2 à 10 back chez différents bookmakers pour profit garanti", color: "#10b981" },
+  { key: "matched", icon: "🔄", label: "Matched", hint: "Qualifier un freebet : 1 back bookmaker + 1 lay exchange à la même cote", color: "#06b6d4" },
+  { key: "freebet", icon: "🎁", label: "Freebet", hint: "Convertir un freebet (non-rendu) en cash via un lay sur exchange", color: "#a855f7" },
+  { key: "dutching", icon: "⚖️", label: "Dutching", hint: "Répartir ta mise sur N issues pour gain identique — coche les issues gagnantes en D", color: "#f43f5e" },
+  { key: "sameBook", icon: "🔒", label: "Same-book", hint: "Couvrir toutes les issues sur un seul bookmaker — mode trading / FB à la clé", color: "#f97316" },
+  { key: "allInOne", icon: "💎", label: "Tout-en-un", hint: "Toutes les options accessibles — à toi de régler finement chaque paramètre", color: "#3b82f6" },
+];
+
 // ═══════════════════════════════════════════════════════════════
-// CALCULS
+// CALCULS (logique principale inchangée)
 // ═══════════════════════════════════════════════════════════════
 
 function roundStake(value: number, step: Rounding): number {
@@ -229,10 +223,7 @@ function calcPro(
   const profitMin = Math.min(...profitsMain);
   const roi = totalMain > 0.001 ? (profitMin / totalMain) * 100 : 0;
 
-  const sortedByOdd = odds
-    .map((o, i) => ({ o, i }))
-    .sort((a, b) => b.o - a.o)
-    .map((x, rank) => ({ ...x, rank }));
+  const sortedByOdd = odds.map((o, i) => ({ o, i })).sort((a, b) => b.o - a.o).map((x, rank) => ({ ...x, rank }));
   const volatilityRankByIdx = new Map<number, number>();
   sortedByOdd.forEach(({ i, rank }) => volatilityRankByIdx.set(i, rank));
 
@@ -275,99 +266,55 @@ function calcPro(
   };
 }
 
-// ═══════════════════════════════════════════════════════════════
-// COMPOSANTS RÉUTILISABLES
-// ═══════════════════════════════════════════════════════════════
-
-function ResultCard({
-  label,
-  value,
-  suffix,
-  color,
-  icon,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-  color: "green" | "red" | "amber" | "neutral";
-  icon: string;
-}) {
-  const bg = {
-    green: "linear-gradient(135deg, #064e3b 0%, #059669 100%)",
-    red: "linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)",
-    amber: "linear-gradient(135deg, #78350f 0%, #d97706 100%)",
-    neutral: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-  };
-  return (
-    <div className="overflow-hidden rounded-2xl p-4 text-center shadow-lg" style={{ background: bg[color] }}>
-      <span className="text-lg">{icon}</span>
-      <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-white/60">{label}</p>
-      <p className="mt-1 font-mono text-2xl font-black text-white">
-        {value.toFixed(2)}
-        {suffix}
-      </p>
-    </div>
-  );
+// Calcul dédié au mode Freebet (NSR = Non-Stake-Returned)
+// Convertit un freebet en cash garanti via un lay sur exchange
+interface FreebetResult {
+  freebetValue: number;
+  oddBack: number;
+  oddLay: number;
+  commissionLay: number;
+  layStake: number;
+  layStakeRounded: number;
+  liability: number;
+  liabilityRounded: number;
+  profitBackWins: number;
+  profitBackLoses: number;
+  guaranteedProfit: number;
+  conversionRate: number;
 }
 
-function VerdictBanner({ result, mainSymbol }: { result: CalcResult; mainSymbol: string }) {
-  if (result.isSurebet) {
-    return (
-      <div
-        className="mt-5 rounded-2xl px-6 py-5 text-center shadow-xl"
-        style={{ background: "linear-gradient(135deg, #047857 0%, #10b981 50%, #34d399 100%)" }}
-      >
-        <p className="text-2xl font-black text-white sm:text-3xl">🎯 SUREBET DÉTECTÉ</p>
-        <p className="mt-2 text-xs font-semibold text-white/80">
-          {result.hasPartialDistribution
-            ? "Profit garanti sur les issues ciblées — neutre sur les autres"
-            : "Arbitrage mathématique garanti — profit assuré peu importe le résultat"}
-        </p>
-        <div className="mt-3 inline-block rounded-xl bg-white/20 px-4 py-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Marge d&apos;arbitrage</p>
-          <p className="font-mono text-xl font-black text-white">+{result.arbPercent.toFixed(2)}%</p>
-        </div>
-        {result.isSuspicious && (
-          <div className="mt-4 rounded-xl bg-amber-500/30 px-4 py-3 text-left">
-            <p className="text-xs font-black text-white">⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%)</p>
-            <p className="mt-1 text-[11px] text-white/80">
-              Vérifie tes cotes : erreur de saisie probable, ou cote qui vient de bouger. Les vrais surebets tournent
-              entre 1% et 3%, rarement au-dessus de 5%.
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (Math.abs(result.arbPercent) < 0.5) {
-    return (
-      <div
-        className="mt-5 rounded-2xl px-6 py-5 text-center shadow-xl"
-        style={{ background: "linear-gradient(135deg, #78350f 0%, #d97706 50%, #f59e0b 100%)" }}
-      >
-        <p className="text-2xl font-black text-white sm:text-3xl">⚖️ QUASI BREAK-EVEN</p>
-        <p className="mt-2 text-xs font-semibold text-white/80">
-          TRJ {result.trj.toFixed(2)}% — idéal pour un matched betting (qualification sur freebet)
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="mt-5 rounded-2xl px-6 py-5 text-center shadow-xl"
-      style={{ background: "linear-gradient(135deg, #991b1b 0%, #ef4444 50%, #f87171 100%)" }}
-    >
-      <p className="text-2xl font-black text-white sm:text-3xl">❌ PAS D&apos;ARBITRAGE</p>
-      <p className="mt-2 text-xs font-semibold text-white/80">
-        TRJ {result.trj.toFixed(2)}% &lt; 100% — tu perdrais {Math.abs(result.arbPercent).toFixed(2)}% en moyenne
-      </p>
-      <p className="mt-3 text-[11px] text-white/70">
-        Cherche des cotes plus hautes, active un freebet/lay, ou abandonne cette combinaison.
-      </p>
-    </div>
-  );
+function calcFreebet(
+  freebetValue: number,
+  oddBack: number,
+  oddLay: number,
+  commissionLayPct: number,
+  rounding: Rounding
+): FreebetResult | null {
+  if (freebetValue <= 0 || oddBack <= 1 || oddLay <= 1) return null;
+  const c = Math.max(0, Math.min(0.4, commissionLayPct / 100));
+  // Formule : lay stake = V × (oddBack - 1) / (oddLay - c)
+  const B = (freebetValue * (oddBack - 1)) / (oddLay - c);
+  const L = B * (oddLay - 1);
+  const BRounded = roundStake(B, rounding);
+  const LRounded = BRounded * (oddLay - 1);
+  const profitBackWins = freebetValue * (oddBack - 1) - LRounded;
+  const profitBackLoses = BRounded * (1 - c);
+  const guaranteedProfit = Math.min(profitBackWins, profitBackLoses);
+  const conversionRate = (guaranteedProfit / freebetValue) * 100;
+  return {
+    freebetValue,
+    oddBack,
+    oddLay,
+    commissionLay: c * 100,
+    layStake: B,
+    layStakeRounded: BRounded,
+    liability: L,
+    liabilityRounded: LRounded,
+    profitBackWins,
+    profitBackLoses,
+    guaranteedProfit,
+    conversionRate,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -378,18 +325,29 @@ export default function CalculatorProPage() {
   const { user } = useAuth();
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
+  // Onglet actif (défaut : Tout-en-un pour ne rien casser pour les pros)
+  const [activeTab, setActiveTab] = useState<TabKey>("surebet");
+
   const [mode, setMode] = useState<Mode>("stake");
   const [amount, setAmount] = useState("100");
   const [nLegs, setNLegs] = useState<NLegs>(2);
   const [rounding, setRounding] = useState<Rounding>(0);
   const [useCommissions, setUseCommissions] = useState(false);
-  const [useLay, setUseLay] = useState(false);
   const [useCurrencies, setUseCurrencies] = useState(false);
   const [useDistribution, setUseDistribution] = useState(false);
   const [mainCurrency, setMainCurrency] = useState<Currency>("EUR");
   const [rates, setRates] = useState<Record<Currency, number>>(DEFAULT_RATES);
   const [showRates, setShowRates] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Bookmaker commun (utilisé uniquement en mode Same-book)
+  const [commonBookmaker, setCommonBookmaker] = useState("");
+
+  // États dédiés au mode Freebet
+  const [fbValue, setFbValue] = useState("10");
+  const [fbOddBack, setFbOddBack] = useState("5.000");
+  const [fbOddLay, setFbOddLay] = useState("5.100");
+  const [fbCommission, setFbCommission] = useState("5");
 
   const [legs, setLegs] = useState<Leg[]>(() =>
     Array.from({ length: MAX_LEGS }, (_, i) => ({
@@ -405,28 +363,78 @@ export default function CalculatorProPage() {
     }))
   );
 
+  // ─── Application d'un preset d'onglet ─────────────────────────
+  function applyTab(tab: TabKey) {
+    setActiveTab(tab);
+    if (tab === "surebet") {
+      setUseCommissions(false);
+      setUseCurrencies(false);
+      setUseDistribution(false);
+      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0" })));
+    } else if (tab === "matched") {
+      setNLegs(2);
+      setUseCommissions(true);
+      setUseCurrencies(false);
+      setUseDistribution(false);
+      setLegs(
+        legs.map((l, i) => ({
+          ...l,
+          side: i === 0 ? "back" : i === 1 ? "lay" : l.side,
+          distribute: true,
+          locked: false,
+          lockedStake: "",
+          commission: i === 1 ? "5" : "0",
+          label: i === 0 ? "Back bookmaker" : i === 1 ? "Lay exchange" : l.label,
+        }))
+      );
+    } else if (tab === "dutching") {
+      setUseCommissions(false);
+      setUseCurrencies(false);
+      setUseDistribution(true);
+      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0" })));
+    } else if (tab === "sameBook") {
+      setUseCommissions(false);
+      setUseCurrencies(false);
+      setUseDistribution(false);
+      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0", bookmaker: commonBookmaker })));
+    }
+    // allInOne et freebet : on ne force rien
+  }
+
+  function setCommonBookmakerAndSync(v: string) {
+    setCommonBookmaker(v);
+    setLegs(legs.map((l) => ({ ...l, bookmaker: v })));
+  }
+
   function updateLeg<K extends keyof Leg>(index: number, field: K, value: Leg[K]) {
     const next = [...legs];
     next[index] = { ...next[index], [field]: value };
+    // En same-book, synchroniser le bookmaker si user modifie une ligne
+    if (activeTab === "sameBook" && field === "bookmaker") {
+      setCommonBookmaker(value as string);
+      for (let i = 0; i < next.length; i++) next[i] = { ...next[i], bookmaker: value as string };
+    }
     setLegs(next);
   }
 
-  function toggleLock(index: number) {
+  function setLegLocked(index: number, locked: boolean, newStake?: string) {
     const next = [...legs];
-    const currentlyLocked = next[index].locked;
-    next[index] = {
-      ...next[index],
-      locked: !currentlyLocked,
-      lockedStake: !currentlyLocked ? next[index].lockedStake : "",
-    };
-    if (!currentlyLocked) {
+    if (locked) {
       for (let i = 0; i < next.length; i++) {
-        if (i !== index && next[i].locked) {
-          next[i] = { ...next[i], locked: false, lockedStake: "" };
-        }
+        next[i] = {
+          ...next[i],
+          locked: i === index,
+          lockedStake: i === index ? (newStake ?? next[i].lockedStake ?? "") : "",
+        };
       }
+    } else {
+      next[index] = { ...next[index], locked: false, lockedStake: "" };
     }
     setLegs(next);
+  }
+
+  function toggleSide(index: number) {
+    updateLeg(index, "side", legs[index].side === "back" ? "lay" : "back");
   }
 
   function toggleDistribute(index: number) {
@@ -441,51 +449,41 @@ export default function CalculatorProPage() {
   function resetAll() {
     setLegs(
       Array.from({ length: MAX_LEGS }, (_, i) => ({
-        odd: "",
-        bookmaker: "",
-        label: `Issue ${i + 1}`,
-        commission: "0",
-        side: "back" as BetSide,
-        locked: false,
-        lockedStake: "",
-        currency: "EUR" as Currency,
-        distribute: true,
+        odd: "", bookmaker: "", label: `Issue ${i + 1}`, commission: "0",
+        side: "back" as BetSide, locked: false, lockedStake: "",
+        currency: "EUR" as Currency, distribute: true,
       }))
     );
     setAmount("100");
     setRounding(0);
-    setUseCommissions(false);
-    setUseLay(false);
-    setUseCurrencies(false);
-    setUseDistribution(false);
-    setMainCurrency("EUR");
+    setCommonBookmaker("");
+    applyTab(activeTab); // re-appliquer le preset
   }
 
+  // ─── Calcul selon l'onglet ────────────────────────────────────
   const result = useMemo((): CalcResult | null => {
+    if (activeTab === "freebet") return null;
     const amt = parseFloat(amount);
-    const hasLock = legs
-      .slice(0, nLegs)
-      .some((l) => l.locked && parseFloat(l.lockedStake) > 0);
+    const hasLock = legs.slice(0, nLegs).some((l) => l.locked && parseFloat(l.lockedStake) > 0);
     if (!hasLock && (!amt || amt <= 0)) return null;
     const safeAmt = !amt || amt <= 0 ? 1 : amt;
     return calcPro(legs, nLegs, safeAmt, mode, rounding, useCommissions, rates, mainCurrency);
-  }, [legs, nLegs, amount, mode, rounding, useCommissions, rates, mainCurrency]);
+  }, [activeTab, legs, nLegs, amount, mode, rounding, useCommissions, rates, mainCurrency]);
 
-  const lockedLeg = legs.slice(0, nLegs).find((l) => l.locked && parseFloat(l.lockedStake) > 0);
-  const hasActiveLock = !!lockedLeg;
+  const freebetResult = useMemo((): FreebetResult | null => {
+    if (activeTab !== "freebet") return null;
+    return calcFreebet(parseFloat(fbValue), parseFloat(fbOddBack), parseFloat(fbOddLay), parseFloat(fbCommission), rounding);
+  }, [activeTab, fbValue, fbOddBack, fbOddLay, fbCommission, rounding]);
+
   const mainSymbol = CURRENCY_SYMBOLS[mainCurrency];
 
   async function copyRecap() {
     if (!result) return;
     const lines: string[] = [];
-    lines.push(`🎯 CALCULATEUR PRO — PRONOS.CLUB`);
-    lines.push(
-      `TRJ ${result.trj.toFixed(2)}% • ROI ${result.roiRounded.toFixed(2)}% • Profit garanti ${result.guaranteedProfitRounded.toFixed(2)}${mainSymbol}`
-    );
+    lines.push(`🎯 CALCULATEUR PRO — PRONOS.CLUB — Mode ${TABS.find((t) => t.key === activeTab)?.label}`);
+    lines.push(`TRJ ${result.trj.toFixed(2)}% • ROI ${result.roiRounded.toFixed(2)}% • Profit ${result.guaranteedProfitRounded.toFixed(2)}${mainSymbol}`);
     lines.push(`─────────────────────`);
-    const ordered = result.legs
-      .map((l, i) => ({ ...l, origIndex: i }))
-      .sort((a, b) => a.volatilityRank - b.volatilityRank);
+    const ordered = result.legs.map((l, i) => ({ ...l, origIndex: i })).sort((a, b) => a.volatilityRank - b.volatilityRank);
     ordered.forEach((leg, rank) => {
       const orig = legs[leg.origIndex];
       const sideTag = leg.side === "lay" ? " [LAY]" : "";
@@ -493,10 +491,9 @@ export default function CalculatorProPage() {
       const bookName = orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`;
       const labelName = orig.label || `Issue ${leg.origIndex + 1}`;
       const cur = CURRENCY_SYMBOLS[orig.currency];
-      const amountTxt =
-        leg.side === "back"
-          ? `${leg.stakeRounded.toFixed(2)}${cur} @ ${parseFloat(orig.odd).toFixed(2)}`
-          : `Lay ${leg.stakeRounded.toFixed(2)}${cur} @ ${parseFloat(orig.odd).toFixed(2)} (liability ${leg.liabilityRounded.toFixed(2)}${cur})`;
+      const amountTxt = leg.side === "back"
+        ? `${leg.stakeRounded.toFixed(2)}${cur} @ ${parseFloat(orig.odd).toFixed(2)}`
+        : `Lay ${leg.stakeRounded.toFixed(2)}${cur} @ ${parseFloat(orig.odd).toFixed(2)} (liab. ${leg.liabilityRounded.toFixed(2)}${cur})`;
       lines.push(`${rank + 1}. ${labelName}${sideTag}${distTag} — ${bookName}`);
       lines.push(`   ${amountTxt}`);
     });
@@ -507,9 +504,24 @@ export default function CalculatorProPage() {
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard non dispo
-    }
+    } catch {}
+  }
+
+  async function copyFreebetRecap() {
+    if (!freebetResult) return;
+    const lines: string[] = [];
+    lines.push(`🎁 CALCULATEUR PRO — PRONOS.CLUB — Conversion Freebet`);
+    lines.push(`─────────────────────`);
+    lines.push(`Freebet : ${freebetResult.freebetValue.toFixed(2)}€ @ ${freebetResult.oddBack.toFixed(2)} (back)`);
+    lines.push(`Lay     : ${freebetResult.layStakeRounded.toFixed(2)}€ @ ${freebetResult.oddLay.toFixed(2)} (comm ${freebetResult.commissionLay.toFixed(1)}%)`);
+    lines.push(`Liability : ${freebetResult.liabilityRounded.toFixed(2)}€`);
+    lines.push(`─────────────────────`);
+    lines.push(`Profit garanti : ${freebetResult.guaranteedProfit.toFixed(2)}€ (conversion ${freebetResult.conversionRate.toFixed(1)}%)`);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
   }
 
   if (!isPremium) {
@@ -518,9 +530,7 @@ export default function CalculatorProPage() {
         <EspaceHero title="Accès réservé" />
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <p className="text-4xl">🔒</p>
-          <p className="mt-4 text-sm font-bold text-neutral-500">
-            Cette page est réservée aux abonnés Premium.
-          </p>
+          <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux abonnés Premium.</p>
         </main>
       </>
     );
@@ -530,643 +540,792 @@ export default function CalculatorProPage() {
     ? result.legs.map((l, i) => ({ ...l, origIndex: i })).sort((a, b) => a.volatilityRank - b.volatilityRank)
     : [];
 
+  const currentTab = TABS.find((t) => t.key === activeTab)!;
+
+  const statusAccent = activeTab === "freebet"
+    ? (freebetResult && freebetResult.guaranteedProfit > 0
+        ? "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)"
+        : "linear-gradient(90deg, #525252, #737373, #525252)")
+    : !result
+      ? "linear-gradient(90deg, #525252, #737373, #525252)"
+      : result.isSurebet
+        ? "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)"
+        : Math.abs(result.arbPercent) < 0.5
+          ? "linear-gradient(90deg, #b45309, #d97706, #f59e0b, #d97706, #b45309)"
+          : "linear-gradient(90deg, #991b1b, #ef4444, #f87171, #ef4444, #991b1b)";
+
+  // ─── Configuration de l'affichage selon l'onglet ──────────────
+  const showBLToggle = activeTab === "matched" || activeTab === "allInOne";
+  const showDistributionCol = useDistribution; // visible si activé (forcé en dutching, libre en allInOne)
+  const showCommissionCol = useCommissions;
+  const showCurrencyCol = useCurrencies;
+  const showBookmakerCol = activeTab !== "sameBook";
+  const showCommonBookmakerInput = activeTab === "sameBook";
+  const showMarketSelector = activeTab !== "matched"; // matched = 2 fixe
+  const showOptionsFooter = activeTab === "allInOne";
+  const maxLegsForTab = activeTab === "matched" ? 2 : 10;
+
+  // En mode matched, bloquer nLegs à 2
+  const displayedNLegs = activeTab === "matched" ? 2 : nLegs;
+
   const useCases = [
-    { icon: "🎯", title: "Surebet classique", desc: "2 à 10 back chez différents bookmakers. Laisse tout en mode par défaut, saisis tes cotes.", color: "#10b981" },
-    { icon: "🔄", title: "Matched betting", desc: "Active + Back/Lay, mets 1 back + 1 lay à la même cote. Calibre ton freebet de qualification.", color: "#06b6d4" },
-    { icon: "🎁", title: "Freebet à convertir", desc: "Active + Back/Lay + 🔒 Fixer sur ta mise freebet, puis lay sur exchange pour sécuriser.", color: "#a855f7" },
-    { icon: "⚖️", title: "Dutching", desc: "Plusieurs issues back chez un même book pour répartir ton risque. Active + Profit ciblé pour choisir les issues gagnantes.", color: "#f43f5e" },
-    { icon: "🔒", title: "Trading same-book", desc: "Sur Betclic/Unibet : couvre toutes les issues sur le même book. Mode 'surebet négatif' avec FB à la clé.", color: "#f97316" },
-    { icon: "🌍", title: "Multi-devises", desc: "Bookmakers internationaux ? Active + Devises, saisis tes taux de change et calcule cross-devise.", color: "#3b82f6" },
+    { icon: "🎯", title: "Surebet classique", desc: "2 à 10 back chez différents bookmakers. Tous tes gains garantis.", color: "#10b981" },
+    { icon: "🔄", title: "Matched betting", desc: "1 back + 1 lay pour convertir ton freebet de qualification.", color: "#06b6d4" },
+    { icon: "🎁", title: "Freebet → Cash", desc: "Convertir un freebet non-rendu en cash garanti via un lay.", color: "#a855f7" },
+    { icon: "⚖️", title: "Dutching", desc: "Répartir la mise sur plusieurs issues, cibler celles gagnantes.", color: "#f43f5e" },
+    { icon: "🔒", title: "Trading same-book", desc: "Couvrir toutes les issues sur un même book (FB à la clé).", color: "#f97316" },
+    { icon: "💎", title: "Tout-en-un", desc: "Tous les paramètres accessibles pour les cas les plus tordus.", color: "#3b82f6" },
   ];
+
+  const inputBase = "w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-[13px] font-bold text-white outline-none placeholder:text-white/20 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30";
 
   return (
     <>
       <EspaceHero title="Calculateur Pro" />
 
-      <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
-        {/* ╔══════════════════════════════════════════════════════╗ */}
-        {/* ║              CALCULATEUR                            ║ */}
-        {/* ╚══════════════════════════════════════════════════════╝ */}
-
+      <main className="mx-auto max-w-4xl px-3 pb-12 pt-4 md:px-4 md:pt-5">
+        {/* ═══ CARD PRINCIPALE ═══ */}
         <div
-          className="overflow-hidden rounded-3xl border border-white/[0.06] shadow-2xl"
+          className="overflow-hidden rounded-2xl border border-white/[0.06] shadow-2xl"
           style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
         >
-          <div
-            className="h-1"
-            style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }}
-          />
+          <div className="h-0.5" style={{ background: statusAccent }} />
 
-          <div className="px-5 pb-6 pt-5 sm:px-8">
-            <p className="mb-4 text-center text-[11px] font-medium text-white/40">
-              💎 Surebet • Matched betting • Freebet • Dutching • Trading same-book — tout-en-un
-            </p>
-
-            <div className="mb-4 flex justify-center gap-2">
-              <button
-                onClick={() => setMode("stake")}
-                className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 text-[11px] font-bold transition-all ${
-                  mode === "stake"
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                💰 Mise totale
-              </button>
-              <button
-                onClick={() => setMode("target")}
-                className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 text-[11px] font-bold transition-all ${
-                  mode === "target"
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                🎯 Gain cible
-              </button>
-            </div>
-
-            <p className="text-center text-[11px] font-medium text-white/30">
-              {mode === "stake"
-                ? "Fixe ta mise totale, calcule le gain garanti"
-                : "Fixe le gain cible, calcule la mise nécessaire"}
-            </p>
-
-            <div
-              className={`mt-4 rounded-xl px-4 py-3 transition-opacity ${
-                hasActiveLock ? "bg-white/5 opacity-40" : "bg-white/5"
-              }`}
-            >
-              <label className="mb-2 block text-center text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                {mode === "stake" ? `💰 Mise totale (${mainSymbol})` : `🎯 Gain cible (${mainSymbol})`}
-              </label>
-              <div className="mx-auto flex max-w-[280px] items-center justify-center gap-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="100"
-                  inputMode="decimal"
-                  disabled={hasActiveLock}
-                  className="block w-full rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-center font-mono text-xl font-black text-emerald-300 placeholder-emerald-700 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed"
-                />
-                {useCurrencies && (
-                  <select
-                    value={mainCurrency}
-                    onChange={(e) => setMainCurrency(e.target.value as Currency)}
-                    className="cursor-pointer rounded-xl border-2 border-emerald-500/30 bg-emerald-500/10 px-2 py-3 text-center font-mono text-xs font-black text-emerald-300 outline-none focus:border-emerald-400"
+          <div className="p-4 sm:p-5">
+            {/* ─── ONGLETS ─── */}
+            <div className="mb-3 flex gap-1 overflow-x-auto pb-1 scrollbar-thin">
+              {TABS.map((tab) => {
+                const active = tab.key === activeTab;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => applyTab(tab.key)}
+                    className={`flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider transition-all ${
+                      active ? "text-white shadow-lg" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                    }`}
+                    style={
+                      active
+                        ? {
+                            background: `linear-gradient(135deg, ${tab.color} 0%, ${tab.color}cc 100%)`,
+                            boxShadow: `0 4px 12px -2px ${tab.color}80`,
+                          }
+                        : undefined
+                    }
                   >
-                    {CURRENCIES.map((c) => (
-                      <option key={c} value={c} className="bg-black">
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+                    <span className="text-sm">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {hasActiveLock && (
-              <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center">
-                <p className="text-[11px] text-amber-200">
-                  🔒 Champ désactivé — une mise fixée est active (
-                  <span className="font-mono font-black">
-                    {parseFloat(lockedLeg!.lockedStake).toFixed(2)}
-                    {CURRENCY_SYMBOLS[lockedLeg!.currency]}
-                  </span>{" "}
-                  sur {lockedLeg!.label || "une issue"})
-                </p>
-              </div>
-            )}
+            {/* Hint contextuel */}
+            <p className="mb-3 text-center text-[11px] italic text-white/50">{currentTab.hint}</p>
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 py-3">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
-              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setNLegs(n as NLegs)}
-                  className={`h-8 w-8 cursor-pointer rounded-lg text-xs font-black transition-all ${
-                    nLegs === n
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                      : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-2 text-center text-[10px] italic text-white/30">
-              {nLegs === 2
-                ? "Tennis, Basket, BTTS, Over/Under..."
-                : nLegs === 3
-                  ? "Football 1X2, matchs à 3 résultats possibles"
-                  : nLegs === 4
-                    ? "Golf top 4, hockey avec prolongations, courses..."
-                    : `${nLegs} issues — handicaps multiples, outrights, combinés`}
-            </p>
-
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => setUseCommissions(!useCommissions)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider transition-all ${
-                  useCommissions
-                    ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-400/50"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                {useCommissions ? "✓ Commissions" : "+ Commissions"}
-              </button>
-              <button
-                onClick={() => setUseLay(!useLay)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider transition-all ${
-                  useLay
-                    ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                {useLay ? "✓ Back/Lay" : "+ Back/Lay"}
-              </button>
-              <button
-                onClick={() => setUseCurrencies(!useCurrencies)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider transition-all ${
-                  useCurrencies
-                    ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/50"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                {useCurrencies ? "✓ Devises" : "+ Devises"}
-              </button>
-              <button
-                onClick={() => setUseDistribution(!useDistribution)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider transition-all ${
-                  useDistribution
-                    ? "bg-rose-500/20 text-rose-300 ring-1 ring-rose-400/50"
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                }`}
-              >
-                {useDistribution ? "✓ Profit ciblé" : "+ Profit ciblé"}
-              </button>
-              <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1">
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
-                <select
-                  value={rounding}
-                  onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
-                  className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
-                >
-                  <option value={0} className="bg-black">Aucun</option>
-                  <option value={0.1} className="bg-black">0.10</option>
-                  <option value={0.5} className="bg-black">0.50</option>
-                  <option value={1} className="bg-black">1</option>
-                  <option value={2} className="bg-black">2</option>
-                  <option value={5} className="bg-black">5</option>
-                </select>
-              </div>
-            </div>
-
-            {useCurrencies && (
-              <div className="mt-3">
-                <button
-                  onClick={() => setShowRates(!showRates)}
-                  className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/60 hover:text-amber-300"
-                >
-                  {showRates ? "▼" : "▶"} Taux de change (1 EUR =)
-                </button>
-                {showRates && (
-                  <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                      {CURRENCIES.filter((c) => c !== "EUR").map((cur) => (
-                        <label key={cur} className="block">
-                          <span className="mb-0.5 block text-center text-[9px] font-extrabold text-amber-400/60">
-                            {cur}
-                          </span>
-                          <input
-                            type="number"
-                            step="0.0001"
-                            value={rates[cur] || 1}
-                            onChange={(e) =>
-                              setRates({
-                                ...rates,
-                                [cur]: parseFloat(e.target.value) || 1,
-                              })
-                            }
-                            className="w-full rounded-md border border-amber-500/20 bg-black/40 px-1.5 py-1 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-center text-[9px] italic text-amber-400/50">
-                      Édite ces taux pour matcher ton bookmaker (valeurs indicatives)
-                    </p>
+            {/* ═══════════════════════════════════════════════════════ */}
+            {/* ═══ MODE FREEBET — UI DÉDIÉE ═══ */}
+            {/* ═══════════════════════════════════════════════════════ */}
+            {activeTab === "freebet" ? (
+              <div className="space-y-4">
+                {/* Résultat inline en haut */}
+                {freebetResult && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] font-bold">
+                    <span className="text-white/40">
+                      Profit garanti{" "}
+                      <span className={`font-mono ${freebetResult.guaranteedProfit > 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        {freebetResult.guaranteedProfit > 0 ? "+" : ""}
+                        {freebetResult.guaranteedProfit.toFixed(2)}€
+                      </span>
+                    </span>
+                    <span className="text-white/40">
+                      Conversion{" "}
+                      <span className={`font-mono ${freebetResult.conversionRate > 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        {freebetResult.conversionRate.toFixed(1)}%
+                      </span>
+                    </span>
+                    <span className="text-white/40">
+                      Liability requise{" "}
+                      <span className="font-mono text-amber-300">{freebetResult.liabilityRounded.toFixed(2)}€</span>
+                    </span>
                   </div>
                 )}
-              </div>
-            )}
 
-            <div className="my-6 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
-
-            <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-400">
-              📊 Cotes par bookmaker
-            </p>
-
-            <div className="space-y-3">
-              {legs.slice(0, nLegs).map((leg, i) => {
-                const legResult = result?.legs[i];
-                const accentColor = LEG_COLORS[i % LEG_COLORS.length];
-                const legSymbol = CURRENCY_SYMBOLS[leg.currency];
-
-                return (
-                  <div
-                    key={i}
-                    className="relative overflow-hidden rounded-2xl border-2 p-4 transition-all"
-                    style={{
-                      background: `linear-gradient(135deg, #0a0a0a 0%, ${accentColor}1a 50%, #0a0a0a 100%)`,
-                      borderColor: accentColor,
-                      boxShadow: `0 0 0 1px ${accentColor}40, 0 8px 24px -8px ${accentColor}80`,
-                    }}
-                  >
-                    <div className="absolute inset-x-0 top-0 h-1" style={{ background: accentColor }} />
-
-                    <div className="mb-3 flex items-center gap-2">
-                      <span
-                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black text-white"
-                        style={{ background: accentColor }}
-                      >
-                        {i + 1}
-                      </span>
-                      <input
-                        type="text"
-                        value={leg.label}
-                        onChange={(e) => updateLeg(i, "label", e.target.value)}
-                        placeholder={`Issue ${i + 1}`}
-                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs font-bold text-white outline-none placeholder:text-white/20 focus:border-white/30"
-                      />
-                      {useLay && (
-                        <div className="flex overflow-hidden rounded-lg border border-white/10 text-[9px] font-black">
-                          <button
-                            onClick={() => updateLeg(i, "side", "back")}
-                            className={`cursor-pointer px-2 py-1 transition-all ${
-                              leg.side === "back"
-                                ? "bg-emerald-500 text-white"
-                                : "bg-white/5 text-white/50 hover:text-white/80"
-                            }`}
-                          >
-                            BACK
-                          </button>
-                          <button
-                            onClick={() => updateLeg(i, "side", "lay")}
-                            className={`cursor-pointer px-2 py-1 transition-all ${
-                              leg.side === "lay"
-                                ? "bg-purple-500 text-white"
-                                : "bg-white/5 text-white/50 hover:text-white/80"
-                            }`}
-                          >
-                            LAY
-                          </button>
-                        </div>
-                      )}
-                      {useDistribution && (
-                        <button
-                          onClick={() => toggleDistribute(i)}
-                          className={`flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-[10px] font-black transition-all ${
-                            leg.distribute
-                              ? "bg-rose-500/30 text-rose-200 ring-1 ring-rose-400/50"
-                              : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50"
-                          }`}
-                          title={leg.distribute ? "Profit concentré ici" : "Issue neutre (retour = mise)"}
-                        >
-                          {leg.distribute ? "💎" : "·"}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => toggleLock(i)}
-                        className={`flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-xs transition-all ${
-                          leg.locked
-                            ? "bg-amber-500/30 text-amber-300 ring-1 ring-amber-400/50"
-                            : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60"
-                        }`}
-                        title={leg.locked ? "Déverrouiller la mise" : "Fixer cette mise"}
-                      >
-                        {leg.locked ? "🔒" : "🔓"}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-center text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/40">
-                          Cote {leg.side === "lay" ? "Lay" : "Back"}
-                        </label>
+                {/* Inputs */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border-2 border-purple-500/30 bg-purple-500/[0.06] p-3">
+                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-purple-300">
+                      🎁 Freebet (back bookmaker)
+                    </p>
+                    <div className="space-y-2">
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Valeur freebet (€)</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={fbValue}
+                          onChange={(e) => setFbValue(e.target.value)}
+                          inputMode="decimal"
+                          className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-purple-200 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote back</span>
                         <input
                           type="number"
                           step="0.001"
                           min="1.001"
-                          value={leg.odd}
-                          onChange={(e) => updateLeg(i, "odd", e.target.value)}
-                          placeholder="2.100"
+                          value={fbOddBack}
+                          onChange={(e) => setFbOddBack(e.target.value)}
                           inputMode="decimal"
-                          className={`w-full rounded-xl border-2 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-extrabold text-white outline-none placeholder:text-white/20 focus:ring-4 ${
-                            leg.side === "lay"
-                              ? "border-purple-500/30 focus:border-purple-500 focus:ring-purple-500/20"
-                              : "border-white/10 focus:border-emerald-500 focus:ring-emerald-500/20"
-                          }`}
+                          className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
                         />
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block text-center text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/40">
-                          {leg.side === "lay" ? "Exchange" : "Bookmaker"}
-                        </label>
-                        <input
-                          type="text"
-                          value={leg.bookmaker}
-                          onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
-                          placeholder={leg.side === "lay" ? "Betfair" : "Betclic"}
-                          className="w-full rounded-xl border-2 border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-sm font-bold text-white outline-none placeholder:text-white/20 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20"
-                        />
-                      </div>
+                      </label>
                     </div>
+                  </div>
 
-                    {useCommissions && (
-                      <div className="mt-2">
-                        <label className="mb-1 block text-center text-[9px] font-extrabold uppercase tracking-[0.15em] text-cyan-400/70">
-                          Commission {leg.side === "lay" ? "exchange" : "bookmaker"} (%)
-                        </label>
+                  <div className="rounded-lg border-2 border-emerald-500/30 bg-emerald-500/[0.06] p-3">
+                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-300">
+                      🔄 Lay (exchange)
+                    </p>
+                    <div className="space-y-2">
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote lay</span>
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="1.001"
+                          value={fbOddLay}
+                          onChange={(e) => setFbOddLay(e.target.value)}
+                          inputMode="decimal"
+                          className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Commission exchange (%)</span>
                         <input
                           type="number"
                           step="0.1"
                           min="0"
                           max="40"
-                          value={leg.commission}
-                          onChange={(e) => updateLeg(i, "commission", e.target.value)}
-                          placeholder={leg.side === "lay" ? "5" : "0"}
+                          value={fbCommission}
+                          onChange={(e) => setFbCommission(e.target.value)}
                           inputMode="decimal"
-                          className="w-full rounded-xl border-2 border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-center font-mono text-sm font-bold text-cyan-200 outline-none placeholder:text-cyan-700 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20"
+                          className="w-full rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center font-mono text-base font-black text-cyan-200 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
                         />
-                      </div>
-                    )}
-
-                    {useCurrencies && (
-                      <div className="mt-2">
-                        <label className="mb-1 block text-center text-[9px] font-extrabold uppercase tracking-[0.15em] text-amber-400/70">
-                          Devise de cette ligne
-                        </label>
-                        <select
-                          value={leg.currency}
-                          onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
-                          className="w-full cursor-pointer rounded-xl border-2 border-amber-500/20 bg-amber-500/5 px-3 py-2 text-center font-mono text-sm font-bold text-amber-200 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20"
-                        >
-                          {CURRENCIES.map((c) => (
-                            <option key={c} value={c} className="bg-black">
-                              {c} ({CURRENCY_SYMBOLS[c]})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {leg.locked && (
-                      <div className="mt-2">
-                        <label className="mb-1 block text-center text-[9px] font-extrabold uppercase tracking-[0.15em] text-amber-400/70">
-                          🔒 Mise {leg.side === "lay" ? "Lay " : ""}déjà placée ({legSymbol})
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={leg.lockedStake}
-                          onChange={(e) => updateLeg(i, "lockedStake", e.target.value)}
-                          placeholder="50.00"
-                          inputMode="decimal"
-                          className="w-full rounded-xl border-2 border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center font-mono text-sm font-black text-amber-200 outline-none placeholder:text-amber-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20"
-                        />
-                        <p className="mt-1 text-center text-[9px] italic text-amber-400/60">
-                          Les autres mises sont recalculées autour
-                        </p>
-                      </div>
-                    )}
-
-                    {legResult && (
-                      <>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div
-                            className={`rounded-lg border px-3 py-2 text-center ${
-                              leg.side === "lay"
-                                ? "border-purple-500/30 bg-purple-500/10"
-                                : "border-emerald-500/30 bg-emerald-500/10"
-                            } ${!leg.distribute ? "opacity-60" : ""}`}
-                          >
-                            <p
-                              className={`text-[9px] font-bold uppercase tracking-wider ${
-                                leg.side === "lay" ? "text-purple-400/70" : "text-emerald-400/70"
-                              }`}
-                            >
-                              {leg.side === "lay" ? "Mise Lay" : "Mise à placer"}
-                            </p>
-                            <p
-                              className={`font-mono text-sm font-black ${
-                                leg.side === "lay" ? "text-purple-300" : "text-emerald-300"
-                              }`}
-                            >
-                              {legResult.stakeRounded.toFixed(2)}
-                              {legSymbol}
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-white/5 px-3 py-2 text-center">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">
-                              {leg.side === "lay" ? "Liability" : "Si gagne"}
-                            </p>
-                            <p className="font-mono text-sm font-black text-white">
-                              {leg.side === "lay"
-                                ? `${legResult.liabilityRounded.toFixed(2)}${legSymbol}`
-                                : `+${legResult.profit.toFixed(2)}${mainSymbol}`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between text-[9px] font-bold text-white/40">
-                            <span>Part du capital</span>
-                            <span className="font-mono">{legResult.sharePercent.toFixed(1)}%</span>
-                          </div>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, legResult.sharePercent)}%`,
-                                background: accentColor,
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        {!leg.distribute && useDistribution && (
-                          <p className="mt-2 text-center text-[9px] italic text-white/30">
-                            Issue neutre : retour ≈ mise, aucun profit si elle gagne
-                          </p>
-                        )}
-                      </>
-                    )}
+                      </label>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <p className="mt-4 text-center text-[10px] italic text-white/30">
-              💡 Astuce : 🔓 fixe une mise déjà placée • 💎 cible le profit sur certaines issues uniquement
-            </p>
-
-            <div className="mt-3 text-center">
-              <button
-                onClick={resetAll}
-                className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:bg-white/10 hover:text-white/70"
-              >
-                🔄 Réinitialiser
-              </button>
-            </div>
-
-            {result && (
-              <>
-                <div className="my-6 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
-                <p className="mb-4 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/50">
-                  📈 Résultats
-                </p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <ResultCard
-                    label={result.hasLay ? "Capital engagé" : "Mise totale"}
-                    value={result.totalStakeRounded}
-                    suffix={mainSymbol}
-                    color="neutral"
-                    icon="💰"
-                  />
-                  <ResultCard
-                    label="Gain garanti"
-                    value={result.guaranteedPayoutRounded}
-                    suffix={mainSymbol}
-                    color="neutral"
-                    icon="🎯"
-                  />
-                  <ResultCard
-                    label="Profit net"
-                    value={result.guaranteedProfitRounded}
-                    suffix={mainSymbol}
-                    color={result.guaranteedProfitRounded >= 0 ? "green" : "red"}
-                    icon="💎"
-                  />
-                  <ResultCard
-                    label="ROI"
-                    value={result.roiRounded}
-                    suffix="%"
-                    color={result.roiRounded >= 0 ? "green" : "red"}
-                    icon="📈"
-                  />
                 </div>
 
-                {result.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
-                  <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center">
-                    <p className="text-[11px] text-amber-200">
-                      ⚠️ L&apos;arrondi réduit le profit de{" "}
-                      <span className="font-mono font-black">
-                        {result.roundingLoss.toFixed(2)}
-                        {mainSymbol}
-                      </span>{" "}
-                      — désactive-le pour le rendement maximal
-                    </p>
+                {/* Résultats détaillés */}
+                {freebetResult && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+                      <p className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-300">🎯 Mise lay à placer</p>
+                      <p className="mt-1 font-mono text-2xl font-black text-emerald-200">{freebetResult.layStakeRounded.toFixed(2)}€</p>
+                      <p className="mt-0.5 text-[10px] text-emerald-400/70">@ cote {freebetResult.oddLay.toFixed(3)}</p>
+                    </div>
+                    <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3 text-center">
+                      <p className="text-[9px] font-extrabold uppercase tracking-wider text-amber-300">💳 Liability requise (exchange)</p>
+                      <p className="mt-1 font-mono text-2xl font-black text-amber-200">{freebetResult.liabilityRounded.toFixed(2)}€</p>
+                      <p className="mt-0.5 text-[10px] text-amber-400/70">Solde à disposer</p>
+                    </div>
                   </div>
                 )}
 
-                {result.hasMultiCurrency && (
-                  <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center">
-                    <p className="text-[11px] text-amber-200">
-                      💱 Multi-devises actif — le profit dépend des taux de change saisis. Vérifie-les avant de miser.
-                    </p>
+                {/* Scénarios */}
+                {freebetResult && (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-white/50">📊 Scénarios</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+                        <span className="text-[11px] text-white/60">Si back gagne</span>
+                        <span className={`font-mono text-sm font-black ${freebetResult.profitBackWins >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                          {freebetResult.profitBackWins >= 0 ? "+" : ""}
+                          {freebetResult.profitBackWins.toFixed(2)}€
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+                        <span className="text-[11px] text-white/60">Si back perd</span>
+                        <span className={`font-mono text-sm font-black ${freebetResult.profitBackLoses >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                          {freebetResult.profitBackLoses >= 0 ? "+" : ""}
+                          {freebetResult.profitBackLoses.toFixed(2)}€
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                <VerdictBanner result={result} mainSymbol={mainSymbol} />
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
+                    <select
+                      value={rounding}
+                      onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
+                      className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
+                    >
+                      <option value={0} className="bg-black">Aucun</option>
+                      <option value={0.1} className="bg-black">0.10</option>
+                      <option value={0.5} className="bg-black">0.50</option>
+                      <option value={1} className="bg-black">1</option>
+                      <option value={2} className="bg-black">2</option>
+                      <option value={5} className="bg-black">5</option>
+                    </select>
+                  </div>
+                  {freebetResult && (
+                    <button
+                      onClick={copyFreebetRecap}
+                      className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
+                    >
+                      {copied ? "✅ Copié" : "📋 Copier"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ═══════════════════════════════════════════════════════ */
+              /* ═══ MODES SUREBET / MATCHED / DUTCHING / SAMEBOOK / ALLINONE ═══ */
+              /* ═══════════════════════════════════════════════════════ */
+              <>
+                {/* ─── CONTROLS : mode + enjeu + marché ─── */}
+                <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_auto] md:items-center">
+                  {/* Mode stake/target */}
+                  <div className="flex overflow-hidden rounded-lg border border-white/10">
+                    <button
+                      onClick={() => setMode("stake")}
+                      className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
+                        mode === "stake" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
+                      }`}
+                    >
+                      💰 Mise totale
+                    </button>
+                    <button
+                      onClick={() => setMode("target")}
+                      className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
+                        mode === "target" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
+                      }`}
+                    >
+                      🎯 Gain cible
+                    </button>
+                  </div>
 
-                {(result.isSurebet || result.hasLay) && (
-                  <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
-                    <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/20 text-xs">
-                        ⚡
-                      </span>
-                      Ordre de placement — en clair
-                    </p>
-                    <div className="space-y-2 text-[13px] leading-relaxed text-white/80">
-                      <p className="text-[11px] italic text-white/50">
-                        Mise en premier sur la cote la plus haute (la plus susceptible de baisser).
-                      </p>
-                      {placementOrder.map((leg, rank) => {
-                        const orig = legs[leg.origIndex];
-                        const legSymbol = CURRENCY_SYMBOLS[orig.currency];
-                        return (
-                          <div
-                            key={leg.origIndex}
-                            className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5"
-                          >
-                            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">
-                              {rank + 1}
-                            </span>
-                            <div className="flex-1 text-[12px]">
-                              <p className="font-bold text-white">
-                                {orig.label || `Issue ${leg.origIndex + 1}`}
-                                {leg.side === "lay" && (
-                                  <span className="ml-1 rounded bg-purple-500/30 px-1.5 py-0.5 text-[9px] font-black text-purple-200">
-                                    LAY
-                                  </span>
-                                )}
-                                {leg.isLocked && (
-                                  <span className="ml-1 rounded bg-amber-500/30 px-1.5 py-0.5 text-[9px] font-black text-amber-200">
-                                    🔒 FIXÉE
-                                  </span>
-                                )}
-                                {!orig.distribute && useDistribution && (
-                                  <span className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-black text-white/60">
-                                    NEUTRE
-                                  </span>
-                                )}
-                              </p>
-                              <p className="mt-0.5 text-white/60">
-                                {leg.side === "lay" ? "Lay " : "Mise "}
-                                <span className="font-mono font-black text-emerald-300">
-                                  {leg.stakeRounded.toFixed(2)}
-                                  {legSymbol}
-                                </span>{" "}
-                                à la cote{" "}
-                                <span className="font-mono font-black text-white">
-                                  {parseFloat(orig.odd).toFixed(2)}
-                                </span>{" "}
-                                chez{" "}
-                                <span className="font-bold text-cyan-300">
-                                  {orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}
+                  {/* Enjeu */}
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80">
+                      {mode === "stake" ? "Enjeu" : "Gain"}
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      value={amount}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })));
+                      }}
+                      placeholder="100"
+                      inputMode="decimal"
+                      className="w-24 bg-transparent text-center font-mono text-sm font-black text-emerald-300 outline-none placeholder:text-emerald-700"
+                    />
+                    <select
+                      value={mainCurrency}
+                      onChange={(e) => setMainCurrency(e.target.value as Currency)}
+                      className="cursor-pointer bg-transparent text-[11px] font-bold text-emerald-300 outline-none"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c} value={c} className="bg-black">
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Marché (masqué si matched = 2 fixe) */}
+                  {showMarketSelector ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
+                      {Array.from({ length: maxLegsForTab - 1 }, (_, i) => i + 2).map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setNLegs(n as NLegs)}
+                          className={`h-7 w-7 cursor-pointer rounded-md text-[11px] font-black transition ${
+                            nLegs === n
+                              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
+                              : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">🔄 2 paris (back + lay)</span>
+                  )}
+                </div>
+
+                {/* Bookmaker commun (same-book only) */}
+                {showCommonBookmakerInput && (
+                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-300">🔒 Bookmaker commun</span>
+                    <input
+                      type="text"
+                      value={commonBookmaker}
+                      onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
+                      placeholder="Betclic, Unibet, PMU..."
+                      className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400"
+                    />
+                  </div>
+                )}
+
+                {/* ═══ TABLEAU DESKTOP ═══ */}
+                <div className="hidden md:block">
+                  <div className="overflow-x-auto rounded-lg border border-white/5">
+                    <table className="w-full border-collapse text-[12px]">
+                      <thead>
+                        <tr className="bg-white/[0.03] text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+                          <th className="w-8 px-1 py-1.5"></th>
+                          <th className="px-2 py-1.5 text-left">Label</th>
+                          {showBLToggle && <th className="w-12 px-1 py-1.5">B/L</th>}
+                          <th className="w-20 px-1 py-1.5">Cote</th>
+                          {showCommissionCol && <th className="w-16 px-1 py-1.5">% Comm</th>}
+                          {showBookmakerCol && <th className="px-2 py-1.5 text-left">Bookmaker</th>}
+                          <th className="w-24 px-1 py-1.5">Mise</th>
+                          {showCurrencyCol && <th className="w-16 px-1 py-1.5">Dev.</th>}
+                          {showDistributionCol && <th className="w-10 px-1 py-1.5">D</th>}
+                          <th className="w-10 px-1 py-1.5">C</th>
+                          <th className="w-24 px-2 py-1.5 text-right">Gains</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {legs.slice(0, displayedNLegs).map((leg, i) => {
+                          const legResult = result?.legs[i];
+                          const color = LEG_COLORS[i % LEG_COLORS.length];
+                          const profit = legResult?.profit ?? 0;
+                          const isLay = leg.side === "lay";
+
+                          return (
+                            <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
+                              <td className="px-1 py-1.5 text-center">
+                                <span
+                                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-white"
+                                  style={{ background: color }}
+                                >
+                                  {i + 1}
                                 </span>
-                                {leg.side === "lay" && (
-                                  <>
-                                    {" "}
-                                    <span className="text-white/40">
-                                      (liability{" "}
-                                      <span className="font-mono font-black text-amber-300">
-                                        {leg.liabilityRounded.toFixed(2)}
-                                        {legSymbol}
-                                      </span>
-                                      )
-                                    </span>
-                                  </>
-                                )}
-                              </p>
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <input
+                                  type="text"
+                                  value={leg.label}
+                                  onChange={(e) => updateLeg(i, "label", e.target.value)}
+                                  placeholder={`Issue ${i + 1}`}
+                                  className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
+                                />
+                              </td>
+                              {showBLToggle && (
+                                <td className="px-1 py-1.5 text-center">
+                                  <button
+                                    onClick={() => toggleSide(i)}
+                                    className={`h-7 w-10 cursor-pointer rounded-md text-xs font-black transition ${
+                                      isLay
+                                        ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
+                                        : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                                    }`}
+                                    title={isLay ? "Bascule en Back" : "Bascule en Lay"}
+                                  >
+                                    {isLay ? "−" : "+"}
+                                  </button>
+                                </td>
+                              )}
+                              <td className="px-1 py-1.5">
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  min="1.001"
+                                  value={leg.odd}
+                                  onChange={(e) => updateLeg(i, "odd", e.target.value)}
+                                  placeholder="2.000"
+                                  inputMode="decimal"
+                                  className={inputBase + (isLay ? " border-purple-500/20 focus:border-purple-500 focus:ring-purple-500/30" : "")}
+                                />
+                              </td>
+                              {showCommissionCol && (
+                                <td className="px-1 py-1.5">
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="40"
+                                    value={leg.commission}
+                                    onChange={(e) => updateLeg(i, "commission", e.target.value)}
+                                    placeholder="0"
+                                    inputMode="decimal"
+                                    className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                                  />
+                                </td>
+                              )}
+                              {showBookmakerCol && (
+                                <td className="px-2 py-1.5">
+                                  <input
+                                    type="text"
+                                    value={leg.bookmaker}
+                                    onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
+                                    placeholder={isLay ? "Betfair" : "Betclic"}
+                                    className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
+                                  />
+                                </td>
+                              )}
+                              <td className="px-1 py-1.5">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
+                                  onChange={(e) => setLegLocked(i, true, e.target.value)}
+                                  inputMode="decimal"
+                                  className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold outline-none focus:ring-1 ${
+                                    leg.locked
+                                      ? "border-amber-500/40 bg-amber-500/10 text-amber-200 focus:border-amber-400 focus:ring-amber-500/30"
+                                      : "border-white/10 bg-white/5 text-white focus:border-emerald-500 focus:ring-emerald-500/30"
+                                  }`}
+                                />
+                              </td>
+                              {showCurrencyCol && (
+                                <td className="px-1 py-1.5">
+                                  <select
+                                    value={leg.currency}
+                                    onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                    className="w-full cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-1 py-1 text-center text-[11px] font-bold text-amber-200 outline-none focus:border-amber-400"
+                                  >
+                                    {CURRENCIES.map((c) => (
+                                      <option key={c} value={c} className="bg-black">
+                                        {c}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              )}
+                              {showDistributionCol && (
+                                <td className="px-1 py-1.5 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={leg.distribute}
+                                    onChange={() => toggleDistribute(i)}
+                                    className="h-4 w-4 cursor-pointer accent-rose-500"
+                                  />
+                                </td>
+                              )}
+                              <td className="px-1 py-1.5 text-center">
+                                <input
+                                  type="radio"
+                                  name="lockRadio"
+                                  checked={leg.locked}
+                                  onChange={() => setLegLocked(i, !leg.locked)}
+                                  className="h-4 w-4 cursor-pointer accent-amber-400"
+                                />
+                              </td>
+                              <td
+                                className={`px-2 py-1.5 text-right font-mono text-[12px] font-black ${
+                                  profit > 0.01 ? "text-emerald-300" : profit < -0.01 ? "text-rose-300" : "text-white/60"
+                                }`}
+                              >
+                                {profit > 0 ? "+" : ""}
+                                {profit.toFixed(2)}
+                                {mainSymbol}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Total */}
+                        <tr className="border-t-2 border-emerald-500/30 bg-emerald-500/[0.03]">
+                          <td
+                            colSpan={
+                              2 +
+                              (showBLToggle ? 1 : 0) +
+                              1 +
+                              (showCommissionCol ? 1 : 0) +
+                              (showBookmakerCol ? 1 : 0)
+                            }
+                            className="px-2 py-1.5 text-right text-[11px] font-extrabold uppercase tracking-wider text-emerald-400"
+                          >
+                            Enjeu total
+                          </td>
+                          <td className="px-1 py-1.5">
+                            <div className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[13px] font-black text-emerald-200">
+                              {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
+                            </div>
+                          </td>
+                          {showCurrencyCol && (
+                            <td className="px-1 py-1.5 text-center text-[11px] font-bold text-emerald-300">{mainCurrency}</td>
+                          )}
+                          {showDistributionCol && <td />}
+                          <td className="px-1 py-1.5 text-center">
+                            <input
+                              type="radio"
+                              name="lockRadio"
+                              checked={!legs.some((l) => l.locked)}
+                              onChange={() => setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })))}
+                              className="h-4 w-4 cursor-pointer accent-emerald-400"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono text-[12px] font-black text-emerald-300">
+                            {result ? (result.guaranteedProfitRounded >= 0 ? "+" : "") + result.guaranteedProfitRounded.toFixed(2) + mainSymbol : ""}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* ═══ CARDS MOBILE ═══ */}
+                <div className="md:hidden">
+                  <div className="space-y-2">
+                    {legs.slice(0, displayedNLegs).map((leg, i) => {
+                      const legResult = result?.legs[i];
+                      const color = LEG_COLORS[i % LEG_COLORS.length];
+                      const symbol = CURRENCY_SYMBOLS[leg.currency];
+                      const profit = legResult?.profit ?? 0;
+                      const isLay = leg.side === "lay";
+
+                      return (
+                        <div
+                          key={i}
+                          className="rounded-lg border p-2"
+                          style={{
+                            background: `linear-gradient(135deg, #0a0a0a 0%, ${color}12 50%, #0a0a0a 100%)`,
+                            borderColor: `${color}50`,
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
+                              style={{ background: color }}
+                            >
+                              {i + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={leg.label}
+                              onChange={(e) => updateLeg(i, "label", e.target.value)}
+                              placeholder={`Issue ${i + 1}`}
+                              className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
+                            />
+                            {showBLToggle && (
+                              <button
+                                onClick={() => toggleSide(i)}
+                                className={`h-7 w-9 cursor-pointer rounded-md text-xs font-black transition ${
+                                  isLay
+                                    ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
+                                    : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                                }`}
+                              >
+                                {isLay ? "−" : "+"}
+                              </button>
+                            )}
+                            {showDistributionCol && (
+                              <button
+                                onClick={() => toggleDistribute(i)}
+                                className={`h-7 w-7 cursor-pointer rounded-md text-[10px] font-black transition ${
+                                  leg.distribute ? "bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/50" : "bg-white/5 text-white/30"
+                                }`}
+                                title="Distribuer profit"
+                              >
+                                D
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setLegLocked(i, !leg.locked)}
+                              className={`h-7 w-7 cursor-pointer rounded-md text-xs transition ${
+                                leg.locked ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-400/50" : "bg-white/5 text-white/40"
+                              }`}
+                              title="Fixer"
+                            >
+                              {leg.locked ? "🔒" : "🔓"}
+                            </button>
+                          </div>
+
+                          <div className={`mt-1.5 grid gap-1.5 ${showBookmakerCol ? "grid-cols-[80px_1fr]" : "grid-cols-1"}`}>
+                            <input
+                              type="number"
+                              step="0.001"
+                              min="1.001"
+                              value={leg.odd}
+                              onChange={(e) => updateLeg(i, "odd", e.target.value)}
+                              placeholder="Cote"
+                              inputMode="decimal"
+                              className={`rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold text-white outline-none focus:ring-1 ${
+                                isLay
+                                  ? "border-purple-500/25 bg-purple-500/5 focus:border-purple-500 focus:ring-purple-500/30"
+                                  : "border-white/10 bg-white/5 focus:border-emerald-500 focus:ring-emerald-500/30"
+                              }`}
+                            />
+                            {showBookmakerCol && (
+                              <input
+                                type="text"
+                                value={leg.bookmaker}
+                                onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
+                                placeholder={isLay ? "Exchange" : "Bookmaker"}
+                                className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
+                              />
+                            )}
+                          </div>
+
+                          {(showCommissionCol || showCurrencyCol) && (
+                            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                              {showCommissionCol && (
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="40"
+                                  value={leg.commission}
+                                  onChange={(e) => updateLeg(i, "commission", e.target.value)}
+                                  placeholder="Commission %"
+                                  inputMode="decimal"
+                                  className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[11px] font-bold text-cyan-200 outline-none"
+                                />
+                              )}
+                              {showCurrencyCol && (
+                                <select
+                                  value={leg.currency}
+                                  onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                  className="cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-center text-[11px] font-bold text-amber-200 outline-none"
+                                >
+                                  {CURRENCIES.map((c) => (
+                                    <option key={c} value={c} className="bg-black">
+                                      {c} ({CURRENCY_SYMBOLS[c]})
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                            <div>
+                              <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+                                {isLay ? "Mise Lay" : "Mise"}
+                              </div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
+                                onChange={(e) => setLegLocked(i, true, e.target.value)}
+                                inputMode="decimal"
+                                className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black outline-none ${
+                                  leg.locked
+                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+                                Gain si gagne
+                              </div>
+                              <div
+                                className={`rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black ${
+                                  profit > 0.01
+                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                    : profit < -0.01
+                                      ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                                      : "border-white/10 bg-white/5 text-white/60"
+                                }`}
+                              >
+                                {profit > 0 ? "+" : ""}
+                                {profit.toFixed(2)}
+                                {mainSymbol}
+                              </div>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
 
+                    <div className="flex items-center justify-between rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5 p-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Enjeu total</span>
+                      <span className="font-mono text-base font-black text-emerald-200">
+                        {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
+                        {mainSymbol}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── OPTIONS FOOTER ─── */}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {showOptionsFooter && (
+                      <>
+                        <OptCheckbox checked={useCommissions} onChange={setUseCommissions} label="Commissions" color="cyan" />
+                        <OptCheckbox checked={useCurrencies} onChange={setUseCurrencies} label="Devises" color="amber" />
+                        <OptCheckbox checked={useDistribution} onChange={setUseDistribution} label="Profit ciblé" color="rose" />
+                      </>
+                    )}
+                    <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
+                      <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
+                      <select
+                        value={rounding}
+                        onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
+                        className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
+                      >
+                        <option value={0} className="bg-black">Aucun</option>
+                        <option value={0.1} className="bg-black">0.10</option>
+                        <option value={0.5} className="bg-black">0.50</option>
+                        <option value={1} className="bg-black">1</option>
+                        <option value={2} className="bg-black">2</option>
+                        <option value={5} className="bg-black">5</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
                     <button
-                      onClick={copyRecap}
-                      className="mt-4 w-full cursor-pointer rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
+                      onClick={resetAll}
+                      className="cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:text-white"
                     >
-                      {copied ? "✅ Copié !" : "📋 Copier le récap"}
+                      🔄 Reset
                     </button>
+                    {result && (
+                      <button
+                        onClick={copyRecap}
+                        className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
+                      >
+                        {copied ? "✅ Copié" : "📋 Copier"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Panneau taux de change (Tout-en-un uniquement) */}
+                {showOptionsFooter && useCurrencies && (
+                  <div className="mt-3 border-t border-white/5 pt-3">
+                    <button
+                      onClick={() => setShowRates(!showRates)}
+                      className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300"
+                    >
+                      {showRates ? "▼" : "▶"} Taux de change (1 EUR =)
+                    </button>
+                    {showRates && (
+                      <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2">
+                        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-9">
+                          {CURRENCIES.filter((c) => c !== "EUR").map((cur) => (
+                            <label key={cur} className="block">
+                              <span className="mb-0.5 block text-center text-[9px] font-extrabold text-amber-400/70">{cur}</span>
+                              <input
+                                type="number"
+                                step="0.0001"
+                                value={rates[cur] || 1}
+                                onChange={(e) => setRates({ ...rates, [cur]: parseFloat(e.target.value) || 1 })}
+                                className="w-full rounded border border-amber-500/20 bg-black/40 px-1 py-0.5 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -1174,48 +1333,105 @@ export default function CalculatorProPage() {
           </div>
         </div>
 
-        {/* ╔══════════════════════════════════════════════════════╗ */}
-        {/* ║           POURQUOI "PRO" ?                          ║ */}
-        {/* ╚══════════════════════════════════════════════════════╝ */}
+        {/* ─── Verdict + placement (hors Freebet qui a sa propre UI) ─── */}
+        {activeTab !== "freebet" && result && <VerdictMini result={result} mainSymbol={mainSymbol} />}
 
-        <div
-          className="mt-12 overflow-hidden rounded-3xl border border-white/[0.06] shadow-2xl"
-          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
-        >
-          <div
-            className="h-1"
-            style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }}
-          />
-          <div className="px-5 py-5 text-center sm:px-8">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
-            <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">Ce calculateur remplace 6 autres outils</h2>
-            <p className="mt-1 text-xs text-white/40">
-              Active les options dont tu as besoin, pas plus, pas moins
+        {activeTab !== "freebet" && result?.isSurebet && (
+          <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3 sm:p-4">
+            <p className="mb-2 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
+              <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500/20">⚡</span>
+              Ordre de placement — cote la plus haute en premier
+            </p>
+            <div className="space-y-1.5">
+              {placementOrder.map((leg, rank) => {
+                const orig = legs[leg.origIndex];
+                const legSymbol = CURRENCY_SYMBOLS[orig.currency];
+                return (
+                  <div key={leg.origIndex} className="flex items-start gap-2 rounded-lg border border-white/5 bg-black/30 px-2 py-1.5 text-[12px]">
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
+                      {rank + 1}
+                    </span>
+                    <div className="flex-1 leading-tight">
+                      <span className="font-bold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
+                      {leg.side === "lay" && <span className="ml-1 rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
+                      {leg.isLocked && <span className="ml-1 rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
+                      {!orig.distribute && useDistribution && (
+                        <span className="ml-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>
+                      )}
+                      <span className="ml-2 text-white/60">
+                        {leg.side === "lay" ? "Lay " : ""}
+                        <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
+                        <span className="mx-1 text-white/30">@</span>
+                        <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
+                        <span className="mx-1 text-white/30">chez</span>
+                        <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
+                        {leg.side === "lay" && (
+                          <span className="ml-1 text-white/40">
+                            (liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab !== "freebet" && result?.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+            <p className="text-[11px] text-amber-200">
+              ⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span>
             </p>
           </div>
-          <div className="px-5 pb-6 sm:px-8">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        )}
+        {activeTab !== "freebet" && result?.hasMultiCurrency && (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+            <p className="text-[11px] text-amber-200">💱 Multi-devises actif — le profit dépend des taux de change saisis</p>
+          </div>
+        )}
+        {activeTab !== "freebet" && result?.isSuspicious && (
+          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+            <p className="text-[11px] text-amber-200">
+              ⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable
+            </p>
+          </div>
+        )}
+
+        {/* ═══ SECTION "REMPLACE 6 OUTILS" ═══ */}
+        <div
+          className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
+          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
+        >
+          <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
+          <div className="px-5 py-4 text-center sm:px-6">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
+            <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Ce calculateur remplace 6 autres outils</h2>
+            <p className="mt-1 text-xs text-white/40">Clique sur l&apos;onglet qui correspond à ton besoin, les options inutiles sont masquées</p>
+          </div>
+          <div className="px-4 pb-5 sm:px-6">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
               {useCases.map((uc) => (
                 <div
                   key={uc.title}
-                  className="relative overflow-hidden rounded-2xl border-2 p-4 transition-all"
+                  className="relative overflow-hidden rounded-xl border-2 p-3"
                   style={{
                     background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`,
-                    borderColor: `${uc.color}60`,
-                    boxShadow: `0 0 0 1px ${uc.color}30, 0 8px 24px -8px ${uc.color}60`,
+                    borderColor: `${uc.color}50`,
                   }}
                 >
                   <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: uc.color }} />
                   <div className="flex items-center gap-2">
                     <span
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-base"
+                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-base"
                       style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}
                     >
                       {uc.icon}
                     </span>
-                    <p className="text-sm font-extrabold text-white">{uc.title}</p>
+                    <p className="text-[13px] font-extrabold text-white">{uc.title}</p>
                   </div>
-                  <p className="mt-2 text-[12px] leading-relaxed text-white/70">{uc.desc}</p>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-white/65">{uc.desc}</p>
                 </div>
               ))}
             </div>
@@ -1223,5 +1439,91 @@ export default function CalculatorProPage() {
         </div>
       </main>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOUS-COMPOSANTS
+// ═══════════════════════════════════════════════════════════════
+
+function OptCheckbox({
+  checked,
+  onChange,
+  label,
+  color,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  color: "cyan" | "amber" | "rose";
+}) {
+  const colorMap = {
+    cyan: { on: "bg-cyan-500/20 text-cyan-300 ring-cyan-400/50", dot: "bg-cyan-400" },
+    amber: { on: "bg-amber-500/20 text-amber-300 ring-amber-400/50", dot: "bg-amber-400" },
+    rose: { on: "bg-rose-500/20 text-rose-300 ring-rose-400/50", dot: "bg-rose-400" },
+  };
+  const c = colorMap[color];
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider transition ${
+        checked ? `${c.on} ring-1` : "bg-white/5 text-white/40 hover:text-white/70"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${checked ? c.dot : "bg-white/20"}`} />
+      {label}
+    </button>
+  );
+}
+
+function VerdictMini({ result, mainSymbol }: { result: CalcResult; mainSymbol: string }) {
+  if (result.isSurebet) {
+    return (
+      <div
+        className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+        style={{ background: "linear-gradient(90deg, #047857 0%, #10b981 50%, #059669 100%)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🎯</span>
+          <p className="text-sm font-black text-white sm:text-base">SUREBET</p>
+          <span className="rounded-md bg-white/20 px-2 py-0.5 font-mono text-xs font-black text-white">+{result.arbPercent.toFixed(2)}%</span>
+        </div>
+        <p className="text-right text-[11px] font-semibold text-white/90 sm:text-xs">
+          Profit garanti <span className="font-mono font-black">+{result.guaranteedProfitRounded.toFixed(2)}{mainSymbol}</span> sur{" "}
+          <span className="font-mono font-black">{result.totalStakeRounded.toFixed(2)}{mainSymbol}</span>
+        </p>
+      </div>
+    );
+  }
+  if (Math.abs(result.arbPercent) < 0.5) {
+    return (
+      <div
+        className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+        style={{ background: "linear-gradient(90deg, #b45309 0%, #d97706 50%, #f59e0b 100%)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">⚖️</span>
+          <p className="text-sm font-black text-white sm:text-base">QUASI BREAK-EVEN</p>
+        </div>
+        <p className="text-right text-[11px] font-semibold text-white/90 sm:text-xs">
+          TRJ <span className="font-mono font-black">{result.trj.toFixed(2)}%</span> — idéal matched betting
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+      style={{ background: "linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #ef4444 100%)" }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-xl">❌</span>
+        <p className="text-sm font-black text-white sm:text-base">PAS D&apos;ARBITRAGE</p>
+      </div>
+      <p className="text-right text-[11px] font-semibold text-white/90 sm:text-xs">
+        TRJ <span className="font-mono font-black">{result.trj.toFixed(2)}%</span> — perte{" "}
+        <span className="font-mono font-black">{Math.abs(result.arbPercent).toFixed(2)}%</span> en moyenne
+      </p>
+    </div>
   );
 }
