@@ -9,7 +9,7 @@ import EspaceHero from "@/components/layout/EspaceHero";
 // ═══════════════════════════════════════════════════════════════
 
 type Mode = "stake" | "target";
-type NLegs = 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type NLegs = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Rounding = 0 | 0.1 | 0.5 | 1 | 2 | 5;
 type BetSide = "back" | "lay";
 type Currency = "EUR" | "USD" | "GBP" | "BRL" | "CHF" | "CAD" | "AUD" | "JPY" | "BTC" | "ETH";
@@ -65,6 +65,8 @@ interface CalcResult {
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════════
 
+const MAX_LEGS = 10;
+
 const CURRENCIES: Currency[] = ["EUR", "USD", "GBP", "BRL", "CHF", "CAD", "AUD", "JPY", "BTC", "ETH"];
 
 const DEFAULT_RATES: Record<Currency, number> = {
@@ -81,8 +83,16 @@ const DEFAULT_RATES: Record<Currency, number> = {
 };
 
 const LEG_COLORS = [
-  "#10b981", "#06b6d4", "#a855f7", "#f43f5e",
-  "#eab308", "#84cc16", "#f97316", "#3b82f6",
+  "#10b981", // emerald
+  "#06b6d4", // cyan
+  "#a855f7", // purple
+  "#f43f5e", // rose
+  "#eab308", // yellow
+  "#84cc16", // lime
+  "#f97316", // orange
+  "#3b82f6", // blue
+  "#ec4899", // pink
+  "#14b8a6", // teal
 ];
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
@@ -382,7 +392,7 @@ export default function CalculatorProPage() {
   const [copied, setCopied] = useState(false);
 
   const [legs, setLegs] = useState<Leg[]>(() =>
-    Array.from({ length: 8 }, (_, i) => ({
+    Array.from({ length: MAX_LEGS }, (_, i) => ({
       odd: "",
       bookmaker: "",
       label: `Issue ${i + 1}`,
@@ -430,7 +440,7 @@ export default function CalculatorProPage() {
 
   function resetAll() {
     setLegs(
-      Array.from({ length: 8 }, (_, i) => ({
+      Array.from({ length: MAX_LEGS }, (_, i) => ({
         odd: "",
         bookmaker: "",
         label: `Issue ${i + 1}`,
@@ -520,9 +530,8 @@ export default function CalculatorProPage() {
     ? result.legs.map((l, i) => ({ ...l, origIndex: i })).sort((a, b) => a.volatilityRank - b.volatilityRank)
     : [];
 
-  // Use-cases avec couleurs cohérentes (mêmes que les legs)
   const useCases = [
-    { icon: "🎯", title: "Surebet classique", desc: "2 à 8 back chez différents bookmakers. Laisse tout en mode par défaut, saisis tes cotes.", color: "#10b981" },
+    { icon: "🎯", title: "Surebet classique", desc: "2 à 10 back chez différents bookmakers. Laisse tout en mode par défaut, saisis tes cotes.", color: "#10b981" },
     { icon: "🔄", title: "Matched betting", desc: "Active + Back/Lay, mets 1 back + 1 lay à la même cote. Calibre ton freebet de qualification.", color: "#06b6d4" },
     { icon: "🎁", title: "Freebet à convertir", desc: "Active + Back/Lay + 🔒 Fixer sur ta mise freebet, puis lay sur exchange pour sécuriser.", color: "#a855f7" },
     { icon: "⚖️", title: "Dutching", desc: "Plusieurs issues back chez un même book pour répartir ton risque. Active + Profit ciblé pour choisir les issues gagnantes.", color: "#f43f5e" },
@@ -633,7 +642,7 @@ export default function CalculatorProPage() {
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 py-3">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
-              {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <button
                   key={n}
                   onClick={() => setNLegs(n as NLegs)}
