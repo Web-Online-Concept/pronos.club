@@ -93,6 +93,26 @@ const TABS: { key: TabKey; icon: string; label: string; hint: string; color: str
   { key: "allInOne", icon: "💎", label: "Tout-en-un", hint: "Toutes les options accessibles — à toi de régler finement chaque paramètre", color: "#3b82f6" },
 ];
 
+// Formules disponibles selon le nombre d'issues (= pré-remplissage des labels de lignes)
+function getFormulas(n: number): { label: string; legLabels: string[] }[] {
+  if (n === 2) {
+    return [
+      { label: "1 - 2", legLabels: ["1", "2"] },
+      { label: "1 - X2", legLabels: ["1", "X2"] },
+      { label: "1X - 2", legLabels: ["1X", "2"] },
+      { label: "12 - X", legLabels: ["12", "X"] },
+    ];
+  }
+  if (n === 3) {
+    return [
+      { label: "1 - X - 2", legLabels: ["1", "X", "2"] },
+    ];
+  }
+  // 4+ : labels numériques génériques
+  const labels = Array.from({ length: n }, (_, i) => `${i + 1}`);
+  return [{ label: labels.join(" - "), legLabels: labels }];
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CALCULS
 // ═══════════════════════════════════════════════════════════════
@@ -327,6 +347,7 @@ export default function CalculatorProPage() {
   const [mode, setMode] = useState<Mode>("stake");
   const [amount, setAmount] = useState("100");
   const [nLegs, setNLegs] = useState<NLegs>(2);
+  const [formulaIdx, setFormulaIdx] = useState(0);
   const [rounding, setRounding] = useState<Rounding>(0);
   const [useCommissions, setUseCommissions] = useState(false);
   const [useCurrencies, setUseCurrencies] = useState(false);
@@ -343,28 +364,71 @@ export default function CalculatorProPage() {
   const [fbOddLay, setFbOddLay] = useState("5.100");
   const [fbCommission, setFbCommission] = useState("5");
 
-  const [legs, setLegs] = useState<Leg[]>(() =>
-    Array.from({ length: MAX_LEGS }, (_, i) => ({
+  // Initialisation des 10 legs avec la formule par défaut pour 2 issues
+  const [legs, setLegs] = useState<Leg[]>(() => {
+    const initialLabels = getFormulas(2)[0].legLabels;
+    return Array.from({ length: MAX_LEGS }, (_, i) => ({
       odd: "",
       bookmaker: "",
-      label: `Issue ${i + 1}`,
+      label: initialLabels[i] ?? `Issue ${i + 1}`,
       commission: "0",
       side: "back" as BetSide,
       locked: false,
       lockedStake: "",
       currency: "EUR" as Currency,
       distribute: true,
-    }))
-  );
+    }));
+  });
+
+  const formulas = useMemo(() => getFormulas(nLegs), [nLegs]);
+
+  function applyFormula(idx: number, targetLegs?: Leg[]) {
+    const f = getFormulas(nLegs)[idx];
+    if (!f) return;
+    setFormulaIdx(idx);
+    const source = targetLegs ?? legs;
+    setLegs(
+      source.map((l, i) => {
+        if (i < f.legLabels.length) return { ...l, label: f.legLabels[i] };
+        // Au-delà du nombre d'issues, on remet un label générique propre
+        return { ...l, label: `Issue ${i + 1}` };
+      })
+    );
+  }
+
+  function changeNLegs(n: NLegs) {
+    setNLegs(n);
+    setFormulaIdx(0);
+    const f = getFormulas(n)[0];
+    if (!f) return;
+    setLegs(
+      legs.map((l, i) => {
+        if (i < f.legLabels.length) return { ...l, label: f.legLabels[i] };
+        return { ...l, label: `Issue ${i + 1}` };
+      })
+    );
+  }
 
   function applyTab(tab: TabKey) {
     setActiveTab(tab);
     setMobileMenuOpen(false);
+
     if (tab === "surebet") {
       setUseCommissions(false);
       setUseCurrencies(false);
       setUseDistribution(false);
-      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0" })));
+      const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
+      setLegs(
+        legs.map((l, i) => ({
+          ...l,
+          side: "back",
+          distribute: true,
+          locked: false,
+          lockedStake: "",
+          commission: "0",
+          label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
+        }))
+      );
     } else if (tab === "matched") {
       setNLegs(2);
       setUseCommissions(true);
@@ -385,12 +449,44 @@ export default function CalculatorProPage() {
       setUseCommissions(false);
       setUseCurrencies(false);
       setUseDistribution(true);
-      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0" })));
+      const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
+      setLegs(
+        legs.map((l, i) => ({
+          ...l,
+          side: "back",
+          distribute: true,
+          locked: false,
+          lockedStake: "",
+          commission: "0",
+          label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
+        }))
+      );
     } else if (tab === "sameBook") {
       setUseCommissions(false);
       setUseCurrencies(false);
       setUseDistribution(false);
-      setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0", bookmaker: commonBookmaker })));
+      const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
+      setLegs(
+        legs.map((l, i) => ({
+          ...l,
+          side: "back",
+          distribute: true,
+          locked: false,
+          lockedStake: "",
+          commission: "0",
+          bookmaker: commonBookmaker,
+          label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
+        }))
+      );
+    } else if (tab === "allInOne") {
+      // Ne touche à rien côté options, mais applique la formule en cours
+      const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
+      setLegs(
+        legs.map((l, i) => ({
+          ...l,
+          label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
+        }))
+      );
     }
   }
 
@@ -439,9 +535,10 @@ export default function CalculatorProPage() {
   }
 
   function resetAll() {
+    const f = getFormulas(2)[0];
     setLegs(
       Array.from({ length: MAX_LEGS }, (_, i) => ({
-        odd: "", bookmaker: "", label: `Issue ${i + 1}`, commission: "0",
+        odd: "", bookmaker: "", label: f.legLabels[i] ?? `Issue ${i + 1}`, commission: "0",
         side: "back" as BetSide, locked: false, lockedStake: "",
         currency: "EUR" as Currency, distribute: true,
       }))
@@ -449,6 +546,7 @@ export default function CalculatorProPage() {
     setAmount("100");
     setRounding(0);
     setCommonBookmaker("");
+    setFormulaIdx(0);
     applyTab(activeTab);
   }
 
@@ -550,6 +648,7 @@ export default function CalculatorProPage() {
   const showCommonBookmakerInput = activeTab === "sameBook";
   const showMarketSelector = activeTab !== "matched";
   const showOptionsFooter = activeTab === "allInOne";
+  const showFormulaSelector = activeTab !== "matched" && activeTab !== "freebet";
   const maxLegsForTab = activeTab === "matched" ? 2 : 10;
   const displayedNLegs = activeTab === "matched" ? 2 : nLegs;
 
@@ -574,7 +673,7 @@ export default function CalculatorProPage() {
         <div className="h-0.5" style={{ background: statusAccent }} />
 
         <div className="p-4 sm:p-5">
-          {/* ─── ONGLETS DESKTOP (md+) ─── */}
+          {/* ─── ONGLETS DESKTOP ─── */}
           <div className="mb-3 hidden gap-1 md:flex">
             {TABS.map((tab) => {
               const active = tab.key === activeTab;
@@ -601,7 +700,7 @@ export default function CalculatorProPage() {
             })}
           </div>
 
-          {/* ─── DROPDOWN MOBILE (< md) ─── */}
+          {/* ─── DROPDOWN MOBILE ─── */}
           <div className="relative mb-3 md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -620,7 +719,6 @@ export default function CalculatorProPage() {
 
             {mobileMenuOpen && (
               <>
-                {/* overlay pour fermer au tap extérieur */}
                 <div className="fixed inset-0 z-10" onClick={() => setMobileMenuOpen(false)} />
                 <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-white/10 bg-zinc-950 shadow-2xl">
                   {TABS.map((tab) => {
@@ -798,7 +896,6 @@ export default function CalculatorProPage() {
             </div>
           ) : (
             <>
-              {/* ═══ CONTROLS + TABLEAU ═══ */}
               <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_auto] md:items-center">
                 <div className="flex overflow-hidden rounded-lg border border-white/10">
                   <button
@@ -855,7 +952,7 @@ export default function CalculatorProPage() {
                     {Array.from({ length: maxLegsForTab - 1 }, (_, i) => i + 2).map((n) => (
                       <button
                         key={n}
-                        onClick={() => setNLegs(n as NLegs)}
+                        onClick={() => changeNLegs(n as NLegs)}
                         className={`h-7 w-7 cursor-pointer rounded-md text-[11px] font-black transition ${
                           nLegs === n
                             ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
@@ -870,6 +967,24 @@ export default function CalculatorProPage() {
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">🔄 2 paris (back + lay)</span>
                 )}
               </div>
+
+              {/* ─── DROPDOWN FORMULE ─── */}
+              {showFormulaSelector && (
+                <div className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/40">📋 Formule</span>
+                  <select
+                    value={formulaIdx}
+                    onChange={(e) => applyFormula(parseInt(e.target.value))}
+                    className="cursor-pointer rounded-md bg-transparent px-2 py-0.5 text-[11px] font-extrabold text-white outline-none hover:bg-white/5"
+                  >
+                    {formulas.map((f, i) => (
+                      <option key={i} value={i} className="bg-black">
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {showCommonBookmakerInput && (
                 <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
@@ -1392,7 +1507,6 @@ export default function CalculatorProPage() {
         </div>
       )}
 
-      {/* ═══ SECTION "REMPLACE 6 OUTILS" ═══ */}
       <div
         className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
         style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
