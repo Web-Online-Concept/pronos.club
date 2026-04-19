@@ -1238,7 +1238,9 @@
     "account": "Compte",
     "blog": "Blog",
     "livescore": "Scores",
-    "news": "News"
+    "news": "News",
+    "pronos_ia": "Pronos IA",
+    "videos": "Vidéos"
   },
   "livescore": {
     "meta_title": "Livescore — Scores en direct | PRONOS.CLUB",
