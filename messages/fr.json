@@ -1430,7 +1430,7 @@
     "modal_audit_description": "Un second agent IA avec accès au web a vérifié que ce pronostic ne contient pas d'erreur factuelle grossière (joueur transféré, équipe dans la mauvaise ligue, etc.).",
     "modal_final_result_title": "Résultat final",
     "badge_live": "En cours",
-    "page_title_live": "Pronos en cours",
+    "page_title_live": "Pronos IA en cours",
     "page_subtitle_live_count": "{count} pronostics actuellement disponibles. Dès qu'un match commence, le pronostic passe dans l'historique.",
     "page_subtitle_live_generic": "Tous les pronostics dont le match n'a pas encore commencé.",
     "section_classics_title": "Pronos classiques",

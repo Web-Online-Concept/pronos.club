@@ -1,14 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia (V3)
+ * PAGE — /fr/pronos-ia (VERSION FINALE)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Logique : affiche uniquement les picks dont le match n'a pas encore
- * commencé (status='pending' ET event_date > now).
+ * Affiche uniquement les picks dont le match n'a pas encore commencé.
+ * Dès qu'un match démarre, le pick part dans l'historique.
  *
- * Dès qu'un match démarre, le pick disparaît → part dans l'historique.
- *
- * Organisation : 2 sections séparées (Classiques / Buteurs), pas de tabs.
+ * Structure :
+ *   - Hero (badge, titre, sous-titre)
+ *   - Boutons (Comment ça marche / Stats / Historique)
+ *   - Sections Classiques + Buteurs (Option C)
+ *   - Disclaimer en bas (gros bandeau)
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -18,14 +20,12 @@ import { getTranslations } from "next-intl/server";
 import { HelpCircle, BarChart3, History, Clock } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
-import AIStatsMiniBanner from "@/components/ai-picks/AIStatsMiniBanner";
 import AIPickCard, { type AIPickRow } from "@/components/ai-picks/AIPickCard";
 import AIScorerCard, { type AIScorerRow } from "@/components/ai-picks/AIScorerCard";
 import PronosIAButton from "@/components/ai-picks/ui/PronosIAButton";
 
-// Pas de cache long car on veut que les picks passent en historique dès que le match commence
 export const dynamic = "force-dynamic";
-export const revalidate = 60; // Refresh toutes les 60s
+export const revalidate = 60;
 
 
 export async function generateMetadata({
@@ -58,7 +58,7 @@ const getCurrentPicks = unstable_cache(
         "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
       )
       .eq("status", "pending")
-      .gt("event_date", nowISO) // Match pas encore commencé
+      .gt("event_date", nowISO)
       .order("event_date", { ascending: true });
 
     if (error) {
@@ -77,38 +77,6 @@ const getCurrentPicks = unstable_cache(
 );
 
 
-interface StatsGlobal {
-  wins: number;
-  losses: number;
-  totalResolved: number;
-  winRate: number | null;
-}
-
-const getGlobalStats = unstable_cache(
-  async (): Promise<StatsGlobal> => {
-    const { data, error } = await supabaseAdmin
-      .from("ai_stats_global")
-      .select("*")
-      .is("pick_type", null)
-      .is("sport", null)
-      .maybeSingle();
-
-    if (error || !data) {
-      return { wins: 0, losses: 0, totalResolved: 0, winRate: null };
-    }
-
-    return {
-      wins: Number(data.wins) || 0,
-      losses: Number(data.losses) || 0,
-      totalResolved: Number(data.total_resolved) || 0,
-      winRate: data.win_rate_pct !== null ? Number(data.win_rate_pct) : null,
-    };
-  },
-  ["ai-stats-global"],
-  { revalidate: 600, tags: ["ai-stats-global"] },
-);
-
-
 export default async function PronosIAPage({
   params,
 }: {
@@ -117,12 +85,7 @@ export default async function PronosIAPage({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
-  const [picksData, stats] = await Promise.all([
-    getCurrentPicks(),
-    getGlobalStats(),
-  ]);
-  const { classics, scorers } = picksData;
-
+  const { classics, scorers } = await getCurrentPicks();
   const totalCurrent = classics.length + scorers.length;
 
   return (
@@ -141,7 +104,7 @@ export default async function PronosIAPage({
         <main className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
 
           {/* ═══ HERO ═══ */}
-          <header className="mb-10 text-center">
+          <header className="mb-8 text-center">
             {/* Badge "En cours" avec pulse */}
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-violet-700">
               <span className="relative flex h-1.5 w-1.5">
@@ -171,22 +134,8 @@ export default async function PronosIAPage({
             </p>
           </header>
 
-          {/* ═══ DISCLAIMER HAUT ═══ */}
-          <AIDisclaimer locale={locale} />
-
-          {/* ═══ MINI STATS BANNER ═══ */}
-          <div className="my-8">
-            <AIStatsMiniBanner
-              wins={stats.wins}
-              losses={stats.losses}
-              totalResolved={stats.totalResolved}
-              winRate={stats.winRate}
-              locale={locale}
-            />
-          </div>
-
-          {/* ═══ LIENS UTILES ═══ */}
-          <div className="my-8 flex flex-wrap items-center justify-center gap-3">
+          {/* ═══ BOUTONS NAV ═══ */}
+          <div className="mb-12 flex flex-wrap items-center justify-center gap-3">
             <PronosIAButton
               href={`/${locale}/pronos-ia/comment-ca-marche`}
               variant="secondary"
@@ -217,7 +166,7 @@ export default async function PronosIAPage({
           {totalCurrent === 0 ? (
             <EmptyStateNoPicks locale={locale} />
           ) : (
-            <div className="mt-12 space-y-12">
+            <div className="space-y-12">
               {/* Section Classiques */}
               {classics.length > 0 && (
                 <section>
@@ -256,7 +205,7 @@ export default async function PronosIAPage({
 
           {/* ═══ DISCLAIMER BAS ═══ */}
           <div className="mt-16">
-            <AIDisclaimer locale={locale} compact />
+            <AIDisclaimer locale={locale} />
           </div>
 
         </main>
@@ -267,7 +216,7 @@ export default async function PronosIAPage({
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SOUS-COMPOSANT : titre de section
+// SOUS-COMPOSANT — Titre de section (Classiques / Buteurs)
 // ═══════════════════════════════════════════════════════════════════
 
 function SectionHeader({
@@ -324,7 +273,7 @@ async function EmptyStateNoPicks({ locale }: { locale: string }) {
 
   return (
     <div
-      className="relative my-12 overflow-hidden rounded-2xl border p-10 text-center text-white sm:p-14"
+      className="relative overflow-hidden rounded-2xl border p-10 text-center text-white sm:p-14"
       style={{
         background:
           "linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #312e81 70%, #4c1d95 100%)",
