@@ -1,16 +1,17 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIHistoryFilters (style pill arrondi)
+ * COMPOSANT — AIHistoryFilters (pattern tipster)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Filtres pour la page Historique : type, sport, statut.
- * Style aligné sur le tipster : 3 pills blanches arrondies.
- * Tient sur une ligne sur mobile (texte compact + padding réduit).
+ * 3 pills compactes qui tiennent sur UNE ligne sur mobile.
+ * Calqué sur le pattern exact du tipster : max-w-[110px] + truncate
+ * + labels courts mobile (isMobile state).
  * ═══════════════════════════════════════════════════════════════════
  */
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -33,6 +34,14 @@ export default function AIHistoryFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   function updateFilter(key: "type" | "status" | "sport", value: string) {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -41,7 +50,6 @@ export default function AIHistoryFilters({
     } else {
       params.set(key, value);
     }
-    // Reset page=1 quand on change de filtre
     params.delete("page");
 
     const queryString = params.toString();
@@ -49,77 +57,45 @@ export default function AIHistoryFilters({
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+    <div className="mb-6 text-center">
+      <div className="inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
 
-      <FilterPill
-        value={currentType}
-        onChange={(v) => updateFilter("type", v)}
-        options={[
-          { value: "all", label: t("history_filter_all_types") },
-          { value: "classic", label: t("tab_classics") },
-          { value: "scorer", label: t("tab_scorers") },
-        ]}
-      />
+        {/* Filtre type */}
+        <select
+          value={currentType}
+          onChange={(e) => updateFilter("type", e.target.value)}
+          className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+        >
+          <option value="all">{isMobile ? t("history_filter_types_short") : t("history_filter_all_types")}</option>
+          <option value="classic">{t("tab_classics")}</option>
+          <option value="scorer">{t("tab_scorers")}</option>
+        </select>
 
-      <FilterPill
-        value={currentSport}
-        onChange={(v) => updateFilter("sport", v)}
-        options={[
-          { value: "all", label: t("history_filter_all_sports") },
-          { value: "soccer", label: t("sport_soccer") },
-          { value: "tennis", label: t("sport_tennis") },
-          { value: "basketball", label: t("sport_basketball") },
-        ]}
-      />
+        {/* Filtre sport */}
+        <select
+          value={currentSport}
+          onChange={(e) => updateFilter("sport", e.target.value)}
+          className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+        >
+          <option value="all">{isMobile ? t("history_filter_sports_short") : t("history_filter_all_sports")}</option>
+          <option value="soccer">{t("sport_soccer")}</option>
+          <option value="tennis">{t("sport_tennis")}</option>
+          <option value="basketball">{t("sport_basketball")}</option>
+        </select>
 
-      <FilterPill
-        value={currentStatus}
-        onChange={(v) => updateFilter("status", v)}
-        options={[
-          { value: "all", label: t("history_filter_all_statuses") },
-          { value: "awaiting", label: t("status_awaiting") },
-          { value: "won", label: t("status_won") },
-          { value: "lost", label: t("status_lost") },
-          { value: "void", label: t("status_void") },
-        ]}
-      />
-    </div>
-  );
-}
-
-
-function FilterPill({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none cursor-pointer rounded-full border border-neutral-200 bg-white py-2 pl-3 pr-7 text-[11px] font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 focus:border-violet-500 focus:outline-none sm:pl-4 sm:pr-10 sm:text-sm"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        aria-hidden
-        className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-500 sm:right-3 sm:h-4 sm:w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2.5}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
+        {/* Filtre statut */}
+        <select
+          value={currentStatus}
+          onChange={(e) => updateFilter("status", e.target.value)}
+          className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+        >
+          <option value="all">{isMobile ? t("history_filter_statuses_short") : t("history_filter_all_statuses")}</option>
+          <option value="awaiting">{t("status_awaiting")}</option>
+          <option value="won">{t("status_won")}</option>
+          <option value="lost">{t("status_lost")}</option>
+          <option value="void">{t("status_void")}</option>
+        </select>
+      </div>
     </div>
   );
 }

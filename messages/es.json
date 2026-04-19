@@ -1470,6 +1470,9 @@
     "nav_how_short": "FAQ",
     "history_filter_all_types": "Todos los tipos",
     "history_filter_all_sports": "Todos los deportes",
-    "history_filter_all_statuses": "Todos los resultados"
+    "history_filter_all_statuses": "Todos los resultados",
+    "history_filter_types_short": "Tipos",
+    "history_filter_sports_short": "Deportes",
+    "history_filter_statuses_short": "Resultados"
   }
 }

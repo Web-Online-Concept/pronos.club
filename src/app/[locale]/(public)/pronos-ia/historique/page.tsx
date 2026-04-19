@@ -125,11 +125,6 @@ export default async function HistoryPage({
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
 
-        {/* Sous-titre */}
-        <p className="mb-8 text-center text-sm text-neutral-600 sm:text-base">
-          {t("history_page_subtitle_generic")}
-        </p>
-
         {/* FILTRES */}
         <AIHistoryFilters
           currentType={type}
