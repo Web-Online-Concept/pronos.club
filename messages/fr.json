@@ -1441,6 +1441,7 @@
     "empty_live_cta_history": "Consulter l'historique",
     "status_awaiting": "En attente des résultats",
     "type_classic_label": "Classique",
-    "type_scorer_label": "Buteur"
+    "type_scorer_label": "Buteur",
+    "badge_live_count": "{count} en cours"
   }
 }

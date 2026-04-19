@@ -105,13 +105,13 @@ export default async function PronosIAPage({
 
           {/* ═══ HERO ═══ */}
           <header className="mb-8 text-center">
-            {/* Badge "En cours" avec pulse */}
+            {/* Badge "X en cours" avec pulse */}
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-violet-700">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-75"></span>
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-500"></span>
               </span>
-              {t("badge_live")}
+              {t("badge_live_count", { count: totalCurrent })}
             </div>
 
             {/* Titre avec gradient */}

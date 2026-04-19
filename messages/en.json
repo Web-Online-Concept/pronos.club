@@ -1441,6 +1441,7 @@
     "empty_live_cta_history": "View history",
     "status_awaiting": "Awaiting results",
     "type_classic_label": "Classic",
-    "type_scorer_label": "Goal scorer"
+    "type_scorer_label": "Goal scorer",
+    "badge_live_count": "{count} live"
   }
 }
