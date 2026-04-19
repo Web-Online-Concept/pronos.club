@@ -6,10 +6,17 @@ import EspaceHero from "@/components/layout/EspaceHero";
 import { useLocale } from "next-intl";
 
 // ═══════════════════════════════════════════════════════════════
-// 11 CALCULATEURS — TOUS READY 🏁
+// 12 CALCULATEURS — TOUS READY 🏁
 // ═══════════════════════════════════════════════════════════════
 
 const CALCULATORS = [
+  {
+    slug: "pro",
+    icon: "💎",
+    title: "Calculateur Pro",
+    desc: "L'outil tout-en-un : surebet, matched betting, freebet, dutching, trading same-book, multi-devises.",
+    status: "ready",
+  },
   {
     slug: "matched-betting",
     icon: "🎁",
@@ -129,14 +136,14 @@ export default function CalculateursLandingPage() {
             🧮 Boîte à outils Premium
           </p>
           <h2 className="mt-2 text-2xl font-black text-neutral-900">
-            11 calculateurs pour affiner tes paris
+            12 calculateurs pour affiner tes paris
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
             Toutes les maths dont tu as besoin, sans quitter PRONOS.CLUB
           </p>
         </div>
 
-        {/* Grid 11 cartes */}
+        {/* Grid 12 cartes */}
         <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CALCULATORS.map((calc) => {
             const isReady = calc.status === "ready";
