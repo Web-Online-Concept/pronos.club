@@ -1442,6 +1442,18 @@
     "status_awaiting": "Awaiting results",
     "type_classic_label": "Classic",
     "type_scorer_label": "Goal scorer",
-    "badge_live_count": "{count} live"
+    "badge_live_count": "{count} live",
+    "stats_empty_title": "No results yet",
+    "stats_empty_description": "Statistics will appear as soon as the first pick is resolved. Come back a bit later.",
+    "stats_resolved_total": "resolved",
+    "stats_roi_short": "ROI",
+    "stats_scorers_by_league_title": "Goal scorers by league",
+    "stats_confidence_title": "AI confidence analysis",
+    "stats_confidence_description": "Is the AI's confidence (score out of 10) a good predictor of success? Comparison of the average confidence between winning and losing picks.",
+    "stats_confidence_won": "Avg. conf. · Won",
+    "stats_confidence_lost": "Avg. conf. · Lost",
+    "stats_confidence_gap_positive": "The AI is more confident on its winning picks (gap: +{gap}). Its confidence is therefore a reliable indicator.",
+    "stats_confidence_gap_negative": "The AI is strangely more confident on its losing picks (gap: -{gap}). Its confidence is not a good indicator.",
+    "stats_confidence_gap_neutral": "No significant gap between confidence on wins and losses. AI confidence doesn't seem correlated to the outcome."
   }
 }

@@ -1442,6 +1442,18 @@
     "status_awaiting": "En attente des résultats",
     "type_classic_label": "Classique",
     "type_scorer_label": "Buteur",
-    "badge_live_count": "{count} en cours"
+    "badge_live_count": "{count} en cours",
+    "stats_empty_title": "Pas encore de résultats",
+    "stats_empty_description": "Les statistiques apparaîtront dès que le premier pronostic sera résolu. Revenez un peu plus tard.",
+    "stats_resolved_total": "résolus",
+    "stats_roi_short": "ROI",
+    "stats_scorers_by_league_title": "Buteurs par ligue",
+    "stats_confidence_title": "Analyse de la confiance IA",
+    "stats_confidence_description": "Est-ce que la confiance que l'IA accorde à ses pronostics (note sur 10) est un bon prédicteur de réussite ? Comparaison de la confiance moyenne des pronostics gagnés vs perdus.",
+    "stats_confidence_won": "Conf. moyenne · Gagnés",
+    "stats_confidence_lost": "Conf. moyenne · Perdus",
+    "stats_confidence_gap_positive": "L'IA est plus confiante sur ses pronostics gagnés (écart : +{gap}). Sa confiance est donc un indicateur fiable.",
+    "stats_confidence_gap_negative": "L'IA est étrangement plus confiante sur ses pronostics perdus (écart : -{gap}). Sa confiance n'est pas un bon indicateur.",
+    "stats_confidence_gap_neutral": "Pas d'écart significatif entre la confiance sur les gagnés et les perdus. La confiance IA ne semble pas corrélée au résultat."
   }
 }
