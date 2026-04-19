@@ -28,13 +28,13 @@ interface Leg {
 
 interface LegResult {
   side: BetSide;
-  stake: number;          // mise/backer stake dans la devise de la ligne
+  stake: number;
   stakeRounded: number;
-  stakeMain: number;      // capital engagé dans la devise principale
-  liability: number;      // dans la devise de la ligne (lay uniquement)
+  stakeMain: number;
+  liability: number;
   liabilityRounded: number;
-  payout: number;         // dans la devise principale si gagne
-  profit: number;         // dans la devise principale
+  payout: number;
+  profit: number;
   sharePercent: number;
   isLocked: boolean;
   volatilityRank: number;
@@ -67,7 +67,6 @@ interface CalcResult {
 
 const CURRENCIES: Currency[] = ["EUR", "USD", "GBP", "BRL", "CHF", "CAD", "AUD", "JPY", "BTC", "ETH"];
 
-// Taux indicatifs vs EUR (1 EUR = X devise)
 const DEFAULT_RATES: Record<Currency, number> = {
   EUR: 1,
   USD: 1.08,
@@ -81,29 +80,14 @@ const DEFAULT_RATES: Record<Currency, number> = {
   ETH: 0.00040,
 };
 
-// Couleurs par position d'issue (8 max)
 const LEG_COLORS = [
-  "#10b981", // emerald
-  "#06b6d4", // cyan
-  "#a855f7", // purple
-  "#f43f5e", // rose
-  "#eab308", // yellow
-  "#84cc16", // lime
-  "#f97316", // orange
-  "#3b82f6", // blue
+  "#10b981", "#06b6d4", "#a855f7", "#f43f5e",
+  "#eab308", "#84cc16", "#f97316", "#3b82f6",
 ];
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  EUR: "€",
-  USD: "$",
-  GBP: "£",
-  BRL: "R$",
-  CHF: "Fr",
-  CAD: "C$",
-  AUD: "A$",
-  JPY: "¥",
-  BTC: "₿",
-  ETH: "Ξ",
+  EUR: "€", USD: "$", GBP: "£", BRL: "R$", CHF: "Fr",
+  CAD: "C$", AUD: "A$", JPY: "¥", BTC: "₿", ETH: "Ξ",
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -115,7 +99,6 @@ function roundStake(value: number, step: Rounding): number {
   return Math.round(value / step) * step;
 }
 
-/** Convertit un montant d'une devise vers une autre (rates = vs EUR). */
 function convert(amount: number, from: Currency, to: Currency, rates: Record<Currency, number>): number {
   if (from === to) return amount;
   const rFrom = rates[from] || 1;
@@ -144,15 +127,11 @@ function calcPro(
     useCommissions ? Math.max(0, (parseFloat(l.commission) || 0) / 100) : 0
   );
 
-  // Cote effective (équivalent back)
-  // BACK : netOdd = 1 + (odd - 1) * (1 - c)
-  // LAY  : netOdd = 1 + (1 - c) / (odd - 1)   → ratio de retour sur liability
   const netOdds = odds.map((o, i) => {
     if (sides[i] === "back") return 1 + (o - 1) * (1 - commissions[i]);
     return 1 + (1 - commissions[i]) / (o - 1);
   });
 
-  // TRJ / marge d'arbitrage basé sur les lignes distribuées
   const distributeFlags = active.map((l) => l.distribute);
   const A = netOdds.reduce((s, o, i) => (distributeFlags[i] ? s + 1 / o : s), 0);
   const B = netOdds.reduce((s, o, i) => (!distributeFlags[i] ? s + 1 / o : s), 0);
@@ -162,23 +141,15 @@ function calcPro(
   const isSurebet = trj > 100;
   const hasPartialDistribution = distributeFlags.some((d) => !d);
 
-  // Recherche d'une mise verrouillée (C/lock)
   const lockedIdx = active.findIndex((l) => l.locked && parseFloat(l.lockedStake) > 0);
   const hasLock = lockedIdx >= 0;
 
-  // Capital engagé (sortie de poche) par leg, dans la devise principale
-  // Pour back : S_main
-  // Pour lay  : liability_main (mise backer × (odd - 1))
-  // netOdd est défini pour que "capital_main × netOdd = retour si cette issue gagne"
-  let T_main = 0; // total engagé (devise principale)
-  let P_main = 0; // profit commun sur les issues distribuées
+  let T_main = 0;
+  let P_main = 0;
 
   if (hasLock) {
     const lockedLeg = active[lockedIdx];
     const lockedInput = parseFloat(lockedLeg.lockedStake) || 0;
-    // Le "lockedStake" est saisi dans la devise de la ligne, et représente :
-    //   - pour back : la mise
-    //   - pour lay  : la MISE du parieur (backer stake). La liability = mise × (odd - 1).
     let lockedCapitalLocal = lockedInput;
     if (lockedLeg.side === "lay") {
       lockedCapitalLocal = lockedInput * Math.max(0, parseFloat(lockedLeg.odd) - 1);
@@ -187,12 +158,10 @@ function calcPro(
     const O = netOdds[lockedIdx];
 
     if (distributeFlags[lockedIdx]) {
-      // (T + P) / O = capital_locked → T(1-B)/A = capital_locked × O
       if (A > 0 && 1 - B > 1e-6) {
         T_main = (lockedCapitalMain * O * A) / (1 - B);
       }
     } else {
-      // T / O = capital_locked
       T_main = lockedCapitalMain * O;
     }
     P_main = A > 0 ? (T_main * (1 - A - B)) / A : 0;
@@ -200,25 +169,21 @@ function calcPro(
     T_main = amount;
     P_main = A > 0 ? (T_main * (1 - A - B)) / A : 0;
   } else {
-    // mode "target" : amount = profit cible (sur les issues distribuées)
     P_main = amount;
     if (A > 0 && 1 - A - B > 1e-6) {
       T_main = (P_main * A) / (1 - A - B);
     } else {
-      // pas un surebet → impossible de viser ce profit
       return null;
     }
   }
 
-  // Capital engagé par leg (devise principale)
   const capitalsMain = netOdds.map((O, i) => (distributeFlags[i] ? (T_main + P_main) / O : T_main / O));
 
-  // Conversion en devise locale puis saisie "mise" (vs liability pour lay)
   const stakesLocal = capitalsMain.map((cap, i) => {
     const local = convert(cap, mainCurrency, active[i].currency, rates);
     if (active[i].side === "lay") {
       const o = parseFloat(active[i].odd);
-      return o > 1 ? local / (o - 1) : 0; // mise parieur
+      return o > 1 ? local / (o - 1) : 0;
     }
     return local;
   });
@@ -226,18 +191,15 @@ function calcPro(
     active[i].side === "lay" ? convert(cap, mainCurrency, active[i].currency, rates) : 0
   );
 
-  // Arrondis
   const stakesLocalRounded = stakesLocal.map((s, i) => {
     if (active[i].locked && i === lockedIdx) return parseFloat(active[i].lockedStake) || 0;
     return roundStake(s, rounding);
   });
   const liabilitiesLocalRounded = liabilitiesLocal.map((l, i) => {
     if (active[i].side !== "lay") return 0;
-    // liability arrondie = mise arrondie × (odd - 1)
     return stakesLocalRounded[i] * Math.max(0, parseFloat(active[i].odd) - 1);
   });
 
-  // Recalcul actuel basé sur mises arrondies
   const actualCapitalsLocal = stakesLocalRounded.map((s, i) => {
     if (active[i].side === "lay") return s * Math.max(0, parseFloat(active[i].odd) - 1);
     return s;
@@ -247,20 +209,16 @@ function calcPro(
   );
   const totalMain = actualCapitalsMain.reduce((a, b) => a + b, 0);
 
-  // Payout et profit par issue (devise principale)
   const payoutsMain = actualCapitalsMain.map((c, i) => c * netOdds[i]);
   const profitsMain = payoutsMain.map((p) => p - totalMain);
 
-  // Le "gain garanti" et "profit garanti" se calculent sur le min des issues distribuées (ou global si aucune D)
   const profitsDistributed = profitsMain.filter((_, i) => distributeFlags[i]);
   const guaranteedProfit = profitsDistributed.length > 0 ? Math.min(...profitsDistributed) : Math.min(...profitsMain);
   const guaranteedPayout = totalMain + guaranteedProfit;
 
-  // ROI pire cas
   const profitMin = Math.min(...profitsMain);
   const roi = totalMain > 0.001 ? (profitMin / totalMain) * 100 : 0;
 
-  // Volatility rank : cote la plus haute (la plus susceptible de baisser) placée en premier
   const sortedByOdd = odds
     .map((o, i) => ({ o, i }))
     .sort((a, b) => b.o - a.o)
@@ -268,7 +226,6 @@ function calcPro(
   const volatilityRankByIdx = new Map<number, number>();
   sortedByOdd.forEach(({ i, rank }) => volatilityRankByIdx.set(i, rank));
 
-  // Résultat par leg
   const legResults: LegResult[] = active.map((leg, i) => ({
     side: leg.side,
     stake: stakesLocal[i],
@@ -283,7 +240,6 @@ function calcPro(
     volatilityRank: volatilityRankByIdx.get(i) ?? i,
   }));
 
-  // Arrondi — perte
   const hasRounding = rounding > 0 && stakesLocal.some((s, i) => Math.abs(s - stakesLocalRounded[i]) > 0.001);
   const roundingLoss = Math.max(0, guaranteedProfit < 0 ? 0 : Math.abs((T_main + P_main) - totalMain - guaranteedProfit));
 
@@ -374,7 +330,6 @@ function VerdictBanner({ result, mainSymbol }: { result: CalcResult; mainSymbol:
     );
   }
 
-  // Break-even ou légèrement négatif — utile pour matched betting
   if (Math.abs(result.arbPercent) < 0.5) {
     return (
       <div
@@ -454,7 +409,6 @@ export default function CalculatorProPage() {
       locked: !currentlyLocked,
       lockedStake: !currentlyLocked ? next[index].lockedStake : "",
     };
-    // un seul lock à la fois
     if (!currentlyLocked) {
       for (let i = 0; i < next.length; i++) {
         if (i !== index && next[i].locked) {
@@ -467,7 +421,6 @@ export default function CalculatorProPage() {
 
   function toggleDistribute(index: number) {
     const next = [...legs];
-    // au moins une ligne active doit rester distribuée (sauf si un lock existe)
     const hasLock = next.slice(0, nLegs).some((l) => l.locked && parseFloat(l.lockedStake) > 0);
     const otherDOns = next.slice(0, nLegs).filter((l, i) => i !== index && l.distribute).length;
     if (next[index].distribute && otherDOns === 0 && !hasLock) return;
@@ -567,6 +520,16 @@ export default function CalculatorProPage() {
     ? result.legs.map((l, i) => ({ ...l, origIndex: i })).sort((a, b) => a.volatilityRank - b.volatilityRank)
     : [];
 
+  // Use-cases avec couleurs cohérentes (mêmes que les legs)
+  const useCases = [
+    { icon: "🎯", title: "Surebet classique", desc: "2 à 8 back chez différents bookmakers. Laisse tout en mode par défaut, saisis tes cotes.", color: "#10b981" },
+    { icon: "🔄", title: "Matched betting", desc: "Active + Back/Lay, mets 1 back + 1 lay à la même cote. Calibre ton freebet de qualification.", color: "#06b6d4" },
+    { icon: "🎁", title: "Freebet à convertir", desc: "Active + Back/Lay + 🔒 Fixer sur ta mise freebet, puis lay sur exchange pour sécuriser.", color: "#a855f7" },
+    { icon: "⚖️", title: "Dutching", desc: "Plusieurs issues back chez un même book pour répartir ton risque. Active + Profit ciblé pour choisir les issues gagnantes.", color: "#f43f5e" },
+    { icon: "🔒", title: "Trading same-book", desc: "Sur Betclic/Unibet : couvre toutes les issues sur le même book. Mode 'surebet négatif' avec FB à la clé.", color: "#f97316" },
+    { icon: "🌍", title: "Multi-devises", desc: "Bookmakers internationaux ? Active + Devises, saisis tes taux de change et calcule cross-devise.", color: "#3b82f6" },
+  ];
+
   return (
     <>
       <EspaceHero title="Calculateur Pro" />
@@ -580,19 +543,16 @@ export default function CalculatorProPage() {
           className="overflow-hidden rounded-3xl border border-white/[0.06] shadow-2xl"
           style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
         >
-          {/* Header accent */}
           <div
             className="h-1"
             style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }}
           />
 
           <div className="px-5 pb-6 pt-5 sm:px-8">
-            {/* Pitch court */}
             <p className="mb-4 text-center text-[11px] font-medium text-white/40">
               💎 Surebet • Matched betting • Freebet • Dutching • Trading same-book — tout-en-un
             </p>
 
-            {/* Mode toggle */}
             <div className="mb-4 flex justify-center gap-2">
               <button
                 onClick={() => setMode("stake")}
@@ -622,7 +582,6 @@ export default function CalculatorProPage() {
                 : "Fixe le gain cible, calcule la mise nécessaire"}
             </p>
 
-            {/* Amount input */}
             <div
               className={`mt-4 rounded-xl px-4 py-3 transition-opacity ${
                 hasActiveLock ? "bg-white/5 opacity-40" : "bg-white/5"
@@ -672,7 +631,6 @@ export default function CalculatorProPage() {
               </div>
             )}
 
-            {/* Number of legs selector */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 py-3">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
               {[2, 3, 4, 5, 6, 7, 8].map((n) => (
@@ -700,7 +658,6 @@ export default function CalculatorProPage() {
                     : `${nLegs} issues — handicaps multiples, outrights, combinés`}
             </p>
 
-            {/* Options avancées (toggles) */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={() => setUseCommissions(!useCommissions)}
@@ -759,7 +716,6 @@ export default function CalculatorProPage() {
               </div>
             </div>
 
-            {/* Panneau taux de change (seulement si useCurrencies) */}
             {useCurrencies && (
               <div className="mt-3">
                 <button
@@ -799,10 +755,8 @@ export default function CalculatorProPage() {
               </div>
             )}
 
-            {/* Divider */}
             <div className="my-6 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
 
-            {/* Legs inputs */}
             <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-400">
               📊 Cotes par bookmaker
             </p>
@@ -1062,7 +1016,6 @@ export default function CalculatorProPage() {
               </button>
             </div>
 
-            {/* Results */}
             {result && (
               <>
                 <div className="my-6 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
@@ -1123,7 +1076,6 @@ export default function CalculatorProPage() {
 
                 <VerdictBanner result={result} mainSymbol={mainSymbol} />
 
-                {/* Ordre de placement */}
                 {(result.isSurebet || result.hasLay) && (
                   <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
                     <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
@@ -1217,65 +1169,50 @@ export default function CalculatorProPage() {
         {/* ║           POURQUOI "PRO" ?                          ║ */}
         {/* ╚══════════════════════════════════════════════════════╝ */}
 
-        <div className="mt-12">
+        <div
+          className="mt-12 overflow-hidden rounded-3xl border border-white/[0.06] shadow-2xl"
+          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
+        >
           <div
-            className="rounded-t-3xl px-6 py-5 text-center"
-            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
-          >
+            className="h-1"
+            style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }}
+          />
+          <div className="px-5 py-5 text-center sm:px-8">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
-            <h2 className="mt-2 text-xl font-black text-white">Ce calculateur remplace 6 autres outils</h2>
+            <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">Ce calculateur remplace 6 autres outils</h2>
             <p className="mt-1 text-xs text-white/40">
               Active les options dont tu as besoin, pas plus, pas moins
             </p>
           </div>
-          <div className="rounded-b-3xl border border-t-0 border-white/[0.06] bg-black/40 p-5 sm:p-6">
+          <div className="px-5 pb-6 sm:px-8">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <UseCase
-                icon="🎯"
-                title="Surebet classique"
-                desc="2 à 8 back chez différents bookmakers. Laisse tout en mode par défaut, saisis tes cotes."
-              />
-              <UseCase
-                icon="🔄"
-                title="Matched betting"
-                desc="Active + Back/Lay, mets 1 back + 1 lay à la même cote. Calibre ton freebet de qualification."
-              />
-              <UseCase
-                icon="🎁"
-                title="Freebet à convertir"
-                desc="Active + Back/Lay + 🔒 Fixer sur ta mise freebet, puis lay sur exchange pour sécuriser."
-              />
-              <UseCase
-                icon="⚖️"
-                title="Dutching"
-                desc="Plusieurs issues back chez un même book pour répartir ton risque. Active + Profit ciblé pour choisir les issues gagnantes."
-              />
-              <UseCase
-                icon="🔒"
-                title="Trading same-book (100% réussite)"
-                desc="Sur Betclic/Unibet : couvre toutes les issues sur le même book. Mode 'surebet négatif' avec FB à la clé."
-              />
-              <UseCase
-                icon="🌍"
-                title="Multi-devises"
-                desc="Bookmakers internationaux ? Active + Devises, saisis tes taux de change et calcule cross-devise."
-              />
+              {useCases.map((uc) => (
+                <div
+                  key={uc.title}
+                  className="relative overflow-hidden rounded-2xl border-2 p-4 transition-all"
+                  style={{
+                    background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`,
+                    borderColor: `${uc.color}60`,
+                    boxShadow: `0 0 0 1px ${uc.color}30, 0 8px 24px -8px ${uc.color}60`,
+                  }}
+                >
+                  <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: uc.color }} />
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-base"
+                      style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}
+                    >
+                      {uc.icon}
+                    </span>
+                    <p className="text-sm font-extrabold text-white">{uc.title}</p>
+                  </div>
+                  <p className="mt-2 text-[12px] leading-relaxed text-white/70">{uc.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </main>
     </>
-  );
-}
-
-function UseCase({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
-      <div className="flex items-center gap-2">
-        <span className="text-xl">{icon}</span>
-        <p className="text-sm font-extrabold text-white">{title}</p>
-      </div>
-      <p className="mt-1.5 text-[12px] leading-relaxed text-white/60">{desc}</p>
-    </div>
   );
 }
