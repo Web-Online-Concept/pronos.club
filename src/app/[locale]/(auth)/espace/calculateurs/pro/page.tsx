@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import EspaceHero from "@/components/layout/EspaceHero";
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -95,7 +94,7 @@ const TABS: { key: TabKey; icon: string; label: string; hint: string; color: str
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// CALCULS (logique principale inchangée)
+// CALCULS
 // ═══════════════════════════════════════════════════════════════
 
 function roundStake(value: number, step: Rounding): number {
@@ -266,8 +265,6 @@ function calcPro(
   };
 }
 
-// Calcul dédié au mode Freebet (NSR = Non-Stake-Returned)
-// Convertit un freebet en cash garanti via un lay sur exchange
 interface FreebetResult {
   freebetValue: number;
   oddBack: number;
@@ -292,7 +289,6 @@ function calcFreebet(
 ): FreebetResult | null {
   if (freebetValue <= 0 || oddBack <= 1 || oddLay <= 1) return null;
   const c = Math.max(0, Math.min(0.4, commissionLayPct / 100));
-  // Formule : lay stake = V × (oddBack - 1) / (oddLay - c)
   const B = (freebetValue * (oddBack - 1)) / (oddLay - c);
   const L = B * (oddLay - 1);
   const BRounded = roundStake(B, rounding);
@@ -325,8 +321,8 @@ export default function CalculatorProPage() {
   const { user } = useAuth();
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
-  // Onglet actif (défaut : Tout-en-un pour ne rien casser pour les pros)
   const [activeTab, setActiveTab] = useState<TabKey>("surebet");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [mode, setMode] = useState<Mode>("stake");
   const [amount, setAmount] = useState("100");
@@ -340,10 +336,8 @@ export default function CalculatorProPage() {
   const [showRates, setShowRates] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Bookmaker commun (utilisé uniquement en mode Same-book)
   const [commonBookmaker, setCommonBookmaker] = useState("");
 
-  // États dédiés au mode Freebet
   const [fbValue, setFbValue] = useState("10");
   const [fbOddBack, setFbOddBack] = useState("5.000");
   const [fbOddLay, setFbOddLay] = useState("5.100");
@@ -363,9 +357,9 @@ export default function CalculatorProPage() {
     }))
   );
 
-  // ─── Application d'un preset d'onglet ─────────────────────────
   function applyTab(tab: TabKey) {
     setActiveTab(tab);
+    setMobileMenuOpen(false);
     if (tab === "surebet") {
       setUseCommissions(false);
       setUseCurrencies(false);
@@ -398,7 +392,6 @@ export default function CalculatorProPage() {
       setUseDistribution(false);
       setLegs(legs.map((l) => ({ ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0", bookmaker: commonBookmaker })));
     }
-    // allInOne et freebet : on ne force rien
   }
 
   function setCommonBookmakerAndSync(v: string) {
@@ -409,7 +402,6 @@ export default function CalculatorProPage() {
   function updateLeg<K extends keyof Leg>(index: number, field: K, value: Leg[K]) {
     const next = [...legs];
     next[index] = { ...next[index], [field]: value };
-    // En same-book, synchroniser le bookmaker si user modifie une ligne
     if (activeTab === "sameBook" && field === "bookmaker") {
       setCommonBookmaker(value as string);
       for (let i = 0; i < next.length; i++) next[i] = { ...next[i], bookmaker: value as string };
@@ -457,10 +449,9 @@ export default function CalculatorProPage() {
     setAmount("100");
     setRounding(0);
     setCommonBookmaker("");
-    applyTab(activeTab); // re-appliquer le preset
+    applyTab(activeTab);
   }
 
-  // ─── Calcul selon l'onglet ────────────────────────────────────
   const result = useMemo((): CalcResult | null => {
     if (activeTab === "freebet") return null;
     const amt = parseFloat(amount);
@@ -526,13 +517,10 @@ export default function CalculatorProPage() {
 
   if (!isPremium) {
     return (
-      <>
-        <EspaceHero title="Accès réservé" />
-        <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-          <p className="text-4xl">🔒</p>
-          <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux abonnés Premium.</p>
-        </main>
-      </>
+      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
+        <p className="text-4xl">🔒</p>
+        <p className="mt-4 text-sm font-bold text-neutral-500">Cette page est réservée aux abonnés Premium.</p>
+      </main>
     );
   }
 
@@ -554,18 +542,15 @@ export default function CalculatorProPage() {
           ? "linear-gradient(90deg, #b45309, #d97706, #f59e0b, #d97706, #b45309)"
           : "linear-gradient(90deg, #991b1b, #ef4444, #f87171, #ef4444, #991b1b)";
 
-  // ─── Configuration de l'affichage selon l'onglet ──────────────
   const showBLToggle = activeTab === "matched" || activeTab === "allInOne";
-  const showDistributionCol = useDistribution; // visible si activé (forcé en dutching, libre en allInOne)
+  const showDistributionCol = useDistribution;
   const showCommissionCol = useCommissions;
   const showCurrencyCol = useCurrencies;
   const showBookmakerCol = activeTab !== "sameBook";
   const showCommonBookmakerInput = activeTab === "sameBook";
-  const showMarketSelector = activeTab !== "matched"; // matched = 2 fixe
+  const showMarketSelector = activeTab !== "matched";
   const showOptionsFooter = activeTab === "allInOne";
   const maxLegsForTab = activeTab === "matched" ? 2 : 10;
-
-  // En mode matched, bloquer nLegs à 2
   const displayedNLegs = activeTab === "matched" ? 2 : nLegs;
 
   const useCases = [
@@ -580,185 +565,701 @@ export default function CalculatorProPage() {
   const inputBase = "w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-[13px] font-bold text-white outline-none placeholder:text-white/20 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30";
 
   return (
-    <>
-      <EspaceHero title="Calculateur Pro" />
+    <main className="mx-auto max-w-4xl px-3 pb-12 pt-6 md:px-4 md:pt-8">
+      {/* ═══ CARD PRINCIPALE ═══ */}
+      <div
+        className="overflow-hidden rounded-2xl border border-white/[0.06] shadow-2xl"
+        style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
+      >
+        <div className="h-0.5" style={{ background: statusAccent }} />
 
-      <main className="mx-auto max-w-4xl px-3 pb-12 pt-4 md:px-4 md:pt-5">
-        {/* ═══ CARD PRINCIPALE ═══ */}
-        <div
-          className="overflow-hidden rounded-2xl border border-white/[0.06] shadow-2xl"
-          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
-        >
-          <div className="h-0.5" style={{ background: statusAccent }} />
+        <div className="p-4 sm:p-5">
+          {/* ─── ONGLETS DESKTOP (md+) ─── */}
+          <div className="mb-3 hidden gap-1 md:flex">
+            {TABS.map((tab) => {
+              const active = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => applyTab(tab.key)}
+                  className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider transition-all ${
+                    active ? "text-white shadow-lg" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                  }`}
+                  style={
+                    active
+                      ? {
+                          background: `linear-gradient(135deg, ${tab.color} 0%, ${tab.color}cc 100%)`,
+                          boxShadow: `0 4px 12px -2px ${tab.color}80`,
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="text-sm">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          <div className="p-4 sm:p-5">
-            {/* ─── ONGLETS ─── */}
-            <div className="mb-3 flex gap-1 overflow-x-auto pb-1 scrollbar-thin">
-              {TABS.map((tab) => {
-                const active = tab.key === activeTab;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => applyTab(tab.key)}
-                    className={`flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider transition-all ${
-                      active ? "text-white shadow-lg" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
-                    }`}
-                    style={
-                      active
-                        ? {
-                            background: `linear-gradient(135deg, ${tab.color} 0%, ${tab.color}cc 100%)`,
-                            boxShadow: `0 4px 12px -2px ${tab.color}80`,
-                          }
-                        : undefined
-                    }
-                  >
-                    <span className="text-sm">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* ─── DROPDOWN MOBILE (< md) ─── */}
+          <div className="relative mb-3 md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${currentTab.color} 0%, ${currentTab.color}cc 100%)`,
+                boxShadow: `0 4px 12px -2px ${currentTab.color}80`,
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-base">{currentTab.icon}</span>
+                {currentTab.label}
+              </span>
+              <span className={`text-xs transition-transform ${mobileMenuOpen ? "rotate-180" : ""}`}>▼</span>
+            </button>
 
-            {/* Hint contextuel */}
-            <p className="mb-3 text-center text-[11px] italic text-white/50">{currentTab.hint}</p>
+            {mobileMenuOpen && (
+              <>
+                {/* overlay pour fermer au tap extérieur */}
+                <div className="fixed inset-0 z-10" onClick={() => setMobileMenuOpen(false)} />
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-white/10 bg-zinc-950 shadow-2xl">
+                  {TABS.map((tab) => {
+                    const isActive = tab.key === activeTab;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => applyTab(tab.key)}
+                        className={`flex w-full items-center gap-2 border-b border-white/5 px-4 py-3 text-left text-sm font-bold uppercase tracking-wider transition last:border-b-0 ${
+                          isActive ? "text-white" : "text-white/70 hover:bg-white/5"
+                        }`}
+                        style={isActive ? { background: `linear-gradient(90deg, ${tab.color}30 0%, ${tab.color}10 100%)`, borderLeft: `3px solid ${tab.color}` } : undefined}
+                      >
+                        <span className="text-base">{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
 
-            {/* ═══════════════════════════════════════════════════════ */}
-            {/* ═══ MODE FREEBET — UI DÉDIÉE ═══ */}
-            {/* ═══════════════════════════════════════════════════════ */}
-            {activeTab === "freebet" ? (
-              <div className="space-y-4">
-                {/* Résultat inline en haut */}
-                {freebetResult && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] font-bold">
-                    <span className="text-white/40">
-                      Profit garanti{" "}
-                      <span className={`font-mono ${freebetResult.guaranteedProfit > 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.guaranteedProfit > 0 ? "+" : ""}
-                        {freebetResult.guaranteedProfit.toFixed(2)}€
-                      </span>
+          <p className="mb-3 text-center text-[11px] italic text-white/50">{currentTab.hint}</p>
+
+          {/* ═══ MODE FREEBET ═══ */}
+          {activeTab === "freebet" ? (
+            <div className="space-y-4">
+              {freebetResult && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] font-bold">
+                  <span className="text-white/40">
+                    Profit garanti{" "}
+                    <span className={`font-mono ${freebetResult.guaranteedProfit > 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                      {freebetResult.guaranteedProfit > 0 ? "+" : ""}
+                      {freebetResult.guaranteedProfit.toFixed(2)}€
                     </span>
-                    <span className="text-white/40">
-                      Conversion{" "}
-                      <span className={`font-mono ${freebetResult.conversionRate > 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.conversionRate.toFixed(1)}%
-                      </span>
+                  </span>
+                  <span className="text-white/40">
+                    Conversion{" "}
+                    <span className={`font-mono ${freebetResult.conversionRate > 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                      {freebetResult.conversionRate.toFixed(1)}%
                     </span>
-                    <span className="text-white/40">
-                      Liability requise{" "}
-                      <span className="font-mono text-amber-300">{freebetResult.liabilityRounded.toFixed(2)}€</span>
-                    </span>
-                  </div>
-                )}
+                  </span>
+                  <span className="text-white/40">
+                    Liability requise <span className="font-mono text-amber-300">{freebetResult.liabilityRounded.toFixed(2)}€</span>
+                  </span>
+                </div>
+              )}
 
-                {/* Inputs */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border-2 border-purple-500/30 bg-purple-500/[0.06] p-3">
-                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-purple-300">
-                      🎁 Freebet (back bookmaker)
-                    </p>
-                    <div className="space-y-2">
-                      <label className="block">
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Valeur freebet (€)</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={fbValue}
-                          onChange={(e) => setFbValue(e.target.value)}
-                          inputMode="decimal"
-                          className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-purple-200 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote back</span>
-                        <input
-                          type="number"
-                          step="0.001"
-                          min="1.001"
-                          value={fbOddBack}
-                          onChange={(e) => setFbOddBack(e.target.value)}
-                          inputMode="decimal"
-                          className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-2 border-emerald-500/30 bg-emerald-500/[0.06] p-3">
-                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-300">
-                      🔄 Lay (exchange)
-                    </p>
-                    <div className="space-y-2">
-                      <label className="block">
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote lay</span>
-                        <input
-                          type="number"
-                          step="0.001"
-                          min="1.001"
-                          value={fbOddLay}
-                          onChange={(e) => setFbOddLay(e.target.value)}
-                          inputMode="decimal"
-                          className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Commission exchange (%)</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="40"
-                          value={fbCommission}
-                          onChange={(e) => setFbCommission(e.target.value)}
-                          inputMode="decimal"
-                          className="w-full rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center font-mono text-base font-black text-cyan-200 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
-                        />
-                      </label>
-                    </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border-2 border-purple-500/30 bg-purple-500/[0.06] p-3">
+                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-purple-300">🎁 Freebet (back bookmaker)</p>
+                  <div className="space-y-2">
+                    <label className="block">
+                      <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Valeur freebet (€)</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={fbValue}
+                        onChange={(e) => setFbValue(e.target.value)}
+                        inputMode="decimal"
+                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-purple-200 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote back</span>
+                      <input
+                        type="number"
+                        step="0.001"
+                        min="1.001"
+                        value={fbOddBack}
+                        onChange={(e) => setFbOddBack(e.target.value)}
+                        inputMode="decimal"
+                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
+                      />
+                    </label>
                   </div>
                 </div>
 
-                {/* Résultats détaillés */}
-                {freebetResult && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
-                      <p className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-300">🎯 Mise lay à placer</p>
-                      <p className="mt-1 font-mono text-2xl font-black text-emerald-200">{freebetResult.layStakeRounded.toFixed(2)}€</p>
-                      <p className="mt-0.5 text-[10px] text-emerald-400/70">@ cote {freebetResult.oddLay.toFixed(3)}</p>
+                <div className="rounded-lg border-2 border-emerald-500/30 bg-emerald-500/[0.06] p-3">
+                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-300">🔄 Lay (exchange)</p>
+                  <div className="space-y-2">
+                    <label className="block">
+                      <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote lay</span>
+                      <input
+                        type="number"
+                        step="0.001"
+                        min="1.001"
+                        value={fbOddLay}
+                        onChange={(e) => setFbOddLay(e.target.value)}
+                        inputMode="decimal"
+                        className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Commission exchange (%)</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="40"
+                        value={fbCommission}
+                        onChange={(e) => setFbCommission(e.target.value)}
+                        inputMode="decimal"
+                        className="w-full rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center font-mono text-base font-black text-cyan-200 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {freebetResult && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+                    <p className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-300">🎯 Mise lay à placer</p>
+                    <p className="mt-1 font-mono text-2xl font-black text-emerald-200">{freebetResult.layStakeRounded.toFixed(2)}€</p>
+                    <p className="mt-0.5 text-[10px] text-emerald-400/70">@ cote {freebetResult.oddLay.toFixed(3)}</p>
+                  </div>
+                  <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3 text-center">
+                    <p className="text-[9px] font-extrabold uppercase tracking-wider text-amber-300">💳 Liability requise (exchange)</p>
+                    <p className="mt-1 font-mono text-2xl font-black text-amber-200">{freebetResult.liabilityRounded.toFixed(2)}€</p>
+                    <p className="mt-0.5 text-[10px] text-amber-400/70">Solde à disposer</p>
+                  </div>
+                </div>
+              )}
+
+              {freebetResult && (
+                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-white/50">📊 Scénarios</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+                      <span className="text-[11px] text-white/60">Si back gagne</span>
+                      <span className={`font-mono text-sm font-black ${freebetResult.profitBackWins >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        {freebetResult.profitBackWins >= 0 ? "+" : ""}
+                        {freebetResult.profitBackWins.toFixed(2)}€
+                      </span>
                     </div>
-                    <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3 text-center">
-                      <p className="text-[9px] font-extrabold uppercase tracking-wider text-amber-300">💳 Liability requise (exchange)</p>
-                      <p className="mt-1 font-mono text-2xl font-black text-amber-200">{freebetResult.liabilityRounded.toFixed(2)}€</p>
-                      <p className="mt-0.5 text-[10px] text-amber-400/70">Solde à disposer</p>
+                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
+                      <span className="text-[11px] text-white/60">Si back perd</span>
+                      <span className={`font-mono text-sm font-black ${freebetResult.profitBackLoses >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        {freebetResult.profitBackLoses >= 0 ? "+" : ""}
+                        {freebetResult.profitBackLoses.toFixed(2)}€
+                      </span>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Scénarios */}
+              <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
+                  <select
+                    value={rounding}
+                    onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
+                    className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
+                  >
+                    <option value={0} className="bg-black">Aucun</option>
+                    <option value={0.1} className="bg-black">0.10</option>
+                    <option value={0.5} className="bg-black">0.50</option>
+                    <option value={1} className="bg-black">1</option>
+                    <option value={2} className="bg-black">2</option>
+                    <option value={5} className="bg-black">5</option>
+                  </select>
+                </div>
                 {freebetResult && (
-                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                    <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-white/50">📊 Scénarios</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
-                        <span className="text-[11px] text-white/60">Si back gagne</span>
-                        <span className={`font-mono text-sm font-black ${freebetResult.profitBackWins >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                          {freebetResult.profitBackWins >= 0 ? "+" : ""}
-                          {freebetResult.profitBackWins.toFixed(2)}€
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
-                        <span className="text-[11px] text-white/60">Si back perd</span>
-                        <span className={`font-mono text-sm font-black ${freebetResult.profitBackLoses >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                          {freebetResult.profitBackLoses >= 0 ? "+" : ""}
-                          {freebetResult.profitBackLoses.toFixed(2)}€
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <button
+                    onClick={copyFreebetRecap}
+                    className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
+                  >
+                    {copied ? "✅ Copié" : "📋 Copier"}
+                  </button>
                 )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* ═══ CONTROLS + TABLEAU ═══ */}
+              <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_auto] md:items-center">
+                <div className="flex overflow-hidden rounded-lg border border-white/10">
+                  <button
+                    onClick={() => setMode("stake")}
+                    className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
+                      mode === "stake" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
+                    }`}
+                  >
+                    💰 Mise totale
+                  </button>
+                  <button
+                    onClick={() => setMode("target")}
+                    className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
+                      mode === "target" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
+                    }`}
+                  >
+                    🎯 Gain cible
+                  </button>
+                </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80">
+                    {mode === "stake" ? "Enjeu" : "Gain"}
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })));
+                    }}
+                    placeholder="100"
+                    inputMode="decimal"
+                    className="w-24 bg-transparent text-center font-mono text-sm font-black text-emerald-300 outline-none placeholder:text-emerald-700"
+                  />
+                  <select
+                    value={mainCurrency}
+                    onChange={(e) => setMainCurrency(e.target.value as Currency)}
+                    className="cursor-pointer bg-transparent text-[11px] font-bold text-emerald-300 outline-none"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c} value={c} className="bg-black">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {showMarketSelector ? (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
+                    {Array.from({ length: maxLegsForTab - 1 }, (_, i) => i + 2).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setNLegs(n as NLegs)}
+                        className={`h-7 w-7 cursor-pointer rounded-md text-[11px] font-black transition ${
+                          nLegs === n
+                            ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
+                            : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">🔄 2 paris (back + lay)</span>
+                )}
+              </div>
+
+              {showCommonBookmakerInput && (
+                <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-300">🔒 Bookmaker commun</span>
+                  <input
+                    type="text"
+                    value={commonBookmaker}
+                    onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
+                    placeholder="Betclic, Unibet, PMU..."
+                    className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400"
+                  />
+                </div>
+              )}
+
+              {/* TABLEAU DESKTOP */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto rounded-lg border border-white/5">
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead>
+                      <tr className="bg-white/[0.03] text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+                        <th className="w-8 px-1 py-1.5"></th>
+                        <th className="px-2 py-1.5 text-left">Label</th>
+                        {showBLToggle && <th className="w-12 px-1 py-1.5">B/L</th>}
+                        <th className="w-20 px-1 py-1.5">Cote</th>
+                        {showCommissionCol && <th className="w-16 px-1 py-1.5">% Comm</th>}
+                        {showBookmakerCol && <th className="px-2 py-1.5 text-left">Bookmaker</th>}
+                        <th className="w-24 px-1 py-1.5">Mise</th>
+                        {showCurrencyCol && <th className="w-16 px-1 py-1.5">Dev.</th>}
+                        {showDistributionCol && <th className="w-10 px-1 py-1.5">D</th>}
+                        <th className="w-10 px-1 py-1.5">C</th>
+                        <th className="w-24 px-2 py-1.5 text-right">Gains</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {legs.slice(0, displayedNLegs).map((leg, i) => {
+                        const legResult = result?.legs[i];
+                        const color = LEG_COLORS[i % LEG_COLORS.length];
+                        const profit = legResult?.profit ?? 0;
+                        const isLay = leg.side === "lay";
+
+                        return (
+                          <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
+                            <td className="px-1 py-1.5 text-center">
+                              <span
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-white"
+                                style={{ background: color }}
+                              >
+                                {i + 1}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="text"
+                                value={leg.label}
+                                onChange={(e) => updateLeg(i, "label", e.target.value)}
+                                placeholder={`Issue ${i + 1}`}
+                                className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
+                              />
+                            </td>
+                            {showBLToggle && (
+                              <td className="px-1 py-1.5 text-center">
+                                <button
+                                  onClick={() => toggleSide(i)}
+                                  className={`h-7 w-10 cursor-pointer rounded-md text-xs font-black transition ${
+                                    isLay
+                                      ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
+                                      : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                                  }`}
+                                  title={isLay ? "Bascule en Back" : "Bascule en Lay"}
+                                >
+                                  {isLay ? "−" : "+"}
+                                </button>
+                              </td>
+                            )}
+                            <td className="px-1 py-1.5">
+                              <input
+                                type="number"
+                                step="0.001"
+                                min="1.001"
+                                value={leg.odd}
+                                onChange={(e) => updateLeg(i, "odd", e.target.value)}
+                                placeholder="2.000"
+                                inputMode="decimal"
+                                className={inputBase + (isLay ? " border-purple-500/20 focus:border-purple-500 focus:ring-purple-500/30" : "")}
+                              />
+                            </td>
+                            {showCommissionCol && (
+                              <td className="px-1 py-1.5">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="40"
+                                  value={leg.commission}
+                                  onChange={(e) => updateLeg(i, "commission", e.target.value)}
+                                  placeholder="0"
+                                  inputMode="decimal"
+                                  className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                                />
+                              </td>
+                            )}
+                            {showBookmakerCol && (
+                              <td className="px-2 py-1.5">
+                                <input
+                                  type="text"
+                                  value={leg.bookmaker}
+                                  onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
+                                  placeholder={isLay ? "Betfair" : "Betclic"}
+                                  className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
+                                />
+                              </td>
+                            )}
+                            <td className="px-1 py-1.5">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
+                                onChange={(e) => setLegLocked(i, true, e.target.value)}
+                                inputMode="decimal"
+                                className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold outline-none focus:ring-1 ${
+                                  leg.locked
+                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-200 focus:border-amber-400 focus:ring-amber-500/30"
+                                    : "border-white/10 bg-white/5 text-white focus:border-emerald-500 focus:ring-emerald-500/30"
+                                }`}
+                              />
+                            </td>
+                            {showCurrencyCol && (
+                              <td className="px-1 py-1.5">
+                                <select
+                                  value={leg.currency}
+                                  onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                  className="w-full cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-1 py-1 text-center text-[11px] font-bold text-amber-200 outline-none focus:border-amber-400"
+                                >
+                                  {CURRENCIES.map((c) => (
+                                    <option key={c} value={c} className="bg-black">
+                                      {c}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            )}
+                            {showDistributionCol && (
+                              <td className="px-1 py-1.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={leg.distribute}
+                                  onChange={() => toggleDistribute(i)}
+                                  className="h-4 w-4 cursor-pointer accent-rose-500"
+                                />
+                              </td>
+                            )}
+                            <td className="px-1 py-1.5 text-center">
+                              <input
+                                type="radio"
+                                name="lockRadio"
+                                checked={leg.locked}
+                                onChange={() => setLegLocked(i, !leg.locked)}
+                                className="h-4 w-4 cursor-pointer accent-amber-400"
+                              />
+                            </td>
+                            <td
+                              className={`px-2 py-1.5 text-right font-mono text-[12px] font-black ${
+                                profit > 0.01 ? "text-emerald-300" : profit < -0.01 ? "text-rose-300" : "text-white/60"
+                              }`}
+                            >
+                              {profit > 0 ? "+" : ""}
+                              {profit.toFixed(2)}
+                              {mainSymbol}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="border-t-2 border-emerald-500/30 bg-emerald-500/[0.03]">
+                        <td
+                          colSpan={2 + (showBLToggle ? 1 : 0) + 1 + (showCommissionCol ? 1 : 0) + (showBookmakerCol ? 1 : 0)}
+                          className="px-2 py-1.5 text-right text-[11px] font-extrabold uppercase tracking-wider text-emerald-400"
+                        >
+                          Enjeu total
+                        </td>
+                        <td className="px-1 py-1.5">
+                          <div className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[13px] font-black text-emerald-200">
+                            {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
+                          </div>
+                        </td>
+                        {showCurrencyCol && (
+                          <td className="px-1 py-1.5 text-center text-[11px] font-bold text-emerald-300">{mainCurrency}</td>
+                        )}
+                        {showDistributionCol && <td />}
+                        <td className="px-1 py-1.5 text-center">
+                          <input
+                            type="radio"
+                            name="lockRadio"
+                            checked={!legs.some((l) => l.locked)}
+                            onChange={() => setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })))}
+                            className="h-4 w-4 cursor-pointer accent-emerald-400"
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-mono text-[12px] font-black text-emerald-300">
+                          {result ? (result.guaranteedProfitRounded >= 0 ? "+" : "") + result.guaranteedProfitRounded.toFixed(2) + mainSymbol : ""}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* CARDS MOBILE */}
+              <div className="md:hidden">
+                <div className="space-y-2">
+                  {legs.slice(0, displayedNLegs).map((leg, i) => {
+                    const legResult = result?.legs[i];
+                    const color = LEG_COLORS[i % LEG_COLORS.length];
+                    const symbol = CURRENCY_SYMBOLS[leg.currency];
+                    const profit = legResult?.profit ?? 0;
+                    const isLay = leg.side === "lay";
+
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-lg border p-2"
+                        style={{
+                          background: `linear-gradient(135deg, #0a0a0a 0%, ${color}12 50%, #0a0a0a 100%)`,
+                          borderColor: `${color}50`,
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
+                            style={{ background: color }}
+                          >
+                            {i + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={leg.label}
+                            onChange={(e) => updateLeg(i, "label", e.target.value)}
+                            placeholder={`Issue ${i + 1}`}
+                            className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
+                          />
+                          {showBLToggle && (
+                            <button
+                              onClick={() => toggleSide(i)}
+                              className={`h-7 w-9 cursor-pointer rounded-md text-xs font-black transition ${
+                                isLay
+                                  ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
+                                  : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                              }`}
+                            >
+                              {isLay ? "−" : "+"}
+                            </button>
+                          )}
+                          {showDistributionCol && (
+                            <button
+                              onClick={() => toggleDistribute(i)}
+                              className={`h-7 w-7 cursor-pointer rounded-md text-[10px] font-black transition ${
+                                leg.distribute ? "bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/50" : "bg-white/5 text-white/30"
+                              }`}
+                              title="Distribuer profit"
+                            >
+                              D
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setLegLocked(i, !leg.locked)}
+                            className={`h-7 w-7 cursor-pointer rounded-md text-xs transition ${
+                              leg.locked ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-400/50" : "bg-white/5 text-white/40"
+                            }`}
+                            title="Fixer"
+                          >
+                            {leg.locked ? "🔒" : "🔓"}
+                          </button>
+                        </div>
+
+                        <div className={`mt-1.5 grid gap-1.5 ${showBookmakerCol ? "grid-cols-[80px_1fr]" : "grid-cols-1"}`}>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="1.001"
+                            value={leg.odd}
+                            onChange={(e) => updateLeg(i, "odd", e.target.value)}
+                            placeholder="Cote"
+                            inputMode="decimal"
+                            className={`rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold text-white outline-none focus:ring-1 ${
+                              isLay
+                                ? "border-purple-500/25 bg-purple-500/5 focus:border-purple-500 focus:ring-purple-500/30"
+                                : "border-white/10 bg-white/5 focus:border-emerald-500 focus:ring-emerald-500/30"
+                            }`}
+                          />
+                          {showBookmakerCol && (
+                            <input
+                              type="text"
+                              value={leg.bookmaker}
+                              onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
+                              placeholder={isLay ? "Exchange" : "Bookmaker"}
+                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
+                            />
+                          )}
+                        </div>
+
+                        {(showCommissionCol || showCurrencyCol) && (
+                          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                            {showCommissionCol && (
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="40"
+                                value={leg.commission}
+                                onChange={(e) => updateLeg(i, "commission", e.target.value)}
+                                placeholder="Commission %"
+                                inputMode="decimal"
+                                className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[11px] font-bold text-cyan-200 outline-none"
+                              />
+                            )}
+                            {showCurrencyCol && (
+                              <select
+                                value={leg.currency}
+                                onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                className="cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-center text-[11px] font-bold text-amber-200 outline-none"
+                              >
+                                {CURRENCIES.map((c) => (
+                                  <option key={c} value={c} className="bg-black">
+                                    {c} ({CURRENCY_SYMBOLS[c]})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                          <div>
+                            <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
+                              {isLay ? "Mise Lay" : "Mise"}
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
+                              onChange={(e) => setLegLocked(i, true, e.target.value)}
+                              inputMode="decimal"
+                              className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black outline-none ${
+                                leg.locked
+                                  ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">Gain si gagne</div>
+                            <div
+                              className={`rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black ${
+                                profit > 0.01
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                  : profit < -0.01
+                                    ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                                    : "border-white/10 bg-white/5 text-white/60"
+                              }`}
+                            >
+                              {profit > 0 ? "+" : ""}
+                              {profit.toFixed(2)}
+                              {mainSymbol}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="flex items-center justify-between rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5 p-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Enjeu total</span>
+                    <span className="font-mono text-base font-black text-emerald-200">
+                      {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
+                      {mainSymbol}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {showOptionsFooter && (
+                    <>
+                      <OptCheckbox checked={useCommissions} onChange={setUseCommissions} label="Commissions" color="cyan" />
+                      <OptCheckbox checked={useCurrencies} onChange={setUseCurrencies} label="Devises" color="amber" />
+                      <OptCheckbox checked={useDistribution} onChange={setUseDistribution} label="Profit ciblé" color="rose" />
+                    </>
+                  )}
                   <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
                     <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
                     <select
@@ -774,9 +1275,17 @@ export default function CalculatorProPage() {
                       <option value={5} className="bg-black">5</option>
                     </select>
                   </div>
-                  {freebetResult && (
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={resetAll}
+                    className="cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:text-white"
+                  >
+                    🔄 Reset
+                  </button>
+                  {result && (
                     <button
-                      onClick={copyFreebetRecap}
+                      onClick={copyRecap}
                       className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
                     >
                       {copied ? "✅ Copié" : "📋 Copier"}
@@ -784,667 +1293,146 @@ export default function CalculatorProPage() {
                   )}
                 </div>
               </div>
-            ) : (
-              /* ═══════════════════════════════════════════════════════ */
-              /* ═══ MODES SUREBET / MATCHED / DUTCHING / SAMEBOOK / ALLINONE ═══ */
-              /* ═══════════════════════════════════════════════════════ */
-              <>
-                {/* ─── CONTROLS : mode + enjeu + marché ─── */}
-                <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_auto] md:items-center">
-                  {/* Mode stake/target */}
-                  <div className="flex overflow-hidden rounded-lg border border-white/10">
-                    <button
-                      onClick={() => setMode("stake")}
-                      className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
-                        mode === "stake" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
-                      }`}
-                    >
-                      💰 Mise totale
-                    </button>
-                    <button
-                      onClick={() => setMode("target")}
-                      className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
-                        mode === "target" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
-                      }`}
-                    >
-                      🎯 Gain cible
-                    </button>
-                  </div>
 
-                  {/* Enjeu */}
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80">
-                      {mode === "stake" ? "Enjeu" : "Gain"}
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="1"
-                      value={amount}
-                      onChange={(e) => {
-                        setAmount(e.target.value);
-                        setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })));
-                      }}
-                      placeholder="100"
-                      inputMode="decimal"
-                      className="w-24 bg-transparent text-center font-mono text-sm font-black text-emerald-300 outline-none placeholder:text-emerald-700"
-                    />
-                    <select
-                      value={mainCurrency}
-                      onChange={(e) => setMainCurrency(e.target.value as Currency)}
-                      className="cursor-pointer bg-transparent text-[11px] font-bold text-emerald-300 outline-none"
-                    >
-                      {CURRENCIES.map((c) => (
-                        <option key={c} value={c} className="bg-black">
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Marché (masqué si matched = 2 fixe) */}
-                  {showMarketSelector ? (
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
-                      {Array.from({ length: maxLegsForTab - 1 }, (_, i) => i + 2).map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => setNLegs(n as NLegs)}
-                          className={`h-7 w-7 cursor-pointer rounded-md text-[11px] font-black transition ${
-                            nLegs === n
-                              ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
-                              : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
-                          }`}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">🔄 2 paris (back + lay)</span>
-                  )}
-                </div>
-
-                {/* Bookmaker commun (same-book only) */}
-                {showCommonBookmakerInput && (
-                  <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-300">🔒 Bookmaker commun</span>
-                    <input
-                      type="text"
-                      value={commonBookmaker}
-                      onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
-                      placeholder="Betclic, Unibet, PMU..."
-                      className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400"
-                    />
-                  </div>
-                )}
-
-                {/* ═══ TABLEAU DESKTOP ═══ */}
-                <div className="hidden md:block">
-                  <div className="overflow-x-auto rounded-lg border border-white/5">
-                    <table className="w-full border-collapse text-[12px]">
-                      <thead>
-                        <tr className="bg-white/[0.03] text-[9px] font-extrabold uppercase tracking-wider text-white/40">
-                          <th className="w-8 px-1 py-1.5"></th>
-                          <th className="px-2 py-1.5 text-left">Label</th>
-                          {showBLToggle && <th className="w-12 px-1 py-1.5">B/L</th>}
-                          <th className="w-20 px-1 py-1.5">Cote</th>
-                          {showCommissionCol && <th className="w-16 px-1 py-1.5">% Comm</th>}
-                          {showBookmakerCol && <th className="px-2 py-1.5 text-left">Bookmaker</th>}
-                          <th className="w-24 px-1 py-1.5">Mise</th>
-                          {showCurrencyCol && <th className="w-16 px-1 py-1.5">Dev.</th>}
-                          {showDistributionCol && <th className="w-10 px-1 py-1.5">D</th>}
-                          <th className="w-10 px-1 py-1.5">C</th>
-                          <th className="w-24 px-2 py-1.5 text-right">Gains</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {legs.slice(0, displayedNLegs).map((leg, i) => {
-                          const legResult = result?.legs[i];
-                          const color = LEG_COLORS[i % LEG_COLORS.length];
-                          const profit = legResult?.profit ?? 0;
-                          const isLay = leg.side === "lay";
-
-                          return (
-                            <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
-                              <td className="px-1 py-1.5 text-center">
-                                <span
-                                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-white"
-                                  style={{ background: color }}
-                                >
-                                  {i + 1}
-                                </span>
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input
-                                  type="text"
-                                  value={leg.label}
-                                  onChange={(e) => updateLeg(i, "label", e.target.value)}
-                                  placeholder={`Issue ${i + 1}`}
-                                  className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
-                                />
-                              </td>
-                              {showBLToggle && (
-                                <td className="px-1 py-1.5 text-center">
-                                  <button
-                                    onClick={() => toggleSide(i)}
-                                    className={`h-7 w-10 cursor-pointer rounded-md text-xs font-black transition ${
-                                      isLay
-                                        ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
-                                        : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
-                                    }`}
-                                    title={isLay ? "Bascule en Back" : "Bascule en Lay"}
-                                  >
-                                    {isLay ? "−" : "+"}
-                                  </button>
-                                </td>
-                              )}
-                              <td className="px-1 py-1.5">
-                                <input
-                                  type="number"
-                                  step="0.001"
-                                  min="1.001"
-                                  value={leg.odd}
-                                  onChange={(e) => updateLeg(i, "odd", e.target.value)}
-                                  placeholder="2.000"
-                                  inputMode="decimal"
-                                  className={inputBase + (isLay ? " border-purple-500/20 focus:border-purple-500 focus:ring-purple-500/30" : "")}
-                                />
-                              </td>
-                              {showCommissionCol && (
-                                <td className="px-1 py-1.5">
-                                  <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    max="40"
-                                    value={leg.commission}
-                                    onChange={(e) => updateLeg(i, "commission", e.target.value)}
-                                    placeholder="0"
-                                    inputMode="decimal"
-                                    className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
-                                  />
-                                </td>
-                              )}
-                              {showBookmakerCol && (
-                                <td className="px-2 py-1.5">
-                                  <input
-                                    type="text"
-                                    value={leg.bookmaker}
-                                    onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
-                                    placeholder={isLay ? "Betfair" : "Betclic"}
-                                    className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
-                                  />
-                                </td>
-                              )}
-                              <td className="px-1 py-1.5">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
-                                  onChange={(e) => setLegLocked(i, true, e.target.value)}
-                                  inputMode="decimal"
-                                  className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold outline-none focus:ring-1 ${
-                                    leg.locked
-                                      ? "border-amber-500/40 bg-amber-500/10 text-amber-200 focus:border-amber-400 focus:ring-amber-500/30"
-                                      : "border-white/10 bg-white/5 text-white focus:border-emerald-500 focus:ring-emerald-500/30"
-                                  }`}
-                                />
-                              </td>
-                              {showCurrencyCol && (
-                                <td className="px-1 py-1.5">
-                                  <select
-                                    value={leg.currency}
-                                    onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
-                                    className="w-full cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-1 py-1 text-center text-[11px] font-bold text-amber-200 outline-none focus:border-amber-400"
-                                  >
-                                    {CURRENCIES.map((c) => (
-                                      <option key={c} value={c} className="bg-black">
-                                        {c}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </td>
-                              )}
-                              {showDistributionCol && (
-                                <td className="px-1 py-1.5 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={leg.distribute}
-                                    onChange={() => toggleDistribute(i)}
-                                    className="h-4 w-4 cursor-pointer accent-rose-500"
-                                  />
-                                </td>
-                              )}
-                              <td className="px-1 py-1.5 text-center">
-                                <input
-                                  type="radio"
-                                  name="lockRadio"
-                                  checked={leg.locked}
-                                  onChange={() => setLegLocked(i, !leg.locked)}
-                                  className="h-4 w-4 cursor-pointer accent-amber-400"
-                                />
-                              </td>
-                              <td
-                                className={`px-2 py-1.5 text-right font-mono text-[12px] font-black ${
-                                  profit > 0.01 ? "text-emerald-300" : profit < -0.01 ? "text-rose-300" : "text-white/60"
-                                }`}
-                              >
-                                {profit > 0 ? "+" : ""}
-                                {profit.toFixed(2)}
-                                {mainSymbol}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {/* Total */}
-                        <tr className="border-t-2 border-emerald-500/30 bg-emerald-500/[0.03]">
-                          <td
-                            colSpan={
-                              2 +
-                              (showBLToggle ? 1 : 0) +
-                              1 +
-                              (showCommissionCol ? 1 : 0) +
-                              (showBookmakerCol ? 1 : 0)
-                            }
-                            className="px-2 py-1.5 text-right text-[11px] font-extrabold uppercase tracking-wider text-emerald-400"
-                          >
-                            Enjeu total
-                          </td>
-                          <td className="px-1 py-1.5">
-                            <div className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-center font-mono text-[13px] font-black text-emerald-200">
-                              {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
-                            </div>
-                          </td>
-                          {showCurrencyCol && (
-                            <td className="px-1 py-1.5 text-center text-[11px] font-bold text-emerald-300">{mainCurrency}</td>
-                          )}
-                          {showDistributionCol && <td />}
-                          <td className="px-1 py-1.5 text-center">
-                            <input
-                              type="radio"
-                              name="lockRadio"
-                              checked={!legs.some((l) => l.locked)}
-                              onChange={() => setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })))}
-                              className="h-4 w-4 cursor-pointer accent-emerald-400"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono text-[12px] font-black text-emerald-300">
-                            {result ? (result.guaranteedProfitRounded >= 0 ? "+" : "") + result.guaranteedProfitRounded.toFixed(2) + mainSymbol : ""}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* ═══ CARDS MOBILE ═══ */}
-                <div className="md:hidden">
-                  <div className="space-y-2">
-                    {legs.slice(0, displayedNLegs).map((leg, i) => {
-                      const legResult = result?.legs[i];
-                      const color = LEG_COLORS[i % LEG_COLORS.length];
-                      const symbol = CURRENCY_SYMBOLS[leg.currency];
-                      const profit = legResult?.profit ?? 0;
-                      const isLay = leg.side === "lay";
-
-                      return (
-                        <div
-                          key={i}
-                          className="rounded-lg border p-2"
-                          style={{
-                            background: `linear-gradient(135deg, #0a0a0a 0%, ${color}12 50%, #0a0a0a 100%)`,
-                            borderColor: `${color}50`,
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
-                              style={{ background: color }}
-                            >
-                              {i + 1}
-                            </span>
-                            <input
-                              type="text"
-                              value={leg.label}
-                              onChange={(e) => updateLeg(i, "label", e.target.value)}
-                              placeholder={`Issue ${i + 1}`}
-                              className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
-                            />
-                            {showBLToggle && (
-                              <button
-                                onClick={() => toggleSide(i)}
-                                className={`h-7 w-9 cursor-pointer rounded-md text-xs font-black transition ${
-                                  isLay
-                                    ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
-                                    : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
-                                }`}
-                              >
-                                {isLay ? "−" : "+"}
-                              </button>
-                            )}
-                            {showDistributionCol && (
-                              <button
-                                onClick={() => toggleDistribute(i)}
-                                className={`h-7 w-7 cursor-pointer rounded-md text-[10px] font-black transition ${
-                                  leg.distribute ? "bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/50" : "bg-white/5 text-white/30"
-                                }`}
-                                title="Distribuer profit"
-                              >
-                                D
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setLegLocked(i, !leg.locked)}
-                              className={`h-7 w-7 cursor-pointer rounded-md text-xs transition ${
-                                leg.locked ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-400/50" : "bg-white/5 text-white/40"
-                              }`}
-                              title="Fixer"
-                            >
-                              {leg.locked ? "🔒" : "🔓"}
-                            </button>
-                          </div>
-
-                          <div className={`mt-1.5 grid gap-1.5 ${showBookmakerCol ? "grid-cols-[80px_1fr]" : "grid-cols-1"}`}>
+              {showOptionsFooter && useCurrencies && (
+                <div className="mt-3 border-t border-white/5 pt-3">
+                  <button
+                    onClick={() => setShowRates(!showRates)}
+                    className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300"
+                  >
+                    {showRates ? "▼" : "▶"} Taux de change (1 EUR =)
+                  </button>
+                  {showRates && (
+                    <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2">
+                      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-9">
+                        {CURRENCIES.filter((c) => c !== "EUR").map((cur) => (
+                          <label key={cur} className="block">
+                            <span className="mb-0.5 block text-center text-[9px] font-extrabold text-amber-400/70">{cur}</span>
                             <input
                               type="number"
-                              step="0.001"
-                              min="1.001"
-                              value={leg.odd}
-                              onChange={(e) => updateLeg(i, "odd", e.target.value)}
-                              placeholder="Cote"
-                              inputMode="decimal"
-                              className={`rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold text-white outline-none focus:ring-1 ${
-                                isLay
-                                  ? "border-purple-500/25 bg-purple-500/5 focus:border-purple-500 focus:ring-purple-500/30"
-                                  : "border-white/10 bg-white/5 focus:border-emerald-500 focus:ring-emerald-500/30"
-                              }`}
+                              step="0.0001"
+                              value={rates[cur] || 1}
+                              onChange={(e) => setRates({ ...rates, [cur]: parseFloat(e.target.value) || 1 })}
+                              className="w-full rounded border border-amber-500/20 bg-black/40 px-1 py-0.5 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400"
                             />
-                            {showBookmakerCol && (
-                              <input
-                                type="text"
-                                value={leg.bookmaker}
-                                onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
-                                placeholder={isLay ? "Exchange" : "Bookmaker"}
-                                className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
-                              />
-                            )}
-                          </div>
-
-                          {(showCommissionCol || showCurrencyCol) && (
-                            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                              {showCommissionCol && (
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  max="40"
-                                  value={leg.commission}
-                                  onChange={(e) => updateLeg(i, "commission", e.target.value)}
-                                  placeholder="Commission %"
-                                  inputMode="decimal"
-                                  className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[11px] font-bold text-cyan-200 outline-none"
-                                />
-                              )}
-                              {showCurrencyCol && (
-                                <select
-                                  value={leg.currency}
-                                  onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
-                                  className="cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-center text-[11px] font-bold text-amber-200 outline-none"
-                                >
-                                  {CURRENCIES.map((c) => (
-                                    <option key={c} value={c} className="bg-black">
-                                      {c} ({CURRENCY_SYMBOLS[c]})
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                            <div>
-                              <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
-                                {isLay ? "Mise Lay" : "Mise"}
-                              </div>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
-                                onChange={(e) => setLegLocked(i, true, e.target.value)}
-                                inputMode="decimal"
-                                className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black outline-none ${
-                                  leg.locked
-                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
-                                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
-                                Gain si gagne
-                              </div>
-                              <div
-                                className={`rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black ${
-                                  profit > 0.01
-                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                                    : profit < -0.01
-                                      ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                                      : "border-white/10 bg-white/5 text-white/60"
-                                }`}
-                              >
-                                {profit > 0 ? "+" : ""}
-                                {profit.toFixed(2)}
-                                {mainSymbol}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex items-center justify-between rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5 p-2">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Enjeu total</span>
-                      <span className="font-mono text-base font-black text-emerald-200">
-                        {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
-                        {mainSymbol}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ─── OPTIONS FOOTER ─── */}
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {showOptionsFooter && (
-                      <>
-                        <OptCheckbox checked={useCommissions} onChange={setUseCommissions} label="Commissions" color="cyan" />
-                        <OptCheckbox checked={useCurrencies} onChange={setUseCurrencies} label="Devises" color="amber" />
-                        <OptCheckbox checked={useDistribution} onChange={setUseDistribution} label="Profit ciblé" color="rose" />
-                      </>
-                    )}
-                    <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
-                      <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
-                      <select
-                        value={rounding}
-                        onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
-                        className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
-                      >
-                        <option value={0} className="bg-black">Aucun</option>
-                        <option value={0.1} className="bg-black">0.10</option>
-                        <option value={0.5} className="bg-black">0.50</option>
-                        <option value={1} className="bg-black">1</option>
-                        <option value={2} className="bg-black">2</option>
-                        <option value={5} className="bg-black">5</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={resetAll}
-                      className="cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:text-white"
-                    >
-                      🔄 Reset
-                    </button>
-                    {result && (
-                      <button
-                        onClick={copyRecap}
-                        className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
-                      >
-                        {copied ? "✅ Copié" : "📋 Copier"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Panneau taux de change (Tout-en-un uniquement) */}
-                {showOptionsFooter && useCurrencies && (
-                  <div className="mt-3 border-t border-white/5 pt-3">
-                    <button
-                      onClick={() => setShowRates(!showRates)}
-                      className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300"
-                    >
-                      {showRates ? "▼" : "▶"} Taux de change (1 EUR =)
-                    </button>
-                    {showRates && (
-                      <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2">
-                        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-9">
-                          {CURRENCIES.filter((c) => c !== "EUR").map((cur) => (
-                            <label key={cur} className="block">
-                              <span className="mb-0.5 block text-center text-[9px] font-extrabold text-amber-400/70">{cur}</span>
-                              <input
-                                type="number"
-                                step="0.0001"
-                                value={rates[cur] || 1}
-                                onChange={(e) => setRates({ ...rates, [cur]: parseFloat(e.target.value) || 1 })}
-                                className="w-full rounded border border-amber-500/20 bg-black/40 px-1 py-0.5 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400"
-                              />
-                            </label>
-                          ))}
-                        </div>
+                          </label>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ─── Verdict + placement (hors Freebet qui a sa propre UI) ─── */}
-        {activeTab !== "freebet" && result && <VerdictMini result={result} mainSymbol={mainSymbol} />}
-
-        {activeTab !== "freebet" && result?.isSurebet && (
-          <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3 sm:p-4">
-            <p className="mb-2 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
-              <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500/20">⚡</span>
-              Ordre de placement — cote la plus haute en premier
-            </p>
-            <div className="space-y-1.5">
-              {placementOrder.map((leg, rank) => {
-                const orig = legs[leg.origIndex];
-                const legSymbol = CURRENCY_SYMBOLS[orig.currency];
-                return (
-                  <div key={leg.origIndex} className="flex items-start gap-2 rounded-lg border border-white/5 bg-black/30 px-2 py-1.5 text-[12px]">
-                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
-                      {rank + 1}
-                    </span>
-                    <div className="flex-1 leading-tight">
-                      <span className="font-bold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
-                      {leg.side === "lay" && <span className="ml-1 rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
-                      {leg.isLocked && <span className="ml-1 rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
-                      {!orig.distribute && useDistribution && (
-                        <span className="ml-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>
-                      )}
-                      <span className="ml-2 text-white/60">
-                        {leg.side === "lay" ? "Lay " : ""}
-                        <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
-                        <span className="mx-1 text-white/30">@</span>
-                        <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
-                        <span className="mx-1 text-white/30">chez</span>
-                        <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
-                        {leg.side === "lay" && (
-                          <span className="ml-1 text-white/40">
-                            (liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)
-                          </span>
-                        )}
-                      </span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {activeTab !== "freebet" && result?.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-            <p className="text-[11px] text-amber-200">
-              ⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span>
-            </p>
-          </div>
-        )}
-        {activeTab !== "freebet" && result?.hasMultiCurrency && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-            <p className="text-[11px] text-amber-200">💱 Multi-devises actif — le profit dépend des taux de change saisis</p>
-          </div>
-        )}
-        {activeTab !== "freebet" && result?.isSuspicious && (
-          <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-            <p className="text-[11px] text-amber-200">
-              ⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable
-            </p>
-          </div>
-        )}
-
-        {/* ═══ SECTION "REMPLACE 6 OUTILS" ═══ */}
-        <div
-          className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
-          style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
-        >
-          <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
-          <div className="px-5 py-4 text-center sm:px-6">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
-            <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Ce calculateur remplace 6 autres outils</h2>
-            <p className="mt-1 text-xs text-white/40">Clique sur l&apos;onglet qui correspond à ton besoin, les options inutiles sont masquées</p>
-          </div>
-          <div className="px-4 pb-5 sm:px-6">
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
-              {useCases.map((uc) => (
-                <div
-                  key={uc.title}
-                  className="relative overflow-hidden rounded-xl border-2 p-3"
-                  style={{
-                    background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`,
-                    borderColor: `${uc.color}50`,
-                  }}
-                >
-                  <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: uc.color }} />
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-base"
-                      style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}
-                    >
-                      {uc.icon}
-                    </span>
-                    <p className="text-[13px] font-extrabold text-white">{uc.title}</p>
-                  </div>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-white/65">{uc.desc}</p>
+                  )}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {activeTab !== "freebet" && result && <VerdictMini result={result} mainSymbol={mainSymbol} />}
+
+      {activeTab !== "freebet" && result?.isSurebet && (
+        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3 sm:p-4">
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400">
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500/20">⚡</span>
+            Ordre de placement — cote la plus haute en premier
+          </p>
+          <div className="space-y-1.5">
+            {placementOrder.map((leg, rank) => {
+              const orig = legs[leg.origIndex];
+              const legSymbol = CURRENCY_SYMBOLS[orig.currency];
+              return (
+                <div key={leg.origIndex} className="flex items-start gap-2 rounded-lg border border-white/5 bg-black/30 px-2 py-1.5 text-[12px]">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
+                    {rank + 1}
+                  </span>
+                  <div className="flex-1 leading-tight">
+                    <span className="font-bold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
+                    {leg.side === "lay" && <span className="ml-1 rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
+                    {leg.isLocked && <span className="ml-1 rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
+                    {!orig.distribute && useDistribution && (
+                      <span className="ml-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>
+                    )}
+                    <span className="ml-2 text-white/60">
+                      {leg.side === "lay" ? "Lay " : ""}
+                      <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
+                      <span className="mx-1 text-white/30">@</span>
+                      <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
+                      <span className="mx-1 text-white/30">chez</span>
+                      <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
+                      {leg.side === "lay" && (
+                        <span className="ml-1 text-white/40">
+                          (liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </main>
-    </>
+      )}
+
+      {activeTab !== "freebet" && result?.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+          <p className="text-[11px] text-amber-200">
+            ⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span>
+          </p>
+        </div>
+      )}
+      {activeTab !== "freebet" && result?.hasMultiCurrency && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+          <p className="text-[11px] text-amber-200">💱 Multi-devises actif — le profit dépend des taux de change saisis</p>
+        </div>
+      )}
+      {activeTab !== "freebet" && result?.isSuspicious && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
+          <p className="text-[11px] text-amber-200">
+            ⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable
+          </p>
+        </div>
+      )}
+
+      {/* ═══ SECTION "REMPLACE 6 OUTILS" ═══ */}
+      <div
+        className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
+        style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
+      >
+        <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
+        <div className="px-5 py-4 text-center sm:px-6">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
+          <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Ce calculateur remplace 6 autres outils</h2>
+          <p className="mt-1 text-xs text-white/40">Clique sur l&apos;onglet qui correspond à ton besoin, les options inutiles sont masquées</p>
+        </div>
+        <div className="px-4 pb-5 sm:px-6">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
+            {useCases.map((uc) => (
+              <div
+                key={uc.title}
+                className="relative overflow-hidden rounded-xl border-2 p-3"
+                style={{
+                  background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`,
+                  borderColor: `${uc.color}50`,
+                }}
+              >
+                <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: uc.color }} />
+                <div className="flex items-center gap-2">
+                  <span
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-base"
+                    style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}
+                  >
+                    {uc.icon}
+                  </span>
+                  <p className="text-[13px] font-extrabold text-white">{uc.title}</p>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-white/65">{uc.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════
-// SOUS-COMPOSANTS
-// ═══════════════════════════════════════════════════════════════
 
 function OptCheckbox({
   checked,
