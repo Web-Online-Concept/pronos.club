@@ -158,7 +158,7 @@ export default async function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-10 border-t border-emerald-900/40 pt-6 text-center text-xs text-neutral-600">
-          <p>{t("bottom_copy", { year: new Date().getFullYear() })}</p>
+          <p suppressHydrationWarning>{t("bottom_copy", { year: new Date().getFullYear() })}</p>
           <p className="mt-1">{t("bottom_risk")}</p>
           <p className="mt-1">{t("bottom_phone")}</p>
         </div>
