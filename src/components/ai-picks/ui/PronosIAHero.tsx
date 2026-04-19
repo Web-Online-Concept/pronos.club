@@ -103,24 +103,28 @@ export default async function PronosIAHero({
             <NavButton
               href={`/${locale}/pronos-ia`}
               label={t("nav_live")}
+              shortLabel={t("nav_live_short")}
               Icon={Radio}
               active={currentPage === "live"}
             />
             <NavButton
               href={`/${locale}/pronos-ia/stats`}
               label={t("nav_stats")}
+              shortLabel={t("nav_stats_short")}
               Icon={BarChart3}
               active={currentPage === "stats"}
             />
             <NavButton
               href={`/${locale}/pronos-ia/historique`}
               label={t("nav_history")}
+              shortLabel={t("nav_history_short")}
               Icon={History}
               active={currentPage === "history"}
             />
             <NavButton
               href={`/${locale}/pronos-ia/comment-ca-marche`}
               label={t("nav_how")}
+              shortLabel={t("nav_how_short")}
               Icon={HelpCircle}
               active={currentPage === "how"}
             />
@@ -139,11 +143,13 @@ export default async function PronosIAHero({
 function NavButton({
   href,
   label,
+  shortLabel,
   Icon,
   active,
 }: {
   href: string;
   label: string;
+  shortLabel: string;
   Icon: React.ComponentType<{
     size?: number;
     strokeWidth?: number;
@@ -162,7 +168,8 @@ function NavButton({
         aria-current="page"
       >
         <Icon size={14} strokeWidth={2.5} />
-        <span>{label}</span>
+        <span className="sm:hidden">{shortLabel}</span>
+        <span className="hidden sm:inline">{label}</span>
       </span>
     );
   }
@@ -174,7 +181,8 @@ function NavButton({
       className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/70 backdrop-blur transition hover:border-violet-400/40 hover:bg-white/10 hover:text-white"
     >
       <Icon size={14} strokeWidth={2.5} />
-      <span>{label}</span>
+      <span className="sm:hidden">{shortLabel}</span>
+      <span className="hidden sm:inline">{label}</span>
     </Link>
   );
 }

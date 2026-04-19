@@ -1463,6 +1463,10 @@
     "stats_badge_resolved_count": "{count} pronostics résolus",
     "history_badge_count": "{count} pronostics au total",
     "history_page_subtitle_generic": "Tous les pronostics passés et en attente de résultat, filtrables par type, statut et sport.",
-    "meta_og_image_alt": "Pronos IA — Pronostics sportifs générés par Intelligence Artificielle sur PRONOS.CLUB"
+    "meta_og_image_alt": "Pronos IA — Pronostics sportifs générés par Intelligence Artificielle sur PRONOS.CLUB",
+    "nav_live_short": "En cours",
+    "nav_stats_short": "Stats",
+    "nav_history_short": "Historique",
+    "nav_how_short": "Fonctionnement"
   }
 }
