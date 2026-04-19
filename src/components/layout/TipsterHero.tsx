@@ -1,31 +1,24 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — TipsterHero
+ * COMPOSANT — TipsterHero (client component)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Hero full-width pour les 4 pages tipster (Pronostics, Historique,
- * Statistiques, Tipster).
- *
- * Couleurs : emerald (distinct du violet Pronos IA).
+ * Hero full-width pour les 4 pages tipster.
+ * Client component → compatible server ET client pages.
  *
  * Props :
  *   - locale          : langue courante
  *   - currentPage     : "pronos" | "history" | "stats" | "tipster"
- *                       → le bouton correspondant est en mode actif
- *   - title           : titre spécifique à la page
- *   - tag             : optionnel, libellé du tag (défaut : "PRONOS CLUB · TIPSTER")
- *   - children        : contenu libre (badges/stats) placé APRÈS les 4 boutons
- *
- * Structure :
- *   [TAG]
- *   [TITRE]
- *   [4 boutons nav]
- *   [children : badges/stats custom par page]
+ *   - title           : titre spécifique
+ *   - tag             : optionnel, libellé du tag
+ *   - children        : slot AVANT les 4 boutons (badges/stats)
  * ═══════════════════════════════════════════════════════════════════
  */
 
+"use client";
+
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { Target, BarChart3, History, User } from "lucide-react";
 
 
@@ -41,15 +34,14 @@ interface Props {
 }
 
 
-export default async function TipsterHero({
+export default function TipsterHero({
   locale,
   currentPage,
   title,
   tag,
   children,
 }: Props) {
-  const t = await getTranslations({ locale, namespace: "tipster_hero" });
-
+  const t = useTranslations("tipster_hero");
   const displayTag = tag ?? t("tag");
 
   return (
@@ -145,7 +137,6 @@ function NavButton({
   active: boolean;
 }) {
   if (active) {
-    // Bouton actif : gradient emerald plein
     return (
       <span
         className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-4 py-2 text-xs font-semibold text-white shadow-md"
@@ -161,7 +152,6 @@ function NavButton({
     );
   }
 
-  // Bouton inactif : bordure fine, fond sombre translucide
   return (
     <Link
       href={href}
