@@ -19,6 +19,7 @@ import AIStatsBySport from "@/components/ai-picks/stats/AIStatsBySport";
 import AIStatsByLeague from "@/components/ai-picks/stats/AIStatsByLeague";
 import AIConfidenceAnalysis from "@/components/ai-picks/stats/AIConfidenceAnalysis";
 import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
+import { buildPronosIAMetadata } from "@/lib/ai/ai-picks-metadata";
 
 export const revalidate = 600;
 
@@ -29,13 +30,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "ai_picks" });
-
-  return {
-    title: t("stats_meta_title"),
-    description: t("stats_meta_description"),
-    robots: { index: true, follow: true },
-  };
+  return buildPronosIAMetadata(locale, "stats");
 }
 
 

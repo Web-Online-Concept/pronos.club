@@ -1256,8 +1256,8 @@
     "personal_view": "Mis datos"
   },
   "ai_picks": {
-    "meta_title": "Pronósticos IA — Pronósticos deportivos generados automáticamente | PRONOS.CLUB",
-    "meta_description": "Cada día, nuestra inteligencia artificial selecciona los pronósticos deportivos más interesantes. Herramienta experimental, gratuita, transparente.",
+    "meta_title": "Pronósticos IA Gratis · Fútbol, Tenis, Baloncesto por IA",
+    "meta_description": "Pronósticos deportivos gratis generados cada día por una IA. Fútbol, tenis, baloncesto. Cuotas comparadas, justificaciones detalladas, estadísticas transparentes.",
     "badge_experimental": "Herramienta experimental",
     "page_title": "Pronósticos de la IA",
     "page_subtitle": "Selecciones generadas automáticamente cada día por la inteligencia artificial Claude. Transparencia total sobre los resultados.",
@@ -1294,8 +1294,8 @@
     "stats_banner_no_data_text": "Los primeros resultados llegan pronto — vuelve mañana por la mañana.",
     "stats_banner_building_title": "Estadísticas en camino...",
     "stats_banner_building_text": "{count} pronósticos resueltos de 10 necesarios para mostrar el porcentaje.",
-    "stats_meta_title": "Estadísticas de la IA — Pronósticos IA | PRONOS.CLUB",
-    "stats_meta_description": "Rendimiento detallado de los Pronósticos IA: tasa de acierto, cuotas medias, simulación 1 unidad por pronóstico, desglose por deporte.",
+    "stats_meta_title": "Estadísticas Pronósticos IA · Rendimiento Transparente",
+    "stats_meta_description": "Consulta en total transparencia el rendimiento de los pronósticos IA: tasa de acierto, ROI, cuota media. Estadísticas detalladas por deporte y liga.",
     "stats_badge": "Estadísticas detalladas",
     "stats_page_title": "Rendimiento de la IA",
     "stats_page_subtitle_since": "Todo el rendimiento desde el {date}",
@@ -1324,8 +1324,8 @@
     "sport_soccer": "Fútbol",
     "sport_tennis": "Tenis",
     "sport_basketball": "Baloncesto",
-    "history_meta_title": "Historial de Pronósticos IA — PRONOS.CLUB",
-    "history_meta_description": "Todos los pronósticos IA anteriores, con filtros por tipo, resultado y deporte.",
+    "history_meta_title": "Historial Completo Pronósticos IA · Todos los Resultados",
+    "history_meta_description": "Todos los pronósticos IA pasados: ganados, perdidos, anulados. Filtro por tipo, estado y deporte. Resultados verificados y justificaciones completas.",
     "history_badge": "Historial completo",
     "history_page_title": "Historial de Pronósticos",
     "history_page_subtitle": "{total} pronósticos resueltos en total",
@@ -1338,8 +1338,8 @@
     "history_filter_all": "Todos",
     "history_pagination_prev": "Anterior",
     "history_pagination_next": "Siguiente",
-    "howitworks_meta_title": "¿Cómo funcionan los Pronósticos IA? — PRONOS.CLUB",
-    "howitworks_meta_description": "Todo sobre nuestra herramienta experimental: cómo la IA Claude elige los pronósticos, por qué es gratis, cuáles son los límites.",
+    "howitworks_meta_title": "Cómo Funcionan los Pronósticos IA · PRONOS.CLUB",
+    "howitworks_meta_description": "Descubre cómo la IA genera pronósticos deportivos: selección de partidos, análisis de cuotas, verificación por un segundo agente IA. FAQ completa.",
     "howitworks_badge": "¿Cómo funciona?",
     "howitworks_page_title": "¿Cómo funcionan los Pronósticos IA?",
     "howitworks_page_subtitle": "Todo sobre esta herramienta experimental con total transparencia.",
@@ -1462,6 +1462,7 @@
     "nav_history": "Historial",
     "stats_badge_resolved_count": "{count} pronósticos resueltos",
     "history_badge_count": "{count} pronósticos en total",
-    "history_page_subtitle_generic": "Todos los pronósticos pasados y a la espera de resultado, filtrables por tipo, estado y deporte."
+    "history_page_subtitle_generic": "Todos los pronósticos pasados y a la espera de resultado, filtrables por tipo, estado y deporte.",
+    "meta_og_image_alt": "Pronósticos IA — Pronósticos deportivos generados por Inteligencia Artificial en PRONOS.CLUB"
   }
 }

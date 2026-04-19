@@ -14,6 +14,7 @@ import AIPickCard, { type AIPickRow } from "@/components/ai-picks/AIPickCard";
 import AIScorerCard, { type AIScorerRow } from "@/components/ai-picks/AIScorerCard";
 import PronosIAButton from "@/components/ai-picks/ui/PronosIAButton";
 import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
+import { buildPronosIAMetadata } from "@/lib/ai/ai-picks-metadata";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -25,13 +26,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "ai_picks" });
-
-  return {
-    title: t("meta_title"),
-    description: t("meta_description"),
-    robots: { index: true, follow: true },
-  };
+  return buildPronosIAMetadata(locale, "live");
 }
 
 

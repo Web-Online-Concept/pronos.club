@@ -10,6 +10,7 @@ import { AlertTriangle } from "lucide-react";
 import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
 import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
 import PronosIAButton from "@/components/ai-picks/ui/PronosIAButton";
+import { buildPronosIAMetadata } from "@/lib/ai/ai-picks-metadata";
 
 export const revalidate = 3600;
 
@@ -20,12 +21,31 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  return buildPronosIAMetadata(locale, "howitworks");
+}
+
+
+/**
+ * JSON-LD FAQ Schema
+ * Les 9 questions/réponses de la FAQ exposées au format structured data
+ * pour permettre à Google de les afficher en rich snippets dans les résultats.
+ */
+async function buildFaqJsonLd(locale: string) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
 
+  const questions = Array.from({ length: 9 }, (_, i) => ({
+    "@type": "Question",
+    name: t(`howitworks_faq_q${i + 1}`),
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: t(`howitworks_faq_a${i + 1}`),
+    },
+  }));
+
   return {
-    title: t("howitworks_meta_title"),
-    description: t("howitworks_meta_description"),
-    robots: { index: true, follow: true },
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: questions,
   };
 }
 
@@ -37,9 +57,16 @@ export default async function HowItWorksPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "ai_picks" });
+  const faqJsonLd = await buildFaqJsonLd(locale);
 
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
+
+      {/* JSON-LD : FAQ schema pour rich snippets Google */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
 
       {/* HERO FULL-WIDTH */}
       <PronosIAHero

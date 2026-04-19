@@ -20,6 +20,11 @@ export async function GET() {
     { path: "/pronostics", priority: "0.9", changefreq: "daily" },
     { path: "/historique", priority: "0.8", changefreq: "daily" },
     { path: "/statistiques", priority: "0.8", changefreq: "daily" },
+    // PRONOS IA (4 pages)
+    { path: "/pronos-ia", priority: "0.9", changefreq: "daily" },
+    { path: "/pronos-ia/comment-ca-marche", priority: "0.6", changefreq: "monthly" },
+    { path: "/pronos-ia/stats", priority: "0.7", changefreq: "daily" },
+    { path: "/pronos-ia/historique", priority: "0.7", changefreq: "daily" },
     { path: "/bilans", priority: "0.7", changefreq: "monthly" },
     { path: "/tipster", priority: "0.7", changefreq: "monthly" },
     { path: "/bookmakers", priority: "0.7", changefreq: "monthly" },
