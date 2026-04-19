@@ -11,6 +11,7 @@ type Mode = "stake" | "target";
 type NLegs = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Rounding = 0 | 0.1 | 0.5 | 1 | 2 | 5;
 type BetSide = "back" | "lay";
+type LayStakeMode = "backer" | "liability";
 type Currency = "EUR" | "USD" | "GBP" | "BRL" | "CHF" | "CAD" | "AUD" | "JPY" | "BTC" | "ETH";
 type TabKey = "surebet" | "matched" | "freebet" | "dutching" | "sameBook" | "allInOne";
 
@@ -24,6 +25,7 @@ interface Leg {
   lockedStake: string;
   currency: Currency;
   distribute: boolean;
+  layStakeMode: LayStakeMode; // pour les lignes Lay : saisir en backer stake ou en liability
 }
 
 interface LegResult {
@@ -38,6 +40,7 @@ interface LegResult {
   sharePercent: number;
   isLocked: boolean;
   volatilityRank: number;
+  netOdd: number; // cote effective après application de la commission
 }
 
 interface CalcResult {
@@ -93,7 +96,6 @@ const TABS: { key: TabKey; icon: string; label: string; hint: string; color: str
   { key: "allInOne", icon: "💎", label: "Tout-en-un", hint: "Toutes les options accessibles — à toi de régler finement chaque paramètre", color: "#3b82f6" },
 ];
 
-// Formules disponibles selon le nombre d'issues (= pré-remplissage des labels de lignes)
 function getFormulas(n: number): { label: string; legLabels: string[] }[] {
   if (n === 2) {
     return [
@@ -104,11 +106,8 @@ function getFormulas(n: number): { label: string; legLabels: string[] }[] {
     ];
   }
   if (n === 3) {
-    return [
-      { label: "1 - X - 2", legLabels: ["1", "X", "2"] },
-    ];
+    return [{ label: "1 - X - 2", legLabels: ["1", "X", "2"] }];
   }
-  // 4+ : labels numériques génériques
   const labels = Array.from({ length: n }, (_, i) => `${i + 1}`);
   return [{ label: labels.join(" - "), legLabels: labels }];
 }
@@ -138,7 +137,8 @@ function calcPro(
   rounding: Rounding,
   useCommissions: boolean,
   rates: Record<Currency, number>,
-  mainCurrency: Currency
+  mainCurrency: Currency,
+  roundInMain: boolean
 ): CalcResult | null {
   const active = legs.slice(0, nLegs);
   const odds = active.map((l) => parseFloat(l.odd));
@@ -175,7 +175,13 @@ function calcPro(
     const lockedInput = parseFloat(lockedLeg.lockedStake) || 0;
     let lockedCapitalLocal = lockedInput;
     if (lockedLeg.side === "lay") {
-      lockedCapitalLocal = lockedInput * Math.max(0, parseFloat(lockedLeg.odd) - 1);
+      if (lockedLeg.layStakeMode === "liability") {
+        // l'input est déjà la liability = capital engagé
+        lockedCapitalLocal = lockedInput;
+      } else {
+        // input = backer stake, capital engagé = backer × (odd - 1)
+        lockedCapitalLocal = lockedInput * Math.max(0, parseFloat(lockedLeg.odd) - 1);
+      }
     }
     const lockedCapitalMain = convert(lockedCapitalLocal, lockedLeg.currency, mainCurrency, rates);
     const O = netOdds[lockedIdx];
@@ -202,6 +208,7 @@ function calcPro(
 
   const capitalsMain = netOdds.map((O, i) => (distributeFlags[i] ? (T_main + P_main) / O : T_main / O));
 
+  // Calcul mise/liability en devise locale (sans arrondi)
   const stakesLocal = capitalsMain.map((cap, i) => {
     const local = convert(cap, mainCurrency, active[i].currency, rates);
     if (active[i].side === "lay") {
@@ -214,8 +221,21 @@ function calcPro(
     active[i].side === "lay" ? convert(cap, mainCurrency, active[i].currency, rates) : 0
   );
 
+  // Arrondi : soit en devise locale (défaut), soit en devise principale
   const stakesLocalRounded = stakesLocal.map((s, i) => {
-    if (active[i].locked && i === lockedIdx) return parseFloat(active[i].lockedStake) || 0;
+    if (active[i].locked && i === lockedIdx) {
+      return parseFloat(active[i].lockedStake) || 0;
+    }
+    if (roundInMain) {
+      // Arrondir le capital en devise principale, puis convertir en local
+      const capMainRounded = roundStake(capitalsMain[i], rounding);
+      const capLocalRounded = convert(capMainRounded, mainCurrency, active[i].currency, rates);
+      if (active[i].side === "lay") {
+        const o = parseFloat(active[i].odd);
+        return o > 1 ? capLocalRounded / (o - 1) : 0;
+      }
+      return capLocalRounded;
+    }
     return roundStake(s, rounding);
   });
   const liabilitiesLocalRounded = liabilitiesLocal.map((l, i) => {
@@ -258,6 +278,7 @@ function calcPro(
     sharePercent: totalMain > 0 ? (actualCapitalsMain[i] / totalMain) * 100 : 0,
     isLocked: leg.locked && i === lockedIdx,
     volatilityRank: volatilityRankByIdx.get(i) ?? i,
+    netOdd: netOdds[i],
   }));
 
   const hasRounding = rounding > 0 && stakesLocal.some((s, i) => Math.abs(s - stakesLocalRounded[i]) > 0.001);
@@ -283,6 +304,22 @@ function calcPro(
     hasMultiCurrency: new Set(active.map((l) => l.currency)).size > 1,
     hasPartialDistribution,
   };
+}
+
+// Calcul de TRJ indicatif même sans tous les résultats complets (pour le badge permanent)
+function calcTrjOnly(legs: Leg[], nLegs: NLegs, useCommissions: boolean): { trj: number; arbPercent: number; valid: boolean } {
+  const active = legs.slice(0, nLegs);
+  const odds = active.map((l) => parseFloat(l.odd));
+  if (odds.some((o) => !o || o <= 1)) return { trj: 0, arbPercent: 0, valid: false };
+  const netOdds = odds.map((o, i) => {
+    const c = useCommissions ? Math.max(0, (parseFloat(active[i].commission) || 0) / 100) : 0;
+    if (active[i].side === "back") return 1 + (o - 1) * (1 - c);
+    return 1 + (1 - c) / (o - 1);
+  });
+  const invSum = netOdds.reduce((s, o) => s + 1 / o, 0);
+  if (invSum <= 0) return { trj: 0, arbPercent: 0, valid: false };
+  const trj = (1 / invSum) * 100;
+  return { trj, arbPercent: trj - 100, valid: true };
 }
 
 interface FreebetResult {
@@ -349,6 +386,7 @@ export default function CalculatorProPage() {
   const [nLegs, setNLegs] = useState<NLegs>(2);
   const [formulaIdx, setFormulaIdx] = useState(0);
   const [rounding, setRounding] = useState<Rounding>(0);
+  const [roundInMain, setRoundInMain] = useState(false);
   const [useCommissions, setUseCommissions] = useState(false);
   const [useCurrencies, setUseCurrencies] = useState(false);
   const [useDistribution, setUseDistribution] = useState(false);
@@ -364,7 +402,6 @@ export default function CalculatorProPage() {
   const [fbOddLay, setFbOddLay] = useState("5.100");
   const [fbCommission, setFbCommission] = useState("5");
 
-  // Initialisation des 10 legs avec la formule par défaut pour 2 issues
   const [legs, setLegs] = useState<Leg[]>(() => {
     const initialLabels = getFormulas(2)[0].legLabels;
     return Array.from({ length: MAX_LEGS }, (_, i) => ({
@@ -377,20 +414,19 @@ export default function CalculatorProPage() {
       lockedStake: "",
       currency: "EUR" as Currency,
       distribute: true,
+      layStakeMode: "backer" as LayStakeMode,
     }));
   });
 
   const formulas = useMemo(() => getFormulas(nLegs), [nLegs]);
 
-  function applyFormula(idx: number, targetLegs?: Leg[]) {
+  function applyFormula(idx: number) {
     const f = getFormulas(nLegs)[idx];
     if (!f) return;
     setFormulaIdx(idx);
-    const source = targetLegs ?? legs;
     setLegs(
-      source.map((l, i) => {
+      legs.map((l, i) => {
         if (i < f.legLabels.length) return { ...l, label: f.legLabels[i] };
-        // Au-delà du nombre d'issues, on remet un label générique propre
         return { ...l, label: `Issue ${i + 1}` };
       })
     );
@@ -420,12 +456,8 @@ export default function CalculatorProPage() {
       const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
       setLegs(
         legs.map((l, i) => ({
-          ...l,
-          side: "back",
-          distribute: true,
-          locked: false,
-          lockedStake: "",
-          commission: "0",
+          ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0",
+          layStakeMode: "backer",
           label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
         }))
       );
@@ -442,6 +474,7 @@ export default function CalculatorProPage() {
           locked: false,
           lockedStake: "",
           commission: i === 1 ? "5" : "0",
+          layStakeMode: "backer",
           label: i === 0 ? "Back bookmaker" : i === 1 ? "Lay exchange" : l.label,
         }))
       );
@@ -452,12 +485,8 @@ export default function CalculatorProPage() {
       const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
       setLegs(
         legs.map((l, i) => ({
-          ...l,
-          side: "back",
-          distribute: true,
-          locked: false,
-          lockedStake: "",
-          commission: "0",
+          ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0",
+          layStakeMode: "backer",
           label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
         }))
       );
@@ -468,18 +497,13 @@ export default function CalculatorProPage() {
       const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
       setLegs(
         legs.map((l, i) => ({
-          ...l,
-          side: "back",
-          distribute: true,
-          locked: false,
-          lockedStake: "",
-          commission: "0",
+          ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0",
           bookmaker: commonBookmaker,
+          layStakeMode: "backer",
           label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
         }))
       );
     } else if (tab === "allInOne") {
-      // Ne touche à rien côté options, mais applique la formule en cours
       const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
       setLegs(
         legs.map((l, i) => ({
@@ -501,6 +525,25 @@ export default function CalculatorProPage() {
     if (activeTab === "sameBook" && field === "bookmaker") {
       setCommonBookmaker(value as string);
       for (let i = 0; i < next.length; i++) next[i] = { ...next[i], bookmaker: value as string };
+    }
+    setLegs(next);
+  }
+
+  // Bascule Mise parieur / Obligations sur une ligne Lay, avec conversion auto de la valeur lockée
+  function toggleLayStakeMode(index: number) {
+    const next = [...legs];
+    const leg = next[index];
+    if (leg.side !== "lay") return;
+    const odd = parseFloat(leg.odd);
+    const newMode: LayStakeMode = leg.layStakeMode === "backer" ? "liability" : "backer";
+    if (leg.locked && leg.lockedStake && odd > 1) {
+      const current = parseFloat(leg.lockedStake) || 0;
+      // backer → liability : liability = backer × (odd - 1)
+      // liability → backer : backer = liability / (odd - 1)
+      const converted = newMode === "liability" ? current * (odd - 1) : current / (odd - 1);
+      next[index] = { ...leg, layStakeMode: newMode, lockedStake: converted.toFixed(2) };
+    } else {
+      next[index] = { ...leg, layStakeMode: newMode };
     }
     setLegs(next);
   }
@@ -540,11 +583,12 @@ export default function CalculatorProPage() {
       Array.from({ length: MAX_LEGS }, (_, i) => ({
         odd: "", bookmaker: "", label: f.legLabels[i] ?? `Issue ${i + 1}`, commission: "0",
         side: "back" as BetSide, locked: false, lockedStake: "",
-        currency: "EUR" as Currency, distribute: true,
+        currency: "EUR" as Currency, distribute: true, layStakeMode: "backer" as LayStakeMode,
       }))
     );
     setAmount("100");
     setRounding(0);
+    setRoundInMain(false);
     setCommonBookmaker("");
     setFormulaIdx(0);
     applyTab(activeTab);
@@ -556,8 +600,11 @@ export default function CalculatorProPage() {
     const hasLock = legs.slice(0, nLegs).some((l) => l.locked && parseFloat(l.lockedStake) > 0);
     if (!hasLock && (!amt || amt <= 0)) return null;
     const safeAmt = !amt || amt <= 0 ? 1 : amt;
-    return calcPro(legs, nLegs, safeAmt, mode, rounding, useCommissions, rates, mainCurrency);
-  }, [activeTab, legs, nLegs, amount, mode, rounding, useCommissions, rates, mainCurrency]);
+    return calcPro(legs, nLegs, safeAmt, mode, rounding, useCommissions, rates, mainCurrency, roundInMain);
+  }, [activeTab, legs, nLegs, amount, mode, rounding, useCommissions, rates, mainCurrency, roundInMain]);
+
+  // TRJ indicatif toujours calculé (pour le badge permanent, même si le reste n'est pas prêt)
+  const trjOnly = useMemo(() => calcTrjOnly(legs, nLegs, useCommissions), [legs, nLegs, useCommissions]);
 
   const freebetResult = useMemo((): FreebetResult | null => {
     if (activeTab !== "freebet") return null;
@@ -643,12 +690,14 @@ export default function CalculatorProPage() {
   const showBLToggle = activeTab === "matched" || activeTab === "allInOne";
   const showDistributionCol = useDistribution;
   const showCommissionCol = useCommissions;
+  const showEffectiveOddCol = useCommissions; // cote effective = cote avec commission
   const showCurrencyCol = useCurrencies;
   const showBookmakerCol = activeTab !== "sameBook";
   const showCommonBookmakerInput = activeTab === "sameBook";
   const showMarketSelector = activeTab !== "matched";
   const showOptionsFooter = activeTab === "allInOne";
   const showFormulaSelector = activeTab !== "matched" && activeTab !== "freebet";
+  const showPermanentBadge = activeTab !== "freebet";
   const maxLegsForTab = activeTab === "matched" ? 2 : 10;
   const displayedNLegs = activeTab === "matched" ? 2 : nLegs;
 
@@ -663,9 +712,25 @@ export default function CalculatorProPage() {
 
   const inputBase = "w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-[13px] font-bold text-white outline-none placeholder:text-white/20 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30";
 
+  // Badge permanent : couleur selon état
+  const badgePct = trjOnly.valid ? trjOnly.arbPercent : null;
+  const badgeColor = badgePct === null
+    ? "text-white/40"
+    : badgePct > 0
+      ? "text-emerald-300"
+      : Math.abs(badgePct) < 0.5
+        ? "text-amber-300"
+        : "text-rose-300";
+  const badgeBg = badgePct === null
+    ? "bg-white/5 border-white/10"
+    : badgePct > 0
+      ? "bg-emerald-500/10 border-emerald-500/30"
+      : Math.abs(badgePct) < 0.5
+        ? "bg-amber-500/10 border-amber-500/30"
+        : "bg-rose-500/10 border-rose-500/30";
+
   return (
     <main className="mx-auto max-w-4xl px-3 pb-12 pt-6 md:px-4 md:pt-8">
-      {/* ═══ CARD PRINCIPALE ═══ */}
       <div
         className="overflow-hidden rounded-2xl border border-white/[0.06] shadow-2xl"
         style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
@@ -684,14 +749,7 @@ export default function CalculatorProPage() {
                   className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider transition-all ${
                     active ? "text-white shadow-lg" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
                   }`}
-                  style={
-                    active
-                      ? {
-                          background: `linear-gradient(135deg, ${tab.color} 0%, ${tab.color}cc 100%)`,
-                          boxShadow: `0 4px 12px -2px ${tab.color}80`,
-                        }
-                      : undefined
-                  }
+                  style={active ? { background: `linear-gradient(135deg, ${tab.color} 0%, ${tab.color}cc 100%)`, boxShadow: `0 4px 12px -2px ${tab.color}80` } : undefined}
                 >
                   <span className="text-sm">{tab.icon}</span>
                   <span>{tab.label}</span>
@@ -705,10 +763,7 @@ export default function CalculatorProPage() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${currentTab.color} 0%, ${currentTab.color}cc 100%)`,
-                boxShadow: `0 4px 12px -2px ${currentTab.color}80`,
-              }}
+              style={{ background: `linear-gradient(135deg, ${currentTab.color} 0%, ${currentTab.color}cc 100%)`, boxShadow: `0 4px 12px -2px ${currentTab.color}80` }}
             >
               <span className="flex items-center gap-2">
                 <span className="text-base">{currentTab.icon}</span>
@@ -716,7 +771,6 @@ export default function CalculatorProPage() {
               </span>
               <span className={`text-xs transition-transform ${mobileMenuOpen ? "rotate-180" : ""}`}>▼</span>
             </button>
-
             {mobileMenuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMobileMenuOpen(false)} />
@@ -742,7 +796,24 @@ export default function CalculatorProPage() {
             )}
           </div>
 
-          <p className="mb-3 text-center text-[11px] italic text-white/50">{currentTab.hint}</p>
+          {/* ─── Hint + BADGE PERMANENT ─── */}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="flex-1 text-[11px] italic text-white/50">{currentTab.hint}</p>
+            {showPermanentBadge && (
+              <div
+                className={`flex flex-shrink-0 items-center gap-2 rounded-md border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider ${badgeBg}`}
+              >
+                <span className="text-white/40">TRJ</span>
+                <span className={`font-mono ${badgeColor}`}>
+                  {trjOnly.valid ? trjOnly.trj.toFixed(2) + "%" : "—"}
+                </span>
+                <span className="text-white/20">•</span>
+                <span className={`font-mono ${badgeColor}`}>
+                  {badgePct !== null ? (badgePct > 0 ? "+" : "") + badgePct.toFixed(2) + "%" : "—"}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* ═══ MODE FREEBET ═══ */}
           {activeTab === "freebet" ? (
@@ -774,27 +845,13 @@ export default function CalculatorProPage() {
                   <div className="space-y-2">
                     <label className="block">
                       <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Valeur freebet (€)</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={fbValue}
-                        onChange={(e) => setFbValue(e.target.value)}
-                        inputMode="decimal"
-                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-purple-200 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
-                      />
+                      <input type="number" step="0.01" min="0.01" value={fbValue} onChange={(e) => setFbValue(e.target.value)} inputMode="decimal"
+                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-purple-200 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30" />
                     </label>
                     <label className="block">
                       <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote back</span>
-                      <input
-                        type="number"
-                        step="0.001"
-                        min="1.001"
-                        value={fbOddBack}
-                        onChange={(e) => setFbOddBack(e.target.value)}
-                        inputMode="decimal"
-                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30"
-                      />
+                      <input type="number" step="0.001" min="1.001" value={fbOddBack} onChange={(e) => setFbOddBack(e.target.value)} inputMode="decimal"
+                        className="w-full rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/30" />
                     </label>
                   </div>
                 </div>
@@ -804,28 +861,13 @@ export default function CalculatorProPage() {
                   <div className="space-y-2">
                     <label className="block">
                       <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Cote lay</span>
-                      <input
-                        type="number"
-                        step="0.001"
-                        min="1.001"
-                        value={fbOddLay}
-                        onChange={(e) => setFbOddLay(e.target.value)}
-                        inputMode="decimal"
-                        className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
-                      />
+                      <input type="number" step="0.001" min="1.001" value={fbOddLay} onChange={(e) => setFbOddLay(e.target.value)} inputMode="decimal"
+                        className="w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-center font-mono text-base font-black text-white outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30" />
                     </label>
                     <label className="block">
                       <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">Commission exchange (%)</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="40"
-                        value={fbCommission}
-                        onChange={(e) => setFbCommission(e.target.value)}
-                        inputMode="decimal"
-                        className="w-full rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center font-mono text-base font-black text-cyan-200 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
-                      />
+                      <input type="number" step="0.1" min="0" max="40" value={fbCommission} onChange={(e) => setFbCommission(e.target.value)} inputMode="decimal"
+                        className="w-full rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-center font-mono text-base font-black text-cyan-200 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30" />
                     </label>
                   </div>
                 </div>
@@ -853,15 +895,13 @@ export default function CalculatorProPage() {
                     <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
                       <span className="text-[11px] text-white/60">Si back gagne</span>
                       <span className={`font-mono text-sm font-black ${freebetResult.profitBackWins >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.profitBackWins >= 0 ? "+" : ""}
-                        {freebetResult.profitBackWins.toFixed(2)}€
+                        {freebetResult.profitBackWins >= 0 ? "+" : ""}{freebetResult.profitBackWins.toFixed(2)}€
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
                       <span className="text-[11px] text-white/60">Si back perd</span>
                       <span className={`font-mono text-sm font-black ${freebetResult.profitBackLoses >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.profitBackLoses >= 0 ? "+" : ""}
-                        {freebetResult.profitBackLoses.toFixed(2)}€
+                        {freebetResult.profitBackLoses >= 0 ? "+" : ""}{freebetResult.profitBackLoses.toFixed(2)}€
                       </span>
                     </div>
                   </div>
@@ -871,11 +911,7 @@ export default function CalculatorProPage() {
               <div className="flex items-center justify-end gap-2">
                 <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
                   <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
-                  <select
-                    value={rounding}
-                    onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
-                    className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
-                  >
+                  <select value={rounding} onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)} className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none">
                     <option value={0} className="bg-black">Aucun</option>
                     <option value={0.1} className="bg-black">0.10</option>
                     <option value={0.5} className="bg-black">0.50</option>
@@ -885,10 +921,7 @@ export default function CalculatorProPage() {
                   </select>
                 </div>
                 {freebetResult && (
-                  <button
-                    onClick={copyFreebetRecap}
-                    className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
-                  >
+                  <button onClick={copyFreebetRecap} className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20">
                     {copied ? "✅ Copié" : "📋 Copier"}
                   </button>
                 )}
@@ -896,53 +929,25 @@ export default function CalculatorProPage() {
             </div>
           ) : (
             <>
+              {/* ═══ CONTROLS ═══ */}
               <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_auto] md:items-center">
                 <div className="flex overflow-hidden rounded-lg border border-white/10">
-                  <button
-                    onClick={() => setMode("stake")}
-                    className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
-                      mode === "stake" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
-                    }`}
-                  >
+                  <button onClick={() => setMode("stake")} className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${mode === "stake" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"}`}>
                     💰 Mise totale
                   </button>
-                  <button
-                    onClick={() => setMode("target")}
-                    className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${
-                      mode === "target" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"
-                    }`}
-                  >
+                  <button onClick={() => setMode("target")} className={`flex-1 cursor-pointer px-3 py-1.5 text-[11px] font-bold transition ${mode === "target" ? "bg-emerald-500 text-white" : "bg-white/5 text-white/50 hover:text-white/80"}`}>
                     🎯 Gain cible
                   </button>
                 </div>
 
                 <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80">
-                    {mode === "stake" ? "Enjeu" : "Gain"}
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value);
-                      setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })));
-                    }}
-                    placeholder="100"
-                    inputMode="decimal"
-                    className="w-24 bg-transparent text-center font-mono text-sm font-black text-emerald-300 outline-none placeholder:text-emerald-700"
-                  />
-                  <select
-                    value={mainCurrency}
-                    onChange={(e) => setMainCurrency(e.target.value as Currency)}
-                    className="cursor-pointer bg-transparent text-[11px] font-bold text-emerald-300 outline-none"
-                  >
-                    {CURRENCIES.map((c) => (
-                      <option key={c} value={c} className="bg-black">
-                        {c}
-                      </option>
-                    ))}
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400/80">{mode === "stake" ? "Enjeu" : "Gain"}</span>
+                  <input type="number" step="0.01" min="1" value={amount}
+                    onChange={(e) => { setAmount(e.target.value); setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" }))); }}
+                    placeholder="100" inputMode="decimal"
+                    className="w-24 bg-transparent text-center font-mono text-sm font-black text-emerald-300 outline-none placeholder:text-emerald-700" />
+                  <select value={mainCurrency} onChange={(e) => setMainCurrency(e.target.value as Currency)} className="cursor-pointer bg-transparent text-[11px] font-bold text-emerald-300 outline-none">
+                    {CURRENCIES.map((c) => (<option key={c} value={c} className="bg-black">{c}</option>))}
                   </select>
                 </div>
 
@@ -950,17 +955,10 @@ export default function CalculatorProPage() {
                   <div className="flex flex-wrap items-center gap-1">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/30">⚙️ Marché</span>
                     {Array.from({ length: maxLegsForTab - 1 }, (_, i) => i + 2).map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => changeNLegs(n as NLegs)}
+                      <button key={n} onClick={() => changeNLegs(n as NLegs)}
                         className={`h-7 w-7 cursor-pointer rounded-md text-[11px] font-black transition ${
-                          nLegs === n
-                            ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40"
-                            : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        {n}
-                      </button>
+                          nLegs === n ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/40" : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                        }`}>{n}</button>
                     ))}
                   </div>
                 ) : (
@@ -968,20 +966,12 @@ export default function CalculatorProPage() {
                 )}
               </div>
 
-              {/* ─── DROPDOWN FORMULE ─── */}
               {showFormulaSelector && (
                 <div className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-1.5">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-white/40">📋 Formule</span>
-                  <select
-                    value={formulaIdx}
-                    onChange={(e) => applyFormula(parseInt(e.target.value))}
-                    className="cursor-pointer rounded-md bg-transparent px-2 py-0.5 text-[11px] font-extrabold text-white outline-none hover:bg-white/5"
-                  >
-                    {formulas.map((f, i) => (
-                      <option key={i} value={i} className="bg-black">
-                        {f.label}
-                      </option>
-                    ))}
+                  <select value={formulaIdx} onChange={(e) => applyFormula(parseInt(e.target.value))}
+                    className="cursor-pointer rounded-md bg-transparent px-2 py-0.5 text-[11px] font-extrabold text-white outline-none hover:bg-white/5">
+                    {formulas.map((f, i) => (<option key={i} value={i} className="bg-black">{f.label}</option>))}
                   </select>
                 </div>
               )}
@@ -989,17 +979,13 @@ export default function CalculatorProPage() {
               {showCommonBookmakerInput && (
                 <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-300">🔒 Bookmaker commun</span>
-                  <input
-                    type="text"
-                    value={commonBookmaker}
-                    onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
+                  <input type="text" value={commonBookmaker} onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
                     placeholder="Betclic, Unibet, PMU..."
-                    className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400"
-                  />
+                    className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400" />
                 </div>
               )}
 
-              {/* TABLEAU DESKTOP */}
+              {/* ═══ TABLEAU DESKTOP ═══ */}
               <div className="hidden md:block">
                 <div className="overflow-x-auto rounded-lg border border-white/5">
                   <table className="w-full border-collapse text-[12px]">
@@ -1010,8 +996,9 @@ export default function CalculatorProPage() {
                         {showBLToggle && <th className="w-12 px-1 py-1.5">B/L</th>}
                         <th className="w-20 px-1 py-1.5">Cote</th>
                         {showCommissionCol && <th className="w-16 px-1 py-1.5">% Comm</th>}
+                        {showEffectiveOddCol && <th className="w-20 px-1 py-1.5" title="Cote effective après commission">Cote eff.</th>}
                         {showBookmakerCol && <th className="px-2 py-1.5 text-left">Bookmaker</th>}
-                        <th className="w-24 px-1 py-1.5">Mise</th>
+                        <th className="w-28 px-1 py-1.5">Mise</th>
                         {showCurrencyCol && <th className="w-16 px-1 py-1.5">Dev.</th>}
                         {showDistributionCol && <th className="w-10 px-1 py-1.5">D</th>}
                         <th className="w-10 px-1 py-1.5">C</th>
@@ -1024,145 +1011,105 @@ export default function CalculatorProPage() {
                         const color = LEG_COLORS[i % LEG_COLORS.length];
                         const profit = legResult?.profit ?? 0;
                         const isLay = leg.side === "lay";
-
+                        // Détermination de la valeur affichée dans la cellule Mise (backer stake ou liability selon layStakeMode)
+                        const displayedStake = leg.locked
+                          ? leg.lockedStake
+                          : legResult
+                            ? (isLay && leg.layStakeMode === "liability"
+                                ? legResult.liabilityRounded.toFixed(2)
+                                : legResult.stakeRounded.toFixed(2))
+                            : "0.00";
                         return (
                           <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
                             <td className="px-1 py-1.5 text-center">
-                              <span
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-white"
-                                style={{ background: color }}
-                              >
-                                {i + 1}
-                              </span>
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black text-white" style={{ background: color }}>{i + 1}</span>
                             </td>
                             <td className="px-2 py-1.5">
-                              <input
-                                type="text"
-                                value={leg.label}
-                                onChange={(e) => updateLeg(i, "label", e.target.value)}
-                                placeholder={`Issue ${i + 1}`}
-                                className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
-                              />
+                              <input type="text" value={leg.label} onChange={(e) => updateLeg(i, "label", e.target.value)} placeholder={`Issue ${i + 1}`}
+                                className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20" />
                             </td>
                             {showBLToggle && (
                               <td className="px-1 py-1.5 text-center">
-                                <button
-                                  onClick={() => toggleSide(i)}
+                                <button onClick={() => toggleSide(i)} title={isLay ? "Bascule en Back" : "Bascule en Lay"}
                                   className={`h-7 w-10 cursor-pointer rounded-md text-xs font-black transition ${
-                                    isLay
-                                      ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
-                                      : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
-                                  }`}
-                                  title={isLay ? "Bascule en Back" : "Bascule en Lay"}
-                                >
-                                  {isLay ? "−" : "+"}
-                                </button>
+                                    isLay ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50" : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                                  }`}>{isLay ? "−" : "+"}</button>
                               </td>
                             )}
                             <td className="px-1 py-1.5">
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="1.001"
-                                value={leg.odd}
-                                onChange={(e) => updateLeg(i, "odd", e.target.value)}
-                                placeholder="2.000"
-                                inputMode="decimal"
-                                className={inputBase + (isLay ? " border-purple-500/20 focus:border-purple-500 focus:ring-purple-500/30" : "")}
-                              />
+                              <input type="number" step="0.001" min="1.001" value={leg.odd} onChange={(e) => updateLeg(i, "odd", e.target.value)} placeholder="2.000" inputMode="decimal"
+                                className={inputBase + (isLay ? " border-purple-500/20 focus:border-purple-500 focus:ring-purple-500/30" : "")} />
                             </td>
                             {showCommissionCol && (
                               <td className="px-1 py-1.5">
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  max="40"
-                                  value={leg.commission}
-                                  onChange={(e) => updateLeg(i, "commission", e.target.value)}
-                                  placeholder="0"
-                                  inputMode="decimal"
-                                  className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
-                                />
+                                <input type="number" step="0.1" min="0" max="40" value={leg.commission} onChange={(e) => updateLeg(i, "commission", e.target.value)} placeholder="0" inputMode="decimal"
+                                  className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30" />
+                              </td>
+                            )}
+                            {showEffectiveOddCol && (
+                              <td className="px-1 py-1.5">
+                                <div className="w-full rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-center font-mono text-[12px] font-bold text-white/70" title="Cote après commission appliquée">
+                                  {legResult ? legResult.netOdd.toFixed(3) : "—"}
+                                </div>
                               </td>
                             )}
                             {showBookmakerCol && (
                               <td className="px-2 py-1.5">
-                                <input
-                                  type="text"
-                                  value={leg.bookmaker}
-                                  onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
-                                  placeholder={isLay ? "Betfair" : "Betclic"}
-                                  className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20"
-                                />
+                                <input type="text" value={leg.bookmaker} onChange={(e) => updateLeg(i, "bookmaker", e.target.value)} placeholder={isLay ? "Betfair" : "Betclic"}
+                                  className="w-full rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none focus:border-white/20" />
                               </td>
                             )}
                             <td className="px-1 py-1.5">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
-                                onChange={(e) => setLegLocked(i, true, e.target.value)}
-                                inputMode="decimal"
-                                className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold outline-none focus:ring-1 ${
-                                  leg.locked
-                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-200 focus:border-amber-400 focus:ring-amber-500/30"
-                                    : "border-white/10 bg-white/5 text-white focus:border-emerald-500 focus:ring-emerald-500/30"
-                                }`}
-                              />
+                              <div className="flex flex-col gap-0.5">
+                                {isLay && (
+                                  <div className="flex gap-0.5 text-[8px] font-extrabold uppercase">
+                                    <button onClick={() => { if (leg.layStakeMode !== "backer") toggleLayStakeMode(i); }}
+                                      className={`flex-1 cursor-pointer rounded px-1 py-0.5 transition ${
+                                        leg.layStakeMode === "backer"
+                                          ? "bg-purple-500/30 text-purple-200 ring-1 ring-purple-400/60"
+                                          : "bg-white/5 text-white/40 hover:text-white/70"
+                                      }`} title="Tu saisis la mise du parieur (backer stake)">Mise</button>
+                                    <button onClick={() => { if (leg.layStakeMode !== "liability") toggleLayStakeMode(i); }}
+                                      className={`flex-1 cursor-pointer rounded px-1 py-0.5 transition ${
+                                        leg.layStakeMode === "liability"
+                                          ? "bg-amber-500/30 text-amber-200 ring-1 ring-amber-400/60"
+                                          : "bg-white/5 text-white/40 hover:text-white/70"
+                                      }`} title="Tu saisis l'engagement / liability">Oblig.</button>
+                                  </div>
+                                )}
+                                <input type="number" step="0.01" min="0" value={displayedStake}
+                                  onChange={(e) => setLegLocked(i, true, e.target.value)} inputMode="decimal"
+                                  className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold outline-none focus:ring-1 ${
+                                    leg.locked
+                                      ? "border-amber-500/40 bg-amber-500/10 text-amber-200 focus:border-amber-400 focus:ring-amber-500/30"
+                                      : "border-white/10 bg-white/5 text-white focus:border-emerald-500 focus:ring-emerald-500/30"
+                                  }`} />
+                              </div>
                             </td>
                             {showCurrencyCol && (
                               <td className="px-1 py-1.5">
-                                <select
-                                  value={leg.currency}
-                                  onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
-                                  className="w-full cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-1 py-1 text-center text-[11px] font-bold text-amber-200 outline-none focus:border-amber-400"
-                                >
-                                  {CURRENCIES.map((c) => (
-                                    <option key={c} value={c} className="bg-black">
-                                      {c}
-                                    </option>
-                                  ))}
+                                <select value={leg.currency} onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                  className="w-full cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-1 py-1 text-center text-[11px] font-bold text-amber-200 outline-none focus:border-amber-400">
+                                  {CURRENCIES.map((c) => (<option key={c} value={c} className="bg-black">{c}</option>))}
                                 </select>
                               </td>
                             )}
                             {showDistributionCol && (
                               <td className="px-1 py-1.5 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={leg.distribute}
-                                  onChange={() => toggleDistribute(i)}
-                                  className="h-4 w-4 cursor-pointer accent-rose-500"
-                                />
+                                <input type="checkbox" checked={leg.distribute} onChange={() => toggleDistribute(i)} className="h-4 w-4 cursor-pointer accent-rose-500" />
                               </td>
                             )}
                             <td className="px-1 py-1.5 text-center">
-                              <input
-                                type="radio"
-                                name="lockRadio"
-                                checked={leg.locked}
-                                onChange={() => setLegLocked(i, !leg.locked)}
-                                className="h-4 w-4 cursor-pointer accent-amber-400"
-                              />
+                              <input type="radio" name="lockRadio" checked={leg.locked} onChange={() => setLegLocked(i, !leg.locked)} className="h-4 w-4 cursor-pointer accent-amber-400" />
                             </td>
-                            <td
-                              className={`px-2 py-1.5 text-right font-mono text-[12px] font-black ${
-                                profit > 0.01 ? "text-emerald-300" : profit < -0.01 ? "text-rose-300" : "text-white/60"
-                              }`}
-                            >
-                              {profit > 0 ? "+" : ""}
-                              {profit.toFixed(2)}
-                              {mainSymbol}
+                            <td className={`px-2 py-1.5 text-right font-mono text-[12px] font-black ${profit > 0.01 ? "text-emerald-300" : profit < -0.01 ? "text-rose-300" : "text-white/60"}`}>
+                              {profit > 0 ? "+" : ""}{profit.toFixed(2)}{mainSymbol}
                             </td>
                           </tr>
                         );
                       })}
                       <tr className="border-t-2 border-emerald-500/30 bg-emerald-500/[0.03]">
-                        <td
-                          colSpan={2 + (showBLToggle ? 1 : 0) + 1 + (showCommissionCol ? 1 : 0) + (showBookmakerCol ? 1 : 0)}
-                          className="px-2 py-1.5 text-right text-[11px] font-extrabold uppercase tracking-wider text-emerald-400"
-                        >
+                        <td colSpan={2 + (showBLToggle ? 1 : 0) + 1 + (showCommissionCol ? 1 : 0) + (showEffectiveOddCol ? 1 : 0) + (showBookmakerCol ? 1 : 0)} className="px-2 py-1.5 text-right text-[11px] font-extrabold uppercase tracking-wider text-emerald-400">
                           Enjeu total
                         </td>
                         <td className="px-1 py-1.5">
@@ -1170,18 +1117,10 @@ export default function CalculatorProPage() {
                             {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
                           </div>
                         </td>
-                        {showCurrencyCol && (
-                          <td className="px-1 py-1.5 text-center text-[11px] font-bold text-emerald-300">{mainCurrency}</td>
-                        )}
+                        {showCurrencyCol && (<td className="px-1 py-1.5 text-center text-[11px] font-bold text-emerald-300">{mainCurrency}</td>)}
                         {showDistributionCol && <td />}
                         <td className="px-1 py-1.5 text-center">
-                          <input
-                            type="radio"
-                            name="lockRadio"
-                            checked={!legs.some((l) => l.locked)}
-                            onChange={() => setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })))}
-                            className="h-4 w-4 cursor-pointer accent-emerald-400"
-                          />
+                          <input type="radio" name="lockRadio" checked={!legs.some((l) => l.locked)} onChange={() => setLegs(legs.map((l) => ({ ...l, locked: false, lockedStake: "" })))} className="h-4 w-4 cursor-pointer accent-emerald-400" />
                         </td>
                         <td className="px-2 py-1.5 text-right font-mono text-[12px] font-black text-emerald-300">
                           {result ? (result.guaranteedProfitRounded >= 0 ? "+" : "") + result.guaranteedProfitRounded.toFixed(2) + mainSymbol : ""}
@@ -1192,163 +1131,113 @@ export default function CalculatorProPage() {
                 </div>
               </div>
 
-              {/* CARDS MOBILE */}
+              {/* ═══ CARDS MOBILE ═══ */}
               <div className="md:hidden">
                 <div className="space-y-2">
                   {legs.slice(0, displayedNLegs).map((leg, i) => {
                     const legResult = result?.legs[i];
                     const color = LEG_COLORS[i % LEG_COLORS.length];
-                    const symbol = CURRENCY_SYMBOLS[leg.currency];
                     const profit = legResult?.profit ?? 0;
                     const isLay = leg.side === "lay";
-
+                    const displayedStake = leg.locked
+                      ? leg.lockedStake
+                      : legResult
+                        ? (isLay && leg.layStakeMode === "liability"
+                            ? legResult.liabilityRounded.toFixed(2)
+                            : legResult.stakeRounded.toFixed(2))
+                        : "0.00";
                     return (
-                      <div
-                        key={i}
-                        className="rounded-lg border p-2"
-                        style={{
-                          background: `linear-gradient(135deg, #0a0a0a 0%, ${color}12 50%, #0a0a0a 100%)`,
-                          borderColor: `${color}50`,
-                        }}
-                      >
+                      <div key={i} className="rounded-lg border p-2"
+                        style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${color}12 50%, #0a0a0a 100%)`, borderColor: `${color}50` }}>
                         <div className="flex items-center gap-1.5">
-                          <span
-                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white"
-                            style={{ background: color }}
-                          >
-                            {i + 1}
-                          </span>
-                          <input
-                            type="text"
-                            value={leg.label}
-                            onChange={(e) => updateLeg(i, "label", e.target.value)}
-                            placeholder={`Issue ${i + 1}`}
-                            className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
-                          />
+                          <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white" style={{ background: color }}>{i + 1}</span>
+                          <input type="text" value={leg.label} onChange={(e) => updateLeg(i, "label", e.target.value)} placeholder={`Issue ${i + 1}`}
+                            className="flex-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none" />
                           {showBLToggle && (
-                            <button
-                              onClick={() => toggleSide(i)}
+                            <button onClick={() => toggleSide(i)}
                               className={`h-7 w-9 cursor-pointer rounded-md text-xs font-black transition ${
-                                isLay
-                                  ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50"
-                                  : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
-                              }`}
-                            >
-                              {isLay ? "−" : "+"}
-                            </button>
+                                isLay ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-400/50" : "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/50"
+                              }`}>{isLay ? "−" : "+"}</button>
                           )}
                           {showDistributionCol && (
-                            <button
-                              onClick={() => toggleDistribute(i)}
+                            <button onClick={() => toggleDistribute(i)}
                               className={`h-7 w-7 cursor-pointer rounded-md text-[10px] font-black transition ${
                                 leg.distribute ? "bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/50" : "bg-white/5 text-white/30"
-                              }`}
-                              title="Distribuer profit"
-                            >
-                              D
-                            </button>
+                              }`} title="Distribuer profit">D</button>
                           )}
-                          <button
-                            onClick={() => setLegLocked(i, !leg.locked)}
+                          <button onClick={() => setLegLocked(i, !leg.locked)}
                             className={`h-7 w-7 cursor-pointer rounded-md text-xs transition ${
                               leg.locked ? "bg-amber-500/25 text-amber-300 ring-1 ring-amber-400/50" : "bg-white/5 text-white/40"
-                            }`}
-                            title="Fixer"
-                          >
-                            {leg.locked ? "🔒" : "🔓"}
-                          </button>
+                            }`} title="Fixer">{leg.locked ? "🔒" : "🔓"}</button>
                         </div>
 
                         <div className={`mt-1.5 grid gap-1.5 ${showBookmakerCol ? "grid-cols-[80px_1fr]" : "grid-cols-1"}`}>
-                          <input
-                            type="number"
-                            step="0.001"
-                            min="1.001"
-                            value={leg.odd}
-                            onChange={(e) => updateLeg(i, "odd", e.target.value)}
-                            placeholder="Cote"
-                            inputMode="decimal"
+                          <input type="number" step="0.001" min="1.001" value={leg.odd} onChange={(e) => updateLeg(i, "odd", e.target.value)} placeholder="Cote" inputMode="decimal"
                             className={`rounded-md border px-2 py-1 text-center font-mono text-[12px] font-bold text-white outline-none focus:ring-1 ${
-                              isLay
-                                ? "border-purple-500/25 bg-purple-500/5 focus:border-purple-500 focus:ring-purple-500/30"
-                                : "border-white/10 bg-white/5 focus:border-emerald-500 focus:ring-emerald-500/30"
-                            }`}
-                          />
+                              isLay ? "border-purple-500/25 bg-purple-500/5 focus:border-purple-500 focus:ring-purple-500/30" : "border-white/10 bg-white/5 focus:border-emerald-500 focus:ring-emerald-500/30"
+                            }`} />
                           {showBookmakerCol && (
-                            <input
-                              type="text"
-                              value={leg.bookmaker}
-                              onChange={(e) => updateLeg(i, "bookmaker", e.target.value)}
-                              placeholder={isLay ? "Exchange" : "Bookmaker"}
-                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none"
-                            />
+                            <input type="text" value={leg.bookmaker} onChange={(e) => updateLeg(i, "bookmaker", e.target.value)} placeholder={isLay ? "Exchange" : "Bookmaker"}
+                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-bold text-white outline-none" />
                           )}
                         </div>
 
                         {(showCommissionCol || showCurrencyCol) && (
                           <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                             {showCommissionCol && (
-                              <input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                max="40"
-                                value={leg.commission}
-                                onChange={(e) => updateLeg(i, "commission", e.target.value)}
-                                placeholder="Commission %"
-                                inputMode="decimal"
-                                className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[11px] font-bold text-cyan-200 outline-none"
-                              />
+                              <input type="number" step="0.1" min="0" max="40" value={leg.commission} onChange={(e) => updateLeg(i, "commission", e.target.value)} placeholder="Commission %" inputMode="decimal"
+                                className="rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[11px] font-bold text-cyan-200 outline-none" />
                             )}
                             {showCurrencyCol && (
-                              <select
-                                value={leg.currency}
-                                onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
-                                className="cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-center text-[11px] font-bold text-amber-200 outline-none"
-                              >
-                                {CURRENCIES.map((c) => (
-                                  <option key={c} value={c} className="bg-black">
-                                    {c} ({CURRENCY_SYMBOLS[c]})
-                                  </option>
-                                ))}
+                              <select value={leg.currency} onChange={(e) => updateLeg(i, "currency", e.target.value as Currency)}
+                                className="cursor-pointer rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1 text-center text-[11px] font-bold text-amber-200 outline-none">
+                                {CURRENCIES.map((c) => (<option key={c} value={c} className="bg-black">{c} ({CURRENCY_SYMBOLS[c]})</option>))}
                               </select>
                             )}
                           </div>
                         )}
 
+                        {showEffectiveOddCol && legResult && (
+                          <div className="mt-1.5 flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-2 py-1">
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Cote eff. (après comm.)</span>
+                            <span className="font-mono text-[12px] font-bold text-white/80">{legResult.netOdd.toFixed(3)}</span>
+                          </div>
+                        )}
+
                         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                           <div>
-                            <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">
-                              {isLay ? "Mise Lay" : "Mise"}
-                            </div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={leg.locked ? leg.lockedStake : legResult ? legResult.stakeRounded.toFixed(2) : "0.00"}
-                              onChange={(e) => setLegLocked(i, true, e.target.value)}
-                              inputMode="decimal"
+                            {isLay ? (
+                              <div className="mb-0.5 grid grid-cols-2 gap-0.5">
+                                <button onClick={() => { if (leg.layStakeMode !== "backer") toggleLayStakeMode(i); }}
+                                  className={`rounded px-1 py-0.5 text-[9px] font-extrabold uppercase transition ${
+                                    leg.layStakeMode === "backer"
+                                      ? "bg-purple-500/30 text-purple-200 ring-1 ring-purple-400/60"
+                                      : "bg-white/5 text-white/40"
+                                  }`}>Mise</button>
+                                <button onClick={() => { if (leg.layStakeMode !== "liability") toggleLayStakeMode(i); }}
+                                  className={`rounded px-1 py-0.5 text-[9px] font-extrabold uppercase transition ${
+                                    leg.layStakeMode === "liability"
+                                      ? "bg-amber-500/30 text-amber-200 ring-1 ring-amber-400/60"
+                                      : "bg-white/5 text-white/40"
+                                  }`}>Oblig.</button>
+                              </div>
+                            ) : (
+                              <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">Mise</div>
+                            )}
+                            <input type="number" step="0.01" min="0" value={displayedStake}
+                              onChange={(e) => setLegLocked(i, true, e.target.value)} inputMode="decimal"
                               className={`w-full rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black outline-none ${
-                                leg.locked
-                                  ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
-                                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                              }`}
-                            />
+                                leg.locked ? "border-amber-500/40 bg-amber-500/10 text-amber-200" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                              }`} />
                           </div>
                           <div>
                             <div className="mb-0.5 text-center text-[9px] font-extrabold uppercase tracking-wider text-white/40">Gain si gagne</div>
-                            <div
-                              className={`rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black ${
-                                profit > 0.01
-                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                                  : profit < -0.01
-                                    ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                                    : "border-white/10 bg-white/5 text-white/60"
-                              }`}
-                            >
-                              {profit > 0 ? "+" : ""}
-                              {profit.toFixed(2)}
-                              {mainSymbol}
+                            <div className={`rounded-md border px-2 py-1 text-center font-mono text-[13px] font-black ${
+                              profit > 0.01 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                : profit < -0.01 ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                                : "border-white/10 bg-white/5 text-white/60"
+                            }`}>
+                              {profit > 0 ? "+" : ""}{profit.toFixed(2)}{mainSymbol}
                             </div>
                           </div>
                         </div>
@@ -1358,14 +1247,12 @@ export default function CalculatorProPage() {
 
                   <div className="flex items-center justify-between rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5 p-2">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Enjeu total</span>
-                    <span className="font-mono text-base font-black text-emerald-200">
-                      {result ? result.totalStakeRounded.toFixed(2) : "0.00"}
-                      {mainSymbol}
-                    </span>
+                    <span className="font-mono text-base font-black text-emerald-200">{result ? result.totalStakeRounded.toFixed(2) : "0.00"}{mainSymbol}</span>
                   </div>
                 </div>
               </div>
 
+              {/* ═══ FOOTER ACTIONS ═══ */}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-3">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {showOptionsFooter && (
@@ -1377,11 +1264,7 @@ export default function CalculatorProPage() {
                   )}
                   <div className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
                     <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Arrondi</span>
-                    <select
-                      value={rounding}
-                      onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)}
-                      className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none"
-                    >
+                    <select value={rounding} onChange={(e) => setRounding(parseFloat(e.target.value) as Rounding)} className="cursor-pointer bg-transparent text-[10px] font-extrabold text-white outline-none">
                       <option value={0} className="bg-black">Aucun</option>
                       <option value={0.1} className="bg-black">0.10</option>
                       <option value={0.5} className="bg-black">0.50</option>
@@ -1390,19 +1273,22 @@ export default function CalculatorProPage() {
                       <option value={5} className="bg-black">5</option>
                     </select>
                   </div>
+                  {useCurrencies && rounding > 0 && (
+                    <button onClick={() => setRoundInMain(!roundInMain)}
+                      className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider transition ${
+                        roundInMain ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-400/50" : "bg-white/5 text-white/40 hover:text-white/70"
+                      }`} title="Arrondir les mises dans la devise principale puis convertir">
+                      <span className={`h-1.5 w-1.5 rounded-full ${roundInMain ? "bg-amber-400" : "bg-white/20"}`} />
+                      Arrondi en {mainCurrency}
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={resetAll}
-                    className="cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:text-white"
-                  >
+                  <button onClick={resetAll} className="cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white/50 transition hover:text-white">
                     🔄 Reset
                   </button>
                   {result && (
-                    <button
-                      onClick={copyRecap}
-                      className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20"
-                    >
+                    <button onClick={copyRecap} className="cursor-pointer rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/20">
                       {copied ? "✅ Copié" : "📋 Copier"}
                     </button>
                   )}
@@ -1411,10 +1297,7 @@ export default function CalculatorProPage() {
 
               {showOptionsFooter && useCurrencies && (
                 <div className="mt-3 border-t border-white/5 pt-3">
-                  <button
-                    onClick={() => setShowRates(!showRates)}
-                    className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300"
-                  >
+                  <button onClick={() => setShowRates(!showRates)} className="mx-auto flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400/70 hover:text-amber-300">
                     {showRates ? "▼" : "▶"} Taux de change (1 EUR =)
                   </button>
                   {showRates && (
@@ -1423,13 +1306,8 @@ export default function CalculatorProPage() {
                         {CURRENCIES.filter((c) => c !== "EUR").map((cur) => (
                           <label key={cur} className="block">
                             <span className="mb-0.5 block text-center text-[9px] font-extrabold text-amber-400/70">{cur}</span>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={rates[cur] || 1}
-                              onChange={(e) => setRates({ ...rates, [cur]: parseFloat(e.target.value) || 1 })}
-                              className="w-full rounded border border-amber-500/20 bg-black/40 px-1 py-0.5 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400"
-                            />
+                            <input type="number" step="0.0001" value={rates[cur] || 1} onChange={(e) => setRates({ ...rates, [cur]: parseFloat(e.target.value) || 1 })}
+                              className="w-full rounded border border-amber-500/20 bg-black/40 px-1 py-0.5 text-center font-mono text-[10px] text-amber-200 outline-none focus:border-amber-400" />
                           </label>
                         ))}
                       </div>
@@ -1456,16 +1334,12 @@ export default function CalculatorProPage() {
               const legSymbol = CURRENCY_SYMBOLS[orig.currency];
               return (
                 <div key={leg.origIndex} className="flex items-start gap-2 rounded-lg border border-white/5 bg-black/30 px-2 py-1.5 text-[12px]">
-                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
-                    {rank + 1}
-                  </span>
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">{rank + 1}</span>
                   <div className="flex-1 leading-tight">
                     <span className="font-bold text-white">{orig.label || `Issue ${leg.origIndex + 1}`}</span>
                     {leg.side === "lay" && <span className="ml-1 rounded bg-purple-500/30 px-1 py-0.5 text-[9px] font-black text-purple-200">LAY</span>}
                     {leg.isLocked && <span className="ml-1 rounded bg-amber-500/30 px-1 py-0.5 text-[9px] font-black text-amber-200">🔒</span>}
-                    {!orig.distribute && useDistribution && (
-                      <span className="ml-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>
-                    )}
+                    {!orig.distribute && useDistribution && (<span className="ml-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-black text-white/60">NEUTRE</span>)}
                     <span className="ml-2 text-white/60">
                       {leg.side === "lay" ? "Lay " : ""}
                       <span className="font-mono font-black text-emerald-300">{leg.stakeRounded.toFixed(2)}{legSymbol}</span>
@@ -1473,11 +1347,7 @@ export default function CalculatorProPage() {
                       <span className="font-mono font-black text-white">{parseFloat(orig.odd).toFixed(2)}</span>
                       <span className="mx-1 text-white/30">chez</span>
                       <span className="font-bold text-cyan-300">{orig.bookmaker || `Bookmaker ${leg.origIndex + 1}`}</span>
-                      {leg.side === "lay" && (
-                        <span className="ml-1 text-white/40">
-                          (liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)
-                        </span>
-                      )}
+                      {leg.side === "lay" && (<span className="ml-1 text-white/40">(liab. <span className="font-mono font-black text-amber-300">{leg.liabilityRounded.toFixed(2)}{legSymbol}</span>)</span>)}
                     </span>
                   </div>
                 </div>
@@ -1489,9 +1359,7 @@ export default function CalculatorProPage() {
 
       {activeTab !== "freebet" && result?.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
         <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-          <p className="text-[11px] text-amber-200">
-            ⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span>
-          </p>
+          <p className="text-[11px] text-amber-200">⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span></p>
         </div>
       )}
       {activeTab !== "freebet" && result?.hasMultiCurrency && (
@@ -1501,16 +1369,12 @@ export default function CalculatorProPage() {
       )}
       {activeTab !== "freebet" && result?.isSuspicious && (
         <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-          <p className="text-[11px] text-amber-200">
-            ⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable
-          </p>
+          <p className="text-[11px] text-amber-200">⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable</p>
         </div>
       )}
 
-      <div
-        className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
-        style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}
-      >
+      <div className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
+        style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #0d1f17 40%, #0a0a0a 100%)" }}>
         <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
         <div className="px-5 py-4 text-center sm:px-6">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
@@ -1520,22 +1384,11 @@ export default function CalculatorProPage() {
         <div className="px-4 pb-5 sm:px-6">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
             {useCases.map((uc) => (
-              <div
-                key={uc.title}
-                className="relative overflow-hidden rounded-xl border-2 p-3"
-                style={{
-                  background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`,
-                  borderColor: `${uc.color}50`,
-                }}
-              >
+              <div key={uc.title} className="relative overflow-hidden rounded-xl border-2 p-3"
+                style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${uc.color}1a 50%, #0a0a0a 100%)`, borderColor: `${uc.color}50` }}>
                 <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: uc.color }} />
                 <div className="flex items-center gap-2">
-                  <span
-                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-base"
-                    style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}
-                  >
-                    {uc.icon}
-                  </span>
+                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-base" style={{ background: `${uc.color}20`, border: `1px solid ${uc.color}40` }}>{uc.icon}</span>
                   <p className="text-[13px] font-extrabold text-white">{uc.title}</p>
                 </div>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-white/65">{uc.desc}</p>
@@ -1548,17 +1401,7 @@ export default function CalculatorProPage() {
   );
 }
 
-function OptCheckbox({
-  checked,
-  onChange,
-  label,
-  color,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  color: "cyan" | "amber" | "rose";
-}) {
+function OptCheckbox({ checked, onChange, label, color }: { checked: boolean; onChange: (v: boolean) => void; label: string; color: "cyan" | "amber" | "rose" }) {
   const colorMap = {
     cyan: { on: "bg-cyan-500/20 text-cyan-300 ring-cyan-400/50", dot: "bg-cyan-400" },
     amber: { on: "bg-amber-500/20 text-amber-300 ring-amber-400/50", dot: "bg-amber-400" },
@@ -1566,12 +1409,10 @@ function OptCheckbox({
   };
   const c = colorMap[color];
   return (
-    <button
-      onClick={() => onChange(!checked)}
+    <button onClick={() => onChange(!checked)}
       className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider transition ${
         checked ? `${c.on} ring-1` : "bg-white/5 text-white/40 hover:text-white/70"
-      }`}
-    >
+      }`}>
       <span className={`h-1.5 w-1.5 rounded-full ${checked ? c.dot : "bg-white/20"}`} />
       {label}
     </button>
@@ -1581,10 +1422,8 @@ function OptCheckbox({
 function VerdictMini({ result, mainSymbol }: { result: CalcResult; mainSymbol: string }) {
   if (result.isSurebet) {
     return (
-      <div
-        className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
-        style={{ background: "linear-gradient(90deg, #047857 0%, #10b981 50%, #059669 100%)" }}
-      >
+      <div className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+        style={{ background: "linear-gradient(90deg, #047857 0%, #10b981 50%, #059669 100%)" }}>
         <div className="flex items-center gap-2">
           <span className="text-xl">🎯</span>
           <p className="text-sm font-black text-white sm:text-base">SUREBET</p>
@@ -1599,10 +1438,8 @@ function VerdictMini({ result, mainSymbol }: { result: CalcResult; mainSymbol: s
   }
   if (Math.abs(result.arbPercent) < 0.5) {
     return (
-      <div
-        className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
-        style={{ background: "linear-gradient(90deg, #b45309 0%, #d97706 50%, #f59e0b 100%)" }}
-      >
+      <div className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+        style={{ background: "linear-gradient(90deg, #b45309 0%, #d97706 50%, #f59e0b 100%)" }}>
         <div className="flex items-center gap-2">
           <span className="text-xl">⚖️</span>
           <p className="text-sm font-black text-white sm:text-base">QUASI BREAK-EVEN</p>
@@ -1614,10 +1451,8 @@ function VerdictMini({ result, mainSymbol }: { result: CalcResult; mainSymbol: s
     );
   }
   return (
-    <div
-      className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
-      style={{ background: "linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #ef4444 100%)" }}
-    >
+    <div className="mt-3 flex items-center justify-between gap-3 overflow-hidden rounded-xl px-4 py-3 shadow-lg"
+      style={{ background: "linear-gradient(90deg, #991b1b 0%, #dc2626 50%, #ef4444 100%)" }}>
       <div className="flex items-center gap-2">
         <span className="text-xl">❌</span>
         <p className="text-sm font-black text-white sm:text-base">PAS D&apos;ARBITRAGE</p>
