@@ -378,7 +378,7 @@ export default function CalculatorProPage() {
   const { user } = useAuth();
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
-  const [activeTab, setActiveTab] = useState<TabKey>("surebet");
+  const [activeTab, setActiveTab] = useState<TabKey>("allInOne");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [mode, setMode] = useState<Mode>("stake");
