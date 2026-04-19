@@ -974,6 +974,80 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
+      {/* ═══════════ PRONOS IA (DARK — emerald + accent violet) ═══════════ */}
+      <section
+        className="relative overflow-hidden px-4 py-16"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      >
+        {/* Halo violet subtil (accent IA) */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[100px]" />
+          <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl">
+          {/* En-tête */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-4 py-1.5">
+              <span className="text-base">🤖</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-violet-300">
+                {t("ai_tag")}
+              </span>
+            </div>
+            <h2 className="mt-4 text-2xl font-extrabold text-white sm:text-3xl">
+              {t("ai_title")}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/50">
+              {t("ai_subtitle")}
+            </p>
+          </div>
+
+          {/* 3 points-clés */}
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {[
+              { icon: "🎯", title: t("ai_feature1_title"), desc: t("ai_feature1_desc") },
+              { icon: "🔍", title: t("ai_feature2_title"), desc: t("ai_feature2_desc") },
+              { icon: "📊", title: t("ai_feature3_title"), desc: t("ai_feature3_desc") },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-white/[0.06] p-5 text-center transition hover:border-violet-400/30"
+                style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 100%)" }}
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/40">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href={`/${locale}/pronos-ia`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-8 py-4 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 sm:w-auto"
+              style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)" }}
+            >
+              {t("ai_cta_main")}
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+            <Link
+              href={`/${locale}/pronos-ia/comment-ca-marche`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-8 py-4 text-sm font-semibold text-white/70 transition hover:border-violet-400/40 hover:text-white sm:w-auto"
+            >
+              {t("ai_cta_secondary")}
+            </Link>
+          </div>
+
+          {/* Note différenciation */}
+          <p className="mx-auto mt-6 max-w-md text-center text-xs text-white/30">
+            {t("ai_note")}
+          </p>
+        </div>
+      </section>
+
       {/* ═══════════ PRICING (DARK) ═══════════ */}
       <section
         className="relative overflow-hidden px-4 py-16"

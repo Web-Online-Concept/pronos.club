@@ -154,7 +154,19 @@
     "reviews_tag": "SUBSCRIBER REVIEWS",
     "reviews_title": "What our subscribers say",
     "reviews_count": "reviews",
-    "reviews_see_all": "See all reviews"
+    "reviews_see_all": "See all reviews",
+    "ai_tag": "AI PICKS",
+    "ai_title": "Another way to predict",
+    "ai_subtitle": "Every day, our artificial intelligence analyzes matches and generates its own predictions. A 100% algorithmic approach, completely independent from our human tipsters.",
+    "ai_feature1_title": "Daily generation",
+    "ai_feature1_desc": "Up to 4 classic picks and 2 goalscorers, published every morning at 9 AM.",
+    "ai_feature2_title": "Automatic audit",
+    "ai_feature2_desc": "Each pick passes a second quality check via web search before publication.",
+    "ai_feature3_title": "Transparent stats",
+    "ai_feature3_desc": "Full history, ROI, win rate — all performances displayed in real time.",
+    "ai_cta_main": "See the AI Picks",
+    "ai_cta_secondary": "How it works?",
+    "ai_note": "AI Picks are distinct from our human tipster's predictions. The two worlds coexist and remain completely independent from one another."
   },
   "picks": {
     "title": "Predictions",

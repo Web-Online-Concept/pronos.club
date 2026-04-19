@@ -154,7 +154,19 @@
     "reviews_tag": "AVIS DE NOS ABONNÉS",
     "reviews_title": "Ce qu'en disent nos abonnés",
     "reviews_count": "avis",
-    "reviews_see_all": "Voir tous les avis"
+    "reviews_see_all": "Voir tous les avis",
+    "ai_tag": "PRONOS IA",
+    "ai_title": "Une autre façon de pronostiquer",
+    "ai_subtitle": "Chaque jour, notre intelligence artificielle analyse les matchs et génère ses propres pronostics. Une approche 100% algorithmique, complètement indépendante de nos tipsters humains.",
+    "ai_feature1_title": "Génération quotidienne",
+    "ai_feature1_desc": "Jusqu'à 4 pronostics classiques et 2 buteurs, publiés tous les matins à 9h.",
+    "ai_feature2_title": "Audit automatique",
+    "ai_feature2_desc": "Chaque pick passe un second contrôle qualité via recherche web avant publication.",
+    "ai_feature3_title": "Stats transparentes",
+    "ai_feature3_desc": "Historique complet, ROI, win rate — toutes les performances affichées en temps réel.",
+    "ai_cta_main": "Voir les Pronos IA",
+    "ai_cta_secondary": "Comment ça marche ?",
+    "ai_note": "Les Pronos IA sont distincts des pronostics de notre tipster humain. Les deux univers cohabitent et restent totalement indépendants l'un de l'autre."
   },
   "picks": {
     "title": "Pronostics",
