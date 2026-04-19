@@ -1,12 +1,18 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIPickDetailsModal (CORRIGÉ)
+ * COMPOSANT — AIPickDetailsModal
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Modale rendue via createPortal (document.body) pour éviter les
+ * interférences avec les cards hover (qui re-triggeraient des
+ * re-renders et bloqueraient l'interaction).
  * ═══════════════════════════════════════════════════════════════════
  */
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { X, Medal, Shield, Trophy } from "lucide-react";
 import PronosIAStatusBadge from "./ui/PronosIAStatusBadge";
@@ -75,8 +81,14 @@ interface Props {
 
 export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
   const t = useTranslations("ai_picks");
+  const [mounted, setMounted] = useState(false);
 
-  // Lock scroll + gestion touche Escape
+  // On attend d'être côté client avant d'utiliser createPortal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock scroll + gestion Escape
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -91,6 +103,8 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
       window.removeEventListener("keydown", handleKey);
     };
   }, [onClose]);
+
+  if (!mounted) return null;
 
   const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
   const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
@@ -117,9 +131,9 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
 
   const confidence = Math.max(0, Math.min(10, pick.ai_confidence));
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -149,7 +163,6 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
               "radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)",
           }}
         />
-        {/* Barre lumineuse en haut */}
         <div
           aria-hidden
           className="absolute left-0 top-0 h-[2px] w-full"
@@ -169,7 +182,6 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
           <X size={18} strokeWidth={2.5} />
         </button>
 
-        {/* Contenu */}
         <div className="relative z-10 p-6 sm:p-8">
 
           {/* HEADER */}
@@ -342,6 +354,10 @@ export default function AIPickDetailsModal({ pick, locale, onClose }: Props) {
       </div>
     </div>
   );
+
+  // Portal : on rend la modale directement dans document.body
+  // pour la sortir du DOM de la card (évite les conflits de hover)
+  return createPortal(modalContent, document.body);
 }
 
 
