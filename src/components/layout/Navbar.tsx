@@ -489,7 +489,7 @@ export default function Navbar() {
 
               {/* Pronos IA */}
               <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🤖 Pronos IA</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
