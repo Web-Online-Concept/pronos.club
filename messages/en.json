@@ -23,7 +23,11 @@
     "books": "Books",
     "blog_short": "Blog",
     "my_space": "My space",
-    "login_btn": "Login"
+    "login_btn": "Login",
+    "ai_picks_live": "Live picks",
+    "ai_picks_history": "History",
+    "ai_picks_stats": "Statistics",
+    "ai_picks_how": "How it works"
   },
   "home": {
     "hero_title_line1": "Professional",
@@ -1474,5 +1478,16 @@
     "history_filter_types_short": "Types",
     "history_filter_sports_short": "Sports",
     "history_filter_statuses_short": "Results"
+  },
+  "tipster_hero": {
+    "tag": "PRONOS CLUB · TIPSTER",
+    "nav_pronos": "Live picks",
+    "nav_pronos_short": "Picks",
+    "nav_history": "History",
+    "nav_history_short": "Past",
+    "nav_stats": "Statistics",
+    "nav_stats_short": "Stats",
+    "nav_tipster": "Tipster",
+    "nav_tipster_short": "Tipster"
   }
 }

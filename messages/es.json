@@ -23,7 +23,11 @@
     "books": "Books",
     "blog_short": "Blog",
     "my_space": "Mi espacio",
-    "login_btn": "Conexión"
+    "login_btn": "Conexión",
+    "ai_picks_live": "En curso",
+    "ai_picks_history": "Historial",
+    "ai_picks_stats": "Estadísticas",
+    "ai_picks_how": "Funcionamiento"
   },
   "home": {
     "hero_title_line1": "Pronósticos deportivos",
@@ -1474,5 +1478,16 @@
     "history_filter_types_short": "Tipos",
     "history_filter_sports_short": "Deportes",
     "history_filter_statuses_short": "Resultados"
+  },
+  "tipster_hero": {
+    "tag": "PRONOS CLUB · TIPSTER",
+    "nav_pronos": "En curso",
+    "nav_pronos_short": "Pronos",
+    "nav_history": "Historial",
+    "nav_history_short": "Histo",
+    "nav_stats": "Estadísticas",
+    "nav_stats_short": "Stats",
+    "nav_tipster": "Tipster",
+    "nav_tipster_short": "Tipster"
   }
 }
