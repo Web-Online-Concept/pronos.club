@@ -107,12 +107,6 @@ export default async function PronosIAHero({
               active={currentPage === "live"}
             />
             <NavButton
-              href={`/${locale}/pronos-ia/comment-ca-marche`}
-              label={t("nav_how")}
-              Icon={HelpCircle}
-              active={currentPage === "how"}
-            />
-            <NavButton
               href={`/${locale}/pronos-ia/stats`}
               label={t("nav_stats")}
               Icon={BarChart3}
@@ -123,6 +117,12 @@ export default async function PronosIAHero({
               label={t("nav_history")}
               Icon={History}
               active={currentPage === "history"}
+            />
+            <NavButton
+              href={`/${locale}/pronos-ia/comment-ca-marche`}
+              label={t("nav_how")}
+              Icon={HelpCircle}
+              active={currentPage === "how"}
             />
           </nav>
         </div>
