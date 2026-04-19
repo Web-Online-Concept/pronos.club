@@ -51,9 +51,11 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [pronosOpen, setPronosOpen] = useState(false);
+  const [pronosIAOpen, setPronosIAOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
   const pronosRef = useRef<HTMLDivElement>(null);
+  const pronosIARef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -82,6 +84,14 @@ export default function Navbar() {
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
   ];
 
+  // Desktop : dropdown "Pronos IA"
+  const DESKTOP_PRONOS_IA = [
+    { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
+    { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
+    { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats"), icon: "📊" },
+    { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("ai_picks_how"), icon: "❓" },
+  ];
+
   // Desktop : dropdown "Stats & Médias"
   const DESKTOP_MEDIA = [
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
@@ -102,6 +112,9 @@ export default function Navbar() {
       }
       if (pronosRef.current && !pronosRef.current.contains(e.target as Node)) {
         setPronosOpen(false);
+      }
+      if (pronosIARef.current && !pronosIARef.current.contains(e.target as Node)) {
+        setPronosIAOpen(false);
       }
       if (mediaRef.current && !mediaRef.current.contains(e.target as Node)) {
         setMediaOpen(false);
@@ -124,6 +137,7 @@ export default function Navbar() {
 
   // Vérifier si une page d'un dropdown est active
   const isPronosActive = DESKTOP_PRONOS.some((link) => link.href && pathname.startsWith(link.href));
+  const isPronosIAActive = pathname.startsWith(`/${locale}/pronos-ia`);
   const isMediaActive = DESKTOP_MEDIA.some((link) => link.href && pathname.startsWith(link.href));
 
   return (
@@ -213,21 +227,12 @@ export default function Navbar() {
             {/* Dropdown "Nos Pronos" */}
             <div className="relative" ref={pronosRef}>
               <button
-                onClick={() => { setPronosOpen(!pronosOpen); setMediaOpen(false); }}
+                onClick={() => { setPronosOpen(!pronosOpen); setPronosIAOpen(false); setMediaOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
                   isPronosActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
                 Nos Pronos
-                <svg
-                  className={`h-3.5 w-3.5 transition-transform ${pronosOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
               </button>
 
               {pronosOpen && (
@@ -251,24 +256,47 @@ export default function Navbar() {
               )}
             </div>
 
+            {/* Dropdown "Pronos IA" */}
+            <div className="relative" ref={pronosIARef}>
+              <button
+                onClick={() => { setPronosIAOpen(!pronosIAOpen); setPronosOpen(false); setMediaOpen(false); }}
+                className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
+                  isPronosIAActive ? "text-emerald-400" : "text-neutral-300"
+                }`}
+              >
+                Pronos IA
+              </button>
+
+              {pronosIAOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
+                  {DESKTOP_PRONOS_IA.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setPronosIAOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
+                        pathname === link.href
+                          ? "bg-emerald-600/10 text-emerald-400"
+                          : "text-neutral-300"
+                      }`}
+                    >
+                      <span className="text-lg">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Dropdown "Stats & Médias" */}
             <div className="relative" ref={mediaRef}>
               <button
-                onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); }}
+                onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); setPronosIAOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
                   isMediaActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
                 Stats & Médias
-                <svg
-                  className={`h-3.5 w-3.5 transition-transform ${mediaOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
               </button>
 
               {mediaOpen && (
@@ -446,6 +474,27 @@ export default function Navbar() {
                   { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
                   { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
                   { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center transition hover:border-emerald-500/30 hover:bg-emerald-500/10"
+                  >
+                    <span className="text-2xl">{link.icon}</span>
+                    <span className="text-xs font-semibold text-neutral-300">{link.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Pronos IA */}
+              <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🤖 Pronos IA</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
+                  { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
+                  { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats"), icon: "📊" },
+                  { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("ai_picks_how"), icon: "❓" },
                 ].map((link) => (
                   <Link
                     key={link.href}

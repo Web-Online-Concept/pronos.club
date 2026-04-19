@@ -32,6 +32,7 @@ export default async function Footer() {
     { href: `/${locale}/pronostics`, label: tn("pronos") },
     { href: `/${locale}/historique`, label: tn("history_short") },
     { href: `/${locale}/statistiques`, label: tn("stats_short") },
+    { href: `/${locale}/pronos-ia`, label: "Pronos IA" },
     { href: `/${locale}/tipster`, label: tn("tipster_short") },
     { href: `/${locale}/bookmakers`, label: tn("books") },
     { href: `/${locale}/bilans`, label: tn("bilans_short") },
