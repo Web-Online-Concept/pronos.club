@@ -5,7 +5,6 @@ import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { defaultOpenGraph, defaultTwitter } from "@/lib/seo";
 import MobileBottomBar from "@/components/layout/MobileBottomBar";
-import HydrationDebugger from "@/components/debug/HydrationDebugger";
 
 export async function generateMetadata({
   params,
@@ -67,7 +66,6 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <AuthProvider>
-        <HydrationDebugger />
         {children}
         <MobileBottomBar />
       </AuthProvider>
