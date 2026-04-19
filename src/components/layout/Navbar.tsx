@@ -295,34 +295,37 @@ export default function Navbar() {
 
           {/* Desktop CTA + Lang */}
           <div className="hidden items-center gap-3 lg:flex">
-            {authLoading ? (
-              <div className="h-11 w-32 animate-pulse rounded-xl bg-white/10" />
-            ) : user ? (
-              <Link
-                href={`/${locale}/espace`}
-                className="cta-emerald flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
-              >
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt=""
-                    className="h-7 w-7 rounded-full object-cover ring-2 ring-white/20"
-                  />
-                ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
-                    {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
-                  </div>
-                )}
-                {user.pseudo || t("my_space")}
-              </Link>
-            ) : (
-              <Link
-                href={`/${locale}/login`}
-                className="cta-emerald rounded-xl px-6 py-3 text-base font-bold text-white"
-              >
-                {t("login_btn")}
-              </Link>
-            )}
+            {/* Zone auth DESKTOP — wrapper suppressHydrationWarning pour éviter le mismatch SSR/client */}
+            <div suppressHydrationWarning>
+              {authLoading ? (
+                <div className="h-11 w-32 animate-pulse rounded-xl bg-white/10" />
+              ) : user ? (
+                <Link
+                  href={`/${locale}/espace`}
+                  className="cta-emerald flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
+                >
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt=""
+                      className="h-7 w-7 rounded-full object-cover ring-2 ring-white/20"
+                    />
+                  ) : (
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {user.pseudo || t("my_space")}
+                </Link>
+              ) : (
+                <Link
+                  href={`/${locale}/login`}
+                  className="cta-emerald rounded-xl px-6 py-3 text-base font-bold text-white"
+                >
+                  {t("login_btn")}
+                </Link>
+              )}
+            </div>
 
             {/* Language selector */}
             <div className="ml-1" ref={langRef}>
@@ -365,7 +368,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile status indicator — RIGHT */}
-          <div className="lg:hidden">
+          <div className="lg:hidden" suppressHydrationWarning>
             {authLoading ? (
               <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
             ) : user ? (
@@ -501,7 +504,7 @@ export default function Navbar() {
               </div>
 
               {/* CTA — right after lang */}
-              <div className="mt-3">
+              <div className="mt-3" suppressHydrationWarning>
                 {authLoading ? (
                   <div className="h-12 animate-pulse rounded-xl bg-white/10" />
                 ) : user ? (
