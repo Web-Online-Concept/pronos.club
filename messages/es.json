@@ -1464,9 +1464,9 @@
     "history_badge_count": "{count} pronósticos en total",
     "history_page_subtitle_generic": "Todos los pronósticos pasados y a la espera de resultado, filtrables por tipo, estado y deporte.",
     "meta_og_image_alt": "Pronósticos IA — Pronósticos deportivos generados por Inteligencia Artificial en PRONOS.CLUB",
-    "nav_live_short": "En curso",
+    "nav_live_short": "Live",
     "nav_stats_short": "Stats",
-    "nav_history_short": "Historial",
-    "nav_how_short": "Funcionamiento"
+    "nav_history_short": "Histo",
+    "nav_how_short": "FAQ"
   }
 }

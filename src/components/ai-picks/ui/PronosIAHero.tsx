@@ -108,18 +108,18 @@ export default async function PronosIAHero({
               active={currentPage === "live"}
             />
             <NavButton
-              href={`/${locale}/pronos-ia/stats`}
-              label={t("nav_stats")}
-              shortLabel={t("nav_stats_short")}
-              Icon={BarChart3}
-              active={currentPage === "stats"}
-            />
-            <NavButton
               href={`/${locale}/pronos-ia/historique`}
               label={t("nav_history")}
               shortLabel={t("nav_history_short")}
               Icon={History}
               active={currentPage === "history"}
+            />
+            <NavButton
+              href={`/${locale}/pronos-ia/stats`}
+              label={t("nav_stats")}
+              shortLabel={t("nav_stats_short")}
+              Icon={BarChart3}
+              active={currentPage === "stats"}
             />
             <NavButton
               href={`/${locale}/pronos-ia/comment-ca-marche`}
