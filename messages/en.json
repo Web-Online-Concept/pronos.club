@@ -1467,6 +1467,9 @@
     "nav_live_short": "Live",
     "nav_stats_short": "Stats",
     "nav_history_short": "Past",
-    "nav_how_short": "FAQ"
+    "nav_how_short": "FAQ",
+    "history_filter_all_types": "All types",
+    "history_filter_all_sports": "All sports",
+    "history_filter_all_statuses": "All results"
   }
 }

@@ -1,10 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * COMPOSANT — AIHistoryFilters
+ * COMPOSANT — AIHistoryFilters (style pill arrondi)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Filtres pour la page Historique : type, statut, sport.
- * Client component : met à jour les URL query params.
+ * Filtres pour la page Historique : type, sport, statut.
+ * Style aligné sur le tipster : 3 pills blanches arrondies.
+ * Tient sur une ligne sur mobile (texte compact + padding réduit).
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -48,77 +49,60 @@ export default function AIHistoryFilters({
   }
 
   return (
-    <div className="mb-8 rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="mb-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
 
-        {/* Filtre type */}
-        <FilterGroup
-          label={t("history_filter_type_label")}
-          value={currentType}
-          onChange={(v) => updateFilter("type", v)}
-          options={[
-            { value: "all", label: t("history_filter_all") },
-            { value: "classic", label: t("tab_classics") },
-            { value: "scorer", label: t("tab_scorers") },
-          ]}
-        />
+      <FilterPill
+        value={currentType}
+        onChange={(v) => updateFilter("type", v)}
+        options={[
+          { value: "all", label: t("history_filter_all_types") },
+          { value: "classic", label: t("tab_classics") },
+          { value: "scorer", label: t("tab_scorers") },
+        ]}
+      />
 
-        {/* Filtre statut */}
-        <FilterGroup
-          label={t("history_filter_status_label")}
-          value={currentStatus}
-          onChange={(v) => updateFilter("status", v)}
-          options={[
-            { value: "all", label: t("history_filter_all") },
-            { value: "awaiting", label: t("status_awaiting") },
-            { value: "won", label: t("status_won") },
-            { value: "lost", label: t("status_lost") },
-            { value: "void", label: t("status_void") },
-          ]}
-        />
+      <FilterPill
+        value={currentSport}
+        onChange={(v) => updateFilter("sport", v)}
+        options={[
+          { value: "all", label: t("history_filter_all_sports") },
+          { value: "soccer", label: t("sport_soccer") },
+          { value: "tennis", label: t("sport_tennis") },
+          { value: "basketball", label: t("sport_basketball") },
+        ]}
+      />
 
-        {/* Filtre sport */}
-        <FilterGroup
-          label={t("history_filter_sport_label")}
-          value={currentSport}
-          onChange={(v) => updateFilter("sport", v)}
-          options={[
-            { value: "all", label: t("history_filter_all") },
-            { value: "soccer", label: t("sport_soccer") },
-            { value: "tennis", label: t("sport_tennis") },
-            { value: "basketball", label: t("sport_basketball") },
-          ]}
-        />
-      </div>
+      <FilterPill
+        value={currentStatus}
+        onChange={(v) => updateFilter("status", v)}
+        options={[
+          { value: "all", label: t("history_filter_all_statuses") },
+          { value: "awaiting", label: t("status_awaiting") },
+          { value: "won", label: t("status_won") },
+          { value: "lost", label: t("status_lost") },
+          { value: "void", label: t("status_void") },
+        ]}
+      />
     </div>
   );
 }
 
 
-// ═══════════════════════════════════════════════════════════════════
-// SUB-COMPOSANT — FilterGroup (dropdown)
-// ═══════════════════════════════════════════════════════════════════
-
-function FilterGroup({
-  label,
+function FilterPill({
   value,
   onChange,
   options,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-neutral-500">
-        {label}
-      </label>
+    <div className="relative">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 transition hover:border-neutral-600 focus:border-cyan-500 focus:outline-none"
+        className="appearance-none cursor-pointer rounded-full border border-neutral-200 bg-white py-2 pl-3 pr-7 text-[11px] font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 focus:border-violet-500 focus:outline-none sm:pl-4 sm:pr-10 sm:text-sm"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -126,6 +110,16 @@ function FilterGroup({
           </option>
         ))}
       </select>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-500 sm:right-3 sm:h-4 sm:w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
     </div>
   );
 }
