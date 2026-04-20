@@ -1410,19 +1410,17 @@ export default function CalculatorProPage() {
       )}
 
       {activeTab !== "freebet" && result?.hasRounding && Math.abs(result.roundingLoss) > 0.01 && (
-        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-          <p className="text-[11px] text-amber-200">⚠️ L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span></p>
-        </div>
+        <Warning icon="⚠️">
+          L&apos;arrondi réduit le profit de <span className="font-mono font-black">{result.roundingLoss.toFixed(2)}{mainSymbol}</span>
+        </Warning>
       )}
       {activeTab !== "freebet" && result?.hasMultiCurrency && (
-        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-          <p className="text-[11px] text-amber-200">💱 Multi-devises actif — le profit dépend des taux de change saisis</p>
-        </div>
+        <Warning icon="💱">Multi-devises actif — le profit dépend des taux de change saisis</Warning>
       )}
       {activeTab !== "freebet" && result?.isSuspicious && (
-        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-center">
-          <p className="text-[11px] text-amber-200">⚠️ ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable</p>
-        </div>
+        <Warning icon="⚠️">
+          ROI anormalement élevé ({result.roi.toFixed(2)}%) — vérifie tes cotes, erreur probable
+        </Warning>
       )}
 
       <div className="mt-10 overflow-hidden rounded-2xl border border-white/[0.06] shadow-xl"
@@ -1468,6 +1466,20 @@ function OptCheckbox({ checked, onChange, label, color }: { checked: boolean; on
       <span className={`h-1.5 w-1.5 rounded-full ${checked ? c.dot : "bg-white/20"}`} />
       {label}
     </button>
+  );
+}
+
+function Warning({ children, icon = "⚠️" }: { children: React.ReactNode; icon?: string }) {
+  return (
+    <div
+      className="mt-3 overflow-hidden rounded-lg border border-amber-500/40 shadow-lg"
+      style={{ background: "linear-gradient(90deg, rgba(120,53,15,0.35) 0%, rgba(10,10,10,0.92) 55%, rgba(10,10,10,0.92) 100%)" }}
+    >
+      <div className="flex items-center justify-center gap-2 px-3 py-2">
+        <span className="text-sm">{icon}</span>
+        <p className="text-[11px] font-semibold text-amber-200">{children}</p>
+      </div>
+    </div>
   );
 }
 
