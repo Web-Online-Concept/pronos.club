@@ -13,7 +13,7 @@ type Rounding = 0 | 0.1 | 0.5 | 1 | 2 | 5;
 type BetSide = "back" | "lay";
 type LayStakeMode = "backer" | "liability";
 type Currency = "EUR" | "USD" | "GBP" | "BRL" | "CHF" | "CAD" | "AUD" | "JPY" | "BTC" | "ETH";
-type TabKey = "surebet" | "matched" | "freebet" | "dutching" | "sameBook" | "allInOne";
+type TabKey = "surebet" | "matched" | "freebet" | "dutching" | "allInOne";
 
 interface Leg {
   odd: string;
@@ -92,7 +92,6 @@ const TABS: { key: TabKey; icon: string; label: string; hint: string; color: str
   { key: "matched", icon: "🔄", label: "Matched", hint: "Qualifier un freebet : 1 back bookmaker + 1 lay exchange à la même cote", color: "#06b6d4" },
   { key: "freebet", icon: "🎁", label: "Freebet", hint: "Convertir un freebet (non-rendu) en cash via un lay sur exchange", color: "#a855f7" },
   { key: "dutching", icon: "⚖️", label: "Dutching", hint: "Répartir ta mise sur N issues pour gain identique — coche les issues gagnantes en D", color: "#f43f5e" },
-  { key: "sameBook", icon: "🔒", label: "Same-book", hint: "Couvrir toutes les issues sur un seul bookmaker — mode trading / FB à la clé", color: "#f97316" },
   { key: "allInOne", icon: "💎", label: "Tout-en-un", hint: "Toutes les options accessibles — à toi de régler finement chaque paramètre", color: "#3b82f6" },
 ];
 
@@ -331,7 +330,13 @@ interface FreebetResult {
   layStakeRounded: number;
   liability: number;
   liabilityRounded: number;
-  profitBackWins: number;
+  // Scénario "si back gagne" décomposé
+  backWinsBookie: number;   // + freebet × (oddBack - 1)
+  backWinsExchange: number; // - liability
+  profitBackWins: number;   // total = bookie + exchange
+  // Scénario "si back perd"
+  backLosesBookie: number;   // 0 (freebet perdu, pas d'argent)
+  backLosesExchange: number; // + lay × (1 - commission)
   profitBackLoses: number;
   guaranteedProfit: number;
   conversionRate: number;
@@ -350,8 +355,14 @@ function calcFreebet(
   const L = B * (oddLay - 1);
   const BRounded = roundStake(B, rounding);
   const LRounded = BRounded * (oddLay - 1);
-  const profitBackWins = freebetValue * (oddBack - 1) - LRounded;
-  const profitBackLoses = BRounded * (1 - c);
+  // Scénario si back gagne : gain bookie = freebet × (oddBack-1), perte exchange = liability
+  const backWinsBookie = freebetValue * (oddBack - 1);
+  const backWinsExchange = -LRounded;
+  const profitBackWins = backWinsBookie + backWinsExchange;
+  // Scénario si back perd : freebet perdu (0), gain lay net = lay × (1-c)
+  const backLosesBookie = 0;
+  const backLosesExchange = BRounded * (1 - c);
+  const profitBackLoses = backLosesBookie + backLosesExchange;
   const guaranteedProfit = Math.min(profitBackWins, profitBackLoses);
   const conversionRate = (guaranteedProfit / freebetValue) * 100;
   return {
@@ -363,7 +374,11 @@ function calcFreebet(
     layStakeRounded: BRounded,
     liability: L,
     liabilityRounded: LRounded,
+    backWinsBookie,
+    backWinsExchange,
     profitBackWins,
+    backLosesBookie,
+    backLosesExchange,
     profitBackLoses,
     guaranteedProfit,
     conversionRate,
@@ -389,13 +404,11 @@ export default function CalculatorProPage() {
   const [roundInMain, setRoundInMain] = useState(false);
   const [useCommissions, setUseCommissions] = useState(false);
   const [useCurrencies, setUseCurrencies] = useState(false);
-  const [useDistribution, setUseDistribution] = useState(false);
+  const [useDistribution, setUseDistribution] = useState(true);
   const [mainCurrency, setMainCurrency] = useState<Currency>("EUR");
   const [rates, setRates] = useState<Record<Currency, number>>(DEFAULT_RATES);
   const [showRates, setShowRates] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const [commonBookmaker, setCommonBookmaker] = useState("");
 
   const [fbValue, setFbValue] = useState("10");
   const [fbOddBack, setFbOddBack] = useState("5.000");
@@ -490,19 +503,6 @@ export default function CalculatorProPage() {
           label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
         }))
       );
-    } else if (tab === "sameBook") {
-      setUseCommissions(false);
-      setUseCurrencies(false);
-      setUseDistribution(false);
-      const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
-      setLegs(
-        legs.map((l, i) => ({
-          ...l, side: "back", distribute: true, locked: false, lockedStake: "", commission: "0",
-          bookmaker: commonBookmaker,
-          layStakeMode: "backer",
-          label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}`,
-        }))
-      );
     } else if (tab === "allInOne") {
       const f = getFormulas(nLegs)[formulaIdx] ?? getFormulas(nLegs)[0];
       setLegs(
@@ -514,18 +514,9 @@ export default function CalculatorProPage() {
     }
   }
 
-  function setCommonBookmakerAndSync(v: string) {
-    setCommonBookmaker(v);
-    setLegs(legs.map((l) => ({ ...l, bookmaker: v })));
-  }
-
   function updateLeg<K extends keyof Leg>(index: number, field: K, value: Leg[K]) {
     const next = [...legs];
     next[index] = { ...next[index], [field]: value };
-    if (activeTab === "sameBook" && field === "bookmaker") {
-      setCommonBookmaker(value as string);
-      for (let i = 0; i < next.length; i++) next[i] = { ...next[i], bookmaker: value as string };
-    }
     setLegs(next);
   }
 
@@ -582,7 +573,6 @@ export default function CalculatorProPage() {
     setAmount("100");
     setRounding(0);
     setRoundInMain(false);
-    setCommonBookmaker("");
     setFormulaIdx(0);
     setNLegs(2);
 
@@ -612,7 +602,7 @@ export default function CalculatorProPage() {
       setUseDistribution(true);
       const f = getFormulas(2)[0];
       setLegs(fresh.map((l, i) => ({ ...l, label: i < f.legLabels.length ? f.legLabels[i] : `Issue ${i + 1}` })));
-    } else if (activeTab === "surebet" || activeTab === "sameBook") {
+    } else if (activeTab === "surebet") {
       setUseCommissions(false);
       setUseCurrencies(false);
       setUseDistribution(false);
@@ -683,7 +673,7 @@ export default function CalculatorProPage() {
     lines.push(`Lay     : ${freebetResult.layStakeRounded.toFixed(2)}€ @ ${freebetResult.oddLay.toFixed(2)} (comm ${freebetResult.commissionLay.toFixed(1)}%)`);
     lines.push(`Liability : ${freebetResult.liabilityRounded.toFixed(2)}€`);
     lines.push(`─────────────────────`);
-    lines.push(`Profit garanti : ${freebetResult.guaranteedProfit.toFixed(2)}€ (conversion ${freebetResult.conversionRate.toFixed(1)}%)`);
+    lines.push(`Profit garanti : ${freebetResult.guaranteedProfit.toFixed(2)}€ (conversion ${freebetResult.conversionRate.toFixed(2)}%)`);
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopied(true);
@@ -723,8 +713,7 @@ export default function CalculatorProPage() {
   const showCommissionCol = useCommissions;
   const showEffectiveOddCol = useCommissions; // cote effective = cote avec commission
   const showCurrencyCol = useCurrencies;
-  const showBookmakerCol = activeTab !== "sameBook";
-  const showCommonBookmakerInput = activeTab === "sameBook";
+  const showBookmakerCol = true;
   const showMarketSelector = activeTab !== "matched";
   const showOptionsFooter = activeTab === "allInOne";
   const showFormulaSelector = activeTab !== "matched" && activeTab !== "freebet";
@@ -737,7 +726,6 @@ export default function CalculatorProPage() {
     { icon: "🔄", title: "Matched betting", desc: "1 back + 1 lay pour convertir ton freebet de qualification.", color: "#06b6d4" },
     { icon: "🎁", title: "Freebet → Cash", desc: "Convertir un freebet non-rendu en cash garanti via un lay.", color: "#a855f7" },
     { icon: "⚖️", title: "Dutching", desc: "Répartir la mise sur plusieurs issues, cibler celles gagnantes.", color: "#f43f5e" },
-    { icon: "🔒", title: "Trading same-book", desc: "Couvrir toutes les issues sur un même book (FB à la clé).", color: "#f97316" },
     { icon: "💎", title: "Tout-en-un", desc: "Tous les paramètres accessibles pour les cas les plus tordus.", color: "#3b82f6" },
   ];
 
@@ -861,7 +849,7 @@ export default function CalculatorProPage() {
                   <span className="text-white/40">
                     Conversion{" "}
                     <span className={`font-mono ${freebetResult.conversionRate > 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                      {freebetResult.conversionRate.toFixed(1)}%
+                      {freebetResult.conversionRate.toFixed(2)}%
                     </span>
                   </span>
                   <span className="text-white/40">
@@ -920,21 +908,63 @@ export default function CalculatorProPage() {
               )}
 
               {freebetResult && (
-                <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-white/50">📊 Scénarios</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
-                      <span className="text-[11px] text-white/60">Si back gagne</span>
-                      <span className={`font-mono text-sm font-black ${freebetResult.profitBackWins >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.profitBackWins >= 0 ? "+" : ""}{freebetResult.profitBackWins.toFixed(2)}€
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md bg-white/5 px-3 py-2">
-                      <span className="text-[11px] text-white/60">Si back perd</span>
-                      <span className={`font-mono text-sm font-black ${freebetResult.profitBackLoses >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                        {freebetResult.profitBackLoses >= 0 ? "+" : ""}{freebetResult.profitBackLoses.toFixed(2)}€
-                      </span>
-                    </div>
+                <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+                  <p className="border-b border-white/5 bg-white/[0.02] px-3 py-2 text-center text-[10px] font-extrabold uppercase tracking-[0.15em] text-white/50">
+                    📊 Scénarios — flux d&apos;argent détaillé
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[12px]">
+                      <thead>
+                        <tr className="border-b border-white/5 text-[10px] font-extrabold uppercase tracking-wider text-white/50">
+                          <th className="px-3 py-2 text-left"></th>
+                          <th className="px-3 py-2 text-right">Bookie</th>
+                          <th className="px-3 py-2 text-right">Exchange</th>
+                          <th className="px-3 py-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Si back gagne */}
+                        <tr className="border-b border-white/5">
+                          <td className="px-3 py-2.5">
+                            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
+                              Back gagne
+                            </span>
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.backWinsBookie >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {freebetResult.backWinsBookie >= 0 ? "+" : ""}
+                            {freebetResult.backWinsBookie.toFixed(2)}€
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.backWinsExchange >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {freebetResult.backWinsExchange >= 0 ? "+" : ""}
+                            {freebetResult.backWinsExchange.toFixed(2)}€
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.profitBackWins >= 0 ? "text-white" : "text-rose-300"}`}>
+                            = {freebetResult.profitBackWins >= 0 ? "+" : ""}
+                            {freebetResult.profitBackWins.toFixed(2)}€
+                          </td>
+                        </tr>
+                        {/* Si lay gagne (= back perd) */}
+                        <tr>
+                          <td className="px-3 py-2.5">
+                            <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-purple-300">
+                              Lay gagne
+                            </span>
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.backLosesBookie > 0 ? "text-emerald-300" : freebetResult.backLosesBookie < 0 ? "text-rose-300" : "text-white/50"}`}>
+                            {freebetResult.backLosesBookie > 0 ? "+" : ""}
+                            {freebetResult.backLosesBookie.toFixed(2)}€
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.backLosesExchange >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {freebetResult.backLosesExchange >= 0 ? "+" : ""}
+                            {freebetResult.backLosesExchange.toFixed(2)}€
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-black ${freebetResult.profitBackLoses >= 0 ? "text-white" : "text-rose-300"}`}>
+                            = {freebetResult.profitBackLoses >= 0 ? "+" : ""}
+                            {freebetResult.profitBackLoses.toFixed(2)}€
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -1004,15 +1034,6 @@ export default function CalculatorProPage() {
                     className="cursor-pointer rounded-md bg-transparent px-2 py-0.5 text-[11px] font-extrabold text-white outline-none hover:bg-white/5">
                     {formulas.map((f, i) => (<option key={i} value={i} className="bg-black">{f.label}</option>))}
                   </select>
-                </div>
-              )}
-
-              {showCommonBookmakerInput && (
-                <div className="mb-3 flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/[0.06] px-3 py-2">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-300">🔒 Bookmaker commun</span>
-                  <input type="text" value={commonBookmaker} onChange={(e) => setCommonBookmakerAndSync(e.target.value)}
-                    placeholder="Betclic, Unibet, PMU..."
-                    className="flex-1 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[12px] font-bold text-orange-100 outline-none placeholder:text-orange-400/40 focus:border-orange-400" />
                 </div>
               )}
 
@@ -1428,7 +1449,7 @@ export default function CalculatorProPage() {
         <div className="h-0.5" style={{ background: "linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669)" }} />
         <div className="px-5 py-4 text-center sm:px-6">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">💎 Le tout-en-un</p>
-          <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Ce calculateur remplace 6 autres outils</h2>
+          <h2 className="mt-1 text-lg font-black text-white sm:text-xl">Ce calculateur remplace 5 autres outils</h2>
           <p className="mt-1 text-xs text-white/40">Clique sur l&apos;onglet qui correspond à ton besoin, les options inutiles sont masquées</p>
         </div>
         <div className="px-4 pb-5 sm:px-6">
