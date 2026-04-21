@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     // ── Add step ──
     if (action === "add_step") {
-      const { montante_id, odds, stake: manualStake, description, match_date, bet_type, sport } = body;
+      const { montante_id, odds, stake: manualStake, description, match_date, bet_type, sport, bookmaker } = body;
 
       const { data: montante } = await supabaseAdmin
         .from("montantes")
@@ -231,6 +231,7 @@ export async function POST(req: NextRequest) {
           match_date: match_date || null,
           bet_type: bet_type || "simple",
           sport: sport || null,
+          bookmaker: bookmaker || null,
           result: "pending",
         })
         .select()

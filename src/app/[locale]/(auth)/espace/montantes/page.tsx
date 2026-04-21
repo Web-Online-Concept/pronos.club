@@ -38,6 +38,7 @@ type Step = {
   match_date: string | null;
   bet_type: "simple" | "combiné";
   sport: string | null;
+  bookmaker: string | null;
 };
 
 type Stats = {
@@ -1060,7 +1061,13 @@ function MontanteDetailView({
                       </div>
 
                       {/* Data columns */}
-                      <div className="flex-1 grid grid-cols-3 ml-4 sm:ml-5">
+                      <div className="flex-1 grid grid-cols-4 ml-4 sm:ml-5">
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Book</p>
+                          <p className="mt-1 text-xs sm:text-sm font-bold text-neutral-200 truncate px-1">
+                            {step.bookmaker || "—"}
+                          </p>
+                        </div>
                         <div className="text-center">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
                           {editingOddsId === step.id ? (
@@ -1247,6 +1254,7 @@ function AddStepModal({
   const [matchDate, setMatchDate] = useState("");
   const [betType, setBetType] = useState<"simple" | "combiné">("simple");
   const [sport, setSport] = useState("");
+  const [bookmaker, setBookmaker] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -1274,6 +1282,7 @@ function AddStepModal({
         match_date: matchDate || null,
         bet_type: betType,
         sport: sport || null,
+        bookmaker: bookmaker || null,
       }),
     });
     const data = await res.json();
@@ -1325,6 +1334,38 @@ function AddStepModal({
             />
           </div>
         )}
+
+        {/* Bookmaker */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Bookmaker</label>
+          <select
+            value={bookmaker}
+            onChange={(e) => setBookmaker(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50"
+          >
+            <option value="" className="bg-neutral-800">—</option>
+            <option value="Pinnacle" className="bg-neutral-800">Pinnacle</option>
+            <option value="1xBet" className="bg-neutral-800">1xBet</option>
+            <option value="Stake" className="bg-neutral-800">Stake</option>
+            <option value="Bet365" className="bg-neutral-800">Bet365</option>
+            <option value="OrbitX" className="bg-neutral-800">OrbitX</option>
+            <option value="Winamax" className="bg-neutral-800">Winamax</option>
+            <option value="Betclic" className="bg-neutral-800">Betclic</option>
+            <option value="Unibet" className="bg-neutral-800">Unibet</option>
+            <option value="PMU" className="bg-neutral-800">PMU</option>
+            <option value="Bwin" className="bg-neutral-800">Bwin</option>
+            <option value="FDJ" className="bg-neutral-800">FDJ / Parions Sport</option>
+            <option value="NetBet" className="bg-neutral-800">NetBet</option>
+            <option value="Betsson" className="bg-neutral-800">Betsson</option>
+            <option value="Vbet" className="bg-neutral-800">Vbet</option>
+            <option value="Betway" className="bg-neutral-800">Betway</option>
+            <option value="PokerStars" className="bg-neutral-800">PokerStars</option>
+            <option value="ZEbet" className="bg-neutral-800">ZEbet</option>
+            <option value="BarriereBet" className="bg-neutral-800">BarriereBet</option>
+            <option value="CircusBet" className="bg-neutral-800">CircusBet</option>
+            <option value="Autre" className="bg-neutral-800">Autre</option>
+          </select>
+        </div>
 
         {/* Sport + Type */}
         <div className="mb-3 grid grid-cols-2 gap-3">
