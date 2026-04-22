@@ -409,7 +409,7 @@ export async function POST(req: NextRequest) {
     if (action === "change_result") {
       const { step_id, new_result } = body;
 
-      if (!["won", "lost", "pending"].includes(new_result)) {
+      if (!["won", "lost", "pending", "refunded"].includes(new_result)) {
         return NextResponse.json({ error: "Invalid result" }, { status: 400 });
       }
 
@@ -424,7 +424,7 @@ export async function POST(req: NextRequest) {
       const montante = (step as any).montantes;
       if (montante.user_id !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      // Vérif : doit être le dernier palier résolu (aucun palier suivant)
+      // Vérif : doit être le dernier palier (aucun palier suivant)
       const { data: nextSteps } = await supabaseAdmin
         .from("montante_steps")
         .select("id")
@@ -439,7 +439,11 @@ export async function POST(req: NextRequest) {
       }
 
       // Calcul nouveau actual_gain
-      const newActualGain = new_result === "won" ? step.potential_gain : (new_result === "lost" ? 0 : null);
+      let newActualGain: number | null = null;
+      if (new_result === "won") newActualGain = parseFloat(step.potential_gain);
+      else if (new_result === "lost") newActualGain = 0;
+      else if (new_result === "refunded") newActualGain = parseFloat(step.stake);
+      else newActualGain = null; // pending
 
       await supabaseAdmin
         .from("montante_steps")
@@ -469,7 +473,7 @@ export async function POST(req: NextRequest) {
           newProfit = 0;
         }
       } else {
-        // pending → montante repasse active, pas de profit
+        // refunded ou pending → montante reste active
         newMontanteStatus = "active";
         newProfit = 0;
       }

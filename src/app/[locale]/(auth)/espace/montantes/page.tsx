@@ -34,7 +34,7 @@ type Step = {
   actual_gain: number | null;
   match_name: string | null;
   description: string | null;
-  result: "pending" | "won" | "lost";
+  result: "pending" | "won" | "lost" | "refunded";
   completed_at: string | null;
   match_date: string | null;
   bet_type: "simple" | "combiné";
@@ -801,8 +801,8 @@ function MontanteDetailView({
     fetchDetail();
   }
 
-  async function changeResult(stepId: string, newResult: "won" | "lost" | "pending") {
-    const labels = { won: "Gagné", lost: "Perdu", pending: "En attente" };
+  async function changeResult(stepId: string, newResult: "won" | "lost" | "pending" | "refunded") {
+    const labels = { won: "Gagné", lost: "Perdu", pending: "En attente", refunded: "Remboursé" };
     if (!confirm(`Changer le résultat en "${labels[newResult]}" ?`)) return;
     const res = await fetch("/api/montantes", {
       method: "POST",
@@ -1003,7 +1003,6 @@ function MontanteDetailView({
           <div className="space-y-2.5">
             {steps.map((step, index) => {
               const isLastStep = index === steps.length - 1;
-              const canChangeResult = isLastStep && step.result !== "pending";
               return (
               <div
                 key={step.id}
@@ -1016,6 +1015,8 @@ function MontanteDetailView({
                       ? "bg-neutral-900 ring-2 ring-emerald-500/40"
                       : step.result === "lost"
                       ? "bg-neutral-900 ring-2 ring-red-500/40"
+                      : step.result === "refunded"
+                      ? "bg-neutral-900 ring-2 ring-blue-500/40"
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
@@ -1032,6 +1033,8 @@ function MontanteDetailView({
                           ? "bg-emerald-500"
                           : step.result === "lost"
                           ? "bg-red-500"
+                          : step.result === "refunded"
+                          ? "bg-blue-500"
                           : "bg-neutral-700"
                       }`}
                     >
@@ -1114,10 +1117,12 @@ function MontanteDetailView({
                               ? "text-emerald-400"
                               : step.result === "lost"
                               ? "text-red-400"
+                              : step.result === "refunded"
+                              ? "text-blue-400"
                               : "text-white"
                           }`}
                         >
-                          {step.result === "won"
+                          {step.result === "won" || step.result === "refunded"
                             ? parseFloat(String(step.actual_gain)).toFixed(2)
                             : parseFloat(String(step.potential_gain)).toFixed(2)}
                         </p>
@@ -1137,76 +1142,66 @@ function MontanteDetailView({
                         Modifier
                       </button>
 
-                      {/* Status/buttons */}
+                      {/* Status/Dropdown */}
                       <div className="flex items-center gap-2">
-                        {step.result === "won" && (
+                        {/* Dropdown résultat — seulement sur le dernier palier */}
+                        {isLastStep ? (
+                          <select
+                            value={step.result}
+                            onChange={(e) => {
+                              const val = e.target.value as "pending" | "won" | "lost" | "refunded";
+                              if (val === step.result) return;
+                              if (step.result === "pending") {
+                                // Depuis pending → c'est une résolution normale
+                                if (val === "won" || val === "lost") {
+                                  resolveStep(step.id, val);
+                                } else if (val === "refunded") {
+                                  changeResult(step.id, "refunded");
+                                }
+                              } else {
+                                // Depuis un résultat existant → changement
+                                changeResult(step.id, val);
+                              }
+                            }}
+                            className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-bold outline-none border transition ${
+                              step.result === "won"
+                                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                                : step.result === "lost"
+                                ? "bg-red-500/15 border-red-500/40 text-red-400"
+                                : step.result === "refunded"
+                                ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
+                                : "bg-neutral-800 border-neutral-700 text-neutral-300"
+                            }`}
+                          >
+                            <option value="pending" className="bg-neutral-800 text-neutral-300">⏳ En attente</option>
+                            <option value="won" className="bg-neutral-800 text-emerald-400">✓ Gagné</option>
+                            <option value="lost" className="bg-neutral-800 text-red-400">✗ Perdu</option>
+                            <option value="refunded" className="bg-neutral-800 text-blue-400">↻ Remboursé</option>
+                          </select>
+                        ) : (
+                          // Paliers non-derniers : affichage read-only du statut
                           <>
-                            {canChangeResult && (
-                              <>
-                                <button
-                                  onClick={() => changeResult(step.id, "lost")}
-                                  className="cursor-pointer rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-bold text-red-400 transition hover:bg-red-500/20"
-                                  title="Marquer comme perdu"
-                                >
-                                  → Perdu
-                                </button>
-                                <button
-                                  onClick={() => changeResult(step.id, "pending")}
-                                  className="cursor-pointer rounded-lg border border-neutral-600 bg-neutral-700/50 px-2.5 py-1.5 text-[11px] font-bold text-neutral-300 transition hover:bg-neutral-700"
-                                  title="Remettre en attente"
-                                >
-                                  ↺
-                                </button>
-                              </>
+                            {step.result === "won" && (
+                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
+                                <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
                             )}
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
-                              <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          </>
-                        )}
-                        {step.result === "lost" && (
-                          <>
-                            {canChangeResult && (
-                              <>
-                                <button
-                                  onClick={() => changeResult(step.id, "won")}
-                                  className="cursor-pointer rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-bold text-emerald-400 transition hover:bg-emerald-500/20"
-                                  title="Marquer comme gagné"
-                                >
-                                  → Gagné
-                                </button>
-                                <button
-                                  onClick={() => changeResult(step.id, "pending")}
-                                  className="cursor-pointer rounded-lg border border-neutral-600 bg-neutral-700/50 px-2.5 py-1.5 text-[11px] font-bold text-neutral-300 transition hover:bg-neutral-700"
-                                  title="Remettre en attente"
-                                >
-                                  ↺
-                                </button>
-                              </>
+                            {step.result === "lost" && (
+                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
+                                <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </div>
                             )}
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
-                              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </div>
-                          </>
-                        )}
-                        {step.result === "pending" && (
-                          <>
-                            <button
-                              onClick={() => resolveStep(step.id, "won")}
-                              className="cursor-pointer rounded-xl bg-emerald-600 px-3 sm:px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5 active:scale-95"
-                            >
-                              Gagné ✓
-                            </button>
-                            <button
-                              onClick={() => resolveStep(step.id, "lost")}
-                              className="cursor-pointer rounded-xl bg-red-500 px-3 sm:px-4 py-2 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5 active:scale-95"
-                            >
-                              Perdu ✗
-                            </button>
+                            {step.result === "refunded" && (
+                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/20">
+                                <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
+                                </svg>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
