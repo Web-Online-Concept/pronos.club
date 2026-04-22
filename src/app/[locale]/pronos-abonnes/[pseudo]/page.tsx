@@ -1,0 +1,187 @@
+// src/app/[locale]/pronos-abonnes/[pseudo]/page.tsx
+"use client";
+
+import { useState, useEffect, use } from "react";
+import Link from "next/link";
+import { useLocale } from "next-intl";
+import TipsterPickCard from "@/components/tipster/TipsterPickCard";
+
+export default function TipsterProfilePage({
+  params,
+}: {
+  params: Promise<{ pseudo: string }>;
+}) {
+  const { pseudo: rawPseudo } = use(params);
+  const pseudo = decodeURIComponent(rawPseudo);
+  const locale = useLocale();
+
+  const [profile, setProfile] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [picks, setPicks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "live" | "resolved">("all");
+
+  async function fetchAll() {
+    setLoading(true);
+    const [statsRes, picksRes] = await Promise.all([
+      fetch(`/api/tipster-stats?pseudo=${encodeURIComponent(pseudo)}`),
+      fetch(`/api/tipster-picks?filter=pseudo&pseudo=${encodeURIComponent(pseudo)}&limit=100`),
+    ]);
+    const statsData = await statsRes.json();
+    const picksData = await picksRes.json();
+    setProfile(statsData.profile);
+    setStats(statsData.stats);
+    setPicks(picksData.picks || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    fetchAll();
+  }, [pseudo]);
+
+  const filteredPicks = filter === "all"
+    ? picks
+    : filter === "live"
+    ? picks.filter((p) => p.status === "live")
+    : picks.filter((p) => p.status === "resolved");
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white flex items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      </main>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <main className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-neutral-500">Tipster introuvable</p>
+          <Link href={`/${locale}/pronos-abonnes`} className="mt-4 inline-block text-emerald-600 font-bold">
+            ← Retour
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const totalUnits = stats.total_units;
+  const unitsColor = totalUnits > 0 ? "text-emerald-400" : totalUnits < 0 ? "text-red-400" : "text-white";
+
+  return (
+    <main className="min-h-screen bg-white">
+      {/* Hero */}
+      <div
+        className="px-4 py-10 text-center text-white"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      >
+        <div className="mx-auto max-w-3xl">
+          <div className="flex flex-col items-center">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={pseudo}
+                className="h-24 w-24 rounded-full object-cover ring-4 ring-emerald-500/30"
+              />
+            ) : (
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-3xl font-black text-white ring-4 ring-emerald-500/30">
+                {pseudo.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <h1 className="mt-4 text-3xl font-black sm:text-4xl">{pseudo}</h1>
+            <p className="mt-1 text-xs text-white/50">
+              Membre depuis {new Date(profile.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Pronos</p>
+              <p className="mt-1 text-2xl font-extrabold text-white tabular-nums">{stats.total_picks}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Winrate</p>
+              <p className="mt-1 text-2xl font-extrabold text-white tabular-nums">{stats.winrate}%</p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Total U</p>
+              <p className={`mt-1 text-2xl font-extrabold tabular-nums ${unitsColor}`}>
+                {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">ROI</p>
+              <p className={`mt-1 text-2xl font-extrabold tabular-nums ${stats.roi > 0 ? "text-emerald-400" : stats.roi < 0 ? "text-red-400" : "text-white"}`}>
+                {stats.roi >= 0 ? "+" : ""}{stats.roi.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Cote moy.</p>
+              <p className="mt-1 text-lg font-extrabold text-white tabular-nums">{stats.avg_odds.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Série actuelle</p>
+              <p className={`mt-1 text-lg font-extrabold tabular-nums ${stats.current_streak > 0 ? "text-emerald-400" : stats.current_streak < 0 ? "text-red-400" : "text-white"}`}>
+                {stats.current_streak > 0 ? `+${stats.current_streak}` : stats.current_streak}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Meilleure</p>
+              <p className="mt-1 text-lg font-extrabold text-emerald-400 tabular-nums">+{stats.best_streak}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="bg-neutral-50 border-b border-neutral-200">
+        <div className="mx-auto max-w-6xl px-4 py-3">
+          <div className="flex gap-2">
+            {[
+              { v: "all", label: `Tous (${picks.length})` },
+              { v: "live", label: `En cours (${stats.live_picks})` },
+              { v: "resolved", label: `Résolus (${stats.resolved_picks})` },
+            ].map((f) => (
+              <button
+                key={f.v}
+                onClick={() => setFilter(f.v as any)}
+                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
+                  filter === f.v
+                    ? "bg-neutral-900 text-white"
+                    : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Picks */}
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        {filteredPicks.length === 0 ? (
+          <div className="rounded-3xl bg-neutral-50 py-16 text-center">
+            <p className="text-neutral-500 text-sm">Aucun pronostic pour ce filtre</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {filteredPicks.map((pick) => (
+              <TipsterPickCard
+                key={pick.id}
+                pick={pick}
+                showPseudo={false}
+                showResult={pick.status === "resolved"}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
