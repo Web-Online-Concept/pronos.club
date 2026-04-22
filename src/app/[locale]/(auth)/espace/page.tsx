@@ -94,6 +94,13 @@ export default function MemberDashboard() {
                 <p className="mt-1 text-sm text-white/40">{t("calc_desc")}</p>
               </Link>
 
+              {/* Pronos Abonnés */}
+              <Link href={`/${locale}/espace/tipster`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">🎯</span>
+                <h3 className="mt-2 font-bold text-white">Pronos Abonnés</h3>
+                <p className="mt-1 text-sm text-white/40">Poste tes pronos et grimpe au classement</p>
+              </Link>
+
               {/* Montantes */}
               <Link href={`/${locale}/espace/montantes`} className={CARD_CLASS} style={CARD_STYLE}>
                 <span className="text-2xl">📊</span>

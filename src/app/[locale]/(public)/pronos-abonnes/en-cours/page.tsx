@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 
 type Pick = any;
@@ -22,11 +23,15 @@ const SPORTS = [
 
 export default function PronosAbonnesEnCoursPage() {
   const locale = useLocale();
+  const { user } = useAuth();
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState<string>("");
 
+  const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
+
   async function fetchPicks() {
+    if (!isPremium) { setLoading(false); return; }
     setLoading(true);
     const url = sportFilter
       ? `/api/tipster-picks?filter=live&sport=${encodeURIComponent(sportFilter)}`
@@ -39,7 +44,7 @@ export default function PronosAbonnesEnCoursPage() {
 
   useEffect(() => {
     fetchPicks();
-  }, [sportFilter]);
+  }, [sportFilter, isPremium]);
 
   return (
     <main className="min-h-screen bg-white">
@@ -85,40 +90,70 @@ export default function PronosAbonnesEnCoursPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-neutral-50 border-b border-neutral-200">
-        <div className="mx-auto max-w-6xl px-4 py-3">
-          <div className="flex gap-2 overflow-x-auto">
-            <button
-              onClick={() => setSportFilter("")}
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                sportFilter === ""
-                  ? "bg-neutral-900 text-white"
-                  : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
-              }`}
-            >
-              Tous les sports
-            </button>
-            {SPORTS.map((s) => (
+      {/* Filter bar (premium only) */}
+      {isPremium && (
+        <div className="bg-neutral-50 border-b border-neutral-200">
+          <div className="mx-auto max-w-6xl px-4 py-3">
+            <div className="flex gap-2 overflow-x-auto">
               <button
-                key={s}
-                onClick={() => setSportFilter(s)}
+                onClick={() => setSportFilter("")}
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  sportFilter === s
+                  sportFilter === ""
                     ? "bg-neutral-900 text-white"
                     : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
                 }`}
               >
-                {s}
+                Tous les sports
               </button>
-            ))}
+              {SPORTS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSportFilter(s)}
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    sportFilter === s
+                      ? "bg-neutral-900 text-white"
+                      : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {loading ? (
+        {!isPremium ? (
+          <div className="rounded-3xl border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-50 to-white py-16 text-center px-6">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100">
+              <span className="text-4xl">🔒</span>
+            </div>
+            <h2 className="text-2xl font-black text-neutral-900">Pronos en cours réservés aux Premium</h2>
+            <p className="mt-3 max-w-md mx-auto text-sm text-neutral-600">
+              Pour voir les pronostics postés par les abonnés en temps réel, passe Premium.
+              Tu auras accès à tous les pronos live, profils tipsters, et tu pourras poster les tiens.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href={`/${locale}/abonnement`}
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500"
+              >
+                💎 Passer Premium
+              </Link>
+              <Link
+                href={`/${locale}/pronos-abonnes/classement`}
+                className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-700 transition hover:border-neutral-900"
+              >
+                🏆 Voir le classement (gratuit)
+              </Link>
+            </div>
+            <p className="mt-6 text-xs text-neutral-400">
+              Classement et historique restent accessibles librement.
+            </p>
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           </div>

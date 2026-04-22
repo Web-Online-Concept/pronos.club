@@ -4,6 +4,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 
 export default function TipsterProfilePage({
@@ -14,6 +15,9 @@ export default function TipsterProfilePage({
   const { pseudo: rawPseudo } = use(params);
   const pseudo = decodeURIComponent(rawPseudo);
   const locale = useLocale();
+  const { user } = useAuth();
+
+  const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
 
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
@@ -22,6 +26,7 @@ export default function TipsterProfilePage({
   const [filter, setFilter] = useState<"all" | "live" | "resolved">("all");
 
   async function fetchAll() {
+    if (!isPremium) { setLoading(false); return; }
     setLoading(true);
     const [statsRes, picksRes] = await Promise.all([
       fetch(`/api/tipster-stats?pseudo=${encodeURIComponent(pseudo)}`),
@@ -37,13 +42,57 @@ export default function TipsterProfilePage({
 
   useEffect(() => {
     fetchAll();
-  }, [pseudo]);
+  }, [pseudo, isPremium]);
 
   const filteredPicks = filter === "all"
     ? picks
     : filter === "live"
     ? picks.filter((p) => p.status === "live")
     : picks.filter((p) => p.status === "resolved");
+
+  if (!isPremium) {
+    return (
+      <main className="min-h-screen bg-white">
+        <div
+          className="px-4 py-10 text-center text-white"
+          style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+        >
+          <div className="mx-auto max-w-3xl">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
+              🎯 Profil Tipster
+            </p>
+            <h1 className="mt-2 text-2xl font-black sm:text-3xl">{pseudo}</h1>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-2xl px-4 py-12">
+          <div className="rounded-3xl border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-50 to-white py-16 text-center px-6">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100">
+              <span className="text-4xl">🔒</span>
+            </div>
+            <h2 className="text-2xl font-black text-neutral-900">Profil tipster réservé aux Premium</h2>
+            <p className="mt-3 max-w-md mx-auto text-sm text-neutral-600">
+              Pour consulter le profil complet de <strong className="text-emerald-700">{pseudo}</strong> (stats, pronostics en cours, historique détaillé), passe Premium.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href={`/${locale}/abonnement`}
+                className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500"
+              >
+                💎 Passer Premium
+              </Link>
+              <Link
+                href={`/${locale}/pronos-abonnes/classement`}
+                className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-700 transition hover:border-neutral-900"
+              >
+                🏆 Voir le classement
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (loading) {
     return (
