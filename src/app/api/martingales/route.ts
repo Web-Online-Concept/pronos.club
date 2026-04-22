@@ -104,6 +104,28 @@ export async function GET(req: NextRequest) {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    // Enrichir avec current_gain (actual_gain du dernier palier won/refunded)
+    if (martingales && martingales.length > 0) {
+      const ids = martingales.map((m: any) => m.id);
+      const { data: lastSteps } = await supabaseAdmin
+        .from("martingale_steps")
+        .select("martingale_id, step_number, actual_gain, result")
+        .in("martingale_id", ids)
+        .in("result", ["won", "refunded"])
+        .order("step_number", { ascending: false });
+
+      const gainMap = new Map<string, number>();
+      (lastSteps || []).forEach((s: any) => {
+        if (!gainMap.has(s.martingale_id)) {
+          gainMap.set(s.martingale_id, parseFloat(s.actual_gain) || 0);
+        }
+      });
+
+      martingales.forEach((m: any) => {
+        m.current_gain = gainMap.get(m.id) || 0;
+      });
+    }
+
     return NextResponse.json({ martingales: martingales || [] });
 
   } catch (err: any) {
@@ -167,7 +189,7 @@ export async function POST(req: NextRequest) {
 
     // ── Add step ──
     if (action === "add_step") {
-      const { martingale_id, odds, stake: manualStake, description, match_date, sport } = body;
+      const { martingale_id, odds, stake: manualStake, match_name, description, match_date, sport, bookmaker } = body;
 
       const { data: martingale } = await supabaseAdmin
         .from("martingales")
@@ -223,9 +245,11 @@ export async function POST(req: NextRequest) {
           odds,
           stake,
           potential_gain: potentialGain,
+          match_name: match_name || null,
           description: description || null,
           match_date: match_date || null,
           sport: sport || null,
+          bookmaker: bookmaker || null,
           min_odds: minOdds,
           result: "pending",
         })
@@ -330,45 +354,177 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "lost", profit: -totalLost });
     }
 
-    // ── Update odds on a pending step ──
+    // ── Update step (edit any field) ──
     if (action === "update_step") {
-      const { step_id, new_odds } = body;
-      if (!new_odds || new_odds <= 1) return NextResponse.json({ error: "Invalid odds" }, { status: 400 });
+      const { step_id, sport, match_name, description, match_date, bookmaker, new_odds } = body;
 
       const { data: step } = await supabaseAdmin
         .from("martingale_steps")
-        .select("*, martingales!inner(user_id, initial_stake, total_lost)")
+        .select("*, martingales!inner(user_id, initial_stake, total_lost, current_step)")
         .eq("id", step_id)
         .single();
 
-      if (!step || step.martingales.user_id !== user.id) {
+      if (!step || (step as any).martingales.user_id !== user.id) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
-      if (step.result !== "pending") return NextResponse.json({ error: "Step already resolved" }, { status: 400 });
 
-      const isFirstStep = step.step_number === 1;
-      let newStake = parseFloat(String(step.stake));
+      const updateData: any = {};
 
-      if (!isFirstStep) {
-        // Recalculate stake based on new odds
-        const totalLost = parseFloat(String(step.martingales.total_lost)) || 0;
-        const initialStake = parseFloat(String(step.martingales.initial_stake));
-        const beneficeTarget = initialStake;
-        newStake = Math.ceil(((totalLost + beneficeTarget) / (new_odds - 1)) * 100) / 100;
+      if (sport !== undefined) updateData.sport = sport || null;
+      if (match_name !== undefined) updateData.match_name = match_name || null;
+      if (description !== undefined) updateData.description = description || null;
+      if (match_date !== undefined) updateData.match_date = match_date || null;
+      if (bookmaker !== undefined) updateData.bookmaker = bookmaker || null;
+
+      // Cote modifiable UNIQUEMENT si dernier step ET pending
+      if (new_odds !== undefined && new_odds !== null) {
+        const isLastStep = step.step_number >= (step as any).martingales.current_step;
+        const isPending = step.result === "pending";
+
+        if (!isLastStep || !isPending) {
+          return NextResponse.json({
+            error: "La cote n'est modifiable que sur le dernier palier non résolu",
+          }, { status: 400 });
+        }
+        if (!new_odds || new_odds <= 1) {
+          return NextResponse.json({ error: "Invalid odds" }, { status: 400 });
+        }
+
+        // Recalcul mise uniquement si palier > 1 (palier 1 = mise libre)
+        const isFirstStep = step.step_number === 1;
+        let newStake = parseFloat(String(step.stake));
+
+        if (!isFirstStep) {
+          const totalLost = parseFloat(String((step as any).martingales.total_lost)) || 0;
+          const initialStake = parseFloat(String((step as any).martingales.initial_stake));
+          const beneficeTarget = initialStake;
+          newStake = Math.ceil(((totalLost + beneficeTarget) / (new_odds - 1)) * 100) / 100;
+        }
+
+        const newPotentialGain = Math.round(newStake * new_odds * 100) / 100;
+        updateData.odds = new_odds;
+        updateData.stake = newStake;
+        updateData.potential_gain = newPotentialGain;
       }
 
-      const newPotentialGain = Math.round(newStake * new_odds * 100) / 100;
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      }
 
       await supabaseAdmin
         .from("martingale_steps")
+        .update(updateData)
+        .eq("id", step_id);
+
+      return NextResponse.json({ success: true });
+    }
+
+    // ── Change result (undo/modify last resolved step) ──
+    if (action === "change_result") {
+      const { step_id, new_result } = body;
+
+      if (!["won", "lost", "pending", "refunded"].includes(new_result)) {
+        return NextResponse.json({ error: "Invalid result" }, { status: 400 });
+      }
+
+      const { data: step } = await supabaseAdmin
+        .from("martingale_steps")
+        .select("*, martingales!inner(*)")
+        .eq("id", step_id)
+        .single();
+
+      if (!step) return NextResponse.json({ error: "Step not found" }, { status: 404 });
+
+      const martingale = (step as any).martingales;
+      if (martingale.user_id !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      // Vérif : doit être le dernier palier (aucun palier suivant)
+      const { data: nextSteps } = await supabaseAdmin
+        .from("martingale_steps")
+        .select("id")
+        .eq("martingale_id", martingale.id)
+        .gt("step_number", step.step_number)
+        .limit(1);
+
+      if (nextSteps && nextSteps.length > 0) {
+        return NextResponse.json({
+          error: "Ce palier a des paliers suivants, impossible de modifier son résultat",
+        }, { status: 400 });
+      }
+
+      const stakeVal = parseFloat(String(step.stake));
+      const initialStake = parseFloat(String(martingale.initial_stake));
+
+      // Calcul nouveau actual_gain + nouveau total_lost de la martingale
+      // Logique martingale :
+      // - "won" : actual_gain = potential_gain, martingale = won, profit = gain - stake - total_lost (avant ce palier)
+      // - "lost" : actual_gain = 0, total_lost augmente de stake, martingale reste active
+      // - "refunded" : actual_gain = stake (mise récupérée), total_lost inchangé, martingale reste active
+      // - "pending" : actual_gain = null, total_lost remis comme avant ce palier (on retire stake)
+
+      // D'abord on calcule le total_lost "avant" ce palier (pour pouvoir rétablir)
+      // total_lost actuel = somme des stakes de tous les paliers "lost" de la martingale
+      const { data: lostSteps } = await supabaseAdmin
+        .from("martingale_steps")
+        .select("stake")
+        .eq("martingale_id", martingale.id)
+        .eq("result", "lost")
+        .neq("id", step_id); // exclure ce palier
+
+      const totalLostBeforeThisStep = (lostSteps || []).reduce(
+        (sum: number, s: any) => sum + (parseFloat(String(s.stake)) || 0),
+        0
+      );
+
+      let newActualGain: number | null = null;
+      let newTotalLost = totalLostBeforeThisStep;
+      let newStatus: "active" | "won" | "lost" = "active";
+      let newProfit = 0;
+
+      if (new_result === "won") {
+        newActualGain = parseFloat(String(step.potential_gain));
+        newTotalLost = totalLostBeforeThisStep; // inchangé (ce palier n'est plus une perte)
+        newStatus = "won";
+        newProfit = newActualGain - stakeVal - totalLostBeforeThisStep;
+      } else if (new_result === "lost") {
+        newActualGain = 0;
+        newTotalLost = totalLostBeforeThisStep + stakeVal;
+        newStatus = "active";
+        newProfit = 0;
+      } else if (new_result === "refunded") {
+        newActualGain = stakeVal;
+        newTotalLost = totalLostBeforeThisStep; // mise récupérée, pas de perte
+        newStatus = "active";
+        newProfit = 0;
+      } else {
+        // pending
+        newActualGain = null;
+        newTotalLost = totalLostBeforeThisStep;
+        newStatus = "active";
+        newProfit = 0;
+      }
+
+      // Update step
+      await supabaseAdmin
+        .from("martingale_steps")
         .update({
-          odds: new_odds,
-          stake: newStake,
-          potential_gain: newPotentialGain,
+          result: new_result,
+          actual_gain: newActualGain,
+          completed_at: new_result === "pending" ? null : new Date().toISOString(),
         })
         .eq("id", step_id);
 
-      return NextResponse.json({ success: true, stake: newStake, potential_gain: newPotentialGain });
+      // Update martingale
+      await supabaseAdmin
+        .from("martingales")
+        .update({
+          status: newStatus,
+          profit: newProfit,
+          total_lost: newTotalLost,
+        })
+        .eq("id", martingale.id);
+
+      return NextResponse.json({ success: true, new_status: newStatus });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

@@ -17,6 +17,7 @@ type Martingale = {
   status: "active" | "won" | "lost";
   profit: number;
   total_lost: number;
+  current_gain: number;
   created_at: string;
 };
 
@@ -28,10 +29,12 @@ type Step = {
   stake: number;
   potential_gain: number;
   actual_gain: number | null;
-  result: "pending" | "won" | "lost";
+  result: "pending" | "won" | "lost" | "refunded";
+  match_name: string | null;
   description: string | null;
   match_date: string | null;
   sport: string | null;
+  bookmaker: string | null;
   min_odds: number | null;
   completed_at: string | null;
 };
@@ -243,7 +246,7 @@ export default function MartingalesPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {filtered.map((mart, index) => (
                     <div
                       key={mart.id}
@@ -471,72 +474,221 @@ function MartingaleListCard({
   onClick: () => void;
   onDelete: () => void;
 }) {
-  const statusMap = {
-    active: { label: "En cours", dotColor: "bg-blue-500", badgeBg: "bg-blue-500/10 text-blue-500 border-blue-500/20", barColor: "bg-blue-500" },
-    won: { label: "Réussie ✓", dotColor: "bg-emerald-500", badgeBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", barColor: "bg-emerald-500" },
-    lost: { label: "Clôturée ✗", dotColor: "bg-red-500", badgeBg: "bg-red-500/10 text-red-500 border-red-500/20", barColor: "bg-red-500" },
-  };
-  const config = statusMap[martingale.status];
+  // Theming par statut (identique montantes)
+  const theme = martingale.status === "won"
+    ? { accent: "#10b981", accentSoft: "rgba(16,185,129,0.08)", accentBorder: "rgba(16,185,129,0.2)", accentRing: "rgba(16,185,129,0.4)", profitText: "#34d399", statusLabel: "Réussie", statusColor: "#34d399", statusBg: "rgba(16,185,129,0.08)", statusBorder: "rgba(16,185,129,0.2)" }
+    : martingale.status === "lost"
+    ? { accent: "#ef4444", accentSoft: "rgba(239,68,68,0.08)", accentBorder: "rgba(239,68,68,0.2)", accentRing: "rgba(239,68,68,0.4)", profitText: "#fca5a5", statusLabel: "Clôturée", statusColor: "#fca5a5", statusBg: "rgba(239,68,68,0.08)", statusBorder: "rgba(239,68,68,0.2)" }
+    : { accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.08)", accentBorder: "rgba(59,130,246,0.2)", accentRing: "rgba(59,130,246,0.4)", profitText: "#93c5fd", statusLabel: "En cours", statusColor: "#93c5fd", statusBg: "rgba(59,130,246,0.08)", statusBorder: "rgba(59,130,246,0.2)" };
+
   const totalLost = parseFloat(String(martingale.total_lost)) || 0;
 
+  async function exportCard() {
+    const el = document.getElementById(`mart-card-${martingale.id}`);
+    if (!el) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(el, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0a1410",
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `pronos-club-martingale-${number}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Erreur lors de l'export de l'image");
+    }
+  }
+
   return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer group relative overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 transition-all hover:border-neutral-700 hover:shadow-xl hover:shadow-black/20"
-    >
-      {martingale.status === "active" && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(239,68,68,0.4), transparent)", animation: "shimmerSlide 3s linear infinite" }}
+    <div>
+      {/* CARD PREMIUM (capturable) */}
+      <div
+        id={`mart-card-${martingale.id}`}
+        onClick={onClick}
+        style={{
+          position: "relative",
+          background: "linear-gradient(180deg, #0f1a17 0%, #0a1410 100%)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.accentRing}`,
+          cursor: "pointer",
+        }}
+      >
+        {/* Accent bar top */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "3px",
+            background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
+          }}
+        />
+
+        {/* Header : Martingale N + Logo + Date */}
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Martingale</span>
+            <span style={{ fontSize: "22px", fontWeight: 800, color: martingale.status === "active" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
+              {number}
+            </span>
+          </div>
+
+          <img
+            src="/pronos_club.png"
+            alt="PRONOS.CLUB"
+            style={{ width: "32px", height: "32px", objectFit: "contain" }}
           />
-        </div>
-      )}
 
-      <div className="relative flex items-center gap-4 px-5 py-4">
-        <div className="relative">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white ${
-            martingale.status === "active" ? "bg-blue-500" : martingale.status === "won" ? "bg-emerald-500" : "bg-red-500"
-          } ${martingale.status === "active" ? "animate-pulse-ring" : ""}`}>
-            {number}
+          <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+            {new Date(martingale.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()}
+          </span>
+        </div>
+
+        {/* Nom */}
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <div style={{ fontSize: "15px", fontWeight: 800, color: "white", wordBreak: "break-word", lineHeight: 1.2 }}>
+            {martingale.name}
           </div>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-white truncate">{martingale.name}</h3>
-            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${config.badgeBg}`}>{config.label}</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] text-neutral-500">
-            <span>Mise <span className="font-semibold text-neutral-300">{parseFloat(String(martingale.initial_stake))}€</span></span>
-            <span>Paliers <span className="font-semibold text-neutral-300">{martingale.current_step}</span></span>
-            {totalLost > 0 && martingale.status === "active" && (
-              <span>Pertes <span className="font-semibold text-red-400">{totalLost.toFixed(2)}€</span></span>
-            )}
+        {/* Progression */}
+        <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+          <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Progression</p>
+          <p style={{ fontSize: "16px", fontWeight: 800, color: "white", margin: "4px 0 8px", lineHeight: 1.2 }}>
+            {martingale.status === "won"
+              ? `Palier ${martingale.current_step} · Réussie`
+              : martingale.status === "lost"
+              ? `Palier ${martingale.current_step} · Clôturée`
+              : martingale.current_step === 0
+              ? "Non démarrée"
+              : `Palier ${martingale.current_step} · En cours`}
+          </p>
+          <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "3px", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: martingale.status === "active"
+                  ? `${Math.max(5, Math.min(90, martingale.current_step * 20))}%`
+                  : "100%",
+                background: theme.accent,
+                transition: "width 0.7s ease",
+                borderRadius: "3px",
+              }}
+            />
           </div>
         </div>
 
-        {martingale.status !== "active" && (
-          <div className="shrink-0 text-right">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-white">Résultat</p>
-            <p className={`text-lg font-extrabold tabular-nums ${parseFloat(String(martingale.profit)) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+        {/* Data grid 2x2 */}
+        <div style={{ padding: "12px 16px 16px", borderTop: "1px dashed rgba(255,255,255,0.08)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Mise init.</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {parseFloat(String(martingale.initial_stake)).toFixed(2)}€
+            </p>
+          </div>
+          <div style={{ background: totalLost > 0 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center", border: totalLost > 0 ? "1px solid rgba(239,68,68,0.2)" : "none" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: totalLost > 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Pertes cumul.</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: totalLost > 0 ? "#fca5a5" : "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {totalLost > 0 ? `${totalLost.toFixed(2)}€` : "—"}
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Gain actuel</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {parseFloat(String(martingale.current_gain || 0)).toFixed(2)}€
+            </p>
+          </div>
+          <div style={{
+            background: theme.accentSoft,
+            borderRadius: "8px",
+            padding: "8px",
+            textAlign: "center",
+            border: `1px solid ${theme.accentBorder}`,
+          }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Résultat</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: theme.profitText, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
               {parseFloat(String(martingale.profit)) >= 0 ? "+" : ""}{parseFloat(String(martingale.profit)).toFixed(2)}€
             </p>
           </div>
-        )}
+        </div>
 
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="cursor-pointer shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-red-500/10 hover:text-red-400"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
+        {/* Status badge */}
+        <div style={{
+          padding: "10px 16px",
+          background: theme.statusBg,
+          borderTop: `1px solid ${theme.statusBorder}`,
+          textAlign: "center",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.statusColor }}>
+            {martingale.status === "won" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {martingale.status === "lost" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            {martingale.status === "active" && (
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3b82f6", display: "inline-block" }} />
+            )}
+            {theme.statusLabel}
+          </span>
+        </div>
+
+        {/* Footer signature */}
+        <div style={{
+          padding: "8px 14px",
+          background: "rgba(0,0,0,0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
+          <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
+            MARTINGALES
+          </span>
+        </div>
       </div>
 
-      <div className="h-1 bg-neutral-800">
-        <div className={`h-full ${config.barColor} transition-all duration-700`} style={{ width: martingale.status === "won" || martingale.status === "lost" ? "100%" : `${Math.max(5, Math.min(90, martingale.current_step * 25))}%` }} />
+      {/* EN-DEHORS de la card : boutons d'action */}
+      <div className="mt-2 flex gap-1.5">
+        <button
+          onClick={onClick}
+          className="cursor-pointer flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:brightness-125"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          Ouvrir
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); exportCard(); }}
+          className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:brightness-125"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+          title="Capturer en image"
+        >
+          📸
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:bg-red-500/20 hover:border-red-500/30"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+          title="Supprimer"
+        >
+          🗑
+        </button>
       </div>
     </div>
   );
@@ -654,6 +806,7 @@ function MartingaleDetailView({
   const [steps, setSteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddStep, setShowAddStep] = useState(false);
+  const [editingStep, setEditingStep] = useState<Step | null>(null);
   const [celebrating, setCelebrating] = useState(false);
 
   const fetchDetail = useCallback(async () => {
@@ -681,6 +834,48 @@ function MartingaleDetailView({
       setTimeout(() => setCelebrating(false), 3500);
     }
     fetchDetail();
+  }
+
+  async function changeResult(stepId: string, newResult: "won" | "lost" | "pending" | "refunded") {
+    const labels = { won: "Gagné", lost: "Perdu", pending: "En attente", refunded: "Remboursé" };
+    if (!confirm(`Changer le résultat en "${labels[newResult]}" ?`)) return;
+    const res = await fetch("/api/martingales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "change_result", step_id: stepId, new_result: newResult }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+    if (data.new_status === "won") {
+      setCelebrating(true);
+      setTimeout(() => setCelebrating(false), 3500);
+    }
+    fetchDetail();
+  }
+
+  async function exportStepCard(step: Step) {
+    const el = document.getElementById(`mart-step-card-${step.id}`);
+    if (!el) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(el, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0a1410",
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `pronos-club-martingale-palier-${step.step_number}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Erreur lors de l'export de l'image");
+    }
   }
 
   if (loading || !martingale) {
@@ -781,96 +976,242 @@ function MartingaleDetailView({
         </div>
 
         {/* Steps */}
-        <div className="mx-auto max-w-5xl px-4 py-6">
-          <div className="space-y-2.5">
-            {steps.map((step, index) => (
-              <div key={step.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 0.07}s` }}>
-                <div className={`rounded-2xl overflow-hidden transition ${
-                  step.result === "won" ? "bg-neutral-900 ring-2 ring-emerald-500/40" :
-                  step.result === "lost" ? "bg-neutral-900 ring-2 ring-red-500/40" :
-                  "bg-neutral-900 ring-1 ring-neutral-800"
-                } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}>
+        <div className="mx-auto max-w-6xl px-4 py-6">
+          <div className="flex flex-col-reverse sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {steps.map((step, index) => {
+              const isLastStep = index === steps.length - 1;
 
-                  {/* Info bar */}
-                  {(step.sport || step.description || step.match_date) && (
-                    <div className="border-b border-white/5 px-5 py-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs">
-                        {step.sport && <span className="text-neutral-300">{step.sport}</span>}
-                        {step.description && <span className="text-neutral-500">·</span>}
-                        {step.description && <span className="text-neutral-300">{step.description}</span>}
+              // Theming par statut
+              const theme = step.result === "won"
+                ? { accent: "#10b981", accentSoft: "rgba(16,185,129,0.08)", accentBorder: "rgba(16,185,129,0.2)", accentRing: "rgba(16,185,129,0.4)", gainText: "#34d399", statusLabel: "Gagné", statusColor: "#34d399", statusBg: "rgba(16,185,129,0.08)", statusBorder: "rgba(16,185,129,0.2)" }
+                : step.result === "lost"
+                ? { accent: "#ef4444", accentSoft: "rgba(239,68,68,0.08)", accentBorder: "rgba(239,68,68,0.2)", accentRing: "rgba(239,68,68,0.4)", gainText: "#fca5a5", statusLabel: "Perdu", statusColor: "#fca5a5", statusBg: "rgba(239,68,68,0.08)", statusBorder: "rgba(239,68,68,0.2)" }
+                : step.result === "refunded"
+                ? { accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.08)", accentBorder: "rgba(59,130,246,0.2)", accentRing: "rgba(59,130,246,0.4)", gainText: "#93c5fd", statusLabel: "Remboursé", statusColor: "#93c5fd", statusBg: "rgba(59,130,246,0.08)", statusBorder: "rgba(59,130,246,0.2)" }
+                : { accent: "#fbbf24", accentSoft: "rgba(251,191,36,0.08)", accentBorder: "rgba(251,191,36,0.2)", accentRing: "rgba(255,255,255,0.06)", gainText: "#ffffff", statusLabel: "En attente", statusColor: "rgba(251,191,36,0.9)", statusBg: "rgba(251,191,36,0.08)", statusBorder: "rgba(251,191,36,0.2)" };
+
+              return (
+              <div
+                key={step.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.07}s` }}
+              >
+                {/* CARD PREMIUM (capturable) */}
+                <div
+                  id={`mart-step-card-${step.id}`}
+                  style={{
+                    position: "relative",
+                    background: "linear-gradient(180deg, #0f1a17 0%, #0a1410 100%)",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.accentRing}`,
+                  }}
+                >
+                  {/* Accent bar top */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: "3px",
+                      background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
+                    }}
+                  />
+
+                  {/* Header : Palier + Logo + Date */}
+                  <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Palier</span>
+                      <span style={{ fontSize: "22px", fontWeight: 800, color: step.result === "pending" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
+                        {step.step_number}
+                      </span>
+                    </div>
+
+                    <img
+                      src="/pronos_club.png"
+                      alt="PRONOS.CLUB"
+                      style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                    />
+
+                    <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+                      {step.match_date
+                        ? new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()
+                        : "—"}
+                    </span>
+                  </div>
+
+                  {/* Sport */}
+                  {step.sport && (
+                    <div style={{ padding: "16px", textAlign: "center" }}>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "white" }}>
+                        {step.sport}
                       </div>
-                      {step.match_date && (
-                        <span className="text-[10px] text-neutral-500 shrink-0 ml-3">
-                          {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-                        </span>
-                      )}
                     </div>
                   )}
 
-                  <div className="px-5 py-4">
-                    <div className="flex items-center">
-                      {/* Step circle */}
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white ${
-                        step.result === "won" ? "bg-emerald-500" : step.result === "lost" ? "bg-red-500" : "bg-neutral-700"
-                      }`}>
-                        {step.step_number}
-                      </div>
-
-                      {/* Data */}
-                      <div className="flex-1 grid grid-cols-3 ml-4 sm:ml-5">
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">{parseFloat(String(step.odds)).toFixed(3)}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
-                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">{parseFloat(String(step.stake)).toFixed(2)}€</p>
-                          {step.step_number > 1 && (
-                            <p className="text-[8px] text-red-400 font-semibold">calculée</p>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
-                          <p className={`mt-1 text-base sm:text-xl font-extrabold tabular-nums ${
-                            step.result === "won" ? "text-emerald-400" : step.result === "lost" ? "text-red-400" : "text-white"
-                          }`}>
-                            {step.result === "won" ? parseFloat(String(step.actual_gain)).toFixed(2) : parseFloat(String(step.potential_gain)).toFixed(2)}€
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Status */}
-                      <div className="shrink-0 ml-3 sm:ml-4">
-                        {step.result === "won" && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
-                            <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          </div>
-                        )}
-                        {step.result === "lost" && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
-                            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </div>
-                        )}
-                        {step.result === "pending" && (
-                          <div className="hidden sm:flex gap-2">
-                            <button onClick={() => resolveStep(step.id, "won")} className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5">Gagné ✓</button>
-                            <button onClick={() => resolveStep(step.id, "lost")} className="cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5">Perdu ✗</button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Match */}
+                  {step.match_name && (
+                    <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Match</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.9)", margin: "3px 0 0", lineHeight: 1.3, wordBreak: "break-word" }}>
+                        {step.match_name}
+                      </p>
                     </div>
+                  )}
 
-                    {/* Mobile buttons */}
-                    {step.result === "pending" && (
-                      <div className="flex gap-2 mt-3 sm:hidden">
-                        <button onClick={() => resolveStep(step.id, "won")} className="cursor-pointer flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition active:scale-95">Gagné ✓</button>
-                        <button onClick={() => resolveStep(step.id, "lost")} className="cursor-pointer flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-500/25 transition active:scale-95">Perdu ✗</button>
-                      </div>
-                    )}
+                  {/* Pronostic */}
+                  {step.description && (
+                    <div style={{ margin: "0 16px", padding: "12px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Pronostic</p>
+                      <p style={{ fontSize: "18px", fontWeight: 800, color: "#34d399", margin: "4px 0 0", lineHeight: 1.2, wordBreak: "break-word" }}>
+                        {step.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Data grid 2x2 */}
+                  <div style={{ padding: "12px 16px 16px", borderTop: "1px dashed rgba(255,255,255,0.08)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Book</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0" }}>
+                        {step.bookmaker || "—"}
+                      </p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Cote</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                        {parseFloat(String(step.odds)).toFixed(3)}
+                      </p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Mise</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                        {parseFloat(String(step.stake)).toFixed(2)}
+                      </p>
+                      {step.step_number > 1 && (
+                        <p style={{ fontSize: "8px", color: "#fca5a5", fontWeight: 600, margin: "1px 0 0" }}>calculée</p>
+                      )}
+                    </div>
+                    <div style={{
+                      background: theme.accentSoft,
+                      borderRadius: "8px",
+                      padding: "8px",
+                      textAlign: "center",
+                      border: `1px solid ${theme.accentBorder}`,
+                    }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Gain</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: theme.gainText, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                        {(step.result === "won" || step.result === "refunded")
+                          ? parseFloat(String(step.actual_gain)).toFixed(2)
+                          : parseFloat(String(step.potential_gain)).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <div style={{
+                    padding: "10px 16px",
+                    background: theme.statusBg,
+                    borderTop: `1px solid ${theme.statusBorder}`,
+                    textAlign: "center",
+                  }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.statusColor }}>
+                      {step.result === "won" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {step.result === "lost" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      {step.result === "refunded" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
+                        </svg>
+                      )}
+                      {step.result === "pending" && (
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(251,191,36,0.9)", display: "inline-block" }} />
+                      )}
+                      {theme.statusLabel}
+                    </span>
+                  </div>
+
+                  {/* Footer signature */}
+                  <div style={{
+                    padding: "8px 14px",
+                    background: "rgba(0,0,0,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                  }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
+                    <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
+                      {martingale.name ? martingale.name.toUpperCase() : `MARTINGALE-${martingale.id.slice(0, 4).toUpperCase()}`}
+                    </span>
                   </div>
                 </div>
+
+                {/* EN-DEHORS de la card : boutons d'action */}
+                <div className="mt-2 flex gap-1.5">
+                  <button
+                    onClick={() => setEditingStep(step)}
+                    className="cursor-pointer flex-1 flex items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:brightness-125"
+                    style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+                    title="Modifier"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => exportStepCard(step)}
+                    className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:brightness-125"
+                    style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+                    title="Capturer en image"
+                  >
+                    📸
+                  </button>
+                  {isLastStep && (
+                    <select
+                      value={step.result}
+                      onChange={(e) => {
+                        const val = e.target.value as "pending" | "won" | "lost" | "refunded";
+                        if (val === step.result) return;
+                        if (step.result === "pending") {
+                          if (val === "won" || val === "lost") {
+                            resolveStep(step.id, val);
+                          } else if (val === "refunded") {
+                            changeResult(step.id, "refunded");
+                          }
+                        } else {
+                          changeResult(step.id, val);
+                        }
+                      }}
+                      className={`cursor-pointer flex-1 rounded-lg px-2 py-2 text-[11px] font-bold outline-none border transition ${
+                        step.result === "won"
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                          : step.result === "lost"
+                          ? "bg-red-500/15 border-red-500/40 text-red-400"
+                          : step.result === "refunded"
+                          ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
+                          : "bg-neutral-800 border-neutral-700 text-neutral-300"
+                      }`}
+                    >
+                      <option value="pending" className="bg-neutral-800 text-neutral-300">⏳ En attente</option>
+                      <option value="won" className="bg-neutral-800 text-emerald-400">✓ Gagné</option>
+                      <option value="lost" className="bg-neutral-800 text-red-400">✗ Perdu</option>
+                      <option value="refunded" className="bg-neutral-800 text-blue-400">↻ Remboursé</option>
+                    </select>
+                  )}
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Action buttons */}
@@ -914,6 +1255,19 @@ function MartingaleDetailView({
             }}
           />
         )}
+
+        {/* Edit Step Modal */}
+        {editingStep && (
+          <EditStepModal
+            step={editingStep}
+            isLastStep={steps.length > 0 && editingStep.id === steps[steps.length - 1].id}
+            onClose={() => setEditingStep(null)}
+            onSaved={() => {
+              setEditingStep(null);
+              fetchDetail();
+            }}
+          />
+        )}
       </div>
     </>
   );
@@ -935,9 +1289,11 @@ function AddStepModal({
   onAdded: () => void;
 }) {
   const [odds, setOdds] = useState("");
+  const [matchName, setMatchName] = useState("");
   const [description, setDescription] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [sport, setSport] = useState("");
+  const [bookmaker, setBookmaker] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -959,6 +1315,8 @@ function AddStepModal({
 
   async function handleAdd() {
     if (oddsVal <= 1) return setError("Cote invalide (> 1.00)");
+    if (!matchName.trim()) return setError("Match requis");
+    if (!description.trim()) return setError("Pronostic requis");
 
     setSaving(true);
     setError("");
@@ -970,9 +1328,11 @@ function AddStepModal({
         martingale_id: martingale.id,
         odds: oddsVal,
         stake: isFirstStep ? initialStake : undefined,
-        description: description || null,
+        match_name: matchName.trim(),
+        description: description.trim(),
         match_date: matchDate || null,
         sport: sport || null,
+        bookmaker: bookmaker || null,
       }),
     });
     const data = await res.json();
@@ -1035,19 +1395,65 @@ function AddStepModal({
           </select>
         </div>
 
-        {/* Match + Date */}
+        {/* Match */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Match <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={matchName}
+            onChange={(e) => setMatchName(e.target.value)}
+            placeholder="PSG vs OM"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
+          />
+        </div>
+
+        {/* Pronostic */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Pronostic <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="PSG gagne · Over 2.5 buts..."
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
+          />
+        </div>
+
+        {/* Bookmaker + Date */}
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              Match <span className="text-neutral-600 font-normal lowercase">(opt.)</span>
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="PSG vs OM"
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
-            />
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Bookmaker</label>
+            <select
+              value={bookmaker}
+              onChange={(e) => setBookmaker(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-500/50"
+            >
+              <option value="" className="bg-neutral-800">—</option>
+              <option value="Betclic" className="bg-neutral-800">Betclic</option>
+              <option value="Winamax" className="bg-neutral-800">Winamax</option>
+              <option value="Unibet" className="bg-neutral-800">Unibet</option>
+              <option value="Bwin" className="bg-neutral-800">Bwin</option>
+              <option value="PMU" className="bg-neutral-800">PMU</option>
+              <option value="Parions Sport" className="bg-neutral-800">Parions Sport</option>
+              <option value="ZEbet" className="bg-neutral-800">ZEbet</option>
+              <option value="NetBet" className="bg-neutral-800">NetBet</option>
+              <option value="Betsson" className="bg-neutral-800">Betsson</option>
+              <option value="Vbet" className="bg-neutral-800">Vbet</option>
+              <option value="Genybet" className="bg-neutral-800">Genybet</option>
+              <option value="Partouche Sport" className="bg-neutral-800">Partouche Sport</option>
+              <option value="Betway" className="bg-neutral-800">Betway</option>
+              <option value="Pinnacle" className="bg-neutral-800">Pinnacle</option>
+              <option value="PS3838" className="bg-neutral-800">PS3838</option>
+              <option value="Bet365" className="bg-neutral-800">Bet365</option>
+              <option value="1xBet" className="bg-neutral-800">1xBet</option>
+              <option value="Stake" className="bg-neutral-800">Stake</option>
+              <option value="Betfair" className="bg-neutral-800">Betfair</option>
+              <option value="Autre" className="bg-neutral-800">Autre</option>
+            </select>
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Date</label>
@@ -1095,6 +1501,204 @@ function AddStepModal({
           className="cursor-pointer w-full rounded-xl bg-red-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-red-600/25 transition hover:bg-red-500 disabled:opacity-50"
         >
           {saving ? "Ajout..." : "Ajouter le palier"}
+        </button>
+      </div>
+    </div>
+  );
+}
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Edit Step Modal
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function EditStepModal({
+  step,
+  isLastStep,
+  onClose,
+  onSaved,
+}: {
+  step: Step;
+  isLastStep: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [matchName, setMatchName] = useState(step.match_name || "");
+  const [description, setDescription] = useState(step.description || "");
+  const [matchDate, setMatchDate] = useState(step.match_date || "");
+  const [sport, setSport] = useState(step.sport || "");
+  const [bookmaker, setBookmaker] = useState(step.bookmaker || "");
+  const [odds, setOdds] = useState(String(step.odds));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const canEditOdds = isLastStep && step.result === "pending";
+
+  async function handleSave() {
+    setSaving(true);
+    setError("");
+
+    const payload: any = {
+      action: "update_step",
+      step_id: step.id,
+      sport: sport || "",
+      match_name: matchName.trim(),
+      description: description.trim(),
+      match_date: matchDate || "",
+      bookmaker: bookmaker || "",
+    };
+
+    if (canEditOdds) {
+      const oddsVal = parseFloat(odds);
+      if (!oddsVal || oddsVal <= 1) {
+        setError("Cote invalide (> 1.00)");
+        setSaving(false);
+        return;
+      }
+      payload.new_odds = oddsVal;
+    }
+
+    const res = await fetch("/api/martingales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) {
+      setError(data.error);
+      setSaving(false);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-extrabold text-white">Modifier palier {step.step_number}</h2>
+          <button onClick={onClose} className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-neutral-400 hover:bg-white/20">✕</button>
+        </div>
+
+        {/* Sport */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Sport</label>
+          <select
+            value={sport}
+            onChange={(e) => setSport(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-500/50"
+          >
+            <option value="" className="bg-neutral-800">—</option>
+            <option value="⚽ Football" className="bg-neutral-800">⚽ Football</option>
+            <option value="🏀 Basketball" className="bg-neutral-800">🏀 Basketball</option>
+            <option value="🎾 Tennis" className="bg-neutral-800">🎾 Tennis</option>
+            <option value="🏒 Hockey" className="bg-neutral-800">🏒 Hockey</option>
+            <option value="🏈 Football US" className="bg-neutral-800">🏈 Football US</option>
+            <option value="⚾ Baseball" className="bg-neutral-800">⚾ Baseball</option>
+            <option value="🥊 MMA/Boxe" className="bg-neutral-800">🥊 MMA/Boxe</option>
+            <option value="🏉 Rugby" className="bg-neutral-800">🏉 Rugby</option>
+            <option value="🎯 Autre" className="bg-neutral-800">🎯 Autre</option>
+          </select>
+        </div>
+
+        {/* Match */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Match</label>
+          <input
+            type="text"
+            value={matchName}
+            onChange={(e) => setMatchName(e.target.value)}
+            placeholder="PSG vs OM"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
+          />
+        </div>
+
+        {/* Pronostic */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pronostic</label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="PSG gagne"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-red-500/50"
+          />
+        </div>
+
+        {/* Bookmaker + Date */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Bookmaker</label>
+            <select
+              value={bookmaker}
+              onChange={(e) => setBookmaker(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-500/50"
+            >
+              <option value="" className="bg-neutral-800">—</option>
+              <option value="Betclic" className="bg-neutral-800">Betclic</option>
+              <option value="Winamax" className="bg-neutral-800">Winamax</option>
+              <option value="Unibet" className="bg-neutral-800">Unibet</option>
+              <option value="Bwin" className="bg-neutral-800">Bwin</option>
+              <option value="PMU" className="bg-neutral-800">PMU</option>
+              <option value="Parions Sport" className="bg-neutral-800">Parions Sport</option>
+              <option value="ZEbet" className="bg-neutral-800">ZEbet</option>
+              <option value="NetBet" className="bg-neutral-800">NetBet</option>
+              <option value="Betsson" className="bg-neutral-800">Betsson</option>
+              <option value="Vbet" className="bg-neutral-800">Vbet</option>
+              <option value="Genybet" className="bg-neutral-800">Genybet</option>
+              <option value="Partouche Sport" className="bg-neutral-800">Partouche Sport</option>
+              <option value="Betway" className="bg-neutral-800">Betway</option>
+              <option value="Pinnacle" className="bg-neutral-800">Pinnacle</option>
+              <option value="PS3838" className="bg-neutral-800">PS3838</option>
+              <option value="Bet365" className="bg-neutral-800">Bet365</option>
+              <option value="1xBet" className="bg-neutral-800">1xBet</option>
+              <option value="Stake" className="bg-neutral-800">Stake</option>
+              <option value="Betfair" className="bg-neutral-800">Betfair</option>
+              <option value="Autre" className="bg-neutral-800">Autre</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Date</label>
+            <input
+              type="date"
+              value={matchDate}
+              onChange={(e) => setMatchDate(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-red-500/50 [color-scheme:dark]"
+            />
+          </div>
+        </div>
+
+        {/* Cote (uniquement si dernier palier pending) */}
+        {canEditOdds ? (
+          <div className="mb-4">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Cote</label>
+            <input
+              type="number"
+              step="0.001"
+              value={odds}
+              onChange={(e) => setOdds(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500/50"
+            />
+            <p className="mt-1 text-[10px] text-neutral-500">
+              La mise sera recalculée automatiquement.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Cote (lecture seule)</p>
+            <p className="mt-1 text-sm font-bold text-white tabular-nums">{parseFloat(String(step.odds)).toFixed(3)}</p>
+            <p className="mt-1 text-[10px] text-neutral-500">
+              La cote n&apos;est modifiable que sur le dernier palier non résolu.
+            </p>
+          </div>
+        )}
+
+        {error && <p className="mb-3 text-center text-xs font-bold text-red-400">{error}</p>}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="cursor-pointer w-full rounded-xl bg-red-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-red-600/25 transition hover:bg-red-500 disabled:opacity-50"
+        >
+          {saving ? "Sauvegarde..." : "Enregistrer"}
         </button>
       </div>
     </div>
