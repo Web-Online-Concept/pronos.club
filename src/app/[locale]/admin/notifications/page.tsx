@@ -39,14 +39,6 @@ const PLATFORM_ICONS: Record<string, string> = {
   other: "📱",
 };
 
-const PLATFORM_COLORS: Record<string, string> = {
-  ios: "#3b82f6",
-  android: "#10b981",
-  firefox: "#f59e0b",
-  windows: "#06b6d4",
-  other: "#6b7280",
-};
-
 export default function NotificationsAdminPage() {
   const [users, setUsers] = useState<PushUser[]>([]);
   const [logs, setLogs] = useState<NotifLog[]>([]);
@@ -88,7 +80,6 @@ export default function NotificationsAdminPage() {
       setResults((prev) => ({ ...prev, [user.id]: { success: false, error: msg } }));
     }
     setTesting(null);
-    // Refresh logs after a test
     setTimeout(() => fetchData(), 500);
   }
 
@@ -131,30 +122,14 @@ export default function NotificationsAdminPage() {
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
-  function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
-
   function getResultBadge(result: TestResult) {
     if (result.success) {
-      return {
-        color: "emerald",
-        label: "✓ Envoyée",
-        detail: `Plateforme : ${result.user?.platform ?? "inconnue"}`,
-      };
+      return { type: "success", label: "✓ Envoyée", detail: `Plateforme : ${result.user?.platform ?? "inconnue"}` };
     }
     if (result.shouldCleanup || result.statusCode === 410 || result.statusCode === 404 || result.statusCode === 403) {
-      return {
-        color: "amber",
-        label: "✗ Sub morte",
-        detail: `Code ${result.statusCode ?? "?"} — L'utilisateur doit se ré-abonner`,
-      };
+      return { type: "warning", label: "✗ Sub morte", detail: `Code ${result.statusCode ?? "?"} — L'utilisateur doit se ré-abonner` };
     }
-    return {
-      color: "red",
-      label: "✗ Échec",
-      detail: result.error?.slice(0, 100) ?? "Erreur inconnue",
-    };
+    return { type: "error", label: "✗ Échec", detail: result.error?.slice(0, 100) ?? "Erreur inconnue" };
   }
 
   const filtered = users.filter((u) => {
@@ -175,17 +150,15 @@ export default function NotificationsAdminPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "rgba(99,102,241,0.15)" }}>
-            <span className="text-lg">🔔</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold text-white">Notifications</h1>
-            <p className="text-xs text-white/30">
-              {users.length} abonné{users.length !== 1 ? "s" : ""} push actif{users.length !== 1 ? "s" : ""}
-            </p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "rgba(99,102,241,0.15)" }}>
+          <span className="text-lg">🔔</span>
+        </div>
+        <div>
+          <h1 className="text-xl font-extrabold text-white">Notifications</h1>
+          <p className="text-xs text-white/30">
+            {users.length} abonné{users.length !== 1 ? "s" : ""} push actif{users.length !== 1 ? "s" : ""}
+          </p>
         </div>
       </div>
 
@@ -195,11 +168,11 @@ export default function NotificationsAdminPage() {
           {(["ios", "android", "firefox", "other"] as const).map((p) => (
             <div
               key={p}
-              className="rounded-xl border border-white/[0.06] p-3 text-center"
-              style={{ background: `linear-gradient(135deg, #0a0a0a 0%, ${PLATFORM_COLORS[p]}10 100%)` }}
+              className="overflow-hidden rounded-xl border border-white/[0.06] p-3 text-center"
+              style={{ background: "linear-gradient(135deg, #111 0%, #0a1420 100%)" }}
             >
               <p className="text-lg">{PLATFORM_ICONS[p]}</p>
-              <p className="mt-1 text-lg font-extrabold" style={{ color: PLATFORM_COLORS[p] }}>{statsByPlatform[p] ?? 0}</p>
+              <p className="mt-1 text-lg font-extrabold text-white">{statsByPlatform[p] ?? 0}</p>
               <p className="text-[9px] font-semibold uppercase tracking-wider text-white/40">{p}</p>
             </div>
           ))}
@@ -218,7 +191,7 @@ export default function NotificationsAdminPage() {
         <button
           onClick={testAll}
           disabled={testAllLoading || users.length === 0}
-          className="cursor-pointer rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-indigo-500 disabled:opacity-30"
+          className="flex-shrink-0 cursor-pointer rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-indigo-500 disabled:opacity-30"
         >
           {testAllLoading ? "..." : "Tester TOUS"}
         </button>
@@ -242,14 +215,11 @@ export default function NotificationsAdminPage() {
               <div
                 key={user.id}
                 className="overflow-hidden rounded-xl border border-white/[0.06] p-4"
-                style={{ background: "linear-gradient(135deg, #111 0%, #0a1420 100%)" }}
+                style={{ background: "linear-gradient(135deg, #111 0%, #0a1a14 100%)" }}
               >
                 <div className="flex items-center gap-3">
                   {/* Platform icon */}
-                  <div
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-                    style={{ background: `${PLATFORM_COLORS[user.platform]}20` }}
-                  >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
                     <span className="text-lg">{PLATFORM_ICONS[user.platform]}</span>
                   </div>
 
@@ -259,10 +229,7 @@ export default function NotificationsAdminPage() {
                       <p className="truncate text-sm font-bold text-white">
                         {user.pseudo ?? user.email.split("@")[0]}
                       </p>
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                        style={{ background: `${PLATFORM_COLORS[user.platform]}20`, color: PLATFORM_COLORS[user.platform] }}
-                      >
+                      <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-400">
                         {user.platform}
                       </span>
                       {user.subscription_status !== "active" && user.subscription_status !== "trialing" && (
@@ -288,11 +255,11 @@ export default function NotificationsAdminPage() {
                 {badge && (
                   <div
                     className={`mt-3 rounded-lg border p-2.5 text-xs ${
-                      badge.color === "emerald"
-                        ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
-                        : badge.color === "amber"
-                        ? "border-amber-500/30 bg-amber-500/5 text-amber-400"
-                        : "border-red-500/30 bg-red-500/5 text-red-400"
+                      badge.type === "success"
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : badge.type === "warning"
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                        : "border-red-500/30 bg-red-500/10 text-red-400"
                     }`}
                   >
                     <p className="font-bold">{badge.label}</p>
@@ -309,7 +276,7 @@ export default function NotificationsAdminPage() {
       <div className="mt-10">
         <div className="flex items-center gap-2">
           <span className="text-sm">📜</span>
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/30">Historique (50 dernières)</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/40">Historique (50 dernières)</p>
         </div>
 
         {logs.length === 0 ? (
@@ -319,7 +286,8 @@ export default function NotificationsAdminPage() {
             {logs.map((log) => (
               <div
                 key={log.id}
-                className="flex items-center gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2 text-xs"
+                className="flex items-center gap-3 rounded-lg border border-white/[0.06] px-3 py-2 text-xs"
+                style={{ background: "linear-gradient(135deg, #111 0%, #0a1a14 100%)" }}
               >
                 <span className="text-sm">{log.platform ? PLATFORM_ICONS[log.platform] ?? "📱" : "📧"}</span>
                 <div className="min-w-0 flex-1">
@@ -345,7 +313,7 @@ export default function NotificationsAdminPage() {
                     {log.status_code ? ` · ${log.status_code}` : ""}
                   </span>
                   <p className="mt-0.5 text-[10px] text-white/30">
-                    {formatDate(log.sent_at)} {formatTime(log.sent_at)}
+                    {formatDate(log.sent_at)}
                   </p>
                 </div>
               </div>
@@ -355,7 +323,10 @@ export default function NotificationsAdminPage() {
       </div>
 
       {/* Procédure rappel */}
-      <div className="mt-10 rounded-xl border border-white/[0.06] p-4" style={{ background: "linear-gradient(135deg, #111 0%, #0a1420 100%)" }}>
+      <div
+        className="mt-10 overflow-hidden rounded-xl border border-white/[0.06] p-4"
+        style={{ background: "linear-gradient(135deg, #111 0%, #0a1420 100%)" }}
+      >
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">💡 Comment lire les résultats</p>
         <div className="mt-3 space-y-2 text-xs text-white/60">
           <p><span className="font-bold text-emerald-400">✓ Envoyée</span> — Le serveur a bien envoyé la notif. Si l&apos;utilisateur ne la reçoit pas, c&apos;est côté téléphone (throttling iOS, mode Ne Pas Déranger, etc.).</p>
