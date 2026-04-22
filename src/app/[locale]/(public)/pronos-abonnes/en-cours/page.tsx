@@ -67,7 +67,7 @@ export default function PronosAbonnesEnCoursPage() {
       {/* Subnav */}
       <div className="border-b border-neutral-200 bg-white">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex justify-center gap-1 overflow-x-auto">
             <Link
               href={`/${locale}/pronos-abonnes/en-cours`}
               className="whitespace-nowrap border-b-2 border-emerald-500 px-4 py-3 text-sm font-bold text-emerald-600"
@@ -94,30 +94,17 @@ export default function PronosAbonnesEnCoursPage() {
       {isPremium && (
         <div className="bg-neutral-50 border-b border-neutral-200">
           <div className="mx-auto max-w-6xl px-4 py-3">
-            <div className="flex gap-2 overflow-x-auto">
-              <button
-                onClick={() => setSportFilter("")}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                  sportFilter === ""
-                    ? "bg-neutral-900 text-white"
-                    : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
-                }`}
+            <div className="flex justify-center">
+              <select
+                value={sportFilter}
+                onChange={(e) => setSportFilter(e.target.value)}
+                className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-bold text-neutral-900 outline-none transition hover:border-neutral-400 focus:border-emerald-500"
               >
-                Tous les sports
-              </button>
-              {SPORTS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSportFilter(s)}
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    sportFilter === s
-                      ? "bg-neutral-900 text-white"
-                      : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+                <option value="">Tous les sports</option>
+                {SPORTS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
