@@ -252,7 +252,7 @@ export default function MontantesPage() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {filtered.map((montante, index) => (
                     <div
                       key={montante.id}
@@ -504,114 +504,246 @@ function MontanteListCard({
   onClick: () => void;
   onDelete: () => void;
 }) {
-  const statusMap = {
-    active: {
-      label: "En cours",
-      dotColor: "bg-blue-500",
-      badgeBg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-      barColor: "bg-blue-500",
-    },
-    won: {
-      label: "Réussie ✓",
-      dotColor: "bg-emerald-500",
-      badgeBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-      barColor: "bg-emerald-500",
-    },
-    lost: {
-      label: "Échouée ✗",
-      dotColor: "bg-red-500",
-      badgeBg: "bg-red-500/10 text-red-500 border-red-500/20",
-      barColor: "bg-red-500",
-    },
-  };
-  const config = statusMap[montante.status];
+  // Theming by status (identique au design paliers)
+  const theme = montante.status === "won"
+    ? { accent: "#10b981", accentSoft: "rgba(16,185,129,0.08)", accentBorder: "rgba(16,185,129,0.2)", accentRing: "rgba(16,185,129,0.4)", profitText: "#34d399", statusLabel: "Réussie", statusColor: "#34d399", statusBg: "rgba(16,185,129,0.08)", statusBorder: "rgba(16,185,129,0.2)" }
+    : montante.status === "lost"
+    ? { accent: "#ef4444", accentSoft: "rgba(239,68,68,0.08)", accentBorder: "rgba(239,68,68,0.2)", accentRing: "rgba(239,68,68,0.4)", profitText: "#fca5a5", statusLabel: "Échouée", statusColor: "#fca5a5", statusBg: "rgba(239,68,68,0.08)", statusBorder: "rgba(239,68,68,0.2)" }
+    : { accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.08)", accentBorder: "rgba(59,130,246,0.2)", accentRing: "rgba(59,130,246,0.4)", profitText: "#93c5fd", statusLabel: "En cours", statusColor: "#93c5fd", statusBg: "rgba(59,130,246,0.08)", statusBorder: "rgba(59,130,246,0.2)" };
+
+  const progressPct = montante.status === "won" || montante.status === "lost"
+    ? 100
+    : Math.round((montante.current_step / Math.max(1, montante.total_steps)) * 100);
+
+  async function exportCard() {
+    const el = document.getElementById(`montante-card-${montante.id}`);
+    if (!el) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(el, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0a1410",
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `pronos-club-montante-${number}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Erreur lors de l'export de l'image");
+    }
+  }
 
   return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer group relative overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 transition-all hover:border-neutral-700 hover:shadow-xl hover:shadow-black/20"
-    >
-      {/* Shimmer on active */}
-      {montante.status === "active" && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              background: "linear-gradient(90deg, transparent, rgba(16,185,129,0.4), transparent)",
-              animation: "shimmerSlide 3s linear infinite",
-            }}
-          />
-        </div>
-      )}
-
-      <div className="relative flex items-center gap-4 px-5 py-4">
-        {/* Number */}
-        <div className="relative">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white ${
-            montante.status === "active" ? "bg-blue-500" : montante.status === "won" ? "bg-emerald-500" : "bg-red-500"
-          } ${montante.status === "active" ? "animate-pulse-ring" : ""}`}>
-            {number}
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 mb-1">
-            <h3 className="text-sm font-bold text-white truncate">{montante.name}</h3>
-            <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[9px] font-bold ${config.badgeBg}`}>
-              {config.label}
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] text-neutral-500">
-            <span>
-              Mise <span className="font-semibold text-neutral-300">{montante.initial_stake}€</span>
-            </span>
-            {montante.target_amount && (
-              <span>
-                Obj. <span className="font-semibold text-neutral-300">{montante.target_amount}€</span>
-              </span>
-            )}
-            <span>
-              Paliers <span className="font-semibold text-neutral-300">{montante.current_step}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Profit / Benefit */}
-        {montante.status !== "active" && (
-          <div className="shrink-0 text-right">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-white">Bénéfice</p>
-            <p className={`text-lg font-extrabold tabular-nums ${montante.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              {montante.profit >= 0 ? "+" : ""}{montante.profit.toFixed(2)}€
-            </p>
-          </div>
-        )}
-
-        {/* Delete */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="cursor-pointer shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-red-500/10 hover:text-red-400"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Bottom progress bar */}
-      <div className="h-1 bg-neutral-800">
+    <div>
+      {/* CARD PREMIUM (capturable) */}
+      <div
+        id={`montante-card-${montante.id}`}
+        onClick={onClick}
+        style={{
+          position: "relative",
+          background: "linear-gradient(180deg, #0f1a17 0%, #0a1410 100%)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.accentRing}`,
+          cursor: "pointer",
+        }}
+      >
+        {/* Accent bar top */}
         <div
-          className={`h-full ${config.barColor} transition-all duration-700`}
           style={{
-            width:
-              montante.status === "won" || montante.status === "lost"
-                ? "100%"
-                : `${Math.max(5, Math.min(90, montante.current_step * 18))}%`,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "3px",
+            background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
           }}
         />
+
+        {/* Header : Montante + Logo + N° */}
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Montante</span>
+            <span style={{ fontSize: "22px", fontWeight: 800, color: montante.status === "active" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
+              {number}
+            </span>
+          </div>
+
+          <img
+            src="/pronos_club.png"
+            alt="PRONOS.CLUB"
+            style={{ width: "32px", height: "32px", objectFit: "contain" }}
+          />
+
+          <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+            {new Date(montante.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()}
+          </span>
+        </div>
+
+        {/* Nom + Mode */}
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <div style={{ fontSize: "15px", fontWeight: 800, color: "white", wordBreak: "break-word", lineHeight: 1.2 }}>
+            {montante.name}
+          </div>
+          <div style={{ marginTop: "6px" }}>
+            <span style={{
+              display: "inline-block",
+              fontSize: "10px",
+              fontWeight: 700,
+              color: montante.mode === "objectif" ? "rgba(16,185,129,0.9)" : "rgba(255,255,255,0.6)",
+              background: montante.mode === "objectif" ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.06)",
+              padding: "2px 10px",
+              borderRadius: "10px",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase"
+            }}>
+              {montante.mode === "objectif" ? "Objectif" : "Libre"}
+            </span>
+            <span style={{
+              marginLeft: "4px",
+              display: "inline-block",
+              fontSize: "10px",
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.6)",
+              background: "rgba(255,255,255,0.06)",
+              padding: "2px 10px",
+              borderRadius: "10px",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase"
+            }}>
+              {montante.stake_mode === "auto" ? "Auto" : "Manuel"}
+            </span>
+          </div>
+        </div>
+
+        {/* Progression */}
+        <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+          <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Progression</p>
+          <p style={{ fontSize: "18px", fontWeight: 800, color: "white", margin: "4px 0 8px", lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>
+            {montante.current_step} <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>/</span> {montante.total_steps}
+          </p>
+          <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "3px", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                background: theme.accent,
+                transition: "width 0.7s ease",
+                borderRadius: "3px",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Data grid 2x2 */}
+        <div style={{ padding: "12px 16px 16px", borderTop: "1px dashed rgba(255,255,255,0.08)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Mise init.</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {parseFloat(String(montante.initial_stake)).toFixed(2)}€
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>
+              {montante.target_amount ? "Objectif" : "Paliers max"}
+            </p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {montante.target_amount ? `${parseFloat(String(montante.target_amount)).toFixed(2)}€` : montante.total_steps}
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Cote moy.</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {montante.avg_odds_needed ? parseFloat(String(montante.avg_odds_needed)).toFixed(2) : "—"}
+            </p>
+          </div>
+          <div style={{
+            background: theme.accentSoft,
+            borderRadius: "8px",
+            padding: "8px",
+            textAlign: "center",
+            border: `1px solid ${theme.accentBorder}`,
+          }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Bénéfice</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: theme.profitText, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {montante.profit >= 0 ? "+" : ""}{parseFloat(String(montante.profit)).toFixed(2)}€
+            </p>
+          </div>
+        </div>
+
+        {/* Status badge */}
+        <div style={{
+          padding: "10px 16px",
+          background: theme.statusBg,
+          borderTop: `1px solid ${theme.statusBorder}`,
+          textAlign: "center",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.statusColor }}>
+            {montante.status === "won" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {montante.status === "lost" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            {montante.status === "active" && (
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3b82f6", display: "inline-block" }} />
+            )}
+            {theme.statusLabel}
+          </span>
+        </div>
+
+        {/* Footer signature */}
+        <div style={{
+          padding: "8px 14px",
+          background: "rgba(0,0,0,0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
+          <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
+            MONTANTES
+          </span>
+        </div>
+      </div>
+
+      {/* EN-DEHORS de la card : boutons d'action */}
+      <div className="mt-2 flex gap-1.5">
+        <button
+          onClick={onClick}
+          className="cursor-pointer flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:brightness-125"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          Ouvrir
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); exportCard(); }}
+          className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:brightness-125"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+          title="Capturer en image"
+        >
+          📸
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:bg-red-500/20 hover:border-red-500/30"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+          title="Supprimer"
+        >
+          🗑
+        </button>
       </div>
     </div>
   );
