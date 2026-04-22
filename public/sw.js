@@ -1,4 +1,4 @@
-const CACHE_NAME = "pronos-club-v3";
+const CACHE_NAME = "pronos-club-v2";
 
 // ─── Install ────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -27,55 +27,33 @@ self.addEventListener("activate", (event) => {
 });
 
 // ─── Fetch ──────────────────────────────────────────────────
-// STRATÉGIE : le SW NE DOIT PAS intercepter les pages HTML ni les API
-// Il ne cache QUE les images statiques. Tout le reste passe direct au réseau.
-// Ça évite les crashes "Failed to fetch" sur les routes dynamiques.
 self.addEventListener("fetch", (event) => {
-  // Uniquement les GET
   if (event.request.method !== "GET") return;
+  // Ne pas intercepter les vidéos ni les range requests
+  if (event.request.url.match(/\.(mp4|webm|ogg|m4a)$/) || event.request.headers.get("range")) return;
 
-  const url = event.request.url;
-
-  // Ne JAMAIS intercepter : API, pages HTML, vidéos, range requests, websockets
-  if (
-    url.includes("/api/") ||
-    url.includes("/_next/") ||
-    url.match(/\.(mp4|webm|ogg|m4a)$/) ||
-    event.request.headers.get("range") ||
-    event.request.mode === "navigate"
-  ) {
-    return;
-  }
-
-  // Intercepter SEULEMENT les images statiques pour les mettre en cache
-  if (url.match(/\.(png|jpg|jpeg|svg|ico|webp|gif)$/)) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request)
-          .then((response) => {
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-            }
-            return response;
-          })
-          .catch(() => {
-            // Si l'image échoue au réseau, on renvoie une réponse vide plutôt que de crasher
-            return new Response("", { status: 404 });
-          });
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok && event.request.url.match(/\.(png|jpg|jpeg|svg|ico|webp)$/)) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
       })
-    );
-  }
-  // Tout le reste : pas d'interception, comportement navigateur par défaut
+      .catch(() => caches.match(event.request).then((r) => r || fetch(event.request)))
+  );
 });
 
 // ─── Push ───────────────────────────────────────────────────
+// CRITIQUE pour iOS : cet event DOIT toujours appeler showNotification
+// sinon iOS pénalise la PWA (throttle futur)
 self.addEventListener("push", (event) => {
   let data = {};
   try {
     data = event.data?.json() ?? {};
   } catch {
+    // Fallback si payload non-JSON (texte brut)
     data = { body: event.data?.text() ?? "" };
   }
 
@@ -89,8 +67,11 @@ self.addEventListener("push", (event) => {
       timestamp: Date.now(),
     },
     vibrate: [200, 100, 200],
+    // tag évite les doublons : si une notif avec ce tag existe déjà elle est remplacée
     tag: "pronos-club-notification",
+    // renotify : true = refait vibrer même si tag existe déjà
     renotify: true,
+    // requireInteraction false = iOS la fait disparaître automatiquement (comme les autres)
     requireInteraction: false,
   };
 
@@ -109,6 +90,7 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       });
 
+      // Si une fenêtre est déjà ouverte, la focus et naviguer
       for (const client of allClients) {
         if (client.url.includes(self.location.origin)) {
           await client.focus();
@@ -119,17 +101,19 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
 
+      // Sinon ouvrir une nouvelle fenêtre
       return self.clients.openWindow(url);
     })()
   );
 });
 
 // ─── Notification Close ─────────────────────────────────────
+// Utile pour les stats (optionnel)
 self.addEventListener("notificationclose", () => {
-  // Pas de tracking
+  // Pas de tracking pour le moment
 });
 
-// ─── Message ────────────────────────────────────────────────
+// ─── Message (pour debug : l'app peut envoyer un message au SW) ──
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
