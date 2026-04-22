@@ -1230,7 +1230,7 @@ function MontanteDetailView({
                     <img
                       src="/pronos_club.png"
                       alt="PRONOS.CLUB"
-                      style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                      style={{ width: "48px", height: "48px", objectFit: "contain" }}
                     />
 
                     <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em", minWidth: "80px", textAlign: "right" }}>
