@@ -801,6 +801,22 @@ function MontanteDetailView({
     fetchDetail();
   }
 
+  async function changeResult(stepId: string, newResult: "won" | "lost" | "pending") {
+    const labels = { won: "Gagné", lost: "Perdu", pending: "En attente" };
+    if (!confirm(`Changer le résultat en "${labels[newResult]}" ?`)) return;
+    const res = await fetch("/api/montantes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "change_result", step_id: stepId, new_result: newResult }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+    fetchDetail();
+  }
+
   if (loading || !montante) {
     return (
       <>
@@ -985,7 +1001,10 @@ function MontanteDetailView({
         {/* ── Steps ── */}
         <div className="mx-auto max-w-5xl px-4 py-6">
           <div className="space-y-2.5">
-            {steps.map((step, index) => (
+            {steps.map((step, index) => {
+              const isLastStep = index === steps.length - 1;
+              const canChangeResult = isLastStep && step.result !== "pending";
+              return (
               <div
                 key={step.id}
                 className="animate-fade-in-up"
@@ -1119,20 +1138,60 @@ function MontanteDetailView({
                       </button>
 
                       {/* Status/buttons */}
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         {step.result === "won" && (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
-                            <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
+                          <>
+                            {canChangeResult && (
+                              <>
+                                <button
+                                  onClick={() => changeResult(step.id, "lost")}
+                                  className="cursor-pointer rounded-lg border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-bold text-red-400 transition hover:bg-red-500/20"
+                                  title="Marquer comme perdu"
+                                >
+                                  → Perdu
+                                </button>
+                                <button
+                                  onClick={() => changeResult(step.id, "pending")}
+                                  className="cursor-pointer rounded-lg border border-neutral-600 bg-neutral-700/50 px-2.5 py-1.5 text-[11px] font-bold text-neutral-300 transition hover:bg-neutral-700"
+                                  title="Remettre en attente"
+                                >
+                                  ↺
+                                </button>
+                              </>
+                            )}
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
+                              <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          </>
                         )}
                         {step.result === "lost" && (
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
-                            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </div>
+                          <>
+                            {canChangeResult && (
+                              <>
+                                <button
+                                  onClick={() => changeResult(step.id, "won")}
+                                  className="cursor-pointer rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-bold text-emerald-400 transition hover:bg-emerald-500/20"
+                                  title="Marquer comme gagné"
+                                >
+                                  → Gagné
+                                </button>
+                                <button
+                                  onClick={() => changeResult(step.id, "pending")}
+                                  className="cursor-pointer rounded-lg border border-neutral-600 bg-neutral-700/50 px-2.5 py-1.5 text-[11px] font-bold text-neutral-300 transition hover:bg-neutral-700"
+                                  title="Remettre en attente"
+                                >
+                                  ↺
+                                </button>
+                              </>
+                            )}
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
+                              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </div>
+                          </>
                         )}
                         {step.result === "pending" && (
                           <>
@@ -1155,7 +1214,8 @@ function MontanteDetailView({
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Action buttons */}

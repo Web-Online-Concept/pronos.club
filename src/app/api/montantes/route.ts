@@ -405,6 +405,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── Change result (undo/modify last resolved step) ──
+    if (action === "change_result") {
+      const { step_id, new_result } = body;
+
+      if (!["won", "lost", "pending"].includes(new_result)) {
+        return NextResponse.json({ error: "Invalid result" }, { status: 400 });
+      }
+
+      const { data: step } = await supabaseAdmin
+        .from("montante_steps")
+        .select("*, montantes!inner(*)")
+        .eq("id", step_id)
+        .single();
+
+      if (!step) return NextResponse.json({ error: "Step not found" }, { status: 404 });
+
+      const montante = (step as any).montantes;
+      if (montante.user_id !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+      // Vérif : doit être le dernier palier résolu (aucun palier suivant)
+      const { data: nextSteps } = await supabaseAdmin
+        .from("montante_steps")
+        .select("id")
+        .eq("montante_id", montante.id)
+        .gt("step_number", step.step_number)
+        .limit(1);
+
+      if (nextSteps && nextSteps.length > 0) {
+        return NextResponse.json({
+          error: "Ce palier a des paliers suivants, impossible de modifier son résultat",
+        }, { status: 400 });
+      }
+
+      // Calcul nouveau actual_gain
+      const newActualGain = new_result === "won" ? step.potential_gain : (new_result === "lost" ? 0 : null);
+
+      await supabaseAdmin
+        .from("montante_steps")
+        .update({
+          result: new_result,
+          actual_gain: newActualGain,
+          completed_at: new_result === "pending" ? null : new Date().toISOString(),
+        })
+        .eq("id", step_id);
+
+      // Recalcul status + profit de la montante
+      let newMontanteStatus: "active" | "won" | "lost" = "active";
+      let newProfit = 0;
+
+      if (new_result === "lost") {
+        newMontanteStatus = "lost";
+        newProfit = -parseFloat(montante.initial_stake);
+      } else if (new_result === "won") {
+        const isLastStep = step.step_number >= montante.total_steps;
+        const reachedTarget = montante.target_amount && newActualGain! >= parseFloat(montante.target_amount);
+
+        if (isLastStep || reachedTarget) {
+          newMontanteStatus = "won";
+          newProfit = newActualGain! - parseFloat(montante.initial_stake);
+        } else {
+          newMontanteStatus = "active";
+          newProfit = 0;
+        }
+      } else {
+        // pending → montante repasse active, pas de profit
+        newMontanteStatus = "active";
+        newProfit = 0;
+      }
+
+      await supabaseAdmin
+        .from("montantes")
+        .update({ status: newMontanteStatus, profit: newProfit })
+        .eq("id", montante.id);
+
+      return NextResponse.json({ success: true, new_status: newMontanteStatus });
+    }
+
     // ── Cash out (libre mode — end montante with current gain) ──
     if (action === "cash_out") {
       const { montante_id } = body;
