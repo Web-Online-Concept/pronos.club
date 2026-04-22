@@ -330,20 +330,20 @@ export default function Navbar() {
               ) : user ? (
                 <Link
                   href={`/${locale}/espace`}
-                  className="cta-emerald flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
+                  className="cta-emerald flex min-w-0 items-center gap-2.5 rounded-xl px-5 py-2.5 text-base font-bold text-white"
                 >
                   {user.avatar_url ? (
                     <img
                       src={user.avatar_url}
                       alt=""
-                      className="h-7 w-7 rounded-full object-cover ring-2 ring-white/20"
+                      className="h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-white/20"
                     />
                   ) : (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
                       {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {user.pseudo || t("my_space")}
+                  <span className="max-w-[140px] truncate">{user.pseudo || t("my_space")}</span>
                 </Link>
               ) : (
                 <Link
@@ -559,20 +559,20 @@ export default function Navbar() {
                   <Link
                     href={`/${locale}/espace`}
                     onClick={() => setMenuOpen(false)}
-                    className="cta-emerald flex items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-sm font-bold text-white"
+                    className="cta-emerald flex min-w-0 items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-sm font-bold text-white"
                   >
                     {user.avatar_url ? (
                       <img
                         src={user.avatar_url}
                         alt=""
-                        className="h-7 w-7 rounded-full object-cover ring-2 ring-white/20"
+                        className="h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-white/20"
                       />
                     ) : (
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
                         {(user.pseudo || user.email || "?").charAt(0).toUpperCase()}
                       </div>
                     )}
-                    {user.pseudo || t("my_space")}
+                    <span className="max-w-[140px] truncate">{user.pseudo || t("my_space")}</span>
                   </Link>
                 ) : (
                   <Link
