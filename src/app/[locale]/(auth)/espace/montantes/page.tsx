@@ -1205,8 +1205,8 @@ function MontanteDetailView({
                     justifyContent: "space-between",
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                   }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
-                    <span style={{ fontSize: "9px", fontWeight: 500, color: "rgba(255,255,255,0.3)", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
+                    <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
                       {montante.name ? montante.name.toUpperCase() : `MONTANTE-${montante.id.slice(0, 4).toUpperCase()}`}
                     </span>
                   </div>
