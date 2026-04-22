@@ -505,6 +505,9 @@ function MontanteListCard({
   onClick: () => void;
   onDelete: () => void;
 }) {
+  const { user } = useAuth();
+  const pseudo = (user as any)?.pseudo || (user as any)?.email?.split("@")[0] || "TIPSTER";
+
   // Theming by status (identique au design paliers)
   const theme = montante.status === "won"
     ? { accent: "#10b981", accentSoft: "rgba(16,185,129,0.08)", accentBorder: "rgba(16,185,129,0.2)", accentRing: "rgba(16,185,129,0.4)", profitText: "#34d399", statusLabel: "Réussie", statusColor: "#34d399", statusBg: "rgba(16,185,129,0.08)", statusBorder: "rgba(16,185,129,0.2)" }
@@ -565,10 +568,10 @@ function MontanteListCard({
           }}
         />
 
-        {/* Header : Montante + Logo + N° */}
+        {/* Header : Montante + Logo + Date */}
         <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-            <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Montante</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "70px" }}>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Montante</span>
             <span style={{ fontSize: "22px", fontWeight: 800, color: montante.status === "active" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
               {number}
             </span>
@@ -580,7 +583,7 @@ function MontanteListCard({
             style={{ width: "32px", height: "32px", objectFit: "contain" }}
           />
 
-          <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+          <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em", minWidth: "70px", textAlign: "right" }}>
             {new Date(montante.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()}
           </span>
         </div>
@@ -709,18 +712,17 @@ function MontanteListCard({
           </span>
         </div>
 
-        {/* Footer signature */}
+        {/* Footer : pseudo centré */}
         <div style={{
           padding: "8px 14px",
           background: "rgba(0,0,0,0.3)",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "center",
           borderTop: "1px solid rgba(255,255,255,0.04)",
         }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
-          <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
-            MONTANTES
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+            {pseudo}
           </span>
         </div>
       </div>
@@ -908,6 +910,9 @@ function MontanteDetailView({
   montanteNumber: number;
   onBack: () => void;
 }) {
+  const { user } = useAuth();
+  const pseudo = (user as any)?.pseudo || (user as any)?.email?.split("@")[0] || "TIPSTER";
+
   const [montante, setMontante] = useState<Montante | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1205,13 +1210,21 @@ function MontanteDetailView({
                     }}
                   />
 
-                  {/* Header : Palier + Logo + Date */}
+                  {/* Header : Montante + Palier + Logo + Date */}
                   <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Palier</span>
-                      <span style={{ fontSize: "22px", fontWeight: 800, color: step.result === "pending" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
-                        {step.step_number}
-                      </span>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", minWidth: "80px" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                        <span style={{ fontSize: "8px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Montante</span>
+                        <span style={{ fontSize: "13px", fontWeight: 800, color: "rgba(255,255,255,0.7)", lineHeight: 1 }}>
+                          {montanteNumber}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                        <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Palier</span>
+                        <span style={{ fontSize: "22px", fontWeight: 800, color: step.result === "pending" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
+                          {step.step_number}
+                        </span>
+                      </div>
                     </div>
 
                     <img
@@ -1220,7 +1233,7 @@ function MontanteDetailView({
                       style={{ width: "32px", height: "32px", objectFit: "contain" }}
                     />
 
-                    <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em", minWidth: "80px", textAlign: "right" }}>
                       {step.match_date
                         ? new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()
                         : "—"}
@@ -1337,18 +1350,17 @@ function MontanteDetailView({
                     </span>
                   </div>
 
-                  {/* Footer signature */}
+                  {/* Footer : pseudo centré */}
                   <div style={{
                     padding: "8px 14px",
                     background: "rgba(0,0,0,0.3)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
+                    justifyContent: "center",
                     borderTop: "1px solid rgba(255,255,255,0.04)",
                   }}>
-                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
-                    <span style={{ fontSize: "10px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.05em" }}>
-                      {montante.name ? montante.name.toUpperCase() : `MONTANTE-${montante.id.slice(0, 4).toUpperCase()}`}
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+                      {pseudo}
                     </span>
                   </div>
                 </div>
