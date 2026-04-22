@@ -771,8 +771,7 @@ function MontanteDetailView({
   const [loading, setLoading] = useState(true);
   const [showAddStep, setShowAddStep] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
-  const [editingOddsId, setEditingOddsId] = useState<string | null>(null);
-  const [editingOddsValue, setEditingOddsValue] = useState("");
+  const [editingStep, setEditingStep] = useState<Step | null>(null);
 
   const fetchDetail = useCallback(async () => {
     const res = await fetch(`/api/montantes?action=detail&id=${montanteId}`);
@@ -798,19 +797,6 @@ function MontanteDetailView({
       setCelebrating(true);
       setTimeout(() => setCelebrating(false), 3500);
     }
-    fetchDetail();
-  }
-
-  async function updateOdds(stepId: string) {
-    const newOdds = parseFloat(editingOddsValue);
-    if (!newOdds || newOdds <= 1) return;
-    await fetch("/api/montantes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_odds", step_id: stepId, new_odds: newOdds }),
-    });
-    setEditingOddsId(null);
-    setEditingOddsValue("");
     fetchDetail();
   }
 
@@ -1013,170 +999,158 @@ function MontanteDetailView({
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  {/* Info bar: sport, type, match, date */}
-                  {(step.sport || step.bet_type || step.description || step.match_date) && (
-                    <div className="border-b border-white/5 px-5 py-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs">
-                        {step.sport && (
-                          <span className="text-neutral-300">{step.sport}</span>
-                        )}
-                        {step.bet_type && (
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                            step.bet_type === "combiné"
-                              ? "bg-amber-500/15 text-amber-400"
-                              : "bg-white/5 text-neutral-400"
-                          }`}>
-                            {step.bet_type === "combiné" ? "Combiné" : "Simple"}
-                          </span>
-                        )}
+                  {/* Top row : PALIER block + Sport + Date */}
+                  <div
+                    onClick={() => setEditingStep(step)}
+                    className="cursor-pointer flex items-stretch border-b border-white/5 hover:bg-white/[0.02] transition"
+                    title="Cliquer pour modifier"
+                  >
+                    {/* PALIER block */}
+                    <div
+                      className={`flex flex-col items-center justify-center px-3 sm:px-5 py-3 shrink-0 ${
+                        step.result === "won"
+                          ? "bg-emerald-500"
+                          : step.result === "lost"
+                          ? "bg-red-500"
+                          : "bg-neutral-700"
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-white/80">Palier</span>
+                      <span className="text-2xl sm:text-3xl font-extrabold text-white leading-none">{step.step_number}</span>
+                    </div>
+
+                    {/* Sport + Match + Date */}
+                    <div className="flex-1 px-4 sm:px-5 py-3 min-w-0 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {step.sport && (
+                            <span className="text-base sm:text-lg font-extrabold text-white">
+                              {step.sport}
+                            </span>
+                          )}
+                          {step.bet_type && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              step.bet_type === "combiné"
+                                ? "bg-amber-500/15 text-amber-400"
+                                : "bg-white/5 text-neutral-400"
+                            }`}>
+                              {step.bet_type === "combiné" ? "Combiné" : "Simple"}
+                            </span>
+                          )}
+                        </div>
                         {step.description && (
-                          <span className="text-neutral-500">·</span>
-                        )}
-                        {step.description && (
-                          <span className="text-neutral-300">{step.description}</span>
+                          <p className="mt-1 text-sm text-neutral-300 truncate">
+                            {step.description}
+                          </p>
                         )}
                       </div>
                       {step.match_date && (
-                        <span className="text-[10px] text-neutral-500 shrink-0 ml-3">
+                        <span className="text-xs font-semibold text-neutral-500 shrink-0">
                           {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* PRONO row — mise en avant */}
+                  {step.description && (
+                    <div
+                      onClick={() => setEditingStep(step)}
+                      className="cursor-pointer border-b border-white/5 px-4 sm:px-5 py-3 hover:bg-white/[0.02] transition"
+                    >
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Pronostic</p>
+                      <p className="mt-1 text-base sm:text-xl font-extrabold text-emerald-400 break-words">
+                        {step.description}
+                      </p>
+                    </div>
                   )}
 
-                  <div className="px-5 py-4">
-                    {/* Main row: circle + data + status */}
-                    <div className="flex items-center">
-                      {/* Step number circle */}
-                      <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-extrabold text-white ${
-                          step.result === "won"
-                            ? "bg-emerald-500"
-                            : step.result === "lost"
-                            ? "bg-red-500"
-                            : "bg-neutral-700"
-                        }`}
+                  <div className="px-4 sm:px-5 py-4">
+                    {/* Data row */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Book</p>
+                        <p className="mt-1 text-xs sm:text-sm font-bold text-neutral-200 truncate px-1">
+                          {step.bookmaker || "—"}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
+                        <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
+                          {parseFloat(String(step.odds)).toFixed(3)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
+                        <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
+                          {parseFloat(String(step.stake)).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
+                        <p
+                          className={`mt-1 text-base sm:text-xl font-extrabold tabular-nums ${
+                            step.result === "won"
+                              ? "text-emerald-400"
+                              : step.result === "lost"
+                              ? "text-red-400"
+                              : "text-white"
+                          }`}
+                        >
+                          {step.result === "won"
+                            ? parseFloat(String(step.actual_gain)).toFixed(2)
+                            : parseFloat(String(step.potential_gain)).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Status row : icon OR buttons */}
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      {/* Edit hint */}
+                      <button
+                        onClick={() => setEditingStep(step)}
+                        className="cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 hover:text-emerald-400 transition"
                       >
-                        {step.step_number}
-                      </div>
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Modifier
+                      </button>
 
-                      {/* Data columns */}
-                      <div className="flex-1 grid grid-cols-4 ml-4 sm:ml-5">
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Book</p>
-                          <p className="mt-1 text-xs sm:text-sm font-bold text-neutral-200 truncate px-1">
-                            {step.bookmaker || "—"}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                          {editingOddsId === step.id ? (
-                            <div className="mt-1 flex items-center justify-center gap-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editingOddsValue}
-                                onChange={(e) => setEditingOddsValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") updateOdds(step.id); if (e.key === "Escape") setEditingOddsId(null); }}
-                                autoFocus
-                                className="w-16 rounded-lg bg-white/10 border border-emerald-500/50 px-2 py-1 text-center text-sm font-bold text-white outline-none"
-                              />
-                              <button onClick={() => updateOdds(step.id)} className="cursor-pointer text-emerald-400 hover:text-emerald-300">
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                              </button>
-                            </div>
-                          ) : (
-                            <div
-                              onClick={() => { setEditingOddsId(step.id); setEditingOddsValue(String(step.odds)); }}
-                              className="cursor-pointer mt-1 flex items-center justify-center gap-1 group/odds"
-                              title="Cliquer pour modifier"
-                            >
-                              <p className="text-base sm:text-xl font-extrabold text-white tabular-nums group-hover/odds:text-emerald-400 transition">
-                                {parseFloat(String(step.odds)).toFixed(3)}
-                              </p>
-                              <svg className="h-3 w-3 text-neutral-600 group-hover/odds:text-emerald-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
-                          <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
-                            {parseFloat(String(step.stake)).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
-                          <p
-                            className={`mt-1 text-base sm:text-xl font-extrabold tabular-nums ${
-                              step.result === "won"
-                                ? "text-emerald-400"
-                                : step.result === "lost"
-                                ? "text-red-400"
-                                : "text-white"
-                            }`}
-                          >
-                            {step.result === "won"
-                              ? parseFloat(String(step.actual_gain)).toFixed(2)
-                              : parseFloat(String(step.potential_gain)).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Status icon (won/lost) — desktop only for pending */}
-                      <div className="shrink-0 ml-3 sm:ml-4">
+                      {/* Status/buttons */}
+                      <div className="flex gap-2">
                         {step.result === "won" && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
                             <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
                         )}
                         {step.result === "lost" && (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
                             <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </div>
                         )}
-                        {/* Desktop buttons for pending */}
                         {step.result === "pending" && (
-                          <div className="hidden sm:flex gap-2">
+                          <>
                             <button
                               onClick={() => resolveStep(step.id, "won")}
-                              className="cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5"
+                              className="cursor-pointer rounded-xl bg-emerald-600 px-3 sm:px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 hover:-translate-y-0.5 active:scale-95"
                             >
                               Gagné ✓
                             </button>
                             <button
                               onClick={() => resolveStep(step.id, "lost")}
-                              className="cursor-pointer rounded-xl bg-red-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5"
+                              className="cursor-pointer rounded-xl bg-red-500 px-3 sm:px-4 py-2 text-xs font-bold text-white shadow-lg shadow-red-500/25 transition hover:bg-red-400 hover:-translate-y-0.5 active:scale-95"
                             >
                               Perdu ✗
                             </button>
-                          </div>
+                          </>
                         )}
                       </div>
                     </div>
-
-                    {/* Mobile buttons for pending — full width below */}
-                    {step.result === "pending" && (
-                      <div className="flex gap-2 mt-3 sm:hidden">
-                        <button
-                          onClick={() => resolveStep(step.id, "won")}
-                          className="cursor-pointer flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition active:scale-95"
-                        >
-                          Gagné ✓
-                        </button>
-                        <button
-                          onClick={() => resolveStep(step.id, "lost")}
-                          className="cursor-pointer flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-500/25 transition active:scale-95"
-                        >
-                          Perdu ✗
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1224,6 +1198,19 @@ function MontanteDetailView({
             onClose={() => setShowAddStep(false)}
             onAdded={() => {
               setShowAddStep(false);
+              fetchDetail();
+            }}
+          />
+        )}
+
+        {/* Edit Step Modal */}
+        {editingStep && (
+          <EditStepModal
+            step={editingStep}
+            isLastStep={editingStep.step_number >= montante.current_step}
+            onClose={() => setEditingStep(null)}
+            onSaved={() => {
+              setEditingStep(null);
               fetchDetail();
             }}
           />
@@ -1345,6 +1332,7 @@ function AddStepModal({
           >
             <option value="" className="bg-neutral-800">—</option>
             <option value="Pinnacle" className="bg-neutral-800">Pinnacle</option>
+            <option value="PS3838" className="bg-neutral-800">PS3838</option>
             <option value="1xBet" className="bg-neutral-800">1xBet</option>
             <option value="Stake" className="bg-neutral-800">Stake</option>
             <option value="Bet365" className="bg-neutral-800">Bet365</option>
@@ -1462,6 +1450,219 @@ function AddStepModal({
           className="cursor-pointer w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
         >
           {saving ? "Ajout..." : "Ajouter le palier"}
+        </button>
+      </div>
+    </div>
+  );
+}
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Edit Step Modal
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function EditStepModal({
+  step,
+  isLastStep,
+  onClose,
+  onSaved,
+}: {
+  step: Step;
+  isLastStep: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [sport, setSport] = useState(step.sport || "");
+  const [description, setDescription] = useState(step.description || "");
+  const [matchDate, setMatchDate] = useState(step.match_date || "");
+  const [betType, setBetType] = useState<"simple" | "combiné">(step.bet_type || "simple");
+  const [bookmaker, setBookmaker] = useState(step.bookmaker || "");
+  const [odds, setOdds] = useState(String(step.odds));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Cote modifiable UNIQUEMENT si dernier step ET pending
+  const canEditOdds = isLastStep && step.result === "pending";
+
+  async function handleSave() {
+    setSaving(true);
+    setError("");
+
+    const payload: Record<string, unknown> = {
+      action: "update_step",
+      step_id: step.id,
+      sport: sport || null,
+      description: description || null,
+      match_date: matchDate || null,
+      bet_type: betType,
+      bookmaker: bookmaker || null,
+    };
+
+    if (canEditOdds) {
+      const oddsVal = parseFloat(odds);
+      if (!oddsVal || oddsVal <= 1) {
+        setError("Cote invalide (> 1.00)");
+        setSaving(false);
+        return;
+      }
+      payload.new_odds = oddsVal;
+    }
+
+    const res = await fetch("/api/montantes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) {
+      setError(data.error);
+      setSaving(false);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-3xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl animate-fade-in-up max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-extrabold text-white">Modifier palier {step.step_number}</h2>
+          <button onClick={onClose} className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-neutral-400 hover:bg-white/20">
+            ✕
+          </button>
+        </div>
+
+        {/* Cote (conditional) */}
+        {canEditOdds ? (
+          <div className="mb-3">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Cote du pari</label>
+            <input
+              type="number"
+              step="0.001"
+              value={odds}
+              onChange={(e) => setOdds(e.target.value)}
+              placeholder="1.85"
+              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm font-bold text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+            />
+          </div>
+        ) : (
+          <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+            <p className="text-[10px] font-semibold text-amber-400/80">
+              La cote ({parseFloat(String(step.odds)).toFixed(3)}) ne peut être modifiée que sur le dernier palier non résolu.
+            </p>
+          </div>
+        )}
+
+        {/* Bookmaker */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Bookmaker</label>
+          <select
+            value={bookmaker}
+            onChange={(e) => setBookmaker(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50"
+          >
+            <option value="" className="bg-neutral-800">—</option>
+            <option value="Pinnacle" className="bg-neutral-800">Pinnacle</option>
+            <option value="PS3838" className="bg-neutral-800">PS3838</option>
+            <option value="1xBet" className="bg-neutral-800">1xBet</option>
+            <option value="Stake" className="bg-neutral-800">Stake</option>
+            <option value="Bet365" className="bg-neutral-800">Bet365</option>
+            <option value="OrbitX" className="bg-neutral-800">OrbitX</option>
+            <option value="Winamax" className="bg-neutral-800">Winamax</option>
+            <option value="Betclic" className="bg-neutral-800">Betclic</option>
+            <option value="Unibet" className="bg-neutral-800">Unibet</option>
+            <option value="PMU" className="bg-neutral-800">PMU</option>
+            <option value="Bwin" className="bg-neutral-800">Bwin</option>
+            <option value="FDJ" className="bg-neutral-800">FDJ / Parions Sport</option>
+            <option value="NetBet" className="bg-neutral-800">NetBet</option>
+            <option value="Betsson" className="bg-neutral-800">Betsson</option>
+            <option value="Vbet" className="bg-neutral-800">Vbet</option>
+            <option value="Betway" className="bg-neutral-800">Betway</option>
+            <option value="PokerStars" className="bg-neutral-800">PokerStars</option>
+            <option value="ZEbet" className="bg-neutral-800">ZEbet</option>
+            <option value="BarriereBet" className="bg-neutral-800">BarriereBet</option>
+            <option value="CircusBet" className="bg-neutral-800">CircusBet</option>
+            <option value="Autre" className="bg-neutral-800">Autre</option>
+          </select>
+        </div>
+
+        {/* Sport + Type */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Sport</label>
+            <select
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              className="mt-1 w-full rounded-xl bg-neutral-800 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50"
+            >
+              <option value="" className="bg-neutral-800">—</option>
+              <option value="⚽ Football" className="bg-neutral-800">⚽ Football</option>
+              <option value="🏀 Basketball" className="bg-neutral-800">🏀 Basketball</option>
+              <option value="🎾 Tennis" className="bg-neutral-800">🎾 Tennis</option>
+              <option value="🏒 Hockey" className="bg-neutral-800">🏒 Hockey</option>
+              <option value="🏈 Football US" className="bg-neutral-800">🏈 Football US</option>
+              <option value="⚾ Baseball" className="bg-neutral-800">⚾ Baseball</option>
+              <option value="🥊 MMA/Boxe" className="bg-neutral-800">🥊 MMA/Boxe</option>
+              <option value="🏉 Rugby" className="bg-neutral-800">🏉 Rugby</option>
+              <option value="🎯 Autre" className="bg-neutral-800">🎯 Autre</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Type</label>
+            <div className="mt-1 flex gap-2">
+              {(["simple", "combiné"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setBetType(t)}
+                  className={`cursor-pointer flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                    betType === t
+                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                      : "border-white/10 bg-white/5 text-neutral-500 hover:border-white/20"
+                  }`}
+                >
+                  {t === "simple" ? "Simple" : "Combiné"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Match + Date */}
+        <div className="mb-4">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Pronostic / Match
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="PSG vs Marseille - PSG gagne"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Date du match
+          </label>
+          <input
+            type="date"
+            value={matchDate}
+            onChange={(e) => setMatchDate(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
+          />
+        </div>
+
+        {error && <p className="mb-3 text-center text-xs font-bold text-red-400">{error}</p>}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="cursor-pointer w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {saving ? "Sauvegarde..." : "Enregistrer"}
         </button>
       </div>
     </div>

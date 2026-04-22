@@ -345,6 +345,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── Update step (edit any field) ──
+    if (action === "update_step") {
+      const { step_id, sport, description, match_date, bet_type, bookmaker, new_odds } = body;
+
+      const { data: step } = await supabaseAdmin
+        .from("montante_steps")
+        .select("*, montantes!inner(user_id, current_step, total_steps)")
+        .eq("id", step_id)
+        .single();
+
+      if (!step || (step as any).montantes.user_id !== user.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      const updateData: any = {};
+
+      if (sport !== undefined) updateData.sport = sport || null;
+      if (description !== undefined) updateData.description = description || null;
+      if (match_date !== undefined) updateData.match_date = match_date || null;
+      if (bet_type !== undefined) {
+        if (!["simple", "combiné"].includes(bet_type)) {
+          return NextResponse.json({ error: "Invalid bet_type" }, { status: 400 });
+        }
+        updateData.bet_type = bet_type;
+      }
+      if (bookmaker !== undefined) updateData.bookmaker = bookmaker || null;
+
+      // Cote modifiable UNIQUEMENT si dernier step ET pending
+      if (new_odds !== undefined && new_odds !== null) {
+        const isLastStep = step.step_number >= (step as any).montantes.current_step;
+        const isPending = step.result === "pending";
+
+        if (!isLastStep || !isPending) {
+          return NextResponse.json({
+            error: "La cote n'est modifiable que sur le dernier palier non résolu",
+          }, { status: 400 });
+        }
+        if (!new_odds || new_odds <= 1) {
+          return NextResponse.json({ error: "Invalid odds" }, { status: 400 });
+        }
+
+        const newPotentialGain = Math.round(parseFloat(step.stake) * new_odds * 100) / 100;
+        updateData.odds = new_odds;
+        updateData.potential_gain = newPotentialGain;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      }
+
+      await supabaseAdmin
+        .from("montante_steps")
+        .update(updateData)
+        .eq("id", step_id);
+
+      return NextResponse.json({ success: true });
+    }
+
     // ── Cash out (libre mode — end montante with current gain) ──
     if (action === "cash_out") {
       const { montante_id } = body;
