@@ -145,6 +145,7 @@ export default function TipsterDashboard() {
                     <TipsterPickCard
                       key={pick.id}
                       pick={pick}
+                      locale={locale}
                       showPseudo={false}
                       canDelete
                       onDelete={() => handleDelete(pick.id)}
@@ -165,6 +166,7 @@ export default function TipsterDashboard() {
                     <TipsterPickCard
                       key={pick.id}
                       pick={pick}
+                      locale={locale}
                       showPseudo={false}
                       showResult
                     />

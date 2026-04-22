@@ -175,6 +175,7 @@ export default function TipsterProfilePage({
               <TipsterPickCard
                 key={pick.id}
                 pick={pick}
+                locale={locale}
                 showPseudo={false}
                 showResult={pick.status === "resolved"}
               />

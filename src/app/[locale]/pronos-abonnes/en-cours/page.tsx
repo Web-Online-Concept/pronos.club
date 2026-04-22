@@ -137,7 +137,7 @@ export default function PronosAbonnesEnCoursPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {picks.map((pick) => (
-              <TipsterPickCard key={pick.id} pick={pick} showPseudo />
+              <TipsterPickCard key={pick.id} pick={pick} locale={locale} showPseudo />
             ))}
           </div>
         )}

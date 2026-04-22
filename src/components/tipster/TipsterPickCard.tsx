@@ -1,124 +1,229 @@
-// src/app/api/tipster-stats/route.ts
-// Stats perso d'un tipster (utilisé dans /espace/tipster et /pronos-abonnes/[pseudo])
+// src/components/tipster/TipsterPickCard.tsx
+"use client";
 
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import Link from "next/link";
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+type Pick = {
+  id: string;
+  user_id: string;
+  match_date: string;
+  sport: string;
+  odds: number;
+  pick_type: "simple" | "combiné";
+  image_url: string;
+  submitted_at: string;
+  status: "live" | "resolved" | "rejected";
+  result: "won" | "half_won" | "refunded" | "half_lost" | "lost" | null;
+  units_result: number | null;
+  users: { id: string; pseudo: string; avatar_url: string | null } | null;
+};
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const pseudo = searchParams.get("pseudo");
+export default function TipsterPickCard({
+  pick,
+  locale,
+  showPseudo = true,
+  showResult = false,
+  canDelete = false,
+  onDelete,
+}: {
+  pick: Pick;
+  locale: string;
+  showPseudo?: boolean;
+  showResult?: boolean;
+  canDelete?: boolean;
+  onDelete?: () => void;
+}) {
+  const pseudo = pick.users?.pseudo || "TIPSTER";
+  const avatar = pick.users?.avatar_url;
 
-  let userId: string | null = null;
+  const theme = pick.result === "won"
+    ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: "Gagné" }
+    : pick.result === "half_won"
+    ? { accent: "#10b981", bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.15)", ring: "rgba(16,185,129,0.3)", text: "#6ee7b7", label: "½ Gagné" }
+    : pick.result === "refunded"
+    ? { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", ring: "rgba(59,130,246,0.4)", text: "#93c5fd", label: "Remboursé" }
+    : pick.result === "half_lost"
+    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)", ring: "rgba(239,68,68,0.3)", text: "#fca5a5", label: "½ Perdu" }
+    : pick.result === "lost"
+    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: "Perdu" }
+    : { accent: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", ring: "rgba(255,255,255,0.06)", text: "rgba(251,191,36,0.9)", label: "En cours" };
 
-  if (pseudo) {
-    const { data: user } = await supabaseAdmin
-      .from("users")
-      .select("id")
-      .eq("pseudo", pseudo)
-      .single();
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-    userId = user.id;
-  } else {
-    const supabase = await createClient();
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    userId = authUser.id;
-  }
+  const matchDate = new Date(pick.match_date);
+  const matchDateStr = matchDate.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  }).toUpperCase();
+  const matchTimeStr = matchDate.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-  try {
-    const { data: allPicks } = await supabaseAdmin
-      .from("tipster_picks")
-      .select("status, result, units_result, odds, submitted_at, resolved_at")
-      .eq("user_id", userId);
+  return (
+    <div>
+      <div
+        style={{
+          position: "relative",
+          background: "linear-gradient(180deg, #0f1a17 0%, #0a1410 100%)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.ring}`,
+        }}
+      >
+        {/* Accent bar top */}
+        <div
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: "3px",
+            background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
+          }}
+        />
 
-    const { data: userProfile } = await supabaseAdmin
-      .from("users")
-      .select("pseudo, avatar_url, subscription_status, created_at")
-      .eq("id", userId)
-      .single();
+        {/* Header : Sport + Logo + Date */}
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Sport</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", lineHeight: 1.1, textAlign: "center" }}>
+              {pick.sport}
+            </span>
+          </div>
 
-    const picks = allPicks || [];
-    const livePicks = picks.filter((p) => p.status === "live");
-    const resolvedPicks = picks.filter((p) => p.status === "resolved");
+          <img
+            src="/pronos_club.png"
+            alt="PRONOS.CLUB"
+            style={{ width: "48px", height: "48px", objectFit: "contain" }}
+          />
 
-    const won = resolvedPicks.filter((p) => p.result === "won").length;
-    const halfWon = resolvedPicks.filter((p) => p.result === "half_won").length;
-    const refunded = resolvedPicks.filter((p) => p.result === "refunded").length;
-    const halfLost = resolvedPicks.filter((p) => p.result === "half_lost").length;
-    const lost = resolvedPicks.filter((p) => p.result === "lost").length;
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.05em" }}>
+              {matchDateStr}
+            </span>
+            <span style={{ fontSize: "12px", fontWeight: 800, color: "#ffffff" }}>
+              {matchTimeStr}
+            </span>
+          </div>
+        </div>
 
-    const totalUnits = resolvedPicks.reduce(
-      (sum, p) => sum + (parseFloat(String(p.units_result)) || 0),
-      0
-    );
+        {/* Image du pick */}
+        <div style={{ padding: "12px", background: "rgba(0,0,0,0.2)" }}>
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "1/1",
+              borderRadius: "8px",
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.02)",
+              position: "relative",
+            }}
+          >
+            <img
+              src={pick.image_url}
+              alt="Pronostic"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          </div>
+        </div>
 
-    const totalOdds = resolvedPicks.reduce(
-      (sum, p) => sum + (parseFloat(String(p.odds)) || 0),
-      0
-    );
+        {/* Data grid : Type + Cote + (Units si résolu) */}
+        <div style={{ padding: "0 16px 14px", display: "grid", gridTemplateColumns: showResult && pick.units_result !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: "6px" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Type</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: pick.pick_type === "combiné" ? "#fbbf24" : "white", margin: "2px 0 0" }}>
+              {pick.pick_type === "combiné" ? "Combiné" : "Simple"}
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Cote</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {parseFloat(String(pick.odds)).toFixed(2)}
+            </p>
+          </div>
+          {showResult && pick.units_result !== null && (
+            <div style={{
+              background: theme.bg,
+              borderRadius: "8px",
+              padding: "8px",
+              textAlign: "center",
+              border: `1px solid ${theme.border}`,
+            }}>
+              <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Résultat</p>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: theme.text, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                {pick.units_result >= 0 ? "+" : ""}{parseFloat(String(pick.units_result)).toFixed(2)}U
+              </p>
+            </div>
+          )}
+        </div>
 
-    const winPoints = won + halfWon * 0.5;
-    const losePoints = lost + halfLost * 0.5;
-    const winrate = winPoints + losePoints > 0
-      ? Math.round((winPoints / (winPoints + losePoints)) * 1000) / 10
-      : 0;
+        {/* Status badge */}
+        <div style={{
+          padding: "10px 16px",
+          background: theme.bg,
+          borderTop: `1px solid ${theme.border}`,
+          textAlign: "center",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.text }}>
+            {pick.result === "won" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
+            )}
+            {pick.result === "half_won" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" opacity="0.6" /></svg>
+            )}
+            {pick.result === "refunded" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" /></svg>
+            )}
+            {pick.result === "half_lost" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" opacity="0.6" /></svg>
+            )}
+            {pick.result === "lost" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" /></svg>
+            )}
+            {!pick.result && (
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(251,191,36,0.9)", display: "inline-block" }} />
+            )}
+            {theme.label}
+          </span>
+        </div>
 
-    const avgOdds = resolvedPicks.length > 0
-      ? Math.round((totalOdds / resolvedPicks.length) * 100) / 100
-      : 0;
+        {/* Footer : pseudo tipster */}
+        {showPseudo && (
+          <div style={{
+            padding: "8px 14px",
+            background: "rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            borderTop: "1px solid rgba(255,255,255,0.04)",
+          }}>
+            {avatar ? (
+              <img src={avatar} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#ffffff" }}>
+                {pseudo.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <Link
+              href={`/${locale}/pronos-abonnes/${encodeURIComponent(pseudo)}`}
+              style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none" }}
+            >
+              {pseudo}
+            </Link>
+          </div>
+        )}
+      </div>
 
-    const roi = resolvedPicks.length > 0
-      ? Math.round((totalUnits / resolvedPicks.length) * 1000) / 10
-      : 0;
-
-    // Best/worst streak
-    const sortedByDate = [...resolvedPicks].sort(
-      (a, b) => new Date(a.resolved_at!).getTime() - new Date(b.resolved_at!).getTime()
-    );
-    let currentStreak = 0;
-    let bestStreak = 0;
-    let worstStreak = 0;
-    let tempStreak = 0;
-
-    for (const p of sortedByDate) {
-      const u = parseFloat(String(p.units_result)) || 0;
-      if (u > 0) {
-        tempStreak = tempStreak >= 0 ? tempStreak + 1 : 1;
-        if (tempStreak > bestStreak) bestStreak = tempStreak;
-      } else if (u < 0) {
-        tempStreak = tempStreak <= 0 ? tempStreak - 1 : -1;
-        if (tempStreak < worstStreak) worstStreak = tempStreak;
-      } else {
-        // refund ne casse pas la streak
-      }
-    }
-    currentStreak = tempStreak;
-
-    return NextResponse.json({
-      profile: userProfile,
-      stats: {
-        total_picks: picks.length,
-        live_picks: livePicks.length,
-        resolved_picks: resolvedPicks.length,
-        won, half_won: halfWon, refunded, half_lost: halfLost, lost,
-        total_units: Math.round(totalUnits * 100) / 100,
-        winrate,
-        avg_odds: avgOdds,
-        roi,
-        current_streak: currentStreak,
-        best_streak: bestStreak,
-        worst_streak: worstStreak,
-      },
-    });
-
-  } catch (err: any) {
-    console.error("[tipster-stats] error:", err.message);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
+      {canDelete && onDelete && (
+        <button
+          onClick={onDelete}
+          className="mt-2 w-full cursor-pointer rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500/20"
+          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          🗑 Supprimer
+        </button>
+      )}
+    </div>
+  );
 }
