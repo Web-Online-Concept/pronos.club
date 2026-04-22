@@ -21,6 +21,7 @@ type Montante = {
   status: "active" | "won" | "lost";
   profit: number;
   avg_odds_needed: number | null;
+  current_gain: number;
   created_at: string;
 };
 
@@ -655,10 +656,12 @@ function MontanteListCard({
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
             <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>
-              {montante.target_amount ? "Objectif" : "Paliers max"}
+              {montante.target_amount ? "Objectif" : "Gain actuel"}
             </p>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
-              {montante.target_amount ? `${parseFloat(String(montante.target_amount)).toFixed(2)}€` : montante.total_steps}
+              {montante.target_amount
+                ? `${parseFloat(String(montante.target_amount)).toFixed(2)}€`
+                : `${parseFloat(String(montante.current_gain || 0)).toFixed(2)}€`}
             </p>
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
@@ -1160,7 +1163,7 @@ function MontanteDetailView({
 
         {/* ── Steps ── */}
         <div className="mx-auto max-w-6xl px-4 py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col-reverse sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, index) => {
               const isLastStep = index === steps.length - 1;
 

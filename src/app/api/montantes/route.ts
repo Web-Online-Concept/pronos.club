@@ -105,6 +105,29 @@ export async function GET(req: NextRequest) {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    // Enrichir avec le gain actuel (actual_gain du dernier palier won ou refunded)
+    if (montantes && montantes.length > 0) {
+      const montanteIds = montantes.map((m: any) => m.id);
+      const { data: lastSteps } = await supabaseAdmin
+        .from("montante_steps")
+        .select("montante_id, step_number, actual_gain, result")
+        .in("montante_id", montanteIds)
+        .in("result", ["won", "refunded"])
+        .order("step_number", { ascending: false });
+
+      // Map montante_id -> actual_gain du dernier palier résolu positif
+      const gainMap = new Map<string, number>();
+      (lastSteps || []).forEach((s: any) => {
+        if (!gainMap.has(s.montante_id)) {
+          gainMap.set(s.montante_id, parseFloat(s.actual_gain) || 0);
+        }
+      });
+
+      montantes.forEach((m: any) => {
+        m.current_gain = gainMap.get(m.id) || 0;
+      });
+    }
+
     return NextResponse.json({ montantes: montantes || [] });
 
   } catch (err: any) {
