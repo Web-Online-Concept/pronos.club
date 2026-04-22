@@ -63,6 +63,7 @@ export default async function AdminDashboard() {
 
   const adminLinks = [
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
+    { href: "/admin/notifications", label: "Notifications", icon: "🔔", accent: "#6366f1", desc: "Debug & tests push" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
     { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
     { href: "/admin/blog", label: "Blog", icon: "📝", accent: "#f59e0b", desc: "Articles & contenu" },
@@ -143,7 +144,7 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Pronos IA section (NOUVEAU) */}
+      {/* Pronos IA section */}
       <div className="mt-10">
         <div className="flex items-center gap-2">
           <span className="text-sm">🤖</span>
