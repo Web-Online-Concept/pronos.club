@@ -32,6 +32,7 @@ type Step = {
   stake: number;
   potential_gain: number;
   actual_gain: number | null;
+  match_name: string | null;
   description: string | null;
   result: "pending" | "won" | "lost";
   completed_at: string | null;
@@ -999,7 +1000,7 @@ function MontanteDetailView({
                       : "bg-neutral-900 ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  {/* Top row : PALIER block + Sport + Date */}
+                  {/* Top row : PALIER block + Sport + Match + Date */}
                   <div
                     onClick={() => setEditingStep(step)}
                     className="cursor-pointer flex items-stretch border-b border-white/5 hover:bg-white/[0.02] transition"
@@ -1021,8 +1022,8 @@ function MontanteDetailView({
 
                     {/* Sport + Match + Date */}
                     <div className="flex-1 px-4 sm:px-5 py-3 min-w-0 flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="min-w-0 flex-1 text-center">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
                           {step.sport && (
                             <span className="text-base sm:text-lg font-extrabold text-white">
                               {step.sport}
@@ -1038,9 +1039,9 @@ function MontanteDetailView({
                             </span>
                           )}
                         </div>
-                        {step.description && (
+                        {step.match_name && (
                           <p className="mt-1 text-sm text-neutral-300 truncate">
-                            {step.description}
+                            {step.match_name}
                           </p>
                         )}
                       </div>
@@ -1056,7 +1057,7 @@ function MontanteDetailView({
                   {step.description && (
                     <div
                       onClick={() => setEditingStep(step)}
-                      className="cursor-pointer border-b border-white/5 px-4 sm:px-5 py-3 hover:bg-white/[0.02] transition"
+                      className="cursor-pointer border-b border-white/5 px-4 sm:px-5 py-3 hover:bg-white/[0.02] transition text-center"
                     >
                       <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Pronostic</p>
                       <p className="mt-1 text-base sm:text-xl font-extrabold text-emerald-400 break-words">
@@ -1237,6 +1238,7 @@ function AddStepModal({
 }) {
   const [odds, setOdds] = useState("");
   const [manualStake, setManualStake] = useState("");
+  const [matchName, setMatchName] = useState("");
   const [description, setDescription] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [betType, setBetType] = useState<"simple" | "combiné">("simple");
@@ -1254,6 +1256,8 @@ function AddStepModal({
   async function handleAdd() {
     if (oddsVal <= 1) return setError("Cote invalide (> 1.00)");
     if (montante.stake_mode === "manuel" && stake <= 0) return setError("Mise requise");
+    if (!matchName.trim()) return setError("Match requis");
+    if (!description.trim()) return setError("Pronostic requis");
 
     setSaving(true);
     setError("");
@@ -1265,7 +1269,8 @@ function AddStepModal({
         montante_id: montante.id,
         odds: oddsVal,
         stake: montante.stake_mode === "manuel" ? stake : undefined,
-        description: description || null,
+        match_name: matchName.trim(),
+        description: description.trim(),
         match_date: matchDate || null,
         bet_type: betType,
         sport: sport || null,
@@ -1397,31 +1402,39 @@ function AddStepModal({
           </div>
         </div>
 
-        {/* Match + Date */}
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              Match <span className="text-neutral-600 font-normal lowercase">(optionnel)</span>
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="PSG vs Marseille"
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              Date du match
-            </label>
-            <input
-              type="date"
-              value={matchDate}
-              onChange={(e) => setMatchDate(e.target.value)}
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
-            />
-          </div>
+        {/* Match + Pronostic + Date */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Match <span className="text-red-400">*</span></label>
+          <input
+            type="text"
+            value={matchName}
+            onChange={(e) => setMatchName(e.target.value)}
+            placeholder="PSG vs Marseille"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pronostic <span className="text-red-400">*</span></label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="PSG gagne"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Date du match
+          </label>
+          <input
+            type="date"
+            value={matchDate}
+            onChange={(e) => setMatchDate(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 [color-scheme:dark]"
+          />
         </div>
 
         {/* Preview */}
@@ -1471,6 +1484,7 @@ function EditStepModal({
   onSaved: () => void;
 }) {
   const [sport, setSport] = useState(step.sport || "");
+  const [matchName, setMatchName] = useState(step.match_name || "");
   const [description, setDescription] = useState(step.description || "");
   const [matchDate, setMatchDate] = useState(step.match_date || "");
   const [betType, setBetType] = useState<"simple" | "combiné">(step.bet_type || "simple");
@@ -1490,6 +1504,7 @@ function EditStepModal({
       action: "update_step",
       step_id: step.id,
       sport: sport || null,
+      match_name: matchName || null,
       description: description || null,
       match_date: matchDate || null,
       bet_type: betType,
@@ -1629,16 +1644,30 @@ function EditStepModal({
           </div>
         </div>
 
-        {/* Match + Date */}
+        {/* Match */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            Match
+          </label>
+          <input
+            type="text"
+            value={matchName}
+            onChange={(e) => setMatchName(e.target.value)}
+            placeholder="PSG vs Marseille"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
+          />
+        </div>
+
+        {/* Pronostic */}
         <div className="mb-4">
           <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-            Pronostic / Match
+            Pronostic
           </label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="PSG vs Marseille - PSG gagne"
+            placeholder="PSG gagne"
             className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-neutral-600 outline-none focus:border-emerald-500/50"
           />
         </div>

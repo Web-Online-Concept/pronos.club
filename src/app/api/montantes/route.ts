@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     // ── Add step ──
     if (action === "add_step") {
-      const { montante_id, odds, stake: manualStake, description, match_date, bet_type, sport, bookmaker } = body;
+      const { montante_id, odds, stake: manualStake, match_name, description, match_date, bet_type, sport, bookmaker } = body;
 
       const { data: montante } = await supabaseAdmin
         .from("montantes")
@@ -227,6 +227,7 @@ export async function POST(req: NextRequest) {
           odds,
           stake,
           potential_gain: potentialGain,
+          match_name: match_name || null,
           description: description || null,
           match_date: match_date || null,
           bet_type: bet_type || "simple",
@@ -347,7 +348,7 @@ export async function POST(req: NextRequest) {
 
     // ── Update step (edit any field) ──
     if (action === "update_step") {
-      const { step_id, sport, description, match_date, bet_type, bookmaker, new_odds } = body;
+      const { step_id, sport, match_name, description, match_date, bet_type, bookmaker, new_odds } = body;
 
       const { data: step } = await supabaseAdmin
         .from("montante_steps")
@@ -362,6 +363,7 @@ export async function POST(req: NextRequest) {
       const updateData: any = {};
 
       if (sport !== undefined) updateData.sport = sport || null;
+      if (match_name !== undefined) updateData.match_name = match_name || null;
       if (description !== undefined) updateData.description = description || null;
       if (match_date !== undefined) updateData.match_date = match_date || null;
       if (bet_type !== undefined) {
