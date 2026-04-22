@@ -817,6 +817,34 @@ function MontanteDetailView({
     fetchDetail();
   }
 
+  async function exportStepCard(step: Step) {
+    const el = document.getElementById(`step-card-${step.id}`);
+    if (!el) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true,
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `pronos-club-palier-${step.step_number}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Erreur lors de l'export de l'image");
+    }
+  }
+
   if (loading || !montante) {
     return (
       <>
@@ -999,8 +1027,8 @@ function MontanteDetailView({
         </div>
 
         {/* ── Steps ── */}
-        <div className="mx-auto max-w-5xl px-4 py-6">
-          <div className="space-y-2.5">
+        <div className="mx-auto max-w-6xl px-4 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, index) => {
               const isLastStep = index === steps.length - 1;
               return (
@@ -1009,204 +1037,206 @@ function MontanteDetailView({
                 className="animate-fade-in-up"
                 style={{ animationDelay: `${index * 0.07}s` }}
               >
+                {/* CARD (capturable) */}
                 <div
-                  className={`rounded-2xl overflow-hidden transition ${
+                  id={`step-card-${step.id}`}
+                  className={`rounded-2xl overflow-hidden bg-neutral-900 ${
                     step.result === "won"
-                      ? "bg-neutral-900 ring-2 ring-emerald-500/40"
+                      ? "ring-2 ring-emerald-500/50"
                       : step.result === "lost"
-                      ? "bg-neutral-900 ring-2 ring-red-500/40"
+                      ? "ring-2 ring-red-500/50"
                       : step.result === "refunded"
-                      ? "bg-neutral-900 ring-2 ring-blue-500/40"
-                      : "bg-neutral-900 ring-1 ring-neutral-800"
+                      ? "ring-2 ring-blue-500/50"
+                      : "ring-1 ring-neutral-800"
                   } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
                 >
-                  {/* Top row : PALIER block + Sport + Match + Date */}
+                  {/* Header : PALIER + Date */}
                   <div
-                    onClick={() => setEditingStep(step)}
-                    className="cursor-pointer flex items-stretch border-b border-white/5 hover:bg-white/[0.02] transition"
-                    title="Cliquer pour modifier"
+                    className={`flex items-center justify-between px-4 py-2.5 ${
+                      step.result === "won"
+                        ? "bg-emerald-500"
+                        : step.result === "lost"
+                        ? "bg-red-500"
+                        : step.result === "refunded"
+                        ? "bg-blue-500"
+                        : "bg-neutral-700"
+                    }`}
                   >
-                    {/* PALIER block */}
-                    <div
-                      className={`flex flex-col items-center justify-center px-3 sm:px-5 py-3 shrink-0 ${
-                        step.result === "won"
-                          ? "bg-emerald-500"
-                          : step.result === "lost"
-                          ? "bg-red-500"
-                          : step.result === "refunded"
-                          ? "bg-blue-500"
-                          : "bg-neutral-700"
-                      }`}
-                    >
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-white/80">Palier</span>
-                      <span className="text-2xl sm:text-3xl font-extrabold text-white leading-none">{step.step_number}</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Palier</span>
+                      <span className="text-xl font-extrabold text-white leading-none">{step.step_number}</span>
                     </div>
-
-                    {/* Sport + Match + Date */}
-                    <div className="flex-1 px-4 sm:px-5 py-3 min-w-0 flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1 text-center">
-                        <div className="flex items-center justify-center gap-2 flex-wrap">
-                          {step.sport && (
-                            <span className="text-base sm:text-lg font-extrabold text-white">
-                              {step.sport}
-                            </span>
-                          )}
-                          {step.bet_type && (
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              step.bet_type === "combiné"
-                                ? "bg-amber-500/15 text-amber-400"
-                                : "bg-white/5 text-neutral-400"
-                            }`}>
-                              {step.bet_type === "combiné" ? "Combiné" : "Simple"}
-                            </span>
-                          )}
-                        </div>
-                        {step.match_name && (
-                          <p className="mt-1 text-sm text-neutral-300 truncate">
-                            {step.match_name}
-                          </p>
-                        )}
-                      </div>
-                      {step.match_date && (
-                        <span className="text-xs font-semibold text-neutral-500 shrink-0">
-                          {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-                        </span>
-                      )}
-                    </div>
+                    {step.match_date && (
+                      <span className="text-[10px] font-semibold text-white/80">
+                        {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                      </span>
+                    )}
                   </div>
 
-                  {/* PRONO row — mise en avant */}
+                  {/* Sport + Type */}
+                  <div className="px-4 pt-4 pb-2 text-center">
+                    {step.sport && (
+                      <p className="text-base font-extrabold text-white">{step.sport}</p>
+                    )}
+                    {step.bet_type && (
+                      <span
+                        className={`inline-block mt-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                          step.bet_type === "combiné"
+                            ? "bg-amber-500/15 text-amber-400"
+                            : "bg-white/5 text-neutral-400"
+                        }`}
+                      >
+                        {step.bet_type === "combiné" ? "Combiné" : "Simple"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Match */}
+                  {step.match_name && (
+                    <div className="px-4 py-2 text-center border-t border-white/5">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Match</p>
+                      <p className="mt-0.5 text-sm font-bold text-neutral-200 break-words">
+                        {step.match_name}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Pronostic */}
                   {step.description && (
-                    <div
-                      onClick={() => setEditingStep(step)}
-                      className="cursor-pointer border-b border-white/5 px-4 sm:px-5 py-3 hover:bg-white/[0.02] transition text-center"
-                    >
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Pronostic</p>
-                      <p className="mt-1 text-base sm:text-xl font-extrabold text-emerald-400 break-words">
+                    <div className="px-4 py-3 text-center border-t border-white/5">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Pronostic</p>
+                      <p className="mt-1 text-base font-extrabold text-emerald-400 break-words leading-tight">
                         {step.description}
                       </p>
                     </div>
                   )}
 
-                  <div className="px-4 sm:px-5 py-4">
-                    {/* Data row */}
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Book</p>
-                        <p className="mt-1 text-xs sm:text-sm font-bold text-neutral-200 truncate px-1">
-                          {step.bookmaker || "—"}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Cote</p>
-                        <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
-                          {parseFloat(String(step.odds)).toFixed(3)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Mise</p>
-                        <p className="mt-1 text-base sm:text-xl font-extrabold text-white tabular-nums">
-                          {parseFloat(String(step.stake)).toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400">Gain</p>
-                        <p
-                          className={`mt-1 text-base sm:text-xl font-extrabold tabular-nums ${
-                            step.result === "won"
-                              ? "text-emerald-400"
-                              : step.result === "lost"
-                              ? "text-red-400"
-                              : step.result === "refunded"
-                              ? "text-blue-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {step.result === "won" || step.result === "refunded"
-                            ? parseFloat(String(step.actual_gain)).toFixed(2)
-                            : parseFloat(String(step.potential_gain)).toFixed(2)}
-                        </p>
-                      </div>
+                  {/* Data grid 2x2 */}
+                  <div className="border-t border-white/5 p-3 grid grid-cols-2 gap-2">
+                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Book</p>
+                      <p className="mt-0.5 text-xs font-bold text-neutral-200 truncate px-1">
+                        {step.bookmaker || "—"}
+                      </p>
                     </div>
-
-                    {/* Status row : icon OR buttons */}
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      {/* Edit hint */}
-                      <button
-                        onClick={() => setEditingStep(step)}
-                        className="cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 hover:text-emerald-400 transition"
+                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Cote</p>
+                      <p className="mt-0.5 text-sm font-extrabold text-white tabular-nums">
+                        {parseFloat(String(step.odds)).toFixed(3)}
+                      </p>
+                    </div>
+                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Mise</p>
+                      <p className="mt-0.5 text-sm font-extrabold text-white tabular-nums">
+                        {parseFloat(String(step.stake)).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Gain</p>
+                      <p
+                        className={`mt-0.5 text-sm font-extrabold tabular-nums ${
+                          step.result === "won"
+                            ? "text-emerald-400"
+                            : step.result === "lost"
+                            ? "text-red-400"
+                            : step.result === "refunded"
+                            ? "text-blue-400"
+                            : "text-white"
+                        }`}
                       >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        Modifier
-                      </button>
-
-                      {/* Status/Dropdown */}
-                      <div className="flex items-center gap-2">
-                        {/* Dropdown résultat — seulement sur le dernier palier */}
-                        {isLastStep ? (
-                          <select
-                            value={step.result}
-                            onChange={(e) => {
-                              const val = e.target.value as "pending" | "won" | "lost" | "refunded";
-                              if (val === step.result) return;
-                              if (step.result === "pending") {
-                                // Depuis pending → c'est une résolution normale
-                                if (val === "won" || val === "lost") {
-                                  resolveStep(step.id, val);
-                                } else if (val === "refunded") {
-                                  changeResult(step.id, "refunded");
-                                }
-                              } else {
-                                // Depuis un résultat existant → changement
-                                changeResult(step.id, val);
-                              }
-                            }}
-                            className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-bold outline-none border transition ${
-                              step.result === "won"
-                                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-                                : step.result === "lost"
-                                ? "bg-red-500/15 border-red-500/40 text-red-400"
-                                : step.result === "refunded"
-                                ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
-                                : "bg-neutral-800 border-neutral-700 text-neutral-300"
-                            }`}
-                          >
-                            <option value="pending" className="bg-neutral-800 text-neutral-300">⏳ En attente</option>
-                            <option value="won" className="bg-neutral-800 text-emerald-400">✓ Gagné</option>
-                            <option value="lost" className="bg-neutral-800 text-red-400">✗ Perdu</option>
-                            <option value="refunded" className="bg-neutral-800 text-blue-400">↻ Remboursé</option>
-                          </select>
-                        ) : (
-                          // Paliers non-derniers : affichage read-only du statut
-                          <>
-                            {step.result === "won" && (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
-                                <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                            )}
-                            {step.result === "lost" && (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/20">
-                                <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </div>
-                            )}
-                            {step.result === "refunded" && (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/20">
-                                <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
-                                </svg>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
+                        {step.result === "won" || step.result === "refunded"
+                          ? parseFloat(String(step.actual_gain)).toFixed(2)
+                          : parseFloat(String(step.potential_gain)).toFixed(2)}
+                      </p>
                     </div>
                   </div>
+
+                  {/* Status badge bas de card */}
+                  <div className="border-t border-white/5 py-2.5 text-center">
+                    {step.result === "won" && (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-400">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Gagné
+                      </span>
+                    )}
+                    {step.result === "lost" && (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-red-400">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Perdu
+                      </span>
+                    )}
+                    {step.result === "refunded" && (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-400">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
+                        </svg>
+                        Remboursé
+                      </span>
+                    )}
+                    {step.result === "pending" && (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-neutral-400">
+                        <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                        En attente
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* EN-DEHORS de la card : boutons d'action */}
+                <div className="mt-2 flex gap-1.5">
+                  <button
+                    onClick={() => setEditingStep(step)}
+                    className="cursor-pointer flex-1 flex items-center justify-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-emerald-400"
+                    title="Modifier"
+                  >
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => exportStepCard(step)}
+                    className="cursor-pointer rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-blue-400"
+                    title="Capturer en image"
+                  >
+                    📸
+                  </button>
+                  {isLastStep && (
+                    <select
+                      value={step.result}
+                      onChange={(e) => {
+                        const val = e.target.value as "pending" | "won" | "lost" | "refunded";
+                        if (val === step.result) return;
+                        if (step.result === "pending") {
+                          if (val === "won" || val === "lost") {
+                            resolveStep(step.id, val);
+                          } else if (val === "refunded") {
+                            changeResult(step.id, "refunded");
+                          }
+                        } else {
+                          changeResult(step.id, val);
+                        }
+                      }}
+                      className={`cursor-pointer flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none border transition ${
+                        step.result === "won"
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                          : step.result === "lost"
+                          ? "bg-red-500/15 border-red-500/40 text-red-400"
+                          : step.result === "refunded"
+                          ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
+                          : "bg-neutral-800 border-neutral-700 text-neutral-300"
+                      }`}
+                    >
+                      <option value="pending" className="bg-neutral-800 text-neutral-300">⏳ En attente</option>
+                      <option value="won" className="bg-neutral-800 text-emerald-400">✓ Gagné</option>
+                      <option value="lost" className="bg-neutral-800 text-red-400">✗ Perdu</option>
+                      <option value="refunded" className="bg-neutral-800 text-blue-400">↻ Remboursé</option>
+                    </select>
+                  )}
                 </div>
               </div>
               );
