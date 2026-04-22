@@ -89,7 +89,7 @@ export default function PronosAbonnesClassementPage() {
 
       <div className="border-b border-neutral-200 bg-white">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex gap-1 overflow-x-auto">
+          <div className="flex justify-center gap-1 overflow-x-auto">
             <Link
               href={`/${locale}/pronos-abonnes/en-cours`}
               className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900"
@@ -115,12 +115,12 @@ export default function PronosAbonnesClassementPage() {
       {/* Période tabs */}
       <div className="bg-neutral-50 border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 py-3">
-          <div className="flex gap-2">
+          <div className="flex justify-center gap-2">
             {(["week", "month", "all"] as Period[]).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
+                className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
                   period === p
                     ? "bg-neutral-900 text-white"
                     : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
