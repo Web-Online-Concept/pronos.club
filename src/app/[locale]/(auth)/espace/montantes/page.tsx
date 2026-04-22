@@ -821,24 +821,18 @@ function MontanteDetailView({
     const el = document.getElementById(`step-card-${step.id}`);
     if (!el) return;
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
-        backgroundColor: null,
-        scale: 2,
-        logging: false,
-        useCORS: true,
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(el, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#0a1410",
       });
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `pronos-club-palier-${step.step_number}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `pronos-club-palier-${step.step_number}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("Export error:", err);
       alert("Erreur lors de l'export de l'image");
@@ -1031,71 +1025,96 @@ function MontanteDetailView({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, index) => {
               const isLastStep = index === steps.length - 1;
+
+              // Theming by status
+              const theme = step.result === "won"
+                ? { accent: "#10b981", accentSoft: "rgba(16,185,129,0.08)", accentBorder: "rgba(16,185,129,0.2)", accentRing: "rgba(16,185,129,0.4)", gainText: "#34d399", dotColor: "#10b981", statusLabel: "Gagné", statusColor: "#34d399", statusBg: "rgba(16,185,129,0.08)", statusBorder: "rgba(16,185,129,0.2)" }
+                : step.result === "lost"
+                ? { accent: "#ef4444", accentSoft: "rgba(239,68,68,0.08)", accentBorder: "rgba(239,68,68,0.2)", accentRing: "rgba(239,68,68,0.4)", gainText: "#fca5a5", dotColor: "#ef4444", statusLabel: "Perdu", statusColor: "#fca5a5", statusBg: "rgba(239,68,68,0.08)", statusBorder: "rgba(239,68,68,0.2)" }
+                : step.result === "refunded"
+                ? { accent: "#3b82f6", accentSoft: "rgba(59,130,246,0.08)", accentBorder: "rgba(59,130,246,0.2)", accentRing: "rgba(59,130,246,0.4)", gainText: "#93c5fd", dotColor: "#3b82f6", statusLabel: "Remboursé", statusColor: "#93c5fd", statusBg: "rgba(59,130,246,0.08)", statusBorder: "rgba(59,130,246,0.2)" }
+                : { accent: "#fbbf24", accentSoft: "rgba(251,191,36,0.08)", accentBorder: "rgba(251,191,36,0.2)", accentRing: "rgba(255,255,255,0.06)", gainText: "#ffffff", dotColor: "#fbbf24", statusLabel: "En attente", statusColor: "rgba(251,191,36,0.9)", statusBg: "rgba(251,191,36,0.08)", statusBorder: "rgba(251,191,36,0.2)" };
+
               return (
               <div
                 key={step.id}
                 className="animate-fade-in-up"
                 style={{ animationDelay: `${index * 0.07}s` }}
               >
-                {/* CARD (capturable) */}
+                {/* CARD PREMIUM (capturable) */}
                 <div
                   id={`step-card-${step.id}`}
-                  className={`rounded-2xl overflow-hidden bg-neutral-900 ${
-                    step.result === "won"
-                      ? "ring-2 ring-emerald-500/50"
-                      : step.result === "lost"
-                      ? "ring-2 ring-red-500/50"
-                      : step.result === "refunded"
-                      ? "ring-2 ring-blue-500/50"
-                      : "ring-1 ring-neutral-800"
-                  } ${step.result === "pending" ? "animate-pulse-ring" : ""}`}
+                  style={{
+                    position: "relative",
+                    background: "linear-gradient(180deg, #0f1a17 0%, #0a1410 100%)",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.accentRing}`,
+                  }}
                 >
-                  {/* Header : PALIER + Date */}
+                  {/* Accent bar top */}
                   <div
-                    className={`flex items-center justify-between px-4 py-2.5 ${
-                      step.result === "won"
-                        ? "bg-emerald-500"
-                        : step.result === "lost"
-                        ? "bg-red-500"
-                        : step.result === "refunded"
-                        ? "bg-blue-500"
-                        : "bg-neutral-700"
-                    }`}
-                  >
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Palier</span>
-                      <span className="text-xl font-extrabold text-white leading-none">{step.step_number}</span>
-                    </div>
-                    {step.match_date && (
-                      <span className="text-[10px] font-semibold text-white/80">
-                        {new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: "3px",
+                      background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
+                    }}
+                  />
+
+                  {/* Header : Palier + Logo + Date */}
+                  <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Palier</span>
+                      <span style={{ fontSize: "22px", fontWeight: 800, color: step.result === "pending" ? "#ffffff" : theme.accent, lineHeight: 1 }}>
+                        {step.step_number}
                       </span>
-                    )}
+                    </div>
+
+                    <img
+                      src="/pronos_club.png"
+                      alt="PRONOS.CLUB"
+                      style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                    />
+
+                    <span style={{ fontSize: "10px", fontWeight: 500, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>
+                      {step.match_date
+                        ? new Date(step.match_date + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" }).toUpperCase()
+                        : "—"}
+                    </span>
                   </div>
 
                   {/* Sport + Type */}
-                  <div className="px-4 pt-4 pb-2 text-center">
+                  <div style={{ padding: "16px", textAlign: "center" }}>
                     {step.sport && (
-                      <p className="text-base font-extrabold text-white">{step.sport}</p>
+                      <div style={{ fontSize: "15px", fontWeight: 800, color: "white" }}>
+                        {step.sport}
+                      </div>
                     )}
-                    {step.bet_type && (
-                      <span
-                        className={`inline-block mt-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                          step.bet_type === "combiné"
-                            ? "bg-amber-500/15 text-amber-400"
-                            : "bg-white/5 text-neutral-400"
-                        }`}
-                      >
+                    <div style={{ marginTop: "6px" }}>
+                      <span style={{
+                        display: "inline-block",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: step.bet_type === "combiné" ? "rgba(251,191,36,0.9)" : "rgba(255,255,255,0.6)",
+                        background: step.bet_type === "combiné" ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.06)",
+                        padding: "2px 10px",
+                        borderRadius: "10px",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase"
+                      }}>
                         {step.bet_type === "combiné" ? "Combiné" : "Simple"}
                       </span>
-                    )}
+                    </div>
                   </div>
 
                   {/* Match */}
                   {step.match_name && (
-                    <div className="px-4 py-2 text-center border-t border-white/5">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Match</p>
-                      <p className="mt-0.5 text-sm font-bold text-neutral-200 break-words">
+                    <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Match</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.9)", margin: "3px 0 0", lineHeight: 1.3, wordBreak: "break-word" }}>
                         {step.match_name}
                       </p>
                     </div>
@@ -1103,86 +1122,93 @@ function MontanteDetailView({
 
                   {/* Pronostic */}
                   {step.description && (
-                    <div className="px-4 py-3 text-center border-t border-white/5">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Pronostic</p>
-                      <p className="mt-1 text-base font-extrabold text-emerald-400 break-words leading-tight">
+                    <div style={{ margin: "0 16px", padding: "12px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Pronostic</p>
+                      <p style={{ fontSize: "18px", fontWeight: 800, color: "#34d399", margin: "4px 0 0", lineHeight: 1.2, wordBreak: "break-word" }}>
                         {step.description}
                       </p>
                     </div>
                   )}
 
                   {/* Data grid 2x2 */}
-                  <div className="border-t border-white/5 p-3 grid grid-cols-2 gap-2">
-                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Book</p>
-                      <p className="mt-0.5 text-xs font-bold text-neutral-200 truncate px-1">
+                  <div style={{ padding: "12px 16px 16px", borderTop: "1px dashed rgba(255,255,255,0.08)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Book</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0" }}>
                         {step.bookmaker || "—"}
                       </p>
                     </div>
-                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Cote</p>
-                      <p className="mt-0.5 text-sm font-extrabold text-white tabular-nums">
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Cote</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
                         {parseFloat(String(step.odds)).toFixed(3)}
                       </p>
                     </div>
-                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Mise</p>
-                      <p className="mt-0.5 text-sm font-extrabold text-white tabular-nums">
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Mise</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
                         {parseFloat(String(step.stake)).toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-center rounded-lg bg-white/[0.03] py-2">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Gain</p>
-                      <p
-                        className={`mt-0.5 text-sm font-extrabold tabular-nums ${
-                          step.result === "won"
-                            ? "text-emerald-400"
-                            : step.result === "lost"
-                            ? "text-red-400"
-                            : step.result === "refunded"
-                            ? "text-blue-400"
-                            : "text-white"
-                        }`}
-                      >
-                        {step.result === "won" || step.result === "refunded"
+                    <div style={{
+                      background: theme.accentSoft,
+                      borderRadius: "8px",
+                      padding: "8px",
+                      textAlign: "center",
+                      border: `1px solid ${theme.accentBorder}`,
+                    }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Gain</p>
+                      <p style={{ fontSize: "13px", fontWeight: 700, color: theme.gainText, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                        {(step.result === "won" || step.result === "refunded")
                           ? parseFloat(String(step.actual_gain)).toFixed(2)
                           : parseFloat(String(step.potential_gain)).toFixed(2)}
                       </p>
                     </div>
                   </div>
 
-                  {/* Status badge bas de card */}
-                  <div className="border-t border-white/5 py-2.5 text-center">
-                    {step.result === "won" && (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-400">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  {/* Status badge */}
+                  <div style={{
+                    padding: "10px 16px",
+                    background: theme.statusBg,
+                    borderTop: `1px solid ${theme.statusBorder}`,
+                    textAlign: "center",
+                  }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.statusColor }}>
+                      {step.result === "won" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M5 13l4 4L19 7" />
                         </svg>
-                        Gagné
-                      </span>
-                    )}
-                    {step.result === "lost" && (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-red-400">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      )}
+                      {step.result === "lost" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        Perdu
-                      </span>
-                    )}
-                    {step.result === "refunded" && (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-400">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
+                      )}
+                      {step.result === "refunded" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" />
                         </svg>
-                        Remboursé
-                      </span>
-                    )}
-                    {step.result === "pending" && (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-neutral-400">
-                        <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                        En attente
-                      </span>
-                    )}
+                      )}
+                      {step.result === "pending" && (
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(251,191,36,0.9)", display: "inline-block" }} />
+                      )}
+                      {theme.statusLabel}
+                    </span>
+                  </div>
+
+                  {/* Footer signature */}
+                  <div style={{
+                    padding: "8px 14px",
+                    background: "rgba(0,0,0,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    borderTop: "1px solid rgba(255,255,255,0.04)",
+                  }}>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.25em" }}>PRONOS.CLUB</span>
+                    <span style={{ fontSize: "9px", fontWeight: 500, color: "rgba(255,255,255,0.3)", letterSpacing: "0.05em" }}>
+                      {montante.name ? montante.name.toUpperCase() : `MONTANTE-${montante.id.slice(0, 4).toUpperCase()}`}
+                    </span>
                   </div>
                 </div>
 
@@ -1190,17 +1216,19 @@ function MontanteDetailView({
                 <div className="mt-2 flex gap-1.5">
                   <button
                     onClick={() => setEditingStep(step)}
-                    className="cursor-pointer flex-1 flex items-center justify-center gap-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-emerald-400"
+                    className="cursor-pointer flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:brightness-125"
+                    style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
                     title="Modifier"
                   >
-                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
                     Modifier
                   </button>
                   <button
                     onClick={() => exportStepCard(step)}
-                    className="cursor-pointer rounded-lg bg-white/5 border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-blue-400"
+                    className="cursor-pointer rounded-lg px-3 py-2 text-xs text-white transition hover:brightness-125"
+                    style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
                     title="Capturer en image"
                   >
                     📸
@@ -1221,7 +1249,7 @@ function MontanteDetailView({
                           changeResult(step.id, val);
                         }
                       }}
-                      className={`cursor-pointer flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold outline-none border transition ${
+                      className={`cursor-pointer flex-1 rounded-lg px-2 py-2 text-[11px] font-bold outline-none border transition ${
                         step.result === "won"
                           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                           : step.result === "lost"
