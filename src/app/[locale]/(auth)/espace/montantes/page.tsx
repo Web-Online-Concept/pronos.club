@@ -623,8 +623,14 @@ function MontanteListCard({
         {/* Progression */}
         <div style={{ margin: "0 16px", padding: "10px 0", borderTop: "1px dashed rgba(255,255,255,0.08)", textAlign: "center" }}>
           <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0 }}>Progression</p>
-          <p style={{ fontSize: "18px", fontWeight: 800, color: "white", margin: "4px 0 8px", lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>
-            {montante.current_step} <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>/</span> {montante.total_steps}
+          <p style={{ fontSize: "16px", fontWeight: 800, color: "white", margin: "4px 0 8px", lineHeight: 1.2 }}>
+            {montante.status === "won"
+              ? `Palier ${montante.current_step} · Terminée`
+              : montante.status === "lost"
+              ? `Palier ${montante.current_step} · Échouée`
+              : montante.current_step === 0
+              ? "Non démarrée"
+              : `Palier ${montante.current_step} · En cours`}
           </p>
           <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "3px", overflow: "hidden" }}>
             <div
