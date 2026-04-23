@@ -50,6 +50,18 @@ const AUTOMATED_EMAILS = [
     icon: "🔔",
   },
   {
+    id: "tipster-new-pick",
+    name: "Nouveau prono — Pronos Abonnés",
+    trigger: "Publication d'un pick par un tipster premium",
+    recipient: "Followers du tipster (mode 'all' ou 'selected') avec channel_email activé",
+    timing: "Immédiat à la publication",
+    description: "Notification email envoyée aux abonnés qui suivent le tipster lorsqu'il publie un nouveau pronostic. Contient pseudo, date du match, sport, bookmaker. Lien vers la page en-cours. Cohérent avec le canal Telegram @pronos_abonnes_club.",
+    file: "src/lib/emails.ts → sendTipsterNewPickEmail()",
+    route: "src/lib/tipster-notifications.ts → notifyFollowersOfNewPick()",
+    color: "#10b981",
+    icon: "🎯",
+  },
+  {
     id: "bilan",
     name: "Bilan mensuel",
     trigger: "Publication d'un bilan (admin → Publier)",

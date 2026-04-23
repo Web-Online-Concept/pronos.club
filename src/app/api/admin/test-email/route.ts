@@ -9,6 +9,7 @@ import {
   sendPremiumExpiringEmail,
   sendInactivityEmail,
   sendBilanEmail,
+  sendTipsterNewPickEmail,
 } from "@/lib/emails";
 import { NextResponse } from "next/server";
 
@@ -70,6 +71,14 @@ export async function POST(request: Request) {
       break;
     case "inactivity":
       success = await sendInactivityEmail(email, name, locale);
+      break;
+    case "tipster-new-pick":
+      success = await sendTipsterNewPickEmail(email, locale, {
+        pseudo: "FLO PRONOS CLUB",
+        matchDate: "24 avr. 21:00",
+        sport: "⚽ Football",
+        bookmaker: "Winamax",
+      });
       break;
     default:
       return NextResponse.json({ error: "Unknown email type" }, { status: 400 });
