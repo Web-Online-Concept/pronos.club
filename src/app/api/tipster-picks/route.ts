@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     if (!bookmaker) {
       return NextResponse.json({ error: "Bookmaker requis" }, { status: 400 });
     }
-    if (!BOOKMAKERS.includes(bookmaker)) {
+    if (!(BOOKMAKERS as readonly string[]).includes(bookmaker)) {
       return NextResponse.json({ error: "Bookmaker invalide" }, { status: 400 });
     }
     if (!imageFile || !(imageFile instanceof File)) {
