@@ -55,27 +55,27 @@ export default function PronosAbonnesNav({
   return (
     <div className="border-b border-neutral-200 bg-white">
       <div className="mx-auto max-w-6xl px-4">
-        <div className="flex items-center justify-between gap-2">
-          {/* Onglets centrés */}
-          <div className="flex-1 flex justify-center gap-1 overflow-x-auto">
-            <Link href={`/${locale}/pronos-abonnes/en-cours`} className={linkClass(active === "en-cours")}>
-              En cours
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/historique`} className={linkClass(active === "historique")}>
-              Historique
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/classement`} className={linkClass(active === "classement")}>
-              Classement
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/concours`} className={linkClass(active === "concours")}>
-              🏆 Concours
-            </Link>
-          </div>
+        <div className="flex justify-center items-center gap-1 overflow-x-auto">
+          <Link href={`/${locale}/pronos-abonnes/en-cours`} className={linkClass(active === "en-cours")}>
+            En cours
+          </Link>
+          <Link href={`/${locale}/pronos-abonnes/historique`} className={linkClass(active === "historique")}>
+            Historique
+          </Link>
+          <Link href={`/${locale}/pronos-abonnes/classement`} className={linkClass(active === "classement")}>
+            Classement
+          </Link>
+          <Link href={`/${locale}/pronos-abonnes/concours`} className={linkClass(active === "concours")}>
+            🏆 Concours
+          </Link>
 
-          {/* CTA à droite */}
+          {/* Séparateur visuel */}
+          <span className="mx-2 text-neutral-300 hidden sm:inline">|</span>
+
+          {/* CTA dans le menu */}
           <Link
             href={cta.href}
-            className={`flex-shrink-0 whitespace-nowrap rounded-xl ${ctaClasses} px-3 py-2 text-xs sm:text-sm font-bold text-white shadow-lg transition`}
+            className={`whitespace-nowrap rounded-lg ${ctaClasses} px-3 py-1.5 my-2 text-xs sm:text-sm font-bold text-white shadow transition`}
           >
             {cta.label}
           </Link>
