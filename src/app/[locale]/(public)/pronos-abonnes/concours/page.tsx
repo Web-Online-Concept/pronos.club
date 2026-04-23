@@ -61,6 +61,14 @@ export default function ConcoursPage() {
     fetchData();
   }, []);
 
+  function getISOWeek(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
   function formatPeriod(start: string, end: string, type: "week" | "month") {
     const s = new Date(start);
     const e = new Date(end);
@@ -86,7 +94,7 @@ export default function ConcoursPage() {
         <div className="text-center mb-6">
           <div className="inline-block rounded-full px-4 py-1" style={{ background: isWeek ? "rgba(16,185,129,0.2)" : "rgba(251,191,36,0.2)", color: isWeek ? "#047857" : "#92400e" }}>
             <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">
-              {isWeek ? "🏆 Semaine" : "👑 Mois"}
+              {isWeek ? `🏆 Semaine ${getISOWeek(new Date(data.period_start))}` : "👑 Mois"}
             </span>
           </div>
           <h3 className="mt-3 text-lg font-black text-neutral-900">
@@ -250,7 +258,7 @@ export default function ConcoursPage() {
       {/* Tab */}
       <div className="bg-neutral-50 border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 py-3">
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-2 flex-wrap">
             <button
               onClick={() => setTab("current")}
               className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
@@ -267,6 +275,12 @@ export default function ConcoursPage() {
             >
               🏅 Anciens gagnants
             </button>
+            <Link
+              href={`/${locale}/pronos-abonnes/fonctionnement`}
+              className="rounded-xl bg-white text-neutral-600 border border-neutral-200 hover:border-emerald-400 hover:text-emerald-600 px-4 py-2.5 text-sm font-bold transition"
+            >
+              📚 Fonctionnement →
+            </Link>
           </div>
         </div>
       </div>
@@ -317,7 +331,7 @@ export default function ConcoursPage() {
                       </Link>
                     </div>
                     <p className="text-xs text-neutral-500 mt-0.5">
-                      {w.period_type === "week" ? "Semaine" : "Mois"} : {formatPeriod(w.period_start, w.period_end, w.period_type)}
+                      {w.period_type === "week" ? `Semaine ${getISOWeek(new Date(w.period_start))}` : "Mois"} : {formatPeriod(w.period_start, w.period_end, w.period_type)}
                     </p>
                     <p className="text-xs text-neutral-400 mt-0.5">
                       +{w.total_units}U · {w.picks_count} picks
@@ -345,14 +359,6 @@ export default function ConcoursPage() {
           )
         ) : null}
 
-        <div className="mt-8 text-center">
-          <Link
-            href={`/${locale}/pronos-abonnes/fonctionnement`}
-            className="text-xs font-bold text-emerald-600 hover:underline"
-          >
-            📚 Comment fonctionne le concours ?
-          </Link>
-        </div>
       </div>
     </main>
   );
