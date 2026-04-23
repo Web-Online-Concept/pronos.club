@@ -17,6 +17,7 @@ const SPORTS = [
   "⚾ Baseball",
   "🥊 MMA/Boxe",
   "🏉 Rugby",
+  "🎲 Multisports",
   "🎯 Autre",
 ];
 
