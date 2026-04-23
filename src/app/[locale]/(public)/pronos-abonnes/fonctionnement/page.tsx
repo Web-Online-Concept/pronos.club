@@ -151,7 +151,7 @@ export default function FonctionnementPage() {
           <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300 open:shadow-lg open:shadow-emerald-50">
             <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-lg">⚠️</span>
-              <span>Quelles sont les limites ?</span>
+              <span>Quelles sont les limites et règles ?</span>
               <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
             </summary>
             <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
@@ -177,11 +177,18 @@ export default function FonctionnementPage() {
                     <p className="text-xs mt-1">Tu ne peux pas poster sur un match qui commence tout de suite ou qui est déjà en cours. Anti-triche.</p>
                   </div>
                 </div>
+                <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">
+                  <span className="text-xl">🚫</span>
+                  <div>
+                    <p className="font-extrabold text-red-900">Cotes boostées interdites</p>
+                    <p className="text-xs mt-1">Les pronostics sur des <strong>cotes boostées</strong> (Super Boost, Mega Boost, etc.) ne sont <strong>pas autorisés</strong> car ces offres sont très <strong>limitées en mises</strong> chez les bookmakers (souvent 5€ à 20€ max). Un tipster ne peut pas mettre +XXXU là-dessus — joue uniquement sur des cotes standards accessibles à tous.</p>
+                  </div>
+                </div>
                 <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
                   <span className="text-xl">🔒</span>
                   <div>
-                    <p className="font-extrabold text-amber-900">Fenêtre de suppression : 10 minutes</p>
-                    <p className="text-xs mt-1">Tu peux supprimer ton pronostic dans les 10 min après publication (pour corriger une erreur, mauvais screen, faute de cote). Au-delà, il est verrouillé pour respecter les tipsters qui te suivent.</p>
+                    <p className="font-extrabold text-amber-900">Modification et suppression : 10 minutes</p>
+                    <p className="text-xs mt-1">Tu peux supprimer ton pronostic dans les <strong>10 minutes</strong> après publication (pour corriger un mauvais screen, une faute de cote, etc.). Au-delà, il est <strong>verrouillé définitivement</strong> — c&apos;est une règle d&apos;intégrité pour respecter les tipsters qui te suivent. Si tu as besoin d&apos;une correction au-delà, contacte-nous à <a href="mailto:contact@pronos.club" className="font-bold underline">contact@pronos.club</a>.</p>
                   </div>
                 </div>
               </div>
@@ -197,7 +204,7 @@ export default function FonctionnementPage() {
             </summary>
             <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
               <p>
-                Le classement est calculé sur <strong className="text-emerald-600">3 périodes</strong> glissantes :
+                Le classement (page <strong className="text-emerald-600">Classement</strong>) est calculé sur <strong>3 périodes glissantes</strong> :
               </p>
               <ul className="mt-3 space-y-2 pl-5 list-disc">
                 <li><strong>Cette semaine</strong> : 7 derniers jours</li>
@@ -212,6 +219,9 @@ export default function FonctionnementPage() {
                 <li><strong>Cote moy.</strong> : cote moyenne de tes pronostics</li>
                 <li><strong>Forme</strong> : pastilles colorées des 5 derniers pronostics</li>
               </ul>
+              <p className="mt-4 text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <strong className="text-blue-800">Bon à savoir :</strong> le classement est différent du <strong>concours</strong> (voir section suivante). Le classement est glissant et purement informatif ; le concours désigne les gagnants officiels de chaque semaine et chaque mois.
+              </p>
             </div>
           </details>
 
@@ -219,12 +229,12 @@ export default function FonctionnementPage() {
           <details className="group rounded-2xl border-2 border-amber-300 bg-amber-50/30 open:border-amber-400 open:shadow-lg open:shadow-amber-100">
             <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg">💰</span>
-              <span>Le concours semaine/mois (gains {config.week.prize_amount}€ / {config.month.prize_amount}€)</span>
+              <span>Le concours semaine / mois et les gains</span>
               <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
             </summary>
             <div className="border-t border-amber-200 px-5 py-4 text-sm leading-relaxed text-neutral-600">
               <p>
-                Chaque semaine et chaque mois, <strong className="text-amber-700">le meilleur tipster gagne un prix en cash</strong> :
+                Chaque semaine et chaque mois, <strong className="text-amber-700">le meilleur tipster gagne un prix en cash</strong>. Actuellement :
               </p>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="rounded-xl border-2 border-emerald-300 bg-white p-4 text-center">
@@ -240,16 +250,25 @@ export default function FonctionnementPage() {
                   <p className="mt-1 text-[11px] text-neutral-500">Min. {config.month.min_picks} picks sur le mois</p>
                 </div>
               </div>
-              <p className="mt-4 text-xs">
-                <strong>Semaine :</strong> du <strong>lundi 00h au dimanche 23h59</strong>, classement figé automatiquement chaque lundi.
+              <p className="mt-3 text-[11px] italic text-neutral-500 text-center">
+                Les montants peuvent évoluer, notamment lors d&apos;opérations spéciales (EURO, Coupe du Monde, etc.).
+                La <Link href={`/${locale}/pronos-abonnes/concours`} className="text-amber-700 font-bold underline">page Concours</Link> affiche toujours les montants à jour.
               </p>
-              <p className="mt-2 text-xs">
-                <strong>Mois :</strong> du <strong>1er au dernier jour du mois</strong>, classement figé automatiquement le 1er du mois suivant.
-              </p>
-              <p className="mt-3 text-xs">
-                Le critère de désignation : <strong className="text-emerald-700">le plus grand total d&apos;unités (+U)</strong> sur la période.
-                Tu dois avoir posté au minimum {config.week.min_picks} picks (semaine) ou {config.month.min_picks} picks (mois) pour être éligible.
-              </p>
+
+              <div className="mt-5 space-y-2 text-xs">
+                <p>
+                  <strong className="text-neutral-900">📅 Semaine :</strong> du <strong>lundi 00h au dimanche 23h59</strong>, classement figé automatiquement chaque lundi à 00h15.
+                </p>
+                <p>
+                  <strong className="text-neutral-900">📅 Mois :</strong> du <strong>1er au dernier jour du mois</strong>, classement figé automatiquement le 1er du mois suivant à 00h30.
+                </p>
+                <p className="mt-3">
+                  <strong className="text-neutral-900">🎯 Critère de désignation :</strong> le plus grand <strong className="text-emerald-700">Total d&apos;unités (+U)</strong> sur la période. Tu dois avoir posté au minimum <strong>{config.week.min_picks} picks</strong> (semaine) ou <strong>{config.month.min_picks} picks</strong> (mois) résolus sur la période pour être éligible.
+                </p>
+                <p className="mt-3">
+                  <strong className="text-neutral-900">🏅 Badges :</strong> Chaque victoire t&apos;ajoute un badge 🏆 (semaine) ou 👑 (mois) sur ton profil, avec le compteur de victoires cumulées.
+                </p>
+              </div>
             </div>
           </details>
 
@@ -262,16 +281,19 @@ export default function FonctionnementPage() {
             </summary>
             <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
               <p>
-                Les gains sont versés par <strong className="text-emerald-600">virement PayPal</strong> dans les <strong>48h</strong> suivant ta victoire.
+                Les gains sont versés par <strong className="text-emerald-600">virement PayPal</strong> dans les <strong>48h</strong> suivant la clôture de la période (lundi pour le gain de la semaine, 1er du mois pour le gain du mois).
               </p>
               <p className="mt-3">
-                Pour recevoir ton gain, pense à renseigner ton <strong>email PayPal</strong> dans{" "}
+                Pour recevoir tes gains, pense à renseigner ton <strong>email PayPal</strong> dans{" "}
                 <Link href={`/${locale}/espace/profil`} className="text-emerald-600 font-bold underline">
                   Mon Profil
                 </Link>
-                .
+                . Un bloc dédié t&apos;est proposé si tu es premium.
               </p>
               <p className="mt-3 text-xs">
+                Tu recevras aussi un <strong>email de confirmation</strong> quand tu gagnes, avec les détails du concours et ton gain.
+              </p>
+              <p className="mt-3 text-xs italic text-neutral-500">
                 Si tu gagnes sans avoir renseigné ton PayPal, on te contactera par email pour récupérer l&apos;info.
               </p>
             </div>
@@ -291,7 +313,7 @@ export default function FonctionnementPage() {
               </p>
               <p className="mt-3">
                 Cela garantit la <strong>fiabilité des statistiques</strong> et la confiance dans le classement.
-                Un pronostic mal validé peut être contesté en nous contactant sur <a href="mailto:contact@pronos.club" className="text-emerald-600 font-bold underline">contact@pronos.club</a>.
+                Un pronostic mal validé peut être contesté en nous contactant à <a href="mailto:contact@pronos.club" className="text-emerald-600 font-bold underline">contact@pronos.club</a>.
               </p>
             </div>
           </details>
