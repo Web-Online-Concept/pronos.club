@@ -60,11 +60,15 @@ export default function ConcoursWidget({ userId, locale }: { userId: string; loc
     // Cas 1 : Pas encore de picks
     if (totalPicks === 0) {
       return (
-        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200 bg-emerald-50/30" : "border-amber-200 bg-amber-50/30"} p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-300" : "border-amber-300"} p-4 shadow-sm`} style={{
+          background: isWeek
+            ? "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+            : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+        }}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-800" : "text-amber-800"}`}>
             {icon} {label} — {prize}€
           </p>
-          <p className="mt-2 text-sm font-bold text-neutral-700">
+          <p className="mt-2 text-sm font-bold text-neutral-800">
             Poste {minPicks} pronostic{minPicks > 1 ? "s" : ""} pour participer
           </p>
         </div>
@@ -75,17 +79,21 @@ export default function ConcoursWidget({ userId, locale }: { userId: string; loc
     if (!ranking.eligible) {
       const remaining = Math.max(0, minPicks - totalPicks);
       return (
-        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200" : "border-amber-200"} bg-gradient-to-br ${isWeek ? "from-emerald-50" : "from-amber-50"} to-white p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-300" : "border-amber-300"} p-4 shadow-sm`} style={{
+          background: isWeek
+            ? "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+            : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+        }}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-800" : "text-amber-800"}`}>
             {icon} {label} — {prize}€
           </p>
-          <p className="mt-2 text-xs text-neutral-600">
+          <p className="mt-2 text-xs text-neutral-700">
             Tu as <strong>{totalPicks} pick{totalPicks > 1 ? "s" : ""}</strong> pour l&apos;instant
           </p>
-          <p className={`mt-1 text-sm font-extrabold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+          <p className={`mt-1 text-sm font-extrabold ${isWeek ? "text-emerald-800" : "text-amber-800"}`}>
             Encore {remaining} pour être éligible
           </p>
-          <p className={`mt-2 text-xs ${totalUnits >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+          <p className={`mt-2 text-xs font-bold ${totalUnits >= 0 ? "text-emerald-700" : "text-red-700"}`}>
             Ton score actuel : {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}U
           </p>
         </div>
@@ -95,17 +103,21 @@ export default function ConcoursWidget({ userId, locale }: { userId: string; loc
     // Cas 3 : 1er du classement
     if (rank === 1) {
       return (
-        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-400 bg-emerald-50" : "border-amber-400 bg-amber-50"} p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-500" : "border-amber-500"} p-4 shadow-md`} style={{
+          background: isWeek
+            ? "linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%)"
+            : "linear-gradient(135deg, #fde68a 0%, #fcd34d 100%)"
+        }}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-900" : "text-amber-900"}`}>
             {icon} {label} — {prize}€
           </p>
           <p className="mt-2 text-lg font-black text-neutral-900">
             🥇 Tu es 1er !
           </p>
-          <p className="mt-1 text-xs text-neutral-600">
+          <p className="mt-1 text-xs text-neutral-800">
             +{totalUnits.toFixed(2)}U · {totalPicks} pick{totalPicks > 1 ? "s" : ""}
           </p>
-          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-900" : "text-amber-900"}`}>
             Continue comme ça, {prize}€ en jeu 🎯
           </p>
         </div>
@@ -114,20 +126,24 @@ export default function ConcoursWidget({ userId, locale }: { userId: string; loc
 
     // Cas 4 : Classé mais pas 1er
     return (
-      <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200" : "border-amber-200"} bg-white p-4`}>
-        <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+      <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-300" : "border-amber-300"} p-4 shadow-sm`} style={{
+        background: isWeek
+          ? "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+          : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+      }}>
+        <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-800" : "text-amber-800"}`}>
           {icon} {label} — {prize}€
         </p>
         <p className="mt-2 text-lg font-black text-neutral-900">
           Tu es {rank}
-          <span className="text-xs font-bold text-neutral-400">e</span>
-          <span className="text-xs font-bold text-neutral-400 ml-1">/ {totalParticipants}</span>
+          <span className="text-xs font-bold text-neutral-500">e</span>
+          <span className="text-xs font-bold text-neutral-500 ml-1">/ {totalParticipants}</span>
         </p>
-        <p className="mt-1 text-xs text-neutral-600">
+        <p className="mt-1 text-xs text-neutral-700">
           {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}U · {totalPicks} pick{totalPicks > 1 ? "s" : ""}
         </p>
         {gap > 0 && (
-          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-800" : "text-amber-800"}`}>
             +{gap.toFixed(2)}U pour passer 1er
           </p>
         )}
