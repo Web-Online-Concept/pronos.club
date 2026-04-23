@@ -23,7 +23,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const TELEGRAM_BOT_TOKEN = process.env.TIPSTERS_TELEGRAM_BOT_TOKEN;
-const TELEGRAM_PUBLIC_CHANNEL = process.env.TIPSTERS_TELEGRAM_CHANNEL;
+const TELEGRAM_PUBLIC_CHANNEL = process.env.TIPSTERS_TELEGRAM_CHANNEL; // ex: @pronos_abonnes_club
 
 type Pick = {
   id: string;
@@ -42,12 +42,9 @@ type Tipster = {
 
 // ── Helpers ──
 async function sendTelegramMessage(chatId: string | number, text: string) {
-  if (!TELEGRAM_BOT_TOKEN) {
-    console.warn("[telegram] BOT_TOKEN manquant - skip message");
-    return;
-  }
+  if (!TELEGRAM_BOT_TOKEN) return;
   try {
-    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -57,14 +54,8 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
         disable_web_page_preview: false,
       }),
     });
-    const data = await response.json();
-    if (!data.ok) {
-      console.error(`[telegram] ECHEC chat=${chatId}:`, data);
-    } else {
-      console.log(`[telegram] OK chat=${chatId}`);
-    }
   } catch (err) {
-    console.error("[telegram] exception:", err);
+    console.error("[telegram] error:", err);
   }
 }
 
@@ -100,6 +91,7 @@ async function sendPush(userId: string, payload: any) {
           JSON.stringify(payload)
         );
       } catch (err: any) {
+        // 410 = subscription dead, on supprime
         if (err?.statusCode === 410 || err?.statusCode === 404 || err?.statusCode === 403) {
           await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
         }
@@ -112,10 +104,6 @@ async function sendPush(userId: string, payload: any) {
 
 // ── Main : envoie les notifs pour un nouveau pick ──
 export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
-  console.log(`[notify] START pick=${pick.id} tipster=${tipster.pseudo}`);
-  console.log(`[notify] env TIPSTERS_TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN ? "OUI (" + TELEGRAM_BOT_TOKEN.length + " chars)" : "NON"}`);
-  console.log(`[notify] env TIPSTERS_TELEGRAM_CHANNEL=${TELEGRAM_PUBLIC_CHANNEL || "NON"}`);
-
   const matchDate = new Date(pick.match_date);
   const matchDateStr = matchDate.toLocaleString("fr-FR", {
     day: "numeric",
@@ -128,23 +116,25 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   const profileUrl = `https://pronos.club/fr/pronos-abonnes/${encodeURIComponent(tipster.pseudo)}`;
 
   // ═════════════════════════════════════
-  // 1. CANAL PUBLIC TELEGRAM
+  // 1. CANAL PUBLIC TELEGRAM (si configé)
   // ═════════════════════════════════════
   if (TELEGRAM_PUBLIC_CHANNEL) {
-    console.log(`[notify] Envoi canal public ${TELEGRAM_PUBLIC_CHANNEL}`);
     const publicMsg =
       `🎯 <b>Nouveau prono de ${tipster.pseudo}</b>\n\n` +
       `📅 ${matchDateStr}\n` +
       `🏅 ${pick.sport}\n\n` +
       `👉 <a href="${publicUrl}">pronos.club/fr/pronos-abonnes/en-cours</a>`;
     await sendTelegramMessage(TELEGRAM_PUBLIC_CHANNEL, publicMsg);
-  } else {
-    console.warn(`[notify] TELEGRAM_PUBLIC_CHANNEL non configure - canal public skip`);
   }
 
   // ═════════════════════════════════════
   // 2. NOTIFS PERSONNALISEES AUX ABONNES
   // ═════════════════════════════════════
+  // Récupérer tous les abonnés à notifier :
+  // - Mode "all" : tous les users premium avec prefs en "all"
+  // - Mode "selected" : les followers de ce tipster spécifiquement
+
+  // 2a. Users en mode "all"
   const { data: allModeUsers } = await supabaseAdmin
     .from("tipster_notif_prefs")
     .select(`
@@ -157,6 +147,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     `)
     .eq("mode", "all");
 
+  // 2b. Users en mode "selected" qui suivent ce tipster
   const { data: followers } = await supabaseAdmin
     .from("tipster_follows")
     .select(`
@@ -174,8 +165,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     `)
     .eq("tipster_id", tipster.id);
 
-  console.log(`[notify] ${allModeUsers?.length || 0} users en mode all, ${followers?.length || 0} followers`);
-
+  // Construire la liste finale (dédoublonner)
   const toNotify = new Map<string, {
     userId: string;
     pseudo: string;
@@ -187,10 +177,11 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     usePush: boolean;
   }>();
 
+  // Mode "all"
   for (const pref of allModeUsers || []) {
     const u = (pref as any).users;
     if (!u) continue;
-    if (u.id === tipster.id) continue;
+    if (u.id === tipster.id) continue; // ne pas se notifier soi-même
     const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
     if (!premium) continue;
 
@@ -206,6 +197,8 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     });
   }
 
+  // Mode "selected" : les followers
+  // On doit croiser avec leurs prefs globales (is mode "selected" et canaux globaux activés)
   const followerIds = (followers || []).map((f: any) => f.follower_id);
   if (followerIds.length > 0) {
     const { data: followerPrefs } = await supabaseAdmin
@@ -223,14 +216,15 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       const u = (follow as any).user;
       if (!u) continue;
       if (u.id === tipster.id) continue;
-      if (toNotify.has(u.id)) continue;
+      if (toNotify.has(u.id)) continue; // déjà notifié via mode "all"
 
       const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
       if (!premium) continue;
 
       const globalPref = prefsMap.get(u.id);
-      if (!globalPref) continue;
+      if (!globalPref) continue; // pas en mode "selected"
 
+      // Croiser préfs globales ET override par tipster
       toNotify.set(u.id, {
         userId: u.id,
         pseudo: u.pseudo || "",
@@ -244,12 +238,11 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     }
   }
 
-  console.log(`[notify] ${toNotify.size} users a notifier`);
-
   // ═════════════════════════════════════
-  // 3. ENVOI
+  // 3. ENVOI AUX ABONNÉS
   // ═════════════════════════════════════
   for (const [, n] of toNotify) {
+    // Email
     if (n.useEmail && n.email) {
       const emailSubject = `🎯 Nouveau prono de ${tipster.pseudo}`;
       const emailHtml = `
@@ -281,6 +274,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       await sendEmail(n.email, emailSubject, emailHtml);
     }
 
+    // Telegram DM
     if (n.useTelegram && n.telegramChatId) {
       const tgMsg =
         `🎯 <b>Nouveau prono de ${tipster.pseudo}</b>\n\n` +
@@ -290,6 +284,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       await sendTelegramMessage(n.telegramChatId, tgMsg);
     }
 
+    // Push
     if (n.usePush) {
       await sendPush(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,
@@ -300,6 +295,4 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       });
     }
   }
-
-  console.log(`[notify] END pick=${pick.id}`);
 }
