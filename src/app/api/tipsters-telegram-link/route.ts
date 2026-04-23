@@ -1,5 +1,5 @@
 // src/app/api/tipsters-telegram-link/route.ts
-// Ge\u0301ne\u0300re un token temporaire pour lier un chat_id Telegram
+// Génère un token temporaire pour lier un chat_id Telegram
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -16,13 +16,13 @@ async function getAuthUser() {
   return user;
 }
 
-// ── POST : ge\u0301ne\u0300re un token unique (valable 15 min) ──
+// ── POST : génère un token unique (valable 15 min) ──
 export async function POST() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    // Token al\u00e9atoire 8 caracte\u0300res
+    // Token aléatoire 8 caractères
     const token = Math.random().toString(36).slice(2, 10).toUpperCase();
     const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
@@ -49,7 +49,7 @@ export async function POST() {
   }
 }
 
-// ── DELETE : d\u00e9lier le chat_id ──
+// ── DELETE : délier le chat_id ──
 export async function DELETE() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,7 +71,7 @@ export async function DELETE() {
   }
 }
 
-// ── GET : statut actuel (li\u00e9 ou pas) ──
+// ── GET : statut actuel (lié ou pas) ──
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

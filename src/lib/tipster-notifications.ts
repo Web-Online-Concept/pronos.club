@@ -116,7 +116,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   const profileUrl = `https://pronos.club/fr/pronos-abonnes/${encodeURIComponent(tipster.pseudo)}`;
 
   // ═════════════════════════════════════
-  // 1. CANAL PUBLIC TELEGRAM (si config\u00e9)
+  // 1. CANAL PUBLIC TELEGRAM (si configé)
   // ═════════════════════════════════════
   if (TELEGRAM_PUBLIC_CHANNEL) {
     const publicMsg =
@@ -130,9 +130,9 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 2. NOTIFS PERSONNALISEES AUX ABONNES
   // ═════════════════════════════════════
-  // R\u00e9cup\u00e9rer tous les abonn\u00e9s \u00e0 notifier :
+  // Récupérer tous les abonnés à notifier :
   // - Mode "all" : tous les users premium avec prefs en "all"
-  // - Mode "selected" : les followers de ce tipster spe\u0301cifiquement
+  // - Mode "selected" : les followers de ce tipster spécifiquement
 
   // 2a. Users en mode "all"
   const { data: allModeUsers } = await supabaseAdmin
@@ -165,7 +165,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     `)
     .eq("tipster_id", tipster.id);
 
-  // Construire la liste finale (de\u0301doublonner)
+  // Construire la liste finale (dédoublonner)
   const toNotify = new Map<string, {
     userId: string;
     pseudo: string;
@@ -181,7 +181,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   for (const pref of allModeUsers || []) {
     const u = (pref as any).users;
     if (!u) continue;
-    if (u.id === tipster.id) continue; // ne pas se notifier soi-m\u00eame
+    if (u.id === tipster.id) continue; // ne pas se notifier soi-même
     const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
     if (!premium) continue;
 
@@ -198,7 +198,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   }
 
   // Mode "selected" : les followers
-  // On doit croiser avec leurs prefs globales (is mode "selected" et canaux globaux activ\u00e9s)
+  // On doit croiser avec leurs prefs globales (is mode "selected" et canaux globaux activés)
   const followerIds = (followers || []).map((f: any) => f.follower_id);
   if (followerIds.length > 0) {
     const { data: followerPrefs } = await supabaseAdmin
@@ -216,7 +216,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       const u = (follow as any).user;
       if (!u) continue;
       if (u.id === tipster.id) continue;
-      if (toNotify.has(u.id)) continue; // d\u00e9j\u00e0 notifi\u00e9 via mode "all"
+      if (toNotify.has(u.id)) continue; // déjà notifié via mode "all"
 
       const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
       if (!premium) continue;
@@ -224,7 +224,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       const globalPref = prefsMap.get(u.id);
       if (!globalPref) continue; // pas en mode "selected"
 
-      // Croiser pr\u00e9fs globales ET override par tipster
+      // Croiser préfs globales ET override par tipster
       toNotify.set(u.id, {
         userId: u.id,
         pseudo: u.pseudo || "",
@@ -239,7 +239,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   }
 
   // ═════════════════════════════════════
-  // 3. ENVOI AUX ABONN\u00c9S
+  // 3. ENVOI AUX ABONNÉS
   // ═════════════════════════════════════
   for (const [, n] of toNotify) {
     // Email

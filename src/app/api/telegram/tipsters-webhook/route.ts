@@ -1,6 +1,6 @@
 // src/app/api/telegram/tipsters-webhook/route.ts
 // Webhook pour le bot Telegram @pronos_abonnes_club_bot
-// R\u00e9pond aux commandes /start <token> pour lier un chat_id \u00e0 un user
+// Répond aux commandes /start <token> pour lier un chat_id à un user
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     if (!chatId) return NextResponse.json({ ok: true });
 
-    // Commande /start <token> : lier ce chat_id \u00e0 un user
+    // Commande /start <token> : lier ce chat_id à un user
     if (text.startsWith("/start")) {
       const parts = text.split(" ");
       const token = parts[1];
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // V\u00e9rifier le token (chercher un user qui a ce token temporaire)
+      // Vérifier le token (chercher un user qui a ce token temporaire)
       const { data: user } = await supabaseAdmin
         .from("users")
         .select("id, pseudo, tipsters_telegram_link_token, tipsters_telegram_link_expires")
@@ -64,15 +64,15 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (!user) {
-        await sendMessage(chatId, `❌ Code invalide. Ge\u0301ne\u0300re un nouveau code sur PRONOS.CLUB.`);
+        await sendMessage(chatId, `❌ Code invalide. Génère un nouveau code sur PRONOS.CLUB.`);
         return NextResponse.json({ ok: true });
       }
 
-      // V\u00e9rifier expiration (15 min)
+      // Vérifier expiration (15 min)
       if (user.tipsters_telegram_link_expires) {
         const expiresAt = new Date(user.tipsters_telegram_link_expires).getTime();
         if (Date.now() > expiresAt) {
-          await sendMessage(chatId, `❌ Code expiré. Ge\u0301ne\u0300re un nouveau code sur PRONOS.CLUB.`);
+          await sendMessage(chatId, `❌ Code expiré. Génère un nouveau code sur PRONOS.CLUB.`);
           return NextResponse.json({ ok: true });
         }
       }
@@ -91,13 +91,13 @@ export async function POST(req: NextRequest) {
         chatId,
         `✅ <b>Compte lié avec succès !</b>\n\n` +
         `Salut ${user.pseudo || ""} ! Tu recevras maintenant les pronostics des tipsters selon tes préférences.\n\n` +
-        `🔧 Ge\u0300re tes pre\u0301fe\u0301rences sur <a href="https://pronos.club/fr/espace/notifications">pronos.club/espace/notifications</a>`
+        `🔧 Gère tes préférences sur <a href="https://pronos.club/fr/espace/notifications">pronos.club/espace/notifications</a>`
       );
 
       return NextResponse.json({ ok: true });
     }
 
-    // Commande /stop : d\u00e9lier le compte
+    // Commande /stop : délier le compte
     if (text.startsWith("/stop")) {
       const { data: user } = await supabaseAdmin
         .from("users")

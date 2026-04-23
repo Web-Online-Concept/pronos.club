@@ -17,12 +17,12 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
   useEffect(() => {
     if (!tipsterId) return;
 
-    // R\u00e9cup\u00e9rer le nombre de followers (public)
+    // Récupérer le nombre de followers (public)
     fetch(`/api/tipster-follows?action=count&tipster_id=${tipsterId}`)
       .then((r) => r.json())
       .then((d) => setCount(d.count || 0));
 
-    // V\u00e9rifier si le user connect\u00e9 suit
+    // Vérifier si le user connecté suit
     if (user) {
       fetch(`/api/tipster-follows?action=check&tipster_id=${tipsterId}`)
         .then((r) => r.json())
@@ -39,7 +39,7 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
     if (!user || !isPremium) return;
 
     if (following) {
-      // D\u00e9suivre
+      // Désuivre
       await fetch(`/api/tipster-follows?tipster_id=${tipsterId}`, { method: "DELETE" });
       setFollowing(false);
       setCount(Math.max(0, count - 1));

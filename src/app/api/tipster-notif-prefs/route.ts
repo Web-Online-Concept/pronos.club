@@ -1,5 +1,5 @@
 // src/app/api/tipster-notif-prefs/route.ts
-// Pr\u00e9f\u00e9rences globales de notifs Pronos Abonn\u00e9s
+// Préférences globales de notifs Pronos Abonnés
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +16,7 @@ async function getAuthUser() {
   return user;
 }
 
-// ── GET : r\u00e9cup\u00e9rer les prefs du user connect\u00e9 ──
+// ── GET : récupérer les prefs du user connecté ──
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,7 +29,7 @@ export async function GET() {
       .maybeSingle();
 
     if (!data) {
-      // Pas encore de prefs : retourner les valeurs par d\u00e9faut
+      // Pas encore de prefs : retourner les valeurs par défaut
       return NextResponse.json({
         prefs: {
           mode: "none",
@@ -47,7 +47,7 @@ export async function GET() {
   }
 }
 
-// ── PATCH : mettre \u00e0 jour les prefs ──
+// ── PATCH : mettre à jour les prefs ──
 export async function PATCH(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
     if (typeof channel_telegram === "boolean") updateData.channel_telegram = channel_telegram;
     if (typeof channel_push === "boolean") updateData.channel_push = channel_push;
 
-    // Upsert : cr\u00e9e la ligne si elle n'existe pas
+    // Upsert : crée la ligne si elle n'existe pas
     const { data: existing } = await supabaseAdmin
       .from("tipster_notif_prefs")
       .select("user_id")

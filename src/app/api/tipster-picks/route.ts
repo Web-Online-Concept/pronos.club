@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Erreur création" }, { status: 500 });
     }
 
-    // D\u00e9clencher les notifs aux followers (fire-and-forget, pas d'await pour ne pas bloquer la r\u00e9ponse)
+    // Déclencher les notifs aux followers (fire-and-forget, pas d'await pour ne pas bloquer la réponse)
     notifyFollowersOfNewPick(pick, {
       id: user.id,
       pseudo: user.pseudo || "TIPSTER",

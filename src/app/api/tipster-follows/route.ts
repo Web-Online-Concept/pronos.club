@@ -1,5 +1,5 @@
 // src/app/api/tipster-follows/route.ts
-// Gestion des follows (suivre/d\u00e9suivre un tipster + lister ses follows)
+// Gestion des follows (suivre/désuivre un tipster + lister ses follows)
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +16,7 @@ async function getAuthUser() {
   return user;
 }
 
-// ── GET : lister les tipsters suivis par le user connect\u00e9 + stats d'un tipster ──
+// ── GET : lister les tipsters suivis par le user connecté + stats d'un tipster ──
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action") || "my_follows";
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === "check") {
-    // V\u00e9rifier si l'user connect\u00e9 suit un tipster pr\u00e9cis
+    // Vérifier si l'user connecté suit un tipster précis
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ following: false });
 
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { tipster_id } = body;
   if (!tipster_id) return NextResponse.json({ error: "Missing tipster_id" }, { status: 400 });
-  if (tipster_id === user.id) return NextResponse.json({ error: "Tu ne peux pas te suivre toi-m\u00eame" }, { status: 400 });
+  if (tipster_id === user.id) return NextResponse.json({ error: "Tu ne peux pas te suivre toi-même" }, { status: 400 });
 
   try {
     const { error } = await supabaseAdmin
@@ -153,7 +153,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ── DELETE : d\u00e9suivre un tipster ──
+// ── DELETE : désuivre un tipster ──
 export async function DELETE(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
