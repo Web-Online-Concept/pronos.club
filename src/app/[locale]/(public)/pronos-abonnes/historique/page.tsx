@@ -92,6 +92,12 @@ export default function PronosAbonnesHistoriquePage() {
             >
               Classement
             </Link>
+            <Link
+              href={`/${locale}/pronos-abonnes/concours`}
+              className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900"
+            >
+              🏆 Concours
+            </Link>
           </div>
         </div>
       </div>
