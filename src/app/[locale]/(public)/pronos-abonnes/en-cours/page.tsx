@@ -7,6 +7,7 @@ import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 import ConcoursWidget from "@/components/tipster/ConcoursWidget";
+import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type Pick = any;
 
@@ -65,37 +66,7 @@ export default function PronosAbonnesEnCoursPage() {
         </div>
       </div>
 
-      {/* Subnav */}
-      <div className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex justify-center gap-1 overflow-x-auto">
-            <Link
-              href={`/${locale}/pronos-abonnes/en-cours`}
-              className="whitespace-nowrap border-b-2 border-emerald-500 px-4 py-3 text-sm font-bold text-emerald-600"
-            >
-              En cours
-            </Link>
-            <Link
-              href={`/${locale}/pronos-abonnes/historique`}
-              className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900"
-            >
-              Historique
-            </Link>
-            <Link
-              href={`/${locale}/pronos-abonnes/classement`}
-              className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900"
-            >
-              Classement
-            </Link>
-            <Link
-              href={`/${locale}/pronos-abonnes/concours`}
-              className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900"
-            >
-              🏆 Concours
-            </Link>
-          </div>
-        </div>
-      </div>
+      <PronosAbonnesNav active="en-cours" locale={locale} />
 
       {/* Filter bar (premium only) */}
       {isPremium && (

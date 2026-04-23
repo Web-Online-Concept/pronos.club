@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
+import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type Config = {
   week: { prize_amount: number; min_picks: number; active: boolean };
@@ -43,24 +44,7 @@ export default function FonctionnementPage() {
         </div>
       </div>
 
-      <div className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex justify-center gap-1 overflow-x-auto">
-            <Link href={`/${locale}/pronos-abonnes/en-cours`} className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900">
-              En cours
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/historique`} className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900">
-              Historique
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/classement`} className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900">
-              Classement
-            </Link>
-            <Link href={`/${locale}/pronos-abonnes/concours`} className="whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-bold text-neutral-500 transition hover:text-neutral-900">
-              🏆 Concours
-            </Link>
-          </div>
-        </div>
-      </div>
+      <PronosAbonnesNav active="fonctionnement" locale={locale} />
 
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="space-y-4">
