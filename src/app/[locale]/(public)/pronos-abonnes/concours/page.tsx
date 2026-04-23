@@ -72,26 +72,33 @@ export default function ConcoursPage() {
 
   function Podium({ data, type }: { data: PeriodData; type: "week" | "month" }) {
     const top = data.ranking.slice(0, 3);
-    const color = type === "week" ? "#10b981" : "#fbbf24";
+    const isWeek = type === "week";
+    const color = isWeek ? "#10b981" : "#f59e0b";
+
+    const cardStyle = isWeek
+      ? { background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)" }
+      : { background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" };
+
+    const borderClass = isWeek ? "border-emerald-300" : "border-amber-300";
 
     return (
-      <div className="rounded-3xl bg-white border border-neutral-200 p-6 shadow-sm">
+      <div className={`rounded-3xl border-2 ${borderClass} p-6 shadow-md`} style={cardStyle}>
         <div className="text-center mb-6">
-          <div className="inline-block rounded-full px-4 py-1" style={{ background: type === "week" ? "rgba(16,185,129,0.1)" : "rgba(251,191,36,0.1)", color: type === "week" ? "#047857" : "#92400e" }}>
+          <div className="inline-block rounded-full px-4 py-1" style={{ background: isWeek ? "rgba(16,185,129,0.2)" : "rgba(251,191,36,0.2)", color: isWeek ? "#047857" : "#92400e" }}>
             <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">
-              {type === "week" ? "🏆 Semaine" : "👑 Mois"}
+              {isWeek ? "🏆 Semaine" : "👑 Mois"}
             </span>
           </div>
           <h3 className="mt-3 text-lg font-black text-neutral-900">
             {formatPeriod(data.period_start, data.period_end, type)}
           </h3>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-neutral-600">
             Minimum {data.min_picks} picks · Gain : <span className="font-extrabold" style={{ color }}>{data.prize}€</span>
           </p>
         </div>
 
         {top.length === 0 ? (
-          <div className="py-10 text-center text-sm text-neutral-400">
+          <div className="py-10 text-center text-sm text-neutral-500">
             Aucun tipster éligible pour le moment.
           </div>
         ) : (
@@ -100,9 +107,8 @@ export default function ConcoursPage() {
               <div
                 key={entry.user_id}
                 className={`flex items-center gap-3 rounded-xl p-3 ${
-                  i === 0 ? "bg-gradient-to-r from-amber-50 to-white border-2 border-amber-300" :
-                  i === 1 ? "bg-neutral-50 border border-neutral-200" :
-                  "bg-neutral-50 border border-neutral-200"
+                  i === 0 ? "bg-white border-2 border-amber-400 shadow" :
+                  "bg-white border border-neutral-200"
                 }`}
               >
                 <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-black ${
@@ -142,24 +148,24 @@ export default function ConcoursPage() {
 
         {data.ranking.length > 3 && (
           <details className="mt-4">
-            <summary className="cursor-pointer text-xs font-bold text-neutral-500 hover:text-neutral-900">
+            <summary className="cursor-pointer text-xs font-bold text-neutral-600 hover:text-neutral-900">
               Voir tous les éligibles ({data.ranking.length})
             </summary>
             <div className="mt-2 space-y-1">
               {data.ranking.slice(3).map((entry) => (
-                <div key={entry.user_id} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-neutral-50">
+                <div key={entry.user_id} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-white/50">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-neutral-400 w-5">{entry.rank}</span>
+                    <span className="text-xs font-bold text-neutral-500 w-5">{entry.rank}</span>
                     <Link
                       href={`/${locale}/pronos-abonnes/${encodeURIComponent(entry.pseudo)}`}
-                      className="text-sm font-bold text-neutral-700 hover:text-emerald-600"
+                      className="text-sm font-bold text-neutral-800 hover:text-emerald-700"
                     >
                       {entry.pseudo}
                     </Link>
-                    <span className="text-[10px] text-neutral-400">({entry.total_picks} picks)</span>
+                    <span className="text-[10px] text-neutral-500">({entry.total_picks} picks)</span>
                   </div>
                   <span className={`text-sm font-bold tabular-nums ${
-                    entry.total_units > 0 ? "text-emerald-600" : entry.total_units < 0 ? "text-red-600" : "text-neutral-400"
+                    entry.total_units > 0 ? "text-emerald-700" : entry.total_units < 0 ? "text-red-600" : "text-neutral-500"
                   }`}>
                     {entry.total_units >= 0 ? "+" : ""}{entry.total_units.toFixed(2)}U
                   </span>
@@ -171,14 +177,14 @@ export default function ConcoursPage() {
 
         {data.non_eligible.length > 0 && (
           <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-bold text-neutral-400 hover:text-neutral-900">
+            <summary className="cursor-pointer text-xs font-bold text-neutral-500 hover:text-neutral-900">
               Non éligibles ({data.non_eligible.length}) — pas assez de picks
             </summary>
             <div className="mt-2 space-y-1">
               {data.non_eligible.map((entry) => (
-                <div key={entry.user_id} className="flex items-center justify-between py-1.5 px-3 text-neutral-400">
+                <div key={entry.user_id} className="flex items-center justify-between py-1.5 px-3 text-neutral-500">
                   <span className="text-xs">
-                    {entry.pseudo} <span className="text-red-400">({entry.total_picks}/{data.min_picks} picks)</span>
+                    {entry.pseudo} <span className="text-red-500">({entry.total_picks}/{data.min_picks} picks)</span>
                   </span>
                   <span className="text-xs tabular-nums">
                     {entry.total_units >= 0 ? "+" : ""}{entry.total_units.toFixed(2)}U
