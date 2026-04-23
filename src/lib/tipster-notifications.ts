@@ -1,17 +1,15 @@
 // src/lib/tipster-notifications.ts
 // Envoie les notifications aux followers quand un tipster publie un pick
-// 3 canaux : Email (Resend) + Telegram (bot + canal public) + Push (web-push)
+// 3 canaux : Email (Brevo via emails.ts) + Telegram (bot + canal public) + Push (web-push)
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
 import webpush from "web-push";
+import { sendTipsterNewPickEmail } from "@/lib/emails";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Configurer web-push
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -23,7 +21,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const TELEGRAM_BOT_TOKEN = process.env.TIPSTERS_TELEGRAM_BOT_TOKEN;
-const TELEGRAM_PUBLIC_CHANNEL = process.env.TIPSTERS_TELEGRAM_CHANNEL; // ex: @pronos_abonnes_club
+const TELEGRAM_PUBLIC_CHANNEL = process.env.TIPSTERS_TELEGRAM_CHANNEL;
 
 type Pick = {
   id: string;
@@ -32,6 +30,7 @@ type Pick = {
   odds: number;
   pick_type: string;
   match_date: string;
+  bookmaker?: string | null;
 };
 
 type Tipster = {
@@ -40,7 +39,7 @@ type Tipster = {
   avatar_url: string | null;
 };
 
-// ── Helpers ──
+// ── Helper Telegram ──
 async function sendTelegramMessage(chatId: string | number, text: string) {
   if (!TELEGRAM_BOT_TOKEN) return;
   try {
@@ -59,21 +58,7 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
   }
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  if (!resend) return;
-  try {
-    await resend.emails.send({
-      from: "PRONOS.CLUB <noreply@pronos.club>",
-      to,
-      replyTo: "contact@pronos.club",
-      subject,
-      html,
-    });
-  } catch (err) {
-    console.error("[email] error:", err);
-  }
-}
-
+// ── Helper Push ──
 async function sendPush(userId: string, payload: any) {
   try {
     const { data: subs } = await supabaseAdmin
@@ -91,7 +76,6 @@ async function sendPush(userId: string, payload: any) {
           JSON.stringify(payload)
         );
       } catch (err: any) {
-        // 410 = subscription dead, on supprime
         if (err?.statusCode === 410 || err?.statusCode === 404 || err?.statusCode === 403) {
           await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
         }
@@ -113,10 +97,9 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   });
 
   const publicUrl = `https://pronos.club/fr/pronos-abonnes/en-cours`;
-  const profileUrl = `https://pronos.club/fr/pronos-abonnes/${encodeURIComponent(tipster.pseudo)}`;
 
   // ═════════════════════════════════════
-  // 1. CANAL PUBLIC TELEGRAM (si configé)
+  // 1. CANAL PUBLIC TELEGRAM
   // ═════════════════════════════════════
   if (TELEGRAM_PUBLIC_CHANNEL) {
     const publicMsg =
@@ -130,11 +113,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 2. NOTIFS PERSONNALISEES AUX ABONNES
   // ═════════════════════════════════════
-  // Récupérer tous les abonnés à notifier :
-  // - Mode "all" : tous les users premium avec prefs en "all"
-  // - Mode "selected" : les followers de ce tipster spécifiquement
-
-  // 2a. Users en mode "all"
   const { data: allModeUsers } = await supabaseAdmin
     .from("tipster_notif_prefs")
     .select(`
@@ -147,7 +125,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     `)
     .eq("mode", "all");
 
-  // 2b. Users en mode "selected" qui suivent ce tipster
   const { data: followers } = await supabaseAdmin
     .from("tipster_follows")
     .select(`
@@ -165,7 +142,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     `)
     .eq("tipster_id", tipster.id);
 
-  // Construire la liste finale (dédoublonner)
   const toNotify = new Map<string, {
     userId: string;
     pseudo: string;
@@ -181,7 +157,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   for (const pref of allModeUsers || []) {
     const u = (pref as any).users;
     if (!u) continue;
-    if (u.id === tipster.id) continue; // ne pas se notifier soi-même
+    if (u.id === tipster.id) continue;
     const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
     if (!premium) continue;
 
@@ -197,8 +173,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     });
   }
 
-  // Mode "selected" : les followers
-  // On doit croiser avec leurs prefs globales (is mode "selected" et canaux globaux activés)
+  // Mode "selected"
   const followerIds = (followers || []).map((f: any) => f.follower_id);
   if (followerIds.length > 0) {
     const { data: followerPrefs } = await supabaseAdmin
@@ -216,15 +191,14 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       const u = (follow as any).user;
       if (!u) continue;
       if (u.id === tipster.id) continue;
-      if (toNotify.has(u.id)) continue; // déjà notifié via mode "all"
+      if (toNotify.has(u.id)) continue;
 
       const premium = u.subscription_status === "active" || u.subscription_status === "trialing";
       if (!premium) continue;
 
       const globalPref = prefsMap.get(u.id);
-      if (!globalPref) continue; // pas en mode "selected"
+      if (!globalPref) continue;
 
-      // Croiser préfs globales ET override par tipster
       toNotify.set(u.id, {
         userId: u.id,
         pseudo: u.pseudo || "",
@@ -239,39 +213,17 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   }
 
   // ═════════════════════════════════════
-  // 3. ENVOI AUX ABONNÉS
+  // 3. ENVOI
   // ═════════════════════════════════════
   for (const [, n] of toNotify) {
-    // Email
+    // Email via Brevo (emails.ts)
     if (n.useEmail && n.email) {
-      const emailSubject = `🎯 Nouveau prono de ${tipster.pseudo}`;
-      const emailHtml = `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#fff;color:#0a0a0a;padding:32px 24px;">
-  <div style="text-align:center;margin-bottom:24px;">
-    <p style="font-size:11px;font-weight:800;letter-spacing:0.3em;text-transform:uppercase;color:#10b981;margin:0;">🎯 PRONOS ABONNÉS</p>
-    <h1 style="font-size:22px;font-weight:900;margin:8px 0 0;color:#0a0a0a;">Nouveau pronostic !</h1>
-  </div>
-
-  <div style="background:linear-gradient(135deg,#0a0a0a 0%,#062e1f 100%);border-radius:16px;padding:24px;text-align:center;color:#fff;">
-    <p style="font-size:13px;color:rgba(255,255,255,0.6);margin:0;">vient de poster un pronostic</p>
-    <h2 style="font-size:28px;font-weight:900;margin:12px 0;color:#34d399;">${tipster.pseudo}</h2>
-    <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:12px;padding:12px 20px;margin-top:8px;">
-      <p style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6ee7b7;margin:0 0 4px;">1er match</p>
-      <p style="font-size:18px;font-weight:800;color:#fff;margin:0;">${matchDateStr}</p>
-      <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:4px 0 0;">${pick.sport}</p>
-    </div>
-  </div>
-
-  <div style="text-align:center;margin-top:24px;">
-    <a href="${publicUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px;">🎯 Voir le pronostic</a>
-  </div>
-
-  <p style="text-align:center;font-size:11px;color:#9ca3af;margin-top:32px;">
-    Tu reçois cet email car tu es abonné aux notifications Pronos Abonnés.
-    <br><a href="https://pronos.club/fr/espace/notifications" style="color:#10b981;text-decoration:none;">Gérer mes préférences</a>
-  </p>
-</div>`;
-      await sendEmail(n.email, emailSubject, emailHtml);
+      await sendTipsterNewPickEmail(n.email, "fr", {
+        pseudo: tipster.pseudo,
+        matchDate: matchDateStr,
+        sport: pick.sport,
+        bookmaker: pick.bookmaker || "Non précisé",
+      });
     }
 
     // Telegram DM
@@ -279,8 +231,9 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       const tgMsg =
         `🎯 <b>Nouveau prono de ${tipster.pseudo}</b>\n\n` +
         `📅 Match : ${matchDateStr}\n` +
-        `🏅 Sport : ${pick.sport}\n\n` +
-        `👉 <a href="${publicUrl}">Voir sur PRONOS.CLUB</a>`;
+        `🏅 Sport : ${pick.sport}\n` +
+        (pick.bookmaker ? `🏦 Bookmaker : ${pick.bookmaker}\n` : "") +
+        `\n👉 <a href="${publicUrl}">Voir sur PRONOS.CLUB</a>`;
       await sendTelegramMessage(n.telegramChatId, tgMsg);
     }
 

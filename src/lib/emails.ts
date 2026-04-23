@@ -98,6 +98,16 @@ const T: Record<Locale, Record<string, string>> = {
     bilan_title: "Bilan {month}",
     bilan_intro: "Bonjour {name}, le bilan du mois est disponible !",
     bilan_btn: "Lire le bilan complet →",
+    // 10. Nouveau pick tipster abonné
+    tipster_pick_subject: "🎯 Nouveau prono de {pseudo}",
+    tipster_pick_preheader: "{pseudo} vient de poster un nouveau pronostic",
+    tipster_pick_title: "Nouveau pronostic !",
+    tipster_pick_intro: "<strong>{pseudo}</strong> vient de poster un pronostic.",
+    tipster_pick_match: "📅 <strong>Match :</strong> {date}",
+    tipster_pick_sport: "🏅 <strong>Sport :</strong> {sport}",
+    tipster_pick_bookmaker: "🏦 <strong>Bookmaker :</strong> {bookmaker}",
+    tipster_pick_btn: "Voir le pronostic →",
+    tipster_pick_footer: "Tu reçois cet email car tu es abonné aux notifications Pronos Abonnés. Gère tes préférences dans ton espace personnel.",
   },
   en: {
     footer_brand: "PRONOS.CLUB — Professional sports predictions",
@@ -172,6 +182,15 @@ const T: Record<Locale, Record<string, string>> = {
     bilan_title: "{month} Report",
     bilan_intro: "Hello {name}, the monthly report is available!",
     bilan_btn: "Read the full report →",
+    tipster_pick_subject: "🎯 New pick from {pseudo}",
+    tipster_pick_preheader: "{pseudo} just posted a new pick",
+    tipster_pick_title: "New pick!",
+    tipster_pick_intro: "<strong>{pseudo}</strong> just posted a new pick.",
+    tipster_pick_match: "📅 <strong>Match:</strong> {date}",
+    tipster_pick_sport: "🏅 <strong>Sport:</strong> {sport}",
+    tipster_pick_bookmaker: "🏦 <strong>Bookmaker:</strong> {bookmaker}",
+    tipster_pick_btn: "View the pick →",
+    tipster_pick_footer: "You receive this email because you subscribed to Pronos Abonnés notifications. Manage your preferences in your personal space.",
   },
   es: {
     footer_brand: "PRONOS.CLUB — Pronósticos deportivos profesionales",
@@ -246,6 +265,15 @@ const T: Record<Locale, Record<string, string>> = {
     bilan_title: "Informe {month}",
     bilan_intro: "Hola {name}, ¡el informe mensual está disponible!",
     bilan_btn: "Leer el informe completo →",
+    tipster_pick_subject: "🎯 Nuevo pronóstico de {pseudo}",
+    tipster_pick_preheader: "{pseudo} acaba de publicar un nuevo pronóstico",
+    tipster_pick_title: "¡Nuevo pronóstico!",
+    tipster_pick_intro: "<strong>{pseudo}</strong> acaba de publicar un pronóstico.",
+    tipster_pick_match: "📅 <strong>Partido:</strong> {date}",
+    tipster_pick_sport: "🏅 <strong>Deporte:</strong> {sport}",
+    tipster_pick_bookmaker: "🏦 <strong>Casa de apuestas:</strong> {bookmaker}",
+    tipster_pick_btn: "Ver el pronóstico →",
+    tipster_pick_footer: "Recibes este email porque estás suscrito a las notificaciones Pronos Abonnés. Gestiona tus preferencias en tu espacio personal.",
   },
 };
 
@@ -490,4 +518,31 @@ export async function sendBilanEmail(email: string, displayName: string, locale:
     ${greenButton(t(locale, "bilan_btn"), `https://pronos.club/${locale}/bilans/${slug}`)}
   `, t(locale, "bilan_preheader", { month }), locale);
   return sendEmail(email, t(locale, "bilan_subject", { month }), html);
+}
+// ═══════════════════════════════════════════════
+// 10. NOUVEAU PICK TIPSTER ABONNÉ
+// ═══════════════════════════════════════════════
+
+export async function sendTipsterNewPickEmail(
+  email: string,
+  locale: Locale = "fr",
+  data: {
+    pseudo: string;
+    matchDate: string;
+    sport: string;
+    bookmaker: string;
+  }
+) {
+  const html = emailWrapper(`
+    <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "tipster_pick_title")}</h2>
+    <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${t(locale, "tipster_pick_intro", { pseudo: data.pseudo })}</p>
+    <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 8px; font-size: 14px; color: #374151; line-height: 1.8;">${t(locale, "tipster_pick_match", { date: data.matchDate })}</p>
+      <p style="margin: 0 0 8px; font-size: 14px; color: #374151; line-height: 1.8;">${t(locale, "tipster_pick_sport", { sport: data.sport })}</p>
+      <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.8;">${t(locale, "tipster_pick_bookmaker", { bookmaker: data.bookmaker })}</p>
+    </div>
+    ${greenButton(t(locale, "tipster_pick_btn"), `https://pronos.club/${locale}/pronos-abonnes/en-cours`)}
+    <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 24px; line-height: 1.6;">${t(locale, "tipster_pick_footer")}</p>
+  `, t(locale, "tipster_pick_preheader", { pseudo: data.pseudo }), locale);
+  return sendEmail(email, t(locale, "tipster_pick_subject", { pseudo: data.pseudo }), html);
 }
