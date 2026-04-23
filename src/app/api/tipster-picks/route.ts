@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
     if (!matchDate) return NextResponse.json({ error: "Date du match requise" }, { status: 400 });
     if (!sport) return NextResponse.json({ error: "Sport requis" }, { status: 400 });
     if (!odds || odds <= 1) return NextResponse.json({ error: "Cote invalide (> 1.00)" }, { status: 400 });
+    if (odds > 5) return NextResponse.json({ error: "Cote trop élevée (max 5.00)" }, { status: 400 });
     if (!pickType || !["simple", "combiné"].includes(pickType)) {
       return NextResponse.json({ error: "Type invalide" }, { status: 400 });
     }

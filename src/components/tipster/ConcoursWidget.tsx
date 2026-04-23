@@ -19,88 +19,116 @@ type MyRanking = {
 
 export default function ConcoursWidget({ userId, locale }: { userId: string; locale: string }) {
   const [data, setData] = useState<{ week: MyRanking; month: MyRanking } | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
     fetch(`/api/tipster-concours?action=my_ranking&user_id=${userId}`)
       .then((r) => r.json())
-      .then((d) => setData({ week: d.week, month: d.month }));
+      .then((d) => {
+        if (d?.week && d?.month) {
+          setData({ week: d.week, month: d.month });
+        } else {
+          setError(true);
+        }
+      })
+      .catch(() => setError(true));
   }, [userId]);
 
-  if (!data) return null;
+  if (error || !data) return null;
 
-  function renderPeriod(ranking: MyRanking, type: "week" | "month") {
-    const color = type === "week" ? "emerald" : "amber";
-    const icon = type === "week" ? "🏆" : "👑";
-    const label = type === "week" ? "Semaine" : "Mois";
+  function n(v: any): number {
+    const x = typeof v === "number" ? v : parseFloat(v);
+    return isNaN(x) ? 0 : x;
+  }
 
-    if (!ranking.rank && !ranking.eligible && ranking.total_picks === 0) {
+  function renderPeriod(ranking: MyRanking | null | undefined, type: "week" | "month") {
+    if (!ranking) return null;
+
+    const isWeek = type === "week";
+    const icon = isWeek ? "🏆" : "👑";
+    const label = isWeek ? "Semaine" : "Mois";
+
+    const totalPicks = n(ranking.total_picks);
+    const totalUnits = n(ranking.total_units);
+    const minPicks = n(ranking.min_picks) || (isWeek ? 3 : 10);
+    const prize = n(ranking.prize) || (isWeek ? 10 : 40);
+    const gap = n(ranking.gap_to_leader);
+    const rank = ranking.rank;
+    const totalParticipants = n(ranking.total_participants);
+
+    // Cas 1 : Pas encore de picks
+    if (totalPicks === 0) {
       return (
-        <div className={`rounded-xl border-2 border-${color}-200 bg-${color}-50/30 p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest text-${color}-700`}>
-            {icon} {label} — {ranking.prize}€
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200 bg-emerald-50/30" : "border-amber-200 bg-amber-50/30"} p-4`}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+            {icon} {label} — {prize}€
           </p>
           <p className="mt-2 text-sm font-bold text-neutral-700">
-            Poste {ranking.min_picks} pronostic{ranking.min_picks > 1 ? "s" : ""} pour participer
+            Poste {minPicks} pronostic{minPicks > 1 ? "s" : ""} pour participer
           </p>
         </div>
       );
     }
 
+    // Cas 2 : Pas encore éligible (picks insuffisants)
     if (!ranking.eligible) {
-      const remaining = ranking.min_picks - ranking.total_picks;
+      const remaining = Math.max(0, minPicks - totalPicks);
       return (
-        <div className={`rounded-xl border-2 border-${color === "emerald" ? "emerald" : "amber"}-200 bg-gradient-to-br from-${color === "emerald" ? "emerald" : "amber"}-50 to-white p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
-            {icon} {label} — {ranking.prize}€
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200" : "border-amber-200"} bg-gradient-to-br ${isWeek ? "from-emerald-50" : "from-amber-50"} to-white p-4`}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+            {icon} {label} — {prize}€
           </p>
           <p className="mt-2 text-xs text-neutral-600">
-            Tu as <strong>{ranking.total_picks} pick{ranking.total_picks > 1 ? "s" : ""}</strong> pour l&apos;instant
+            Tu as <strong>{totalPicks} pick{totalPicks > 1 ? "s" : ""}</strong> pour l&apos;instant
           </p>
-          <p className={`mt-1 text-sm font-extrabold ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
+          <p className={`mt-1 text-sm font-extrabold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
             Encore {remaining} pour être éligible
           </p>
-          <p className={`mt-2 text-xs ${ranking.total_units >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-            Ton score actuel : {ranking.total_units >= 0 ? "+" : ""}{ranking.total_units.toFixed(2)}U
+          <p className={`mt-2 text-xs ${totalUnits >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+            Ton score actuel : {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}U
           </p>
         </div>
       );
     }
 
-    if (ranking.rank === 1) {
+    // Cas 3 : 1er du classement
+    if (rank === 1) {
       return (
-        <div className={`rounded-xl border-2 ${color === "emerald" ? "border-emerald-400 bg-emerald-50" : "border-amber-400 bg-amber-50"} p-4`}>
-          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
-            {icon} {label} — {ranking.prize}€
+        <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-400 bg-emerald-50" : "border-amber-400 bg-amber-50"} p-4`}>
+          <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+            {icon} {label} — {prize}€
           </p>
           <p className="mt-2 text-lg font-black text-neutral-900">
             🥇 Tu es 1er !
           </p>
           <p className="mt-1 text-xs text-neutral-600">
-            +{ranking.total_units.toFixed(2)}U · {ranking.total_picks} pick{ranking.total_picks > 1 ? "s" : ""}
+            +{totalUnits.toFixed(2)}U · {totalPicks} pick{totalPicks > 1 ? "s" : ""}
           </p>
-          <p className={`mt-2 text-[11px] font-bold ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
-            Continue comme ça, {ranking.prize}€ en jeu 🎯
+          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+            Continue comme ça, {prize}€ en jeu 🎯
           </p>
         </div>
       );
     }
 
+    // Cas 4 : Classé mais pas 1er
     return (
-      <div className={`rounded-xl border-2 border-${color === "emerald" ? "emerald" : "amber"}-200 bg-white p-4`}>
-        <p className={`text-[10px] font-extrabold uppercase tracking-widest ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
-          {icon} {label} — {ranking.prize}€
+      <div className={`rounded-xl border-2 ${isWeek ? "border-emerald-200" : "border-amber-200"} bg-white p-4`}>
+        <p className={`text-[10px] font-extrabold uppercase tracking-widest ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+          {icon} {label} — {prize}€
         </p>
         <p className="mt-2 text-lg font-black text-neutral-900">
-          Tu es {ranking.rank}
+          Tu es {rank}
           <span className="text-xs font-bold text-neutral-400">e</span>
-          <span className="text-xs font-bold text-neutral-400 ml-1">/ {ranking.total_participants}</span>
+          <span className="text-xs font-bold text-neutral-400 ml-1">/ {totalParticipants}</span>
         </p>
         <p className="mt-1 text-xs text-neutral-600">
-          {ranking.total_units >= 0 ? "+" : ""}{ranking.total_units.toFixed(2)}U · {ranking.total_picks} pick{ranking.total_picks > 1 ? "s" : ""}
+          {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}U · {totalPicks} pick{totalPicks > 1 ? "s" : ""}
         </p>
-        {ranking.gap_to_leader !== undefined && ranking.gap_to_leader > 0 && (
-          <p className={`mt-2 text-[11px] font-bold ${color === "emerald" ? "text-emerald-700" : "text-amber-700"}`}>
-            +{ranking.gap_to_leader.toFixed(2)}U pour passer 1er
+        {gap > 0 && (
+          <p className={`mt-2 text-[11px] font-bold ${isWeek ? "text-emerald-700" : "text-amber-700"}`}>
+            +{gap.toFixed(2)}U pour passer 1er
           </p>
         )}
       </div>

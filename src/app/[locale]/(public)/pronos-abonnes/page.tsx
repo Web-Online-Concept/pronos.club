@@ -1,11 +1,30 @@
 // src/app/[locale]/(public)/pronos-abonnes/page.tsx
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
+type Config = {
+  week: { prize_amount: number; min_picks: number; active: boolean };
+  month: { prize_amount: number; min_picks: number; active: boolean };
+};
+
 export default function PronosAbonnesLanding() {
   const locale = useLocale();
+  const [config, setConfig] = useState<Config>({
+    week: { prize_amount: 10, min_picks: 3, active: true },
+    month: { prize_amount: 40, min_picks: 10, active: true },
+  });
+
+  useEffect(() => {
+    fetch("/api/tipster-concours-config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.week && data.month) setConfig(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const cards = [
     {
@@ -30,7 +49,7 @@ export default function PronosAbonnesLanding() {
       href: `/${locale}/pronos-abonnes/concours`,
       icon: "💰",
       title: "Concours & Gains",
-      desc: "10€ au meilleur tipster de la semaine, 40€ au meilleur du mois.",
+      desc: `${config.week.prize_amount}€ au meilleur tipster de la semaine, ${config.month.prize_amount}€ au meilleur du mois.`,
       highlight: true,
     },
   ];
@@ -53,11 +72,11 @@ export default function PronosAbonnesLanding() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <div className="rounded-xl bg-white/5 border border-emerald-500/30 px-5 py-3">
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">🏆 Semaine</p>
-              <p className="mt-1 text-2xl font-black text-white">10 €</p>
+              <p className="mt-1 text-2xl font-black text-white">{config.week.prize_amount} €</p>
             </div>
             <div className="rounded-xl bg-white/5 border border-amber-500/30 px-5 py-3">
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">👑 Mois</p>
-              <p className="mt-1 text-2xl font-black text-white">40 €</p>
+              <p className="mt-1 text-2xl font-black text-white">{config.month.prize_amount} €</p>
             </div>
           </div>
           <Link
@@ -100,21 +119,21 @@ export default function PronosAbonnesLanding() {
             Deviens le meilleur et gagne du cash
           </h2>
           <p className="mt-3 text-sm text-neutral-600 max-w-xl mx-auto">
-            Chaque semaine, <strong className="text-emerald-700">10€ offerts</strong> au tipster qui a fait le meilleur total d&apos;unités.
-            Et chaque mois, <strong className="text-amber-700">40€ pour le champion</strong>. Versements par PayPal.
+            Chaque semaine, <strong className="text-emerald-700">{config.week.prize_amount}€ offerts</strong> au tipster qui a fait le meilleur total d&apos;unités.
+            Et chaque mois, <strong className="text-amber-700">{config.month.prize_amount}€ pour le champion</strong>. Versements par PayPal.
           </p>
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
             <div className="rounded-xl bg-white border-2 border-emerald-300 p-4">
               <div className="text-3xl">🏆</div>
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-700">Semaine</p>
-              <p className="text-3xl font-black text-emerald-600">10 €</p>
-              <p className="mt-1 text-[11px] text-neutral-500">Min. 3 picks · Lundi 00h → Dimanche 23h59</p>
+              <p className="text-3xl font-black text-emerald-600">{config.week.prize_amount} €</p>
+              <p className="mt-1 text-[11px] text-neutral-500">Min. {config.week.min_picks} picks · Lundi 00h → Dimanche 23h59</p>
             </div>
             <div className="rounded-xl bg-white border-2 border-amber-300 p-4">
               <div className="text-3xl">👑</div>
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-amber-700">Mois</p>
-              <p className="text-3xl font-black text-amber-600">40 €</p>
-              <p className="mt-1 text-[11px] text-neutral-500">Min. 10 picks · Du 1er au dernier jour</p>
+              <p className="text-3xl font-black text-amber-600">{config.month.prize_amount} €</p>
+              <p className="mt-1 text-[11px] text-neutral-500">Min. {config.month.min_picks} picks · Du 1er au dernier jour</p>
             </div>
           </div>
           <Link

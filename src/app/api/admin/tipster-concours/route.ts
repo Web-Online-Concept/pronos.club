@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getConcoursConfig } from "@/lib/tipster-concours-config";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -104,8 +105,17 @@ export async function POST(req: NextRequest) {
       }
 
       const bounds = period_type === "week" ? getPreviousWeekBounds() : getPreviousMonthBounds();
-      const minPicks = period_type === "week" ? 3 : 10;
-      const prize = period_type === "week" ? 10 : 40;
+      const config = await getConcoursConfig();
+      const periodConfig = period_type === "week" ? config.week : config.month;
+      const minPicks = periodConfig.min_picks;
+      const prize = periodConfig.prize_amount;
+
+      if (!periodConfig.active) {
+        return NextResponse.json({
+          skipped: true,
+          reason: "Concours d\u00e9sactiv\u00e9 pour cette p\u00e9riode",
+        });
+      }
 
       // V\u00e9rif : d\u00e9j\u00e0 calcul\u00e9 pour cette p\u00e9riode ?
       const periodStartDate = bounds.start.toISOString().split("T")[0];

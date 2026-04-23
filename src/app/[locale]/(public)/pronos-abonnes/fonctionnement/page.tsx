@@ -1,11 +1,30 @@
 // src/app/[locale]/(public)/pronos-abonnes/fonctionnement/page.tsx
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
+type Config = {
+  week: { prize_amount: number; min_picks: number; active: boolean };
+  month: { prize_amount: number; min_picks: number; active: boolean };
+};
+
 export default function FonctionnementPage() {
   const locale = useLocale();
+  const [config, setConfig] = useState<Config>({
+    week: { prize_amount: 10, min_picks: 3, active: true },
+    month: { prize_amount: 40, min_picks: 10, active: true },
+  });
+
+  useEffect(() => {
+    fetch("/api/tipster-concours-config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.week && data.month) setConfig(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <main className="min-h-screen bg-white">
@@ -193,7 +212,7 @@ export default function FonctionnementPage() {
           <details className="group rounded-2xl border-2 border-amber-300 bg-amber-50/30 open:border-amber-400 open:shadow-lg open:shadow-amber-100">
             <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg">💰</span>
-              <span>Le concours semaine/mois (gains 10€ / 40€)</span>
+              <span>Le concours semaine/mois (gains {config.week.prize_amount}€ / {config.month.prize_amount}€)</span>
               <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
             </summary>
             <div className="border-t border-amber-200 px-5 py-4 text-sm leading-relaxed text-neutral-600">
@@ -204,14 +223,14 @@ export default function FonctionnementPage() {
                 <div className="rounded-xl border-2 border-emerald-300 bg-white p-4 text-center">
                   <div className="text-3xl">🏆</div>
                   <p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-700">Semaine</p>
-                  <p className="text-3xl font-black text-emerald-600">10 €</p>
-                  <p className="mt-1 text-[11px] text-neutral-500">Min. 3 picks sur la semaine</p>
+                  <p className="text-3xl font-black text-emerald-600">{config.week.prize_amount} €</p>
+                  <p className="mt-1 text-[11px] text-neutral-500">Min. {config.week.min_picks} picks sur la semaine</p>
                 </div>
                 <div className="rounded-xl border-2 border-amber-300 bg-white p-4 text-center">
                   <div className="text-3xl">👑</div>
                   <p className="mt-2 text-xs font-bold uppercase tracking-widest text-amber-700">Mois</p>
-                  <p className="text-3xl font-black text-amber-600">40 €</p>
-                  <p className="mt-1 text-[11px] text-neutral-500">Min. 10 picks sur le mois</p>
+                  <p className="text-3xl font-black text-amber-600">{config.month.prize_amount} €</p>
+                  <p className="mt-1 text-[11px] text-neutral-500">Min. {config.month.min_picks} picks sur le mois</p>
                 </div>
               </div>
               <p className="mt-4 text-xs">
@@ -222,7 +241,7 @@ export default function FonctionnementPage() {
               </p>
               <p className="mt-3 text-xs">
                 Le critère de désignation : <strong className="text-emerald-700">le plus grand total d&apos;unités (+U)</strong> sur la période.
-                Tu dois avoir posté au minimum 3 picks (semaine) ou 10 picks (mois) pour être éligible.
+                Tu dois avoir posté au minimum {config.week.min_picks} picks (semaine) ou {config.month.min_picks} picks (mois) pour être éligible.
               </p>
             </div>
           </details>

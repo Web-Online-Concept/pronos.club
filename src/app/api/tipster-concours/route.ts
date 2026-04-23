@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getConcoursConfig } from "@/lib/tipster-concours-config";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -118,26 +119,29 @@ export async function GET(req: NextRequest) {
       // Classements en cours (semaine + mois)
       const weekBounds = getWeekBounds();
       const monthBounds = getMonthBounds();
+      const config = await getConcoursConfig();
 
       const [weekData, monthData] = await Promise.all([
-        computeRanking(weekBounds.start, weekBounds.end, 3),
-        computeRanking(monthBounds.start, monthBounds.end, 10),
+        computeRanking(weekBounds.start, weekBounds.end, config.week.min_picks),
+        computeRanking(monthBounds.start, monthBounds.end, config.month.min_picks),
       ]);
 
       return NextResponse.json({
         week: {
           period_start: weekBounds.start.toISOString(),
           period_end: weekBounds.end.toISOString(),
-          min_picks: 3,
-          prize: 10,
+          min_picks: config.week.min_picks,
+          prize: config.week.prize_amount,
+          active: config.week.active,
           ranking: weekData.ranking,
           non_eligible: weekData.non_eligible,
         },
         month: {
           period_start: monthBounds.start.toISOString(),
           period_end: monthBounds.end.toISOString(),
-          min_picks: 10,
-          prize: 40,
+          min_picks: config.month.min_picks,
+          prize: config.month.prize_amount,
+          active: config.month.active,
           ranking: monthData.ranking,
           non_eligible: monthData.non_eligible,
         },
@@ -176,16 +180,16 @@ export async function GET(req: NextRequest) {
 
     if (action === "my_ranking") {
       // Le user connect\u00e9 : sa position dans les concours en cours
-      // (on ne v\u00e9rifie pas l'auth ici, c'est un usage interne)
       const userId = searchParams.get("user_id");
       if (!userId) return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
 
       const weekBounds = getWeekBounds();
       const monthBounds = getMonthBounds();
+      const config = await getConcoursConfig();
 
       const [weekData, monthData] = await Promise.all([
-        computeRanking(weekBounds.start, weekBounds.end, 3),
-        computeRanking(monthBounds.start, monthBounds.end, 10),
+        computeRanking(weekBounds.start, weekBounds.end, config.week.min_picks),
+        computeRanking(monthBounds.start, monthBounds.end, config.month.min_picks),
       ]);
 
       const findUserRanking = (data: any) => {
@@ -213,22 +217,34 @@ export async function GET(req: NextRequest) {
             eligible: false,
             leader_pseudo: leader?.pseudo || null,
             leader_units: leader?.total_units || 0,
+            gap_to_leader: 0,
             total_participants: data.ranking.length,
           };
         }
-        return null;
+        // Cas : user n'a aucun pick du tout sur la p\u00e9riode
+        const leader = data.ranking[0] || null;
+        return {
+          rank: null,
+          total_picks: 0,
+          total_units: 0,
+          eligible: false,
+          leader_pseudo: leader?.pseudo || null,
+          leader_units: leader?.total_units || 0,
+          gap_to_leader: 0,
+          total_participants: data.ranking.length,
+        };
       };
 
       return NextResponse.json({
         week: {
           ...findUserRanking(weekData),
-          min_picks: 3,
-          prize: 10,
+          min_picks: config.week.min_picks,
+          prize: config.week.prize_amount,
         },
         month: {
           ...findUserRanking(monthData),
-          min_picks: 10,
-          prize: 40,
+          min_picks: config.month.min_picks,
+          prize: config.month.prize_amount,
         },
       });
     }

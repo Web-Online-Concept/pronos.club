@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { getConcoursConfig } from "@/lib/tipster-concours-config";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +36,17 @@ export async function GET(req: NextRequest) {
     const bounds = getPreviousMonthBounds();
     const periodStart = bounds.start.toISOString().split("T")[0];
     const periodEnd = bounds.end.toISOString().split("T")[0];
+
+    const config = await getConcoursConfig();
+    if (!config.month.active) {
+      return NextResponse.json({
+        skipped: true,
+        reason: "Concours mois d\u00e9sactiv\u00e9",
+        period: periodStart,
+      });
+    }
+    const minPicks = config.month.min_picks;
+    const prize = config.month.prize_amount;
 
     const { data: existing } = await supabaseAdmin
       .from("tipster_concours_winners")
@@ -68,7 +80,7 @@ export async function GET(req: NextRequest) {
       s.total_units += parseFloat(String(p.units_result)) || 0;
     }
 
-    const eligible = Array.from(map.values()).filter((s) => s.total_picks >= 10);
+    const eligible = Array.from(map.values()).filter((s) => s.total_picks >= minPicks);
     eligible.sort((a, b) => b.total_units - a.total_units);
     const winner = eligible[0] || null;
 
@@ -89,7 +101,7 @@ export async function GET(req: NextRequest) {
         period_end: periodEnd,
         total_units: Math.round(winner.total_units * 100) / 100,
         picks_count: winner.total_picks,
-        prize_amount: 40,
+        prize_amount: prize,
         paid: false,
       })
       .select(`*, users:user_id (pseudo, email, paypal_email)`)
@@ -122,7 +134,7 @@ export async function GET(req: NextRequest) {
 
                   <div style="display: inline-block; background: linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(16,185,129,0.15) 100%); border: 2px solid rgba(251,191,36,0.4); border-radius: 12px; padding: 20px 40px;">
                     <p style="font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #fbbf24; margin: 0 0 4px;">Ton gain</p>
-                    <p style="font-size: 48px; font-weight: 900; color: #fbbf24; margin: 0;">40 \u20ac</p>
+                    <p style="font-size: 48px; font-weight: 900; color: #fbbf24; margin: 0;">${prize} \u20ac</p>
                   </div>
 
                   <div style="display: flex; justify-content: space-around; margin-top: 28px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.1);">
