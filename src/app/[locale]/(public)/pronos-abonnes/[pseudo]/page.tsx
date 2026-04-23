@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
+import FollowButton from "@/components/tipster/FollowButton";
 
 export default function TipsterProfilePage({
   params,
@@ -165,6 +166,12 @@ export default function TipsterProfilePage({
             <p className="mt-2 text-xs text-white/50">
               Membre depuis {new Date(profile.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
             </p>
+
+            {profile?.id && (
+              <div className="mt-4">
+                <FollowButton tipsterId={profile.id} locale={locale} />
+              </div>
+            )}
           </div>
 
           {/* Stats */}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PushToggle from "@/components/notifications/PushToggle";
 import EspaceHero from "@/components/layout/EspaceHero";
+import TipsterNotifSection from "@/components/tipster/TipsterNotifSection";
 import { useTranslations } from "next-intl";
 
 export default function NotificationsPage() {
@@ -158,6 +159,12 @@ export default function NotificationsPage() {
             )}
           </div>
         )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* Section Pronos Abonnés (dépliable) */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        <TipsterNotifSection />
+
       </div>
 
       <div className="mt-10">

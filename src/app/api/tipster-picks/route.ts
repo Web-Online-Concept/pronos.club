@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { notifyFollowersOfNewPick } from "@/lib/tipster-notifications";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -211,6 +212,15 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.storage.from("tipster-picks").remove([fileName]);
       return NextResponse.json({ error: "Erreur création" }, { status: 500 });
     }
+
+    // D\u00e9clencher les notifs aux followers (fire-and-forget, pas d'await pour ne pas bloquer la r\u00e9ponse)
+    notifyFollowersOfNewPick(pick, {
+      id: user.id,
+      pseudo: user.pseudo || "TIPSTER",
+      avatar_url: user.avatar_url || null,
+    }).catch((err) => {
+      console.error("[tipster-picks] notifyFollowersOfNewPick error:", err);
+    });
 
     return NextResponse.json({ pick });
 
