@@ -28,7 +28,7 @@ type SortKey = "total_units" | "roi" | "winrate" | "total_picks" | "avg_odds";
 
 export default function PronosAbonnesClassementPage() {
   const locale = useLocale();
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useState<Period>("week");
   const [sortKey, setSortKey] = useState<SortKey>("total_units");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
