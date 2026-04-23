@@ -36,6 +36,24 @@ export default async function AdminDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("status", "rejected_by_audit");
 
+  // Stats Pronos Abonnés
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const { count: tipsterPicksToResolve } = await supabaseAdmin
+    .from("tipster_picks")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "live")
+    .lte("match_date", twoHoursAgo);
+
+  const { count: tipsterPicksLive } = await supabaseAdmin
+    .from("tipster_picks")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "live");
+
+  const { count: concoursWinnersUnpaid } = await supabaseAdmin
+    .from("tipster_concours_winners")
+    .select("*", { count: "exact", head: true })
+    .eq("paid", false);
+
   const stats = [
     { label: "Picks publiés", value: totalPicks ?? 0, accent: "#10b981" },
     { label: "En attente", value: pendingPicks ?? 0, accent: "#f59e0b" },
@@ -50,7 +68,6 @@ export default async function AdminDashboard() {
     { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
   ];
 
-  // Nouvelle section Pronos IA (admin uniquement)
   const aiLinks = [
     {
       href: "/admin/ai-picks",
@@ -58,6 +75,35 @@ export default async function AdminDashboard() {
       icon: "🤖",
       accent: (aiPicksToReview ?? 0) > 0 ? "#06b6d4" : "#8b5cf6",
       desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : `${aiPicksRejected ?? 0} rejetés par audit`,
+    },
+  ];
+
+  // Pronos Abonnés (tipsters communautaires)
+  const tipsterAbonnesLinks = [
+    {
+      href: "/admin/pronos-abonnes/picks",
+      label: `Modérer les picks${(tipsterPicksToResolve ?? 0) > 0 ? ` (${tipsterPicksToResolve})` : ""}`,
+      icon: "🎯",
+      accent: (tipsterPicksToResolve ?? 0) > 0 ? "#f59e0b" : "#10b981",
+      desc: (tipsterPicksToResolve ?? 0) > 0
+        ? `${tipsterPicksToResolve} à résoudre`
+        : `${tipsterPicksLive ?? 0} en cours`,
+    },
+    {
+      href: "/admin/pronos-abonnes/gains",
+      label: `Gains concours${(concoursWinnersUnpaid ?? 0) > 0 ? ` (${concoursWinnersUnpaid})` : ""}`,
+      icon: "💰",
+      accent: (concoursWinnersUnpaid ?? 0) > 0 ? "#f59e0b" : "#10b981",
+      desc: (concoursWinnersUnpaid ?? 0) > 0
+        ? `${concoursWinnersUnpaid} à payer`
+        : "Historique des gagnants",
+    },
+    {
+      href: "/admin/pronos-abonnes/config",
+      label: "Configuration",
+      icon: "⚙️",
+      accent: "#a78bfa",
+      desc: "Montants des gains",
     },
   ];
 
@@ -152,6 +198,39 @@ export default async function AdminDashboard() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {aiLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={`/fr${link.href}`}
+              className="group relative overflow-hidden rounded-xl border border-white/[0.08] p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              style={{ background: `linear-gradient(135deg, #1a1a1a 0%, ${link.accent}08 100%)` }}
+            >
+              <div
+                className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ background: `radial-gradient(circle at 50% 50%, ${link.accent}10 0%, transparent 70%)` }}
+              />
+              <div className="relative flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${link.accent}15` }}>
+                  <span className="text-lg">{link.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{link.label}</p>
+                  <p className="mt-0.5 text-[10px] text-white/30">{link.desc}</p>
+                </div>
+              </div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/10 transition-all group-hover:translate-x-1 group-hover:text-white/30">→</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Pronos Abonnés section */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">👥</span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-400">Pronos Abonnés</p>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {tipsterAbonnesLinks.map((link) => (
             <Link
               key={link.href}
               href={`/fr${link.href}`}
