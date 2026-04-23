@@ -31,6 +31,14 @@
     {
       "path": "/api/cron/ai-picks-audit",
       "schedule": "15 7 * * *"
-    }
+    },
+    {
+  "path": "/api/cron/tipster-concours-week",
+  "schedule": "15 0 * * 1"
+},
+{
+  "path": "/api/cron/tipster-concours-month",
+  "schedule": "30 0 1 * *"
+}
   ]
 }

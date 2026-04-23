@@ -70,6 +70,10 @@ export default function NouveauPickPage() {
       setError("Cote invalide (> 1.00)");
       return;
     }
+    if (oddsVal > 5) {
+      setError("Cote trop élevée (max 5.00)");
+      return;
+    }
     if (!image) {
       setError("Screen du pronostic requis");
       return;
@@ -228,11 +232,15 @@ export default function NouveauPickPage() {
             <input
               type="number"
               step="0.01"
+              max="5"
               value={odds}
               onChange={(e) => setOdds(e.target.value)}
               placeholder="1.85"
               className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
             />
+            <p className="mt-1 text-[11px] text-neutral-400">
+              Cote maximum : <strong className="text-emerald-600">5.00</strong>
+            </p>
           </div>
 
           {/* Type */}

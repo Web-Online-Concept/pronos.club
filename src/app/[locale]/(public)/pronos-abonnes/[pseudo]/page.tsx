@@ -22,6 +22,7 @@ export default function TipsterProfilePage({
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [picks, setPicks] = useState<any[]>([]);
+  const [badges, setBadges] = useState<{ week_wins: number; month_wins: number }>({ week_wins: 0, month_wins: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "live" | "resolved">("all");
 
@@ -37,6 +38,14 @@ export default function TipsterProfilePage({
     setProfile(statsData.profile);
     setStats(statsData.stats);
     setPicks(picksData.picks || []);
+
+    // Charger les badges si on a l'id
+    if (statsData.profile?.id) {
+      const badgesRes = await fetch(`/api/tipster-concours?action=badges&user_id=${statsData.profile.id}`);
+      const badgesData = await badgesRes.json();
+      setBadges({ week_wins: badgesData.week_wins || 0, month_wins: badgesData.month_wins || 0 });
+    }
+
     setLoading(false);
   }
 
@@ -139,7 +148,21 @@ export default function TipsterProfilePage({
               </div>
             )}
             <h1 className="mt-4 text-3xl font-black sm:text-4xl">{pseudo}</h1>
-            <p className="mt-1 text-xs text-white/50">
+            {(badges.week_wins > 0 || badges.month_wins > 0) && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {badges.week_wins > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xs font-bold text-emerald-300">
+                    🏆 Semaine × {badges.week_wins}
+                  </span>
+                )}
+                {badges.month_wins > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-xs font-bold text-amber-300">
+                    👑 Mois × {badges.month_wins}
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-white/50">
               Membre depuis {new Date(profile.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
             </p>
           </div>

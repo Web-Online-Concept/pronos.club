@@ -1,4 +1,4 @@
-// src/app/[locale]/pronos-abonnes/page.tsx
+// src/app/[locale]/(public)/pronos-abonnes/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -13,21 +13,25 @@ export default function PronosAbonnesLanding() {
       icon: "🎯",
       title: "Pronos en cours",
       desc: "Découvre les pronostics postés par la communauté, triés par heure de match.",
-      color: "emerald",
     },
     {
       href: `/${locale}/pronos-abonnes/historique`,
       icon: "📋",
       title: "Historique",
-      desc: "Tous les pronostics résolus, filtrables par sport et tipster.",
-      color: "blue",
+      desc: "Tous les pronostics résolus, filtrables par sport et résultat.",
     },
     {
       href: `/${locale}/pronos-abonnes/classement`,
       icon: "🏆",
       title: "Classement",
       desc: "Le top des tipsters sur la semaine, le mois ou all-time.",
-      color: "amber",
+    },
+    {
+      href: `/${locale}/pronos-abonnes/concours`,
+      icon: "💰",
+      title: "Concours & Gains",
+      desc: "10€ au meilleur tipster de la semaine, 40€ au meilleur du mois.",
+      highlight: true,
     },
   ];
 
@@ -44,144 +48,103 @@ export default function PronosAbonnesLanding() {
           </p>
           <h1 className="mt-3 text-3xl font-black sm:text-4xl">Pronos Abonnés</h1>
           <p className="mt-4 text-base text-white/70">
-            Les abonnés premium postent leurs pronostics, la communauté vote avec ses unités.
-            Découvre les meilleurs tipsters, suis leurs picks, et rejoins la compétition.
+            Les abonnés premium postent leurs pronostics. Les meilleurs remportent des <strong className="text-amber-400">gains en cash</strong> chaque semaine et chaque mois.
           </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="rounded-xl bg-white/5 border border-emerald-500/30 px-5 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">🏆 Semaine</p>
+              <p className="mt-1 text-2xl font-black text-white">10 €</p>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-amber-500/30 px-5 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">👑 Mois</p>
+              <p className="mt-1 text-2xl font-black text-white">40 €</p>
+            </div>
+          </div>
+          <Link
+            href={`/${locale}/pronos-abonnes/fonctionnement`}
+            className="mt-6 inline-block text-xs font-bold text-white/60 hover:text-emerald-400 underline"
+          >
+            📚 Comment ça marche ?
+          </Link>
         </div>
       </div>
 
-      {/* 3 cards de navigation */}
-      <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* 4 cards de navigation */}
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
             <Link
               key={card.href}
               href={card.href}
-              className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-6 text-center transition hover:-translate-y-1 hover:border-emerald-500 hover:shadow-xl"
+              className={`group relative overflow-hidden rounded-2xl border-2 bg-white p-6 text-center transition hover:-translate-y-1 hover:shadow-xl ${
+                card.highlight
+                  ? "border-amber-300 hover:border-amber-500 bg-gradient-to-br from-amber-50 to-white"
+                  : "border-neutral-200 hover:border-emerald-500"
+              }`}
             >
               <div className="mb-3 text-5xl">{card.icon}</div>
-              <h3 className="text-lg font-extrabold text-neutral-900">{card.title}</h3>
+              <h3 className={`text-lg font-extrabold ${card.highlight ? "text-amber-900" : "text-neutral-900"}`}>
+                {card.title}
+              </h3>
               <p className="mt-2 text-sm text-neutral-500">{card.desc}</p>
             </Link>
           ))}
         </div>
 
-        {/* Fonctionnement */}
-        <div className="mt-16">
-          <div
-            className="rounded-t-3xl px-6 py-5 text-center"
-            style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
-          >
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-              📚 Guide
-            </p>
-            <h2 className="mt-2 text-xl font-black text-white">Comment ça marche</h2>
+        {/* Section gains commercial */}
+        <div className="mt-12 rounded-3xl bg-gradient-to-br from-emerald-50 via-amber-50 to-white border-2 border-amber-200 p-8 text-center">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-amber-700">
+            💰 Concours mensuel
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-neutral-900 sm:text-3xl">
+            Deviens le meilleur et gagne du cash
+          </h2>
+          <p className="mt-3 text-sm text-neutral-600 max-w-xl mx-auto">
+            Chaque semaine, <strong className="text-emerald-700">10€ offerts</strong> au tipster qui a fait le meilleur total d&apos;unités.
+            Et chaque mois, <strong className="text-amber-700">40€ pour le champion</strong>. Versements par PayPal.
+          </p>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <div className="rounded-xl bg-white border-2 border-emerald-300 p-4">
+              <div className="text-3xl">🏆</div>
+              <p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-700">Semaine</p>
+              <p className="text-3xl font-black text-emerald-600">10 €</p>
+              <p className="mt-1 text-[11px] text-neutral-500">Min. 3 picks · Lundi 00h → Dimanche 23h59</p>
+            </div>
+            <div className="rounded-xl bg-white border-2 border-amber-300 p-4">
+              <div className="text-3xl">👑</div>
+              <p className="mt-2 text-xs font-bold uppercase tracking-widest text-amber-700">Mois</p>
+              <p className="text-3xl font-black text-amber-600">40 €</p>
+              <p className="mt-1 text-[11px] text-neutral-500">Min. 10 picks · Du 1er au dernier jour</p>
+            </div>
           </div>
+          <Link
+            href={`/${locale}/pronos-abonnes/concours`}
+            className="mt-6 inline-block rounded-xl bg-amber-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-amber-600/25 transition hover:bg-amber-500"
+          >
+            🏆 Voir le concours en cours
+          </Link>
+        </div>
 
-          <div className="space-y-4 rounded-b-3xl border-x-2 border-b-2 border-neutral-200 bg-white px-5 py-6 sm:px-8">
-            <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300" open>
-              <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">🎯</span>
-                <span>C&apos;est quoi, les Pronos Abonnés ?</span>
-                <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
-                <p>
-                  Un espace communautaire où <strong className="text-emerald-600">les abonnés premium</strong> postent leurs propres pronostics sportifs.
-                  Chaque prono affiche un screen du pari, la cote, et le sport. La communauté suit, compare,
-                  et s&apos;inspire des meilleurs tipsters.
-                </p>
-              </div>
-            </details>
-
-            <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300">
-              <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">📊</span>
-                <span>Comment se calculent les statistiques ?</span>
-                <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
-                <p>
-                  On part du principe que <strong className="text-emerald-600">chaque pronostic = 1 unité (1U)</strong> misée.
-                  C&apos;est une convention qui permet de comparer les tipsters équitablement, peu importe leur bankroll.
-                </p>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div className="rounded-lg bg-emerald-50 p-3">
-                    <p className="text-xs font-bold text-emerald-700">Gagné à @2.00</p>
-                    <p className="text-sm font-extrabold text-emerald-700">+1.00 U</p>
-                  </div>
-                  <div className="rounded-lg bg-emerald-50 p-3">
-                    <p className="text-xs font-bold text-emerald-700">½ Gagné à @2.00</p>
-                    <p className="text-sm font-extrabold text-emerald-700">+0.50 U</p>
-                  </div>
-                  <div className="rounded-lg bg-blue-50 p-3">
-                    <p className="text-xs font-bold text-blue-700">Remboursé</p>
-                    <p className="text-sm font-extrabold text-blue-700">0 U</p>
-                  </div>
-                  <div className="rounded-lg bg-red-50 p-3">
-                    <p className="text-xs font-bold text-red-700">½ Perdu</p>
-                    <p className="text-sm font-extrabold text-red-700">-0.50 U</p>
-                  </div>
-                  <div className="rounded-lg bg-red-50 p-3 sm:col-span-2">
-                    <p className="text-xs font-bold text-red-700">Perdu</p>
-                    <p className="text-sm font-extrabold text-red-700">-1.00 U</p>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-            <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300">
-              <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">📸</span>
-                <span>Comment poster un pronostic ?</span>
-                <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
-                <p>
-                  Depuis ton espace premium, rends-toi sur <strong className="text-emerald-600">Mon Tipster</strong>.
-                  Tu uploades un screen de ton ticket, tu indiques la date/heure du premier match,
-                  le sport, la cote totale, et le type (simple ou combiné).
-                </p>
-                <p className="mt-3">
-                  <strong className="text-neutral-900">Limites :</strong> 3 pronostics par jour maximum,
-                  et le match doit commencer dans au moins 5 minutes après publication.
-                </p>
-              </div>
-            </details>
-
-            <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300">
-              <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">🏆</span>
-                <span>Comment fonctionne le classement ?</span>
-                <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
-                <p>
-                  Le classement est calculé <strong className="text-emerald-600">sur 3 périodes</strong> :
-                  cette semaine, ce mois (30 derniers jours glissants), all-time.
-                </p>
-                <p className="mt-3">
-                  Plusieurs critères sont affichés : <strong>Total U</strong> (cumul des unités),
-                  <strong> ROI</strong> (rendement moyen par pari), <strong>Winrate</strong>,
-                  <strong> Cote moyenne</strong>, et la <strong>forme</strong> sur les 5 derniers pronos.
-                </p>
-              </div>
-            </details>
-
-            <details className="group rounded-2xl border-2 border-neutral-200 open:border-emerald-300">
-              <summary className="flex cursor-pointer items-center gap-3 px-5 py-4 text-sm font-extrabold text-neutral-900 [&::-webkit-details-marker]:hidden">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">⚠️</span>
-                <span>Qui valide les résultats ?</span>
-                <span className="ml-auto text-neutral-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="border-t border-neutral-100 px-5 py-4 text-sm leading-relaxed text-neutral-600">
-                <p>
-                  Les résultats sont <strong className="text-emerald-600">validés manuellement</strong> par l&apos;équipe PRONOS.CLUB
-                  après vérification du screen et du score final. Cela garantit la fiabilité des statistiques et la
-                  confiance dans le classement.
-                </p>
-              </div>
-            </details>
+        {/* Guide résumé */}
+        <div className="mt-12 text-center">
+          <h2 className="text-2xl font-black text-neutral-900">Tu veux participer ?</h2>
+          <p className="mt-3 text-sm text-neutral-600 max-w-xl mx-auto">
+            Passe Premium, rends-toi dans <strong className="text-emerald-600">Mon espace → Pronos Abonnés</strong>, et poste ton premier pronostic.
+            Chaque pronostic = 1 unité universelle, comparable entre tous les tipsters.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href={`/${locale}/pronos-abonnes/fonctionnement`}
+              className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-700 transition hover:border-emerald-500"
+            >
+              📚 Le guide complet
+            </Link>
+            <Link
+              href={`/${locale}/abonnement`}
+              className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500"
+            >
+              💎 Devenir Premium
+            </Link>
           </div>
         </div>
       </div>
