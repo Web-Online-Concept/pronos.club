@@ -177,6 +177,13 @@ export default function FonctionnementPage() {
                     <p className="text-xs mt-1">Tu ne peux pas poster sur un match qui commence tout de suite ou qui est déjà en cours. Anti-triche.</p>
                   </div>
                 </div>
+                <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                  <span className="text-xl">🔒</span>
+                  <div>
+                    <p className="font-extrabold text-amber-900">Fenêtre de suppression : 10 minutes</p>
+                    <p className="text-xs mt-1">Tu peux supprimer ton pronostic dans les 10 min après publication (pour corriger une erreur, mauvais screen, faute de cote). Au-delà, il est verrouillé pour respecter les tipsters qui te suivent.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </details>

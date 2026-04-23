@@ -239,10 +239,21 @@ export async function DELETE(req: NextRequest) {
     if (!pick) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (pick.user_id !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-    // Un user ne peut supprimer que si live et match pas encore commencé
+    // Un user ne peut supprimer que si live
     if (pick.status !== "live") {
       return NextResponse.json({ error: "Impossible de supprimer un pronostic résolu" }, { status: 400 });
     }
+
+    // Fenêtre de 10 minutes après le post pour corriger une erreur
+    const submittedAt = new Date(pick.submitted_at).getTime();
+    const tenMinutes = 10 * 60 * 1000;
+    if (Date.now() > submittedAt + tenMinutes) {
+      return NextResponse.json({
+        error: "Suppression impossible après 10 minutes. Les followers ont pu le voir — pour corriger, contacte l'admin."
+      }, { status: 400 });
+    }
+
+    // Match pas encore commencé (sécurité supplémentaire)
     const matchStart = new Date(pick.match_date).getTime();
     if (matchStart < Date.now()) {
       return NextResponse.json({ error: "Le match a déjà commencé" }, { status: 400 });

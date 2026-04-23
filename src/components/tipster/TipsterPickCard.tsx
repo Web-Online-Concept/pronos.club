@@ -215,15 +215,40 @@ export default function TipsterPickCard({
         )}
       </div>
 
-      {canDelete && onDelete && (
-        <button
-          onClick={onDelete}
-          className="mt-2 w-full cursor-pointer rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500/20"
-          style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-          🗑 Supprimer
-        </button>
-      )}
+      {canDelete && onDelete && (() => {
+        const submittedAt = new Date(pick.submitted_at).getTime();
+        const deadline = submittedAt + 10 * 60 * 1000;
+        const now = Date.now();
+        const secondsLeft = Math.floor((deadline - now) / 1000);
+
+        if (secondsLeft <= 0) {
+          // Fenêtre expirée : plus de bouton, juste un message discret
+          return (
+            <p className="mt-2 text-center text-[10px] text-neutral-400 italic">
+              Pronostic verrouillé (fenêtre de modification expirée)
+            </p>
+          );
+        }
+
+        const minutes = Math.floor(secondsLeft / 60);
+        const seconds = secondsLeft % 60;
+        const timeStr = minutes > 0 ? `${minutes}min ${seconds}s` : `${seconds}s`;
+
+        return (
+          <>
+            <button
+              onClick={onDelete}
+              className="mt-2 w-full cursor-pointer rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500/20"
+              style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              🗑 Supprimer
+            </button>
+            <p className="mt-1 text-center text-[10px] text-amber-600">
+              ⏱ Fenêtre de suppression : encore {timeStr}
+            </p>
+          </>
+        );
+      })()}
     </div>
   );
 }
