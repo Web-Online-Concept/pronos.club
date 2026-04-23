@@ -10,6 +10,7 @@ type Pick = {
   sport: string;
   odds: number;
   pick_type: "simple" | "combiné";
+  bookmaker: string | null;
   image_url: string;
   submitted_at: string;
   status: "live" | "resolved" | "rejected";
@@ -140,6 +141,11 @@ export default function TipsterPickCard({
             <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
               {parseFloat(String(pick.odds)).toFixed(2)}
             </p>
+            {pick.bookmaker && (
+              <p style={{ fontSize: "9px", fontWeight: 600, color: "rgba(255,255,255,0.5)", margin: "1px 0 0", textTransform: "lowercase" }}>
+                {pick.bookmaker}
+              </p>
+            )}
           </div>
           {showResult && pick.units_result !== null && (
             <div style={{

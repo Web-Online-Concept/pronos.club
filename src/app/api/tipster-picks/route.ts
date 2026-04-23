@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { notifyFollowersOfNewPick } from "@/lib/tipster-notifications";
+import { BOOKMAKERS } from "@/lib/tipster-bookmakers";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,7 +42,7 @@ function computeUnitsResult(result: string | null, odds: number): number | null 
 // ── GET — List picks ──
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const filter = searchParams.get("filter") || "live"; // live | resolved | mine | all | pseudo
+  const filter = searchParams.get("filter") || "live";
   const sport = searchParams.get("sport");
   const pseudo = searchParams.get("pseudo");
   const limit = parseInt(searchParams.get("limit") || "50", 10);
@@ -55,7 +56,6 @@ export async function GET(req: NextRequest) {
       `);
 
     if (filter === "live") {
-      // picks live avec match_date >= maintenant
       query = query
         .eq("status", "live")
         .gte("match_date", new Date().toISOString())
@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
     const sport = formData.get("sport") as string;
     const odds = parseFloat(formData.get("odds") as string);
     const pickType = formData.get("pick_type") as string;
+    const bookmaker = formData.get("bookmaker") as string;
     const imageFile = formData.get("image") as File | null;
 
     // Validations
@@ -133,6 +134,12 @@ export async function POST(req: NextRequest) {
     if (odds > 5) return NextResponse.json({ error: "Cote trop élevée (max 5.00)" }, { status: 400 });
     if (!pickType || !["simple", "combiné"].includes(pickType)) {
       return NextResponse.json({ error: "Type invalide" }, { status: 400 });
+    }
+    if (!bookmaker) {
+      return NextResponse.json({ error: "Bookmaker requis" }, { status: 400 });
+    }
+    if (!BOOKMAKERS.includes(bookmaker)) {
+      return NextResponse.json({ error: "Bookmaker invalide" }, { status: 400 });
     }
     if (!imageFile || !(imageFile instanceof File)) {
       return NextResponse.json({ error: "Image requise" }, { status: 400 });
@@ -144,12 +151,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Format image invalide (JPG, PNG, WEBP)" }, { status: 400 });
     }
 
-    // Anti-cheating : match_date doit être >= maintenant + 5 minutes
+    // Anti-cheating : match_date doit être >= maintenant + 30 minutes
+    // (laisser le temps aux followers de prendre le pari)
     const matchTimestamp = new Date(matchDate).getTime();
     const now = Date.now();
-    if (matchTimestamp < now + 5 * 60 * 1000) {
+    if (matchTimestamp < now + 30 * 60 * 1000) {
       return NextResponse.json({
-        error: "Le match doit commencer dans au moins 5 minutes"
+        error: "Le match doit commencer dans au moins 30 minutes (pour laisser le temps aux suiveurs)"
       }, { status: 400 });
     }
 
@@ -200,6 +208,7 @@ export async function POST(req: NextRequest) {
         sport,
         odds,
         pick_type: pickType,
+        bookmaker,
         image_url: imageUrl,
         status: "live",
       })
@@ -208,12 +217,11 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error("[tipster-picks] Insert error:", insertError.message);
-      // Rollback : supprimer l'image uploadée
       await supabaseAdmin.storage.from("tipster-picks").remove([fileName]);
       return NextResponse.json({ error: "Erreur création" }, { status: 500 });
     }
 
-    // Déclencher les notifs aux followers (fire-and-forget, pas d'await pour ne pas bloquer la réponse)
+    // Déclencher les notifs aux followers (fire-and-forget)
     notifyFollowersOfNewPick(pick, {
       id: user.id,
       pseudo: user.pseudo || "TIPSTER",
@@ -230,7 +238,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── DELETE — User can delete his own pick if still 'live' and match not started ──
+// ── DELETE ──
 export async function DELETE(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -249,12 +257,10 @@ export async function DELETE(req: NextRequest) {
     if (!pick) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (pick.user_id !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
-    // Un user ne peut supprimer que si live
     if (pick.status !== "live") {
       return NextResponse.json({ error: "Impossible de supprimer un pronostic résolu" }, { status: 400 });
     }
 
-    // Fenêtre de 10 minutes après le post pour corriger une erreur
     const submittedAt = new Date(pick.submitted_at).getTime();
     const tenMinutes = 10 * 60 * 1000;
     if (Date.now() > submittedAt + tenMinutes) {
@@ -263,13 +269,11 @@ export async function DELETE(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Match pas encore commencé (sécurité supplémentaire)
     const matchStart = new Date(pick.match_date).getTime();
     if (matchStart < Date.now()) {
       return NextResponse.json({ error: "Le match a déjà commencé" }, { status: 400 });
     }
 
-    // Supprimer l'image du storage
     if (pick.image_url) {
       const pathMatch = pick.image_url.match(/\/tipster-picks\/(.+)$/);
       if (pathMatch) {

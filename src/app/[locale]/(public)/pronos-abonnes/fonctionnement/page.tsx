@@ -86,6 +86,7 @@ export default function FonctionnementPage() {
                 <li>Indique la <strong>date et l&apos;heure du 1er match</strong></li>
                 <li>Renseigne la <strong>cote totale</strong> (max 5.00)</li>
                 <li>Précise si c&apos;est un <strong>simple ou combiné</strong></li>
+                <li>Sélectionne le <strong>bookmaker</strong> où tu as pris le pari</li>
                 <li>Clique sur <strong>Publier</strong> — et c&apos;est parti !</li>
               </ol>
             </div>
@@ -157,8 +158,15 @@ export default function FonctionnementPage() {
                 <div className="flex items-start gap-3 rounded-lg bg-neutral-50 p-3">
                   <span className="text-xl">⏰</span>
                   <div>
-                    <p className="font-extrabold text-neutral-900">Match dans au moins 5 minutes</p>
-                    <p className="text-xs mt-1">Tu ne peux pas poster sur un match qui commence tout de suite ou qui est déjà en cours. Anti-triche.</p>
+                    <p className="font-extrabold text-neutral-900">Match dans au moins 30 minutes</p>
+                    <p className="text-xs mt-1">Tu ne peux pas poster sur un match qui commence dans moins de 30 min. Ça laisse le temps aux suiveurs de prendre le pari à la même cote.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg bg-neutral-50 p-3">
+                  <span className="text-xl">🏦</span>
+                  <div>
+                    <p className="font-extrabold text-neutral-900">Bookmaker obligatoire</p>
+                    <p className="text-xs mt-1">Tu dois préciser le bookmaker où tu as pris ton pari (Winamax, Betclic, Unibet, PMU, etc.). Ça permet aux suiveurs de retrouver la même cote au même endroit.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 p-3">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { BOOKMAKERS } from "@/lib/tipster-bookmakers";
 
 const SPORTS = [
   "⚽ Football",
@@ -29,6 +30,7 @@ export default function NouveauPickPage() {
   const [sport, setSport] = useState("");
   const [odds, setOdds] = useState("");
   const [pickType, setPickType] = useState<"simple" | "combiné">("simple");
+  const [bookmaker, setBookmaker] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -74,15 +76,19 @@ export default function NouveauPickPage() {
       setError("Cote trop élevée (max 5.00)");
       return;
     }
+    if (!bookmaker) {
+      setError("Bookmaker requis");
+      return;
+    }
     if (!image) {
       setError("Screen du pronostic requis");
       return;
     }
 
-    // Vérif match commence dans +5min
+    // Vérif match commence dans +30min
     const matchDateTime = new Date(`${matchDate}T${matchTime}:00`);
-    if (matchDateTime.getTime() < Date.now() + 5 * 60 * 1000) {
-      setError("Le match doit commencer dans au moins 5 minutes");
+    if (matchDateTime.getTime() < Date.now() + 30 * 60 * 1000) {
+      setError("Le match doit commencer dans au moins 30 minutes (pour laisser le temps aux suiveurs)");
       return;
     }
 
@@ -92,6 +98,7 @@ export default function NouveauPickPage() {
     formData.append("sport", sport);
     formData.append("odds", String(oddsVal));
     formData.append("pick_type", pickType);
+    formData.append("bookmaker", bookmaker);
     formData.append("image", image);
 
     const res = await fetch("/api/tipster-picks", {
@@ -136,7 +143,7 @@ export default function NouveauPickPage() {
           </p>
           <h1 className="mt-2 text-2xl font-black sm:text-3xl">Poster un pronostic</h1>
           <p className="mt-2 text-sm text-white/60">
-            3 pronostics max par jour · Le match doit commencer dans +5 min
+            3 pronostics max par jour · Le match doit commencer dans +30 min
           </p>
         </div>
       </div>
@@ -223,6 +230,9 @@ export default function NouveauPickPage() {
               />
             </div>
           </div>
+          <p className="text-[11px] text-amber-600 -mt-3">
+            ⏰ Le match doit commencer dans <strong>au moins 30 minutes</strong> pour laisser le temps aux suiveurs.
+          </p>
 
           {/* Cote */}
           <div>
@@ -240,6 +250,26 @@ export default function NouveauPickPage() {
             />
             <p className="mt-1 text-[11px] text-neutral-400">
               Cote maximum : <strong className="text-emerald-600">5.00</strong>
+            </p>
+          </div>
+
+          {/* Bookmaker */}
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
+              Bookmaker <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={bookmaker}
+              onChange={(e) => setBookmaker(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
+            >
+              <option value="">— Où as-tu pris ton pari ? —</option>
+              {BOOKMAKERS.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-neutral-400">
+              Permet à tes suiveurs de retrouver la même cote.
             </p>
           </div>
 
