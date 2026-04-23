@@ -13,15 +13,22 @@ export default function ProfilPage() {
   const [pseudo, setPseudo] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [paypalSaving, setPaypalSaving] = useState(false);
+  const [paypalSaved, setPaypalSaved] = useState(false);
+  const [paypalError, setPaypalError] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
 
   useEffect(() => {
     if (user) {
       setPseudo(user.pseudo ?? user.display_name ?? "");
       setAvatarUrl(user.avatar_url ?? "");
       setAvatarPreview(user.avatar_url ?? "");
+      setPaypalEmail((user as any).paypal_email ?? "");
     }
   }, [user]);
 
@@ -68,6 +75,33 @@ export default function ProfilPage() {
     }
 
     setSaving(false);
+  }
+
+  async function handleSavePaypal() {
+    setPaypalSaving(true);
+    setPaypalSaved(false);
+    setPaypalError("");
+
+    try {
+      const res = await fetch("/api/user/paypal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paypal_email: paypalEmail || null }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPaypalError(data.error || "Erreur");
+      } else {
+        setPaypalSaved(true);
+        setTimeout(() => setPaypalSaved(false), 3000);
+        refreshUser().catch(() => {});
+      }
+    } catch {
+      setPaypalError("Erreur réseau");
+    }
+
+    setPaypalSaving(false);
   }
 
   const initial = (pseudo || user?.email || "?").charAt(0).toUpperCase();
@@ -130,6 +164,44 @@ export default function ProfilPage() {
             {saving ? t("btn_saving") : saved ? t("btn_saved") : t("btn_save")}
           </button>
         </div>
+
+        {isPremium && (
+          <div className="mt-8 overflow-hidden rounded-2xl border-2 border-amber-500/30" style={{ background: "linear-gradient(135deg, #1a1208 0%, #3d2a0a 100%)" }}>
+            <div className="p-6 text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">💰 Pronos Abonnés</p>
+              <h3 className="mt-2 text-base font-black text-white">Email PayPal pour les gains</h3>
+              <p className="mt-2 text-xs text-white/50 leading-relaxed">
+                Si tu remportes le concours tipster de la semaine (10€) ou du mois (40€),
+                tes gains seront envoyés sur cet email PayPal.
+              </p>
+
+              <input
+                type="email"
+                value={paypalEmail}
+                onChange={(e) => setPaypalEmail(e.target.value)}
+                placeholder="ton-email@example.com"
+                className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+              />
+
+              {paypalError && (
+                <p className="mt-2 text-xs font-bold text-red-400">{paypalError}</p>
+              )}
+
+              <button
+                onClick={handleSavePaypal}
+                disabled={paypalSaving}
+                className="mt-4 w-full cursor-pointer rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)", boxShadow: "0 4px 14px rgba(251,191,36,0.3)" }}
+              >
+                {paypalSaving ? "Enregistrement..." : paypalSaved ? "✓ Enregistré" : "Enregistrer PayPal"}
+              </button>
+
+              <p className="mt-3 text-[11px] text-white/30">
+                Tu peux laisser vide si tu ne participes pas au concours.
+              </p>
+            </div>
+          </div>
+        )}
 
       </main>
     </>
