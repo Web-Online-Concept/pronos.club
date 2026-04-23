@@ -2,9 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
+import AdminPronosAbonnesNav from "@/components/admin/AdminPronosAbonnesNav";
 
 type Pick = {
   id: string;
@@ -33,7 +32,6 @@ const RESULT_LABELS: { value: string; label: string; color: string }[] = [
 
 export default function AdminTipsterPicksPage() {
   const { user } = useAuth();
-  const locale = useLocale();
   const isAdmin = user?.is_admin === true;
 
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -130,17 +128,7 @@ export default function AdminTipsterPicksPage() {
                 Valide, modifie ou rejette les pronostics postés par les tipsters
               </p>
             </div>
-            <div className="flex gap-3">
-              <Link href={`/${locale}/admin/pronos-abonnes/config`} className="text-sm font-bold text-neutral-500 hover:text-neutral-900">
-                ⚙️ Config
-              </Link>
-              <Link href={`/${locale}/admin/pronos-abonnes/gains`} className="text-sm font-bold text-neutral-500 hover:text-neutral-900">
-                💰 Gains
-              </Link>
-              <Link href={`/${locale}/admin`} className="text-sm font-bold text-neutral-500 hover:text-neutral-900">
-                ← Admin
-              </Link>
-            </div>
+            <AdminPronosAbonnesNav active="picks" />
           </div>
         </div>
       </div>

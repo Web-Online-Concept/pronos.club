@@ -2,9 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
+import AdminPronosAbonnesNav from "@/components/admin/AdminPronosAbonnesNav";
 
 type Config = {
   prize_amount: number;
@@ -14,7 +13,6 @@ type Config = {
 
 export default function AdminConcoursConfigPage() {
   const { user } = useAuth();
-  const locale = useLocale();
   const isAdmin = user?.is_admin === true;
 
   const [week, setWeek] = useState<Config>({ prize_amount: 10, min_picks: 3, active: true });
@@ -166,7 +164,7 @@ export default function AdminConcoursConfigPage() {
     <main className="min-h-screen bg-neutral-50">
       <div className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-600">
                 🔒 Admin · Pronos Abonnés
@@ -176,20 +174,7 @@ export default function AdminConcoursConfigPage() {
                 Configure les montants et conditions du concours tipsters
               </p>
             </div>
-            <div className="flex gap-3">
-              <Link
-                href={`/${locale}/admin/pronos-abonnes/gains`}
-                className="text-sm font-bold text-neutral-500 hover:text-neutral-900"
-              >
-                💰 Gains →
-              </Link>
-              <Link
-                href={`/${locale}/admin`}
-                className="text-sm font-bold text-neutral-500 hover:text-neutral-900"
-              >
-                ← Admin
-              </Link>
-            </div>
+            <AdminPronosAbonnesNav active="config" />
           </div>
         </div>
       </div>

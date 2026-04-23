@@ -2,9 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
+import AdminPronosAbonnesNav from "@/components/admin/AdminPronosAbonnesNav";
 
 type Winner = {
   id: string;
@@ -30,7 +29,6 @@ type Winner = {
 
 export default function AdminGainsPage() {
   const { user } = useAuth();
-  const locale = useLocale();
   const isAdmin = user?.is_admin === true;
 
   const [winners, setWinners] = useState<Winner[]>([]);
@@ -118,22 +116,17 @@ export default function AdminGainsPage() {
     <main className="min-h-screen bg-neutral-50">
       <div className="bg-white border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-4 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-600">
-                🔒 Admin
+                🔒 Admin · Pronos Abonnés
               </p>
               <h1 className="mt-1 text-2xl font-black text-neutral-900">Gains Pronos Abonnés</h1>
               <p className="mt-1 text-sm text-neutral-500">
                 Suivi des versements PayPal aux gagnants du concours
               </p>
             </div>
-            <Link
-              href={`/${locale}/admin`}
-              className="text-sm font-bold text-neutral-500 hover:text-neutral-900"
-            >
-              ← Admin
-            </Link>
+            <AdminPronosAbonnesNav active="gains" />
           </div>
         </div>
       </div>
@@ -267,7 +260,6 @@ export default function AdminGainsPage() {
                   </div>
                 </div>
 
-                {/* Action zone */}
                 {!w.paid ? (
                   <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col sm:flex-row gap-2">
                     <input
