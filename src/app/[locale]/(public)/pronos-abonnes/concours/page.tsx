@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type RankingEntry = {
@@ -38,8 +38,13 @@ type Winner = {
   users: { pseudo: string; avatar_url: string | null } | null;
 };
 
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
+
 export default function ConcoursPage() {
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_concours");
+  const dateLocale = DATE_LOCALES[locale] || "fr-FR";
+
   const [tab, setTab] = useState<"current" | "history">("current");
   const [current, setCurrent] = useState<{ week: PeriodData; month: PeriodData } | null>(null);
   const [history, setHistory] = useState<Winner[]>([]);
@@ -74,9 +79,19 @@ export default function ConcoursPage() {
     const s = new Date(start);
     const e = new Date(end);
     if (type === "month") {
-      return s.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      return s.toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
     }
-    return `${s.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${e.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
+    return `${s.toLocaleDateString(dateLocale, { day: "numeric", month: "short" })} → ${e.toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}`;
+  }
+
+  // Rendu avec <strong> pour les lignes où la trad contient <strong>...</strong>
+  function renderWithStrong(text: string) {
+    const parts = text.split(/(<strong>.*?<\/strong>)/);
+    return parts.map((part, i) => {
+      const m = part.match(/^<strong>(.*?)<\/strong>$/);
+      if (m) return <strong key={i}>{m[1]}</strong>;
+      return <span key={i}>{part}</span>;
+    });
   }
 
   function Podium({ data, type }: { data: PeriodData; type: "week" | "month" }) {
@@ -95,20 +110,22 @@ export default function ConcoursPage() {
         <div className="text-center mb-6">
           <div className="inline-block rounded-full px-4 py-1" style={{ background: isWeek ? "rgba(16,185,129,0.2)" : "rgba(251,191,36,0.2)", color: isWeek ? "#047857" : "#92400e" }}>
             <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">
-              {isWeek ? `🏆 Semaine ${getISOWeek(new Date(data.period_start))}` : "👑 Mois"}
+              {isWeek
+                ? t("podium_week_badge", { num: getISOWeek(new Date(data.period_start)) })
+                : t("podium_month_badge")}
             </span>
           </div>
           <h3 className="mt-3 text-lg font-black text-neutral-900">
             {formatPeriod(data.period_start, data.period_end, type)}
           </h3>
           <p className="mt-1 text-xs text-neutral-600">
-            Minimum {data.min_picks} picks · Gain : <span className="font-extrabold" style={{ color }}>{data.prize}€</span>
+            {renderWithStrong(t("podium_meta", { min: data.min_picks, prize: data.prize }))}
           </p>
         </div>
 
         {top.length === 0 ? (
           <div className="py-10 text-center text-sm text-neutral-500">
-            Aucun tipster éligible pour le moment.
+            {t("podium_empty")}
           </div>
         ) : (
           <div className="space-y-2">
@@ -142,7 +159,7 @@ export default function ConcoursPage() {
                     <span className="font-extrabold text-neutral-900 truncate">{entry.pseudo}</span>
                   </div>
                   <p className="text-[11px] text-neutral-500 mt-0.5">
-                    {entry.total_picks} picks
+                    {t("podium_picks_count", { count: entry.total_picks })}
                   </p>
                 </Link>
                 <span className={`text-lg font-extrabold tabular-nums ${
@@ -158,7 +175,7 @@ export default function ConcoursPage() {
         {data.ranking.length > 3 && (
           <details className="mt-4">
             <summary className="cursor-pointer text-xs font-bold text-neutral-600 hover:text-neutral-900">
-              Voir tous les éligibles ({data.ranking.length})
+              {t("see_all_eligible", { count: data.ranking.length })}
             </summary>
             <div className="mt-2 space-y-1">
               {data.ranking.slice(3).map((entry) => (
@@ -171,7 +188,7 @@ export default function ConcoursPage() {
                     >
                       {entry.pseudo}
                     </Link>
-                    <span className="text-[10px] text-neutral-500">({entry.total_picks} picks)</span>
+                    <span className="text-[10px] text-neutral-500">({t("podium_picks_count", { count: entry.total_picks })})</span>
                   </div>
                   <span className={`text-sm font-bold tabular-nums ${
                     entry.total_units > 0 ? "text-emerald-700" : entry.total_units < 0 ? "text-red-600" : "text-neutral-500"
@@ -187,13 +204,13 @@ export default function ConcoursPage() {
         {data.non_eligible.length > 0 && (
           <details className="mt-3">
             <summary className="cursor-pointer text-xs font-bold text-neutral-500 hover:text-neutral-900">
-              Non éligibles ({data.non_eligible.length}) — pas assez de picks
+              {t("non_eligible_toggle", { count: data.non_eligible.length })}
             </summary>
             <div className="mt-2 space-y-1">
               {data.non_eligible.map((entry) => (
                 <div key={entry.user_id} className="flex items-center justify-between py-1.5 px-3 text-neutral-500">
                   <span className="text-xs">
-                    {entry.pseudo} <span className="text-red-500">({entry.total_picks}/{data.min_picks} picks)</span>
+                    {t("non_eligible_detail", { pseudo: entry.pseudo, current: entry.total_picks, min: data.min_picks })}
                   </span>
                   <span className="text-xs tabular-nums">
                     {entry.total_units >= 0 ? "+" : ""}{entry.total_units.toFixed(2)}U
@@ -207,6 +224,11 @@ export default function ConcoursPage() {
     );
   }
 
+  // Calculer le max entre les gains week/month pour le hero
+  const maxPrize = current
+    ? Math.max(current.week?.prize || 0, current.month?.prize || 0)
+    : 40;
+
   return (
     <main className="min-h-screen bg-white">
       <div
@@ -215,22 +237,24 @@ export default function ConcoursPage() {
       >
         <div className="mx-auto max-w-3xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-            🏆 Pronos Abonnés
+            {t("hero_badge")}
           </p>
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">Concours des tipsters</h1>
+          <h1 className="mt-3 text-3xl font-black sm:text-4xl">{t("hero_title")}</h1>
           <p className="mt-3 text-base text-white/70">
-            Deviens le meilleur tipster de la semaine ou du mois et empoche <strong className="text-amber-400">jusqu&apos;à 40€</strong>.
+            {t("hero_subtitle_before")}
+            <strong className="text-amber-400">{t("hero_subtitle_highlight", { max: maxPrize })}</strong>
+            {t("hero_subtitle_after")}
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <div className="rounded-xl bg-white/5 border border-emerald-500/30 px-5 py-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">Semaine</p>
-              <p className="mt-1 text-2xl font-black text-white">10€</p>
-              <p className="text-[10px] text-white/50">min. 3 picks</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">{t("hero_week_label")}</p>
+              <p className="mt-1 text-2xl font-black text-white">{current?.week?.prize ?? 10}€</p>
+              <p className="text-[10px] text-white/50">{t("hero_min_picks", { count: current?.week?.min_picks ?? 3 })}</p>
             </div>
             <div className="rounded-xl bg-white/5 border border-amber-500/30 px-5 py-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">Mois</p>
-              <p className="mt-1 text-2xl font-black text-white">40€</p>
-              <p className="text-[10px] text-white/50">min. 10 picks</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">{t("hero_month_label")}</p>
+              <p className="mt-1 text-2xl font-black text-white">{current?.month?.prize ?? 40}€</p>
+              <p className="text-[10px] text-white/50">{t("hero_min_picks", { count: current?.month?.min_picks ?? 10 })}</p>
             </div>
           </div>
         </div>
@@ -248,7 +272,7 @@ export default function ConcoursPage() {
                 tab === "current" ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
               }`}
             >
-              Concours en cours
+              {t("tab_current")}
             </button>
             <button
               onClick={() => setTab("history")}
@@ -256,13 +280,13 @@ export default function ConcoursPage() {
                 tab === "history" ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
               }`}
             >
-              🏅 Anciens gagnants
+              {t("tab_history")}
             </button>
             <Link
               href={`/${locale}/pronos-abonnes/fonctionnement`}
               className="rounded-xl bg-white text-neutral-600 border border-neutral-200 hover:border-emerald-400 hover:text-emerald-600 px-4 py-2.5 text-sm font-bold transition"
             >
-              📚 Fonctionnement →
+              {t("tab_how")}
             </Link>
           </div>
         </div>
@@ -285,59 +309,64 @@ export default function ConcoursPage() {
                 <span className="text-4xl">🏅</span>
               </div>
               <p className="text-neutral-500 text-sm">
-                Aucun gagnant pour le moment. Sois le premier à gagner !
+                {t("history_empty")}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {history.map((w) => (
-                <div key={w.id} className="flex items-center gap-4 rounded-2xl bg-white border border-neutral-200 p-4">
-                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${
-                    w.period_type === "week" ? "bg-emerald-100" : "bg-amber-100"
-                  }`}>
-                    {w.period_type === "week" ? "🏆" : "👑"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {w.users?.avatar_url ? (
-                        <img src={w.users.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                      ) : (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-bold text-neutral-600">
-                          {(w.users?.pseudo || "T").charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <Link
-                        href={`/${locale}/pronos-abonnes/${encodeURIComponent(w.users?.pseudo || "")}`}
-                        className="font-extrabold text-neutral-900 hover:text-emerald-600 truncate"
-                      >
-                        {w.users?.pseudo || "?"}
-                      </Link>
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      {w.period_type === "week" ? `Semaine ${getISOWeek(new Date(w.period_start))}` : "Mois"} : {formatPeriod(w.period_start, w.period_end, w.period_type)}
-                    </p>
-                    <p className="text-xs text-neutral-400 mt-0.5">
-                      +{w.total_units}U · {w.picks_count} picks
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-2xl font-black ${
-                      w.period_type === "week" ? "text-emerald-600" : "text-amber-600"
+              {history.map((w) => {
+                const periodPrefix = w.period_type === "week"
+                  ? t("history_week_prefix", { num: getISOWeek(new Date(w.period_start)) })
+                  : t("history_month_prefix");
+                return (
+                  <div key={w.id} className="flex items-center gap-4 rounded-2xl bg-white border border-neutral-200 p-4">
+                    <div className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${
+                      w.period_type === "week" ? "bg-emerald-100" : "bg-amber-100"
                     }`}>
-                      {w.prize_amount}€
-                    </p>
-                    {w.paid ? (
-                      <span className="inline-block mt-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
-                        ✓ Payé
-                      </span>
-                    ) : (
-                      <span className="inline-block mt-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">
-                        En attente
-                      </span>
-                    )}
+                      {w.period_type === "week" ? "🏆" : "👑"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {w.users?.avatar_url ? (
+                          <img src={w.users.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-200 text-xs font-bold text-neutral-600">
+                            {(w.users?.pseudo || "T").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <Link
+                          href={`/${locale}/pronos-abonnes/${encodeURIComponent(w.users?.pseudo || "")}`}
+                          className="font-extrabold text-neutral-900 hover:text-emerald-600 truncate"
+                        >
+                          {w.users?.pseudo || "?"}
+                        </Link>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        {t("history_period_meta", { prefix: periodPrefix, period: formatPeriod(w.period_start, w.period_end, w.period_type) })}
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-0.5">
+                        {t("history_units_picks", { units: w.total_units, count: w.picks_count })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-2xl font-black ${
+                        w.period_type === "week" ? "text-emerald-600" : "text-amber-600"
+                      }`}>
+                        {w.prize_amount}€
+                      </p>
+                      {w.paid ? (
+                        <span className="inline-block mt-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
+                          {t("badge_paid")}
+                        </span>
+                      ) : (
+                        <span className="inline-block mt-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700">
+                          {t("badge_pending")}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         ) : null}
