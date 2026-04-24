@@ -40,6 +40,15 @@ type FetchOptions = {
   pickId?: string | null;
 };
 
+type ApiFootballEnvelope = {
+  get: string;
+  parameters?: Record<string, string | number>;
+  errors?: unknown[] | Record<string, string>;
+  results: number;
+  paging?: { current: number; total: number };
+  response: unknown;
+};
+
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -72,6 +81,13 @@ const fetchWithTimeout = async (url: string, apiKey: string): Promise<Response> 
   }
 };
 
+const hasErrors = (errors: unknown): boolean => {
+  if (!errors) return false;
+  if (Array.isArray(errors)) return errors.length > 0;
+  if (typeof errors === "object") return Object.keys(errors).length > 0;
+  return false;
+};
+
 export class ApiFootballClient {
   private readonly apiKey: string;
 
@@ -85,10 +101,9 @@ export class ApiFootballClient {
     this.apiKey = key;
   }
 
-  private async fetchAndValidate<TSchema extends z.ZodTypeAny>(
-    options: FetchOptions,
-    schema: TSchema
-  ): Promise<z.infer<TSchema>> {
+  private async fetchRaw(
+    options: FetchOptions
+  ): Promise<ApiFootballEnvelope> {
     const { endpoint, params, pickId } = options;
     const url = buildUrl(endpoint, params);
 
@@ -124,39 +139,28 @@ export class ApiFootballClient {
           );
         }
 
-        const json = await response.json();
-        const parsed = schema.safeParse(json);
+        const json = (await response.json()) as ApiFootballEnvelope;
 
-        if (!parsed.success) {
+        if (hasErrors(json.errors)) {
           throw new ApiFootballError(
-            `Schema validation failed on ${endpoint}: ${parsed.error.message}`,
-            endpoint
+            `API-Football returned errors`,
+            endpoint,
+            response.status,
+            json.errors
           );
-        }
-
-        const data = parsed.data;
-
-        if (data.errors) {
-          const hasErrors = Array.isArray(data.errors)
-            ? data.errors.length > 0
-            : Object.keys(data.errors).length > 0;
-
-          if (hasErrors) {
-            throw new ApiFootballError(
-              `API-Football returned errors`,
-              endpoint,
-              response.status,
-              data.errors
-            );
-          }
         }
 
         await trackApiFootballCall(endpoint, pickId ?? null);
 
-        return data;
+        return json;
       } catch (err) {
         lastError = err;
-        if (err instanceof ApiFootballError && err.statusCode && err.statusCode < 500 && err.statusCode !== 429) {
+        if (
+          err instanceof ApiFootballError &&
+          err.statusCode &&
+          err.statusCode < 500 &&
+          err.statusCode !== 429
+        ) {
           throw err;
         }
         if (attempt === MAX_RETRIES - 1) {
@@ -176,20 +180,36 @@ export class ApiFootballClient {
     options: FetchOptions,
     itemSchema: T
   ): Promise<z.infer<T>[]> {
+    const raw = await this.fetchRaw(options);
     const schema = ApiFootballArrayResponseSchema(itemSchema);
-    const data = await this.fetchAndValidate(options, schema);
-    return data.response;
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      throw new ApiFootballError(
+        `Schema validation failed on ${options.endpoint}: ${parsed.error.message}`,
+        options.endpoint
+      );
+    }
+    return parsed.data.response;
   }
 
   private async requestObject<T extends z.ZodTypeAny>(
     options: FetchOptions,
     itemSchema: T
   ): Promise<z.infer<T> | null> {
+    const raw = await this.fetchRaw(options);
+
+    if (raw.response === null || raw.response === undefined) return null;
+    if (Array.isArray(raw.response) && raw.response.length === 0) return null;
+
     const schema = ApiFootballObjectResponseSchema(itemSchema);
-    const data = await this.fetchAndValidate(options, schema);
-    if (data.response === null || data.response === undefined) return null;
-    if (Array.isArray(data.response) && data.response.length === 0) return null;
-    return data.response;
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      throw new ApiFootballError(
+        `Schema validation failed on ${options.endpoint}: ${parsed.error.message}`,
+        options.endpoint
+      );
+    }
+    return parsed.data.response;
   }
 
   async getFixtureById(fixtureId: number, pickId?: string | null): Promise<Fixture | null> {
