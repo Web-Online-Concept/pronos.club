@@ -1547,5 +1547,59 @@
     "guide_subtitle_3": ", y publica tu primer pronóstico. Cada pronóstico = 1 unidad universal, comparable entre todos los tipsters.",
     "guide_cta_guide": "📚 Guía completa",
     "guide_cta_premium": "💎 Hazte Premium"
+  },
+  "pronos_abonnes_en_cours": {
+    "meta_title": "Pronósticos en curso · Pronósticos Abonados · PRONOS.CLUB",
+    "meta_description": "Descubre los pronósticos en curso publicados por los miembros premium, ordenados por hora del partido.",
+    "hero_badge": "🎯 Pronósticos Abonados",
+    "hero_title": "Pronósticos en curso",
+    "hero_subtitle": "Ordenados por hora del partido",
+    "filter_all_sports": "Todos los deportes",
+    "locked_title": "Pronósticos en curso reservados para Premium",
+    "locked_desc": "Para ver los pronósticos publicados por los miembros en tiempo real, hazte Premium. Tendrás acceso a todos los pronósticos en vivo, perfiles de tipsters, y podrás publicar los tuyos.",
+    "locked_cta_premium": "💎 Hazte Premium",
+    "locked_cta_ranking": "🏆 Ver ranking (gratis)",
+    "locked_footer": "El ranking y el historial siguen siendo de acceso libre.",
+    "empty_title": "Ningún pronóstico en curso por el momento",
+    "empty_subtitle": "Vuelve más tarde o consulta el historial."
+  },
+  "pronos_abonnes_nav": {
+    "tab_en_cours": "En curso",
+    "tab_historique": "Historial",
+    "tab_classement": "Ranking",
+    "tab_concours": "🏆 Concurso",
+    "cta_new_pick": "+ Nuevo pronóstico",
+    "cta_premium": "💎 Hazte Premium"
+  },
+  "pronos_abonnes_card": {
+    "label_sport": "Deporte",
+    "label_type": "Tipo",
+    "label_odds": "Cuota",
+    "label_result": "Resultado",
+    "type_simple": "Simple",
+    "type_combine": "Combinada",
+    "status_won": "Ganado",
+    "status_half_won": "½ Ganado",
+    "status_refunded": "Reembolsado",
+    "status_half_lost": "½ Perdido",
+    "status_lost": "Perdido",
+    "status_live": "En curso",
+    "delete_button": "🗑 Eliminar",
+    "delete_window": "⏱ Ventana de eliminación: {time} restantes",
+    "delete_locked": "Pronóstico bloqueado (ventana de modificación expirada)",
+    "time_minutes_seconds": "{min}min {sec}s",
+    "time_seconds": "{sec}s"
+  },
+  "pronos_abonnes_sports": {
+    "football": "⚽ Fútbol",
+    "basketball": "🏀 Baloncesto",
+    "tennis": "🎾 Tenis",
+    "hockey": "🏒 Hockey",
+    "football_us": "🏈 Fútbol Americano",
+    "baseball": "⚾ Béisbol",
+    "mma": "🥊 MMA/Boxeo",
+    "rugby": "🏉 Rugby",
+    "multisports": "🎲 Multideporte",
+    "autre": "🎯 Otro"
   }
 }

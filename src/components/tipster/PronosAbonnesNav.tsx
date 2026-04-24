@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 type Page = "en-cours" | "historique" | "classement" | "concours" | "fonctionnement";
@@ -13,6 +14,7 @@ export default function PronosAbonnesNav({
   active: Page;
   locale: string;
 }) {
+  const t = useTranslations("pronos_abonnes_nav");
   const { user } = useAuth();
   const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
   const isLoggedIn = !!user;
@@ -24,24 +26,23 @@ export default function PronosAbonnesNav({
         : "border-transparent text-neutral-500 hover:text-neutral-900"
     }`;
 
-  // Bouton CTA adapté au profil
   let cta: { label: string; href: string; color: "emerald" | "amber" };
 
   if (!isLoggedIn) {
     cta = {
-      label: "💎 Passer Premium",
+      label: t("cta_premium"),
       href: `/${locale}/abonnement`,
       color: "amber",
     };
   } else if (isPremium) {
     cta = {
-      label: "+ Nouveau prono",
+      label: t("cta_new_pick"),
       href: `/${locale}/espace/tipster/nouveau`,
       color: "emerald",
     };
   } else {
     cta = {
-      label: "💎 Passer Premium",
+      label: t("cta_premium"),
       href: `/${locale}/abonnement`,
       color: "amber",
     };
@@ -57,22 +58,20 @@ export default function PronosAbonnesNav({
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex justify-center items-center gap-1 overflow-x-auto">
           <Link href={`/${locale}/pronos-abonnes/en-cours`} className={linkClass(active === "en-cours")}>
-            En cours
+            {t("tab_en_cours")}
           </Link>
           <Link href={`/${locale}/pronos-abonnes/historique`} className={linkClass(active === "historique")}>
-            Historique
+            {t("tab_historique")}
           </Link>
           <Link href={`/${locale}/pronos-abonnes/classement`} className={linkClass(active === "classement")}>
-            Classement
+            {t("tab_classement")}
           </Link>
           <Link href={`/${locale}/pronos-abonnes/concours`} className={linkClass(active === "concours")}>
-            🏆 Concours
+            {t("tab_concours")}
           </Link>
 
-          {/* Séparateur visuel */}
           <span className="mx-2 text-neutral-300 hidden sm:inline">|</span>
 
-          {/* CTA dans le menu */}
           <Link
             href={cta.href}
             className={`whitespace-nowrap rounded-lg ${ctaClasses} px-3 py-1.5 my-2 text-xs sm:text-sm font-bold text-white shadow transition`}

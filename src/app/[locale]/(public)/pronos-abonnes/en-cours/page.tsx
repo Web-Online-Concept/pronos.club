@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 import ConcoursWidget from "@/components/tipster/ConcoursWidget";
@@ -11,20 +11,15 @@ import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type Pick = any;
 
-const SPORTS = [
-  "⚽ Football",
-  "🏀 Basketball",
-  "🎾 Tennis",
-  "🏒 Hockey",
-  "🏈 Football US",
-  "⚾ Baseball",
-  "🥊 MMA/Boxe",
-  "🏉 Rugby",
-  "🎯 Autre",
+const SPORT_KEYS = [
+  "football", "basketball", "tennis", "hockey", "football_us",
+  "baseball", "mma", "rugby", "multisports", "autre",
 ];
 
 export default function PronosAbonnesEnCoursPage() {
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_en_cours");
+  const tSports = useTranslations("pronos_abonnes_sports");
   const { user } = useAuth();
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,11 +52,11 @@ export default function PronosAbonnesEnCoursPage() {
       >
         <div className="mx-auto max-w-3xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-            🎯 Pronos Abonnés
+            {t("hero_badge")}
           </p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Pronos en cours</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">{t("hero_title")}</h1>
           <p className="mt-2 text-sm text-white/60">
-            Triés par heure de match
+            {t("hero_subtitle")}
           </p>
         </div>
       </div>
@@ -78,10 +73,13 @@ export default function PronosAbonnesEnCoursPage() {
                 onChange={(e) => setSportFilter(e.target.value)}
                 className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-bold text-neutral-900 outline-none transition hover:border-neutral-400 focus:border-emerald-500"
               >
-                <option value="">Tous les sports</option>
-                {SPORTS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                <option value="">{t("filter_all_sports")}</option>
+                {SPORT_KEYS.map((key) => {
+                  const label = tSports(key);
+                  return (
+                    <option key={key} value={label}>{label}</option>
+                  );
+                })}
               </select>
             </div>
           </div>
@@ -90,7 +88,7 @@ export default function PronosAbonnesEnCoursPage() {
 
       {/* Content */}
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Widget concours pour les premium connect\u00e9s */}
+        {/* Widget concours pour les premium connectés */}
         {isPremium && user && (
           <div className="mb-6">
             <ConcoursWidget userId={(user as any).id} locale={locale} />
@@ -101,27 +99,26 @@ export default function PronosAbonnesEnCoursPage() {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100">
               <span className="text-4xl">🔒</span>
             </div>
-            <h2 className="text-2xl font-black text-neutral-900">Pronos en cours réservés aux Premium</h2>
+            <h2 className="text-2xl font-black text-neutral-900">{t("locked_title")}</h2>
             <p className="mt-3 max-w-md mx-auto text-sm text-neutral-600">
-              Pour voir les pronostics postés par les abonnés en temps réel, passe Premium.
-              Tu auras accès à tous les pronos live, profils tipsters, et tu pourras poster les tiens.
+              {t("locked_desc")}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href={`/${locale}/abonnement`}
                 className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500"
               >
-                💎 Passer Premium
+                {t("locked_cta_premium")}
               </Link>
               <Link
                 href={`/${locale}/pronos-abonnes/classement`}
                 className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-700 transition hover:border-neutral-900"
               >
-                🏆 Voir le classement (gratuit)
+                {t("locked_cta_ranking")}
               </Link>
             </div>
             <p className="mt-6 text-xs text-neutral-400">
-              Classement et historique restent accessibles librement.
+              {t("locked_footer")}
             </p>
           </div>
         ) : loading ? (
@@ -134,10 +131,10 @@ export default function PronosAbonnesEnCoursPage() {
               <span className="text-4xl">🎯</span>
             </div>
             <p className="text-neutral-500 text-sm">
-              Aucun pronostic en cours pour le moment
+              {t("empty_title")}
             </p>
             <p className="mt-2 text-xs text-neutral-400">
-              Reviens plus tard ou consulte l&apos;historique.
+              {t("empty_subtitle")}
             </p>
           </div>
         ) : (

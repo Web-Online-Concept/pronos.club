@@ -1547,5 +1547,59 @@
     "guide_subtitle_3": ", and post your first pick. Each pick = 1 universal unit, comparable between all tipsters.",
     "guide_cta_guide": "📚 Full guide",
     "guide_cta_premium": "💎 Go Premium"
+  },
+  "pronos_abonnes_en_cours": {
+    "meta_title": "Live Picks · Community Picks · PRONOS.CLUB",
+    "meta_description": "Discover live picks posted by premium members, sorted by match time.",
+    "hero_badge": "🎯 Community Picks",
+    "hero_title": "Live Picks",
+    "hero_subtitle": "Sorted by match time",
+    "filter_all_sports": "All sports",
+    "locked_title": "Live Picks reserved for Premium",
+    "locked_desc": "To see picks posted by members in real time, go Premium. You'll have access to all live picks, tipster profiles, and you'll be able to post your own.",
+    "locked_cta_premium": "💎 Go Premium",
+    "locked_cta_ranking": "🏆 View ranking (free)",
+    "locked_footer": "Ranking and history remain freely accessible.",
+    "empty_title": "No live picks at the moment",
+    "empty_subtitle": "Come back later or check the history."
+  },
+  "pronos_abonnes_nav": {
+    "tab_en_cours": "Live",
+    "tab_historique": "History",
+    "tab_classement": "Ranking",
+    "tab_concours": "🏆 Contest",
+    "cta_new_pick": "+ New pick",
+    "cta_premium": "💎 Go Premium"
+  },
+  "pronos_abonnes_card": {
+    "label_sport": "Sport",
+    "label_type": "Type",
+    "label_odds": "Odds",
+    "label_result": "Result",
+    "type_simple": "Single",
+    "type_combine": "Combo",
+    "status_won": "Won",
+    "status_half_won": "½ Won",
+    "status_refunded": "Refunded",
+    "status_half_lost": "½ Lost",
+    "status_lost": "Lost",
+    "status_live": "Live",
+    "delete_button": "🗑 Delete",
+    "delete_window": "⏱ Delete window: {time} left",
+    "delete_locked": "Pick locked (modification window expired)",
+    "time_minutes_seconds": "{min}min {sec}s",
+    "time_seconds": "{sec}s"
+  },
+  "pronos_abonnes_sports": {
+    "football": "⚽ Football",
+    "basketball": "🏀 Basketball",
+    "tennis": "🎾 Tennis",
+    "hockey": "🏒 Hockey",
+    "football_us": "🏈 American Football",
+    "baseball": "⚾ Baseball",
+    "mma": "🥊 MMA/Boxing",
+    "rugby": "🏉 Rugby",
+    "multisports": "🎲 Multi-sports",
+    "autre": "🎯 Other"
   }
 }

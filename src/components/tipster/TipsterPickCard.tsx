@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 
 type Pick = {
   id: string;
@@ -19,6 +20,9 @@ type Pick = {
   users: { id: string; pseudo: string; avatar_url: string | null } | null;
 };
 
+// Date formats par locale
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
+
 export default function TipsterPickCard({
   pick,
   locale,
@@ -34,27 +38,29 @@ export default function TipsterPickCard({
   canDelete?: boolean;
   onDelete?: () => void;
 }) {
+  const t = useTranslations("pronos_abonnes_card");
   const pseudo = pick.users?.pseudo || "TIPSTER";
   const avatar = pick.users?.avatar_url;
 
   const theme = pick.result === "won"
-    ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: "Gagné" }
+    ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
     : pick.result === "half_won"
-    ? { accent: "#10b981", bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.15)", ring: "rgba(16,185,129,0.3)", text: "#6ee7b7", label: "½ Gagné" }
+    ? { accent: "#10b981", bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.15)", ring: "rgba(16,185,129,0.3)", text: "#6ee7b7", label: t("status_half_won") }
     : pick.result === "refunded"
-    ? { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", ring: "rgba(59,130,246,0.4)", text: "#93c5fd", label: "Remboursé" }
+    ? { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", ring: "rgba(59,130,246,0.4)", text: "#93c5fd", label: t("status_refunded") }
     : pick.result === "half_lost"
-    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)", ring: "rgba(239,68,68,0.3)", text: "#fca5a5", label: "½ Perdu" }
+    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)", ring: "rgba(239,68,68,0.3)", text: "#fca5a5", label: t("status_half_lost") }
     : pick.result === "lost"
-    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: "Perdu" }
-    : { accent: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", ring: "rgba(255,255,255,0.06)", text: "rgba(251,191,36,0.9)", label: "En cours" };
+    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: t("status_lost") }
+    : { accent: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", ring: "rgba(255,255,255,0.06)", text: "rgba(251,191,36,0.9)", label: t("status_live") };
 
+  const dateLocale = DATE_LOCALES[locale] || "fr-FR";
   const matchDate = new Date(pick.match_date);
-  const matchDateStr = matchDate.toLocaleDateString("fr-FR", {
+  const matchDateStr = matchDate.toLocaleDateString(dateLocale, {
     day: "numeric",
     month: "short",
   }).toUpperCase();
-  const matchTimeStr = matchDate.toLocaleTimeString("fr-FR", {
+  const matchTimeStr = matchDate.toLocaleTimeString(dateLocale, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -70,7 +76,6 @@ export default function TipsterPickCard({
           boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.ring}`,
         }}
       >
-        {/* Accent bar top */}
         <div
           style={{
             position: "absolute", top: 0, left: 0, right: 0, height: "3px",
@@ -81,7 +86,7 @@ export default function TipsterPickCard({
         {/* Header : Sport + Logo + Date */}
         <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
-            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>Sport</span>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>{t("label_sport")}</span>
             <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", lineHeight: 1.1, textAlign: "center" }}>
               {pick.sport}
             </span>
@@ -128,16 +133,16 @@ export default function TipsterPickCard({
           </div>
         </div>
 
-        {/* Data grid : Type + Cote + (Units si résolu) */}
+        {/* Data grid */}
         <div style={{ padding: "0 16px 14px", display: "grid", gridTemplateColumns: showResult && pick.units_result !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: "6px" }}>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Type</p>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_type")}</p>
             <p style={{ fontSize: "13px", fontWeight: 700, color: pick.pick_type === "combiné" ? "#fbbf24" : "white", margin: "2px 0 0" }}>
-              {pick.pick_type === "combiné" ? "Combiné" : "Simple"}
+              {pick.pick_type === "combiné" ? t("type_combine") : t("type_simple")}
             </p>
           </div>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Cote</p>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_odds")}</p>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
               {parseFloat(String(pick.odds)).toFixed(2)}
             </p>
@@ -155,7 +160,7 @@ export default function TipsterPickCard({
               textAlign: "center",
               border: `1px solid ${theme.border}`,
             }}>
-              <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>Résultat</p>
+              <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_result")}</p>
               <p style={{ fontSize: "13px", fontWeight: 700, color: theme.text, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
                 {pick.units_result >= 0 ? "+" : ""}{parseFloat(String(pick.units_result)).toFixed(2)}U
               </p>
@@ -228,17 +233,18 @@ export default function TipsterPickCard({
         const secondsLeft = Math.floor((deadline - now) / 1000);
 
         if (secondsLeft <= 0) {
-          // Fenêtre expirée : plus de bouton, juste un message discret
           return (
             <p className="mt-2 text-center text-[10px] text-neutral-400 italic">
-              Pronostic verrouillé (fenêtre de modification expirée)
+              {t("delete_locked")}
             </p>
           );
         }
 
         const minutes = Math.floor(secondsLeft / 60);
         const seconds = secondsLeft % 60;
-        const timeStr = minutes > 0 ? `${minutes}min ${seconds}s` : `${seconds}s`;
+        const timeStr = minutes > 0
+          ? t("time_minutes_seconds", { min: minutes, sec: seconds })
+          : t("time_seconds", { sec: seconds });
 
         return (
           <>
@@ -247,10 +253,10 @@ export default function TipsterPickCard({
               className="mt-2 w-full cursor-pointer rounded-lg px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500/20"
               style={{ background: "#1a2a3a", border: "1px solid rgba(255,255,255,0.1)" }}
             >
-              🗑 Supprimer
+              {t("delete_button")}
             </button>
             <p className="mt-1 text-center text-[10px] text-amber-600">
-              ⏱ Fenêtre de suppression : encore {timeStr}
+              {t("delete_window", { time: timeStr })}
             </p>
           </>
         );
