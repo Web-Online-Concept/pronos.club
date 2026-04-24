@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 type Prefs = {
@@ -31,6 +31,7 @@ type Follow = {
 export default function TipsterNotifSection() {
   const { user } = useAuth();
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_notif_section");
   const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
 
   const [open, setOpen] = useState(false);
@@ -98,7 +99,7 @@ export default function TipsterNotifSection() {
   }
 
   async function unfollow(tipsterId: string) {
-    if (!confirm("Arrêter de suivre ce tipster ?")) return;
+    if (!confirm(t("confirm_unfollow"))) return;
     await fetch(`/api/tipster-follows?tipster_id=${tipsterId}`, { method: "DELETE" });
     setFollows(follows.filter((f) => f.tipster_id !== tipsterId));
   }
@@ -110,13 +111,18 @@ export default function TipsterNotifSection() {
   }
 
   async function unlinkTelegram() {
-    if (!confirm("Délier ton compte Telegram ?")) return;
+    if (!confirm(t("confirm_unlink_telegram"))) return;
     await fetch("/api/tipsters-telegram-link", { method: "DELETE" });
     setTelegramLinked(false);
     setTelegramLinkInfo(null);
   }
 
   if (!user) return null;
+
+  const modeBadgeLabel =
+    prefs.mode === "none" ? t("mode_badge_none") :
+    prefs.mode === "all" ? t("mode_badge_all") :
+    t("mode_badge_selected");
 
   return (
     <details
@@ -128,15 +134,15 @@ export default function TipsterNotifSection() {
       <summary className="cursor-pointer flex items-center gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-lg">🎯</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-extrabold text-white">Pronos Abonnés</p>
-          <p className="text-xs text-white/50">Notifications des tipsters de la communauté</p>
+          <p className="text-sm font-extrabold text-white">{t("title")}</p>
+          <p className="text-xs text-white/50">{t("subtitle")}</p>
         </div>
         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
           prefs.mode === "none" ? "bg-neutral-500/20 text-neutral-300" :
           prefs.mode === "all" ? "bg-emerald-500/20 text-emerald-300" :
           "bg-amber-500/20 text-amber-300"
         }`}>
-          {prefs.mode === "none" ? "Aucun" : prefs.mode === "all" ? "Tous" : "Sélectionnés"}
+          {modeBadgeLabel}
         </span>
         <span className="text-white/40 transition-transform group-open:rotate-180">▼</span>
       </summary>
@@ -144,12 +150,12 @@ export default function TipsterNotifSection() {
       <div className="border-t border-white/[0.06] p-5 space-y-5">
         {!isPremium ? (
           <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 text-center">
-            <p className="text-sm font-bold text-amber-300">🔒 Réservé aux abonnés Premium</p>
+            <p className="text-sm font-bold text-amber-300">{t("premium_locked_title")}</p>
             <Link
               href={`/${locale}/abonnement`}
               className="mt-3 inline-block rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-white transition"
             >
-              💎 Passer Premium
+              {t("premium_cta")}
             </Link>
           </div>
         ) : loading ? (
@@ -161,13 +167,13 @@ export default function TipsterNotifSection() {
             {/* Mode */}
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 mb-3">
-                Mode de réception
+                {t("mode_section_title")}
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: "none", label: "Aucun", desc: "Je ne reçois rien" },
-                  { value: "all", label: "Tous", desc: "Tous les tipsters" },
-                  { value: "selected", label: "Sélectionnés", desc: "Ceux que je suis" },
+                  { value: "none", label: t("mode_none_label"), desc: t("mode_none_desc") },
+                  { value: "all", label: t("mode_all_label"), desc: t("mode_all_desc") },
+                  { value: "selected", label: t("mode_selected_label"), desc: t("mode_selected_desc") },
                 ].map((o) => (
                   <button
                     key={o.value}
@@ -190,7 +196,7 @@ export default function TipsterNotifSection() {
             {prefs.mode !== "none" && (
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 mb-3">
-                  Canaux activés
+                  {t("channels_section_title")}
                 </p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 rounded-lg bg-white/5 border border-white/10 p-3 cursor-pointer hover:bg-white/10">
@@ -201,7 +207,7 @@ export default function TipsterNotifSection() {
                       className="h-4 w-4 cursor-pointer"
                     />
                     <span className="text-lg">📧</span>
-                    <span className="flex-1 text-sm font-bold text-white">Email</span>
+                    <span className="flex-1 text-sm font-bold text-white">{t("channel_email")}</span>
                     <span className="text-[10px] text-white/40">{user?.email}</span>
                   </label>
 
@@ -215,9 +221,9 @@ export default function TipsterNotifSection() {
                     />
                     <span className="text-lg">💬</span>
                     <div className="flex-1">
-                      <span className="text-sm font-bold text-white">Telegram</span>
+                      <span className="text-sm font-bold text-white">{t("channel_telegram")}</span>
                       {!telegramLinked && (
-                        <p className="text-[10px] text-amber-400">Compte non lié</p>
+                        <p className="text-[10px] text-amber-400">{t("channel_telegram_unlinked")}</p>
                       )}
                     </div>
                     {telegramLinked ? (
@@ -225,23 +231,23 @@ export default function TipsterNotifSection() {
                         onClick={(e) => { e.preventDefault(); unlinkTelegram(); }}
                         className="text-[10px] text-red-400 hover:text-red-300 cursor-pointer"
                       >
-                        Délier
+                        {t("channel_telegram_unlink")}
                       </button>
                     ) : (
                       <button
                         onClick={(e) => { e.preventDefault(); generateTelegramLink(); }}
                         className="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2 py-1 rounded cursor-pointer"
                       >
-                        Lier
+                        {t("channel_telegram_link")}
                       </button>
                     )}
                   </label>
 
                   {telegramLinkInfo && (
                     <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3">
-                      <p className="text-xs font-bold text-emerald-300 mb-2">📱 Liaison Telegram</p>
+                      <p className="text-xs font-bold text-emerald-300 mb-2">{t("telegram_link_title")}</p>
                       <p className="text-[11px] text-white/70 mb-3">
-                        Clique sur ce lien pour ouvrir Telegram et lier ton compte (valide 15 min) :
+                        {t("telegram_link_desc")}
                       </p>
                       <a
                         href={telegramLinkInfo.deep_link}
@@ -249,10 +255,12 @@ export default function TipsterNotifSection() {
                         rel="noopener noreferrer"
                         className="block text-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold px-3 py-2 transition"
                       >
-                        🚀 Ouvrir Telegram
+                        {t("telegram_link_button")}
                       </a>
                       <p className="mt-2 text-[10px] text-white/40 text-center">
-                        Ou tape <code className="bg-black/40 px-1 rounded">/start {telegramLinkInfo.token}</code> dans le bot
+                        {t("telegram_link_fallback_1")}
+                        <code className="bg-black/40 px-1 rounded">/start {telegramLinkInfo.token}</code>
+                        {t("telegram_link_fallback_2")}
                       </p>
                     </div>
                   )}
@@ -265,7 +273,7 @@ export default function TipsterNotifSection() {
                       className="h-4 w-4 cursor-pointer"
                     />
                     <span className="text-lg">🔔</span>
-                    <span className="flex-1 text-sm font-bold text-white">Push (navigateur)</span>
+                    <span className="flex-1 text-sm font-bold text-white">{t("channel_push")}</span>
                   </label>
                 </div>
               </div>
@@ -275,18 +283,18 @@ export default function TipsterNotifSection() {
             {prefs.mode === "selected" && (
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400 mb-3">
-                  Mes tipsters suivis ({follows.length})
+                  {t("follows_section_title", { count: follows.length })}
                 </p>
                 {follows.length === 0 ? (
                   <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
                     <p className="text-xs text-white/60">
-                      Tu ne suis aucun tipster pour l&apos;instant.
+                      {t("no_follows_text")}
                     </p>
                     <Link
                       href={`/${locale}/pronos-abonnes/classement`}
                       className="mt-3 inline-block rounded-lg bg-emerald-500 hover:bg-emerald-400 px-3 py-2 text-xs font-bold text-white transition"
                     >
-                      🏆 Découvrir des tipsters
+                      {t("no_follows_cta")}
                     </Link>
                   </div>
                 ) : (
@@ -311,7 +319,7 @@ export default function TipsterNotifSection() {
                             onClick={() => unfollow(f.tipster_id)}
                             className="text-[10px] text-red-400 hover:text-red-300 cursor-pointer"
                           >
-                            Ne plus suivre
+                            {t("unfollow_button")}
                           </button>
                         </div>
                         <div className="mt-2 flex gap-1">
@@ -324,7 +332,7 @@ export default function TipsterNotifSection() {
                                   : "bg-white/5 text-white/40 line-through"
                               }`}
                             >
-                              📧 Email
+                              {t("channel_badge_email")}
                             </button>
                           )}
                           {prefs.channel_telegram && (
@@ -336,7 +344,7 @@ export default function TipsterNotifSection() {
                                   : "bg-white/5 text-white/40 line-through"
                               }`}
                             >
-                              💬 Telegram
+                              {t("channel_badge_telegram")}
                             </button>
                           )}
                           {prefs.channel_push && (
@@ -348,7 +356,7 @@ export default function TipsterNotifSection() {
                                   : "bg-white/5 text-white/40 line-through"
                               }`}
                             >
-                              🔔 Push
+                              {t("channel_badge_push")}
                             </button>
                           )}
                         </div>
@@ -362,7 +370,7 @@ export default function TipsterNotifSection() {
             {/* Info */}
             <div className="rounded-xl bg-blue-500/10 border border-blue-500/30 p-3">
               <p className="text-[11px] text-blue-200 leading-relaxed">
-                <strong>💡 Mode d&apos;emploi :</strong> choisis &quot;Tous&quot; pour recevoir les pronos de tous les tipsters, ou &quot;Sélectionnés&quot; pour suivre uniquement ceux que tu aimes. Tu peux désactiver un canal spécifique par tipster dans la liste ci-dessus.
+                <strong>{t("info_mode_emploi_title")}</strong>{t("info_mode_emploi_text")}
               </p>
             </div>
           </>

@@ -4,27 +4,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { BOOKMAKERS } from "@/lib/tipster-bookmakers";
 
-const SPORTS = [
-  "⚽ Football",
-  "🏀 Basketball",
-  "🎾 Tennis",
-  "🏒 Hockey",
-  "🏈 Football US",
-  "⚾ Baseball",
-  "🥊 MMA/Boxe",
-  "🏉 Rugby",
-  "🎲 Multisports",
-  "🎯 Autre",
+const SPORT_KEYS = [
+  "football", "basketball", "tennis", "hockey", "football_us",
+  "baseball", "mma", "rugby", "multisports", "autre",
 ];
 
 export default function NouveauPickPage() {
   const { user } = useAuth();
   const locale = useLocale();
   const router = useRouter();
+  const t = useTranslations("pronos_abonnes_form");
+  const tSports = useTranslations("pronos_abonnes_sports");
 
   const [matchDate, setMatchDate] = useState("");
   const [matchTime, setMatchTime] = useState("");
@@ -43,11 +37,11 @@ export default function NouveauPickPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setError("Image trop lourde (max 5 Mo)");
+      setError(t("error_image_too_big"));
       return;
     }
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Format invalide (JPG, PNG, WEBP)");
+      setError(t("error_image_format"));
       return;
     }
     setError("");
@@ -61,35 +55,34 @@ export default function NouveauPickPage() {
     setError("");
 
     if (!matchDate || !matchTime) {
-      setError("Date et heure du match requises");
+      setError(t("error_date_required"));
       return;
     }
     if (!sport) {
-      setError("Sport requis");
+      setError(t("error_sport_required"));
       return;
     }
     const oddsVal = parseFloat(odds);
     if (!oddsVal || oddsVal <= 1) {
-      setError("Cote invalide (> 1.00)");
+      setError(t("error_odds_invalid"));
       return;
     }
     if (oddsVal > 5) {
-      setError("Cote trop élevée (max 5.00)");
+      setError(t("error_odds_too_high"));
       return;
     }
     if (!bookmaker) {
-      setError("Bookmaker requis");
+      setError(t("error_bookmaker_required"));
       return;
     }
     if (!image) {
-      setError("Screen du pronostic requis");
+      setError(t("error_image_required"));
       return;
     }
 
-    // Vérif match commence dans +30min
     const matchDateTime = new Date(`${matchDate}T${matchTime}:00`);
     if (matchDateTime.getTime() < Date.now() + 30 * 60 * 1000) {
-      setError("Le match doit commencer dans au moins 30 minutes (pour laisser le temps aux suiveurs)");
+      setError(t("error_match_too_soon"));
       return;
     }
 
@@ -120,12 +113,12 @@ export default function NouveauPickPage() {
       <main className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="max-w-md text-center">
           <div className="text-5xl mb-4">🔒</div>
-          <h1 className="text-2xl font-black text-neutral-900">Accès Premium requis</h1>
+          <h1 className="text-2xl font-black text-neutral-900">{t("locked_title")}</h1>
           <Link
             href={`/${locale}/espace/abonnement`}
             className="mt-6 inline-block rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-500"
           >
-            Voir les offres
+            {t("locked_cta")}
           </Link>
         </div>
       </main>
@@ -140,11 +133,11 @@ export default function NouveauPickPage() {
       >
         <div className="mx-auto max-w-2xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-            🎯 Nouveau pronostic
+            {t("hero_badge")}
           </p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Poster un pronostic</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">{t("hero_title")}</h1>
           <p className="mt-2 text-sm text-white/60">
-            3 pronostics max par jour · Le match doit commencer dans +30 min
+            {t("hero_subtitle")}
           </p>
         </div>
       </div>
@@ -154,7 +147,7 @@ export default function NouveauPickPage() {
           {/* Image */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Screen du ticket <span className="text-red-500">*</span>
+              {t("label_image")} <span className="text-red-500">{t("required_mark")}</span>
             </label>
             <div className="mt-2">
               {imagePreview ? (
@@ -175,8 +168,8 @@ export default function NouveauPickPage() {
               ) : (
                 <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 py-10 transition hover:border-emerald-500 hover:bg-emerald-50">
                   <span className="text-4xl mb-2">📸</span>
-                  <p className="text-sm font-bold text-neutral-600">Uploader un screen</p>
-                  <p className="text-xs text-neutral-400">JPG, PNG, WEBP · max 5 Mo</p>
+                  <p className="text-sm font-bold text-neutral-600">{t("image_upload_title")}</p>
+                  <p className="text-xs text-neutral-400">{t("image_upload_hint")}</p>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -191,17 +184,18 @@ export default function NouveauPickPage() {
           {/* Sport */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Sport <span className="text-red-500">*</span>
+              {t("label_sport")} <span className="text-red-500">{t("required_mark")}</span>
             </label>
             <select
               value={sport}
               onChange={(e) => setSport(e.target.value)}
               className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
             >
-              <option value="">— Choisir —</option>
-              {SPORTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <option value="">{t("select_placeholder")}</option>
+              {SPORT_KEYS.map((key) => {
+                const label = tSports(key);
+                return <option key={key} value={label}>{label}</option>;
+              })}
             </select>
           </div>
 
@@ -209,7 +203,7 @@ export default function NouveauPickPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-                Date 1er match <span className="text-red-500">*</span>
+                {t("label_date")} <span className="text-red-500">{t("required_mark")}</span>
               </label>
               <input
                 type="date"
@@ -221,7 +215,7 @@ export default function NouveauPickPage() {
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-                Heure <span className="text-red-500">*</span>
+                {t("label_time")} <span className="text-red-500">{t("required_mark")}</span>
               </label>
               <input
                 type="time"
@@ -232,13 +226,13 @@ export default function NouveauPickPage() {
             </div>
           </div>
           <p className="text-[11px] text-amber-600 -mt-3">
-            ⏰ Le match doit commencer dans <strong>au moins 30 minutes</strong> pour laisser le temps aux suiveurs.
+            {t("date_warning_1")}<strong>{t("date_warning_strong")}</strong>{t("date_warning_2")}
           </p>
 
           {/* Cote */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Cote totale <span className="text-red-500">*</span>
+              {t("label_odds")} <span className="text-red-500">{t("required_mark")}</span>
             </label>
             <input
               type="number"
@@ -246,52 +240,52 @@ export default function NouveauPickPage() {
               max="5"
               value={odds}
               onChange={(e) => setOdds(e.target.value)}
-              placeholder="1.85"
+              placeholder={t("odds_placeholder")}
               className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
             />
             <p className="mt-1 text-[11px] text-neutral-400">
-              Cote maximum : <strong className="text-emerald-600">5.00</strong>
+              {t("odds_hint_1")}<strong className="text-emerald-600">{t("odds_hint_strong")}</strong>
             </p>
           </div>
 
           {/* Bookmaker */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Bookmaker <span className="text-red-500">*</span>
+              {t("label_bookmaker")} <span className="text-red-500">{t("required_mark")}</span>
             </label>
             <select
               value={bookmaker}
               onChange={(e) => setBookmaker(e.target.value)}
               className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
             >
-              <option value="">— Où as-tu pris ton pari ? —</option>
+              <option value="">{t("bookmaker_placeholder")}</option>
               {BOOKMAKERS.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
             <p className="mt-1 text-[11px] text-neutral-400">
-              Permet à tes suiveurs de retrouver la même cote.
+              {t("bookmaker_hint")}
             </p>
           </div>
 
           {/* Type */}
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Type de pari <span className="text-red-500">*</span>
+              {t("label_type")} <span className="text-red-500">{t("required_mark")}</span>
             </label>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {(["simple", "combiné"] as const).map((t) => (
+              {(["simple", "combiné"] as const).map((typeKey) => (
                 <button
-                  key={t}
+                  key={typeKey}
                   type="button"
-                  onClick={() => setPickType(t)}
+                  onClick={() => setPickType(typeKey)}
                   className={`cursor-pointer rounded-xl px-4 py-3 text-sm font-bold transition ${
-                    pickType === t
+                    pickType === typeKey
                       ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/25"
                       : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                   }`}
                 >
-                  {t === "simple" ? "Simple" : "Combiné"}
+                  {typeKey === "simple" ? t("type_simple") : t("type_combine")}
                 </button>
               ))}
             </div>
@@ -310,14 +304,14 @@ export default function NouveauPickPage() {
             disabled={saving}
             className="cursor-pointer w-full rounded-xl bg-emerald-600 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500 disabled:opacity-50"
           >
-            {saving ? "Publication en cours..." : "🎯 Publier le pronostic"}
+            {saving ? t("submit_saving") : t("submit")}
           </button>
 
           <Link
             href={`/${locale}/espace/tipster`}
             className="block text-center text-xs font-semibold text-neutral-500 hover:text-neutral-900"
           >
-            ← Annuler
+            {t("cancel")}
           </Link>
         </div>
       </div>
