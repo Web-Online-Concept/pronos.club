@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
           homeTeam: data.fixture.teams.home.name,
           awayTeam: data.fixture.teams.away.name,
           league: data.fixture.league.name,
-          eventDate: data.fixture.date ?? data.fixture.fixture.date,
+          eventDate: data.fixture.fixture.date,
         }),
         data,
       });
