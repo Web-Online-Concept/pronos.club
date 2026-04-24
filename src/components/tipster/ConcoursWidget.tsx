@@ -161,7 +161,7 @@ export default function ConcoursWidget({ userId, locale }: { userId: string; loc
           {title}
         </p>
         <p className="mt-2 text-lg font-black text-neutral-900">
-          {t("ranked_position", { rank })}
+          {t("ranked_position", { rank: rank ?? 0 })}
           <span className="text-xs font-bold text-neutral-500">{t("ranked_suffix")}</span>
           <span className="text-xs font-bold text-neutral-500 ml-1">{t("ranked_total", { total: totalParticipants })}</span>
         </p>
