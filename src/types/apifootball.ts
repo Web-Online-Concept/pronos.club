@@ -1,35 +1,5 @@
 import { z } from "zod";
 
-export const ApiFootballArrayResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
-  z.object({
-    get: z.string(),
-    parameters: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
-    errors: z.union([z.array(z.unknown()), z.record(z.string(), z.string())]).optional(),
-    results: z.number(),
-    paging: z
-      .object({
-        current: z.number(),
-        total: z.number(),
-      })
-      .optional(),
-    response: z.array(itemSchema),
-  });
-
-export const ApiFootballObjectResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
-  z.object({
-    get: z.string(),
-    parameters: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
-    errors: z.union([z.array(z.unknown()), z.record(z.string(), z.string())]).optional(),
-    results: z.number(),
-    paging: z
-      .object({
-        current: z.number(),
-        total: z.number(),
-      })
-      .optional(),
-    response: itemSchema,
-  });
-
 export const FixtureSchema = z.object({
   fixture: z.object({
     id: z.number(),

@@ -1,6 +1,4 @@
 import {
-  ApiFootballArrayResponseSchema,
-  ApiFootballObjectResponseSchema,
   FixtureSchema,
   InjurySchema,
   LineupSchema,
@@ -52,7 +50,10 @@ type ApiFootballEnvelope = {
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-const buildUrl = (endpoint: string, params?: Record<string, string | number>): string => {
+const buildUrl = (
+  endpoint: string,
+  params?: Record<string, string | number>
+): string => {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -62,7 +63,10 @@ const buildUrl = (endpoint: string, params?: Record<string, string | number>): s
   return url.toString();
 };
 
-const fetchWithTimeout = async (url: string, apiKey: string): Promise<Response> => {
+const fetchWithTimeout = async (
+  url: string,
+  apiKey: string
+): Promise<Response> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -181,15 +185,20 @@ export class ApiFootballClient {
     itemSchema: T
   ): Promise<z.infer<T>[]> {
     const raw = await this.fetchRaw(options);
-    const schema = ApiFootballArrayResponseSchema(itemSchema);
-    const parsed = schema.safeParse(raw);
+
+    if (!Array.isArray(raw.response)) {
+      return [];
+    }
+
+    const arraySchema = z.array(itemSchema);
+    const parsed = arraySchema.safeParse(raw.response);
     if (!parsed.success) {
       throw new ApiFootballError(
         `Schema validation failed on ${options.endpoint}: ${parsed.error.message}`,
         options.endpoint
       );
     }
-    return parsed.data.response;
+    return parsed.data;
   }
 
   private async requestObject<T extends z.ZodTypeAny>(
@@ -201,18 +210,20 @@ export class ApiFootballClient {
     if (raw.response === null || raw.response === undefined) return null;
     if (Array.isArray(raw.response) && raw.response.length === 0) return null;
 
-    const schema = ApiFootballObjectResponseSchema(itemSchema);
-    const parsed = schema.safeParse(raw);
+    const parsed = itemSchema.safeParse(raw.response);
     if (!parsed.success) {
       throw new ApiFootballError(
         `Schema validation failed on ${options.endpoint}: ${parsed.error.message}`,
         options.endpoint
       );
     }
-    return parsed.data.response;
+    return parsed.data;
   }
 
-  async getFixtureById(fixtureId: number, pickId?: string | null): Promise<Fixture | null> {
+  async getFixtureById(
+    fixtureId: number,
+    pickId?: string | null
+  ): Promise<Fixture | null> {
     const results = await this.requestArray(
       {
         endpoint: "/fixtures",
@@ -270,7 +281,10 @@ export class ApiFootballClient {
     );
   }
 
-  async getLineups(fixtureId: number, pickId?: string | null): Promise<Lineup[]> {
+  async getLineups(
+    fixtureId: number,
+    pickId?: string | null
+  ): Promise<Lineup[]> {
     return this.requestArray(
       {
         endpoint: "/fixtures/lineups",
@@ -341,7 +355,10 @@ export class ApiFootballClient {
     );
   }
 
-  async healthCheck(): Promise<{ ok: boolean; requestsRemaining: number | null }> {
+  async healthCheck(): Promise<{
+    ok: boolean;
+    requestsRemaining: number | null;
+  }> {
     const url = buildUrl("/status");
     try {
       const response = await fetchWithTimeout(url, this.apiKey);
