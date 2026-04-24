@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ApiFootballResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+export const ApiFootballArrayResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
   z.object({
     get: z.string(),
     parameters: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
@@ -13,6 +13,21 @@ export const ApiFootballResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T)
       })
       .optional(),
     response: z.array(itemSchema),
+  });
+
+export const ApiFootballObjectResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    get: z.string(),
+    parameters: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+    errors: z.union([z.array(z.unknown()), z.record(z.string(), z.string())]).optional(),
+    results: z.number(),
+    paging: z
+      .object({
+        current: z.number(),
+        total: z.number(),
+      })
+      .optional(),
+    response: itemSchema,
   });
 
 export const FixtureSchema = z.object({
@@ -125,52 +140,82 @@ export const OddsSchema = z.object({
 
 export type Odds = z.infer<typeof OddsSchema>;
 
-export const TeamStatisticsSchema = z.object({
-  league: z.object({
-    id: z.number(),
-    name: z.string(),
-    country: z.string(),
-    logo: z.string().nullable(),
-    flag: z.string().nullable(),
-    season: z.number(),
-  }),
-  team: z.object({
-    id: z.number(),
-    name: z.string(),
-    logo: z.string().nullable(),
-  }),
-  form: z.string().nullable(),
-  fixtures: z.object({
-    played: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-    wins: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-    draws: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-    loses: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-  }),
-  goals: z.object({
-    for: z.object({
-      total: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-      average: z.object({
-        home: z.string(),
-        away: z.string(),
-        total: z.string(),
+export const TeamStatisticsSchema = z
+  .object({
+    league: z.object({
+      id: z.number(),
+      name: z.string(),
+      country: z.string(),
+      logo: z.string().nullable(),
+      flag: z.string().nullable(),
+      season: z.number(),
+    }),
+    team: z.object({
+      id: z.number(),
+      name: z.string(),
+      logo: z.string().nullable(),
+    }),
+    form: z.string().nullable(),
+    fixtures: z.object({
+      played: z.object({
+        home: z.number(),
+        away: z.number(),
+        total: z.number(),
+      }),
+      wins: z.object({
+        home: z.number(),
+        away: z.number(),
+        total: z.number(),
+      }),
+      draws: z.object({
+        home: z.number(),
+        away: z.number(),
+        total: z.number(),
+      }),
+      loses: z.object({
+        home: z.number(),
+        away: z.number(),
+        total: z.number(),
       }),
     }),
-    against: z.object({
-      total: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-      average: z.object({
-        home: z.string(),
-        away: z.string(),
-        total: z.string(),
+    goals: z.object({
+      for: z.object({
+        total: z.object({
+          home: z.number(),
+          away: z.number(),
+          total: z.number(),
+        }),
+        average: z.object({
+          home: z.string(),
+          away: z.string(),
+          total: z.string(),
+        }),
+      }),
+      against: z.object({
+        total: z.object({
+          home: z.number(),
+          away: z.number(),
+          total: z.number(),
+        }),
+        average: z.object({
+          home: z.string(),
+          away: z.string(),
+          total: z.string(),
+        }),
       }),
     }),
-  }),
-  clean_sheet: z.object({ home: z.number(), away: z.number(), total: z.number() }),
-  failed_to_score: z.object({
-    home: z.number(),
-    away: z.number(),
-    total: z.number(),
-  }),
-});
+    clean_sheet: z.object({
+      home: z.number(),
+      away: z.number(),
+      total: z.number(),
+    }),
+    failed_to_score: z.object({
+      home: z.number(),
+      away: z.number(),
+      total: z.number(),
+    }),
+  })
+  .passthrough();
 
 export type TeamStatistics = z.infer<typeof TeamStatisticsSchema>;
 

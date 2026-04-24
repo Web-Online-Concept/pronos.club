@@ -1,5 +1,6 @@
 import {
-  ApiFootballResponseSchema,
+  ApiFootballArrayResponseSchema,
+  ApiFootballObjectResponseSchema,
   FixtureSchema,
   InjurySchema,
   LineupSchema,
@@ -84,13 +85,12 @@ export class ApiFootballClient {
     this.apiKey = key;
   }
 
-  private async rawRequest<T extends z.ZodTypeAny>(
+  private async fetchAndValidate<TSchema extends z.ZodTypeAny>(
     options: FetchOptions,
-    itemSchema: T
-  ): Promise<z.infer<T>[]> {
+    schema: TSchema
+  ): Promise<z.infer<TSchema>> {
     const { endpoint, params, pickId } = options;
     const url = buildUrl(endpoint, params);
-    const schema = ApiFootballResponseSchema(itemSchema);
 
     let lastError: unknown = null;
 
@@ -153,7 +153,7 @@ export class ApiFootballClient {
 
         await trackApiFootballCall(endpoint, pickId ?? null);
 
-        return data.response;
+        return data;
       } catch (err) {
         lastError = err;
         if (err instanceof ApiFootballError && err.statusCode && err.statusCode < 500 && err.statusCode !== 429) {
@@ -172,8 +172,28 @@ export class ApiFootballClient {
       : new ApiFootballError(`Max retries reached on ${endpoint}`, endpoint);
   }
 
+  private async requestArray<T extends z.ZodTypeAny>(
+    options: FetchOptions,
+    itemSchema: T
+  ): Promise<z.infer<T>[]> {
+    const schema = ApiFootballArrayResponseSchema(itemSchema);
+    const data = await this.fetchAndValidate(options, schema);
+    return data.response;
+  }
+
+  private async requestObject<T extends z.ZodTypeAny>(
+    options: FetchOptions,
+    itemSchema: T
+  ): Promise<z.infer<T> | null> {
+    const schema = ApiFootballObjectResponseSchema(itemSchema);
+    const data = await this.fetchAndValidate(options, schema);
+    if (data.response === null || data.response === undefined) return null;
+    if (Array.isArray(data.response) && data.response.length === 0) return null;
+    return data.response;
+  }
+
   async getFixtureById(fixtureId: number, pickId?: string | null): Promise<Fixture | null> {
-    const results = await this.rawRequest(
+    const results = await this.requestArray(
       {
         endpoint: "/fixtures",
         params: { id: fixtureId },
@@ -193,7 +213,7 @@ export class ApiFootballClient {
     if (leagueIds && leagueIds.length === 1) {
       params.league = leagueIds[0];
     }
-    const results = await this.rawRequest(
+    const results = await this.requestArray(
       { endpoint: "/fixtures", params, pickId },
       FixtureSchema
     );
@@ -204,7 +224,7 @@ export class ApiFootballClient {
   }
 
   async getOdds(fixtureId: number, pickId?: string | null): Promise<Odds[]> {
-    return this.rawRequest(
+    return this.requestArray(
       {
         endpoint: "/odds",
         params: { fixture: fixtureId },
@@ -220,7 +240,7 @@ export class ApiFootballClient {
     season: number,
     pickId?: string | null
   ): Promise<TeamStatistics | null> {
-    const results = await this.rawRequest(
+    return this.requestObject(
       {
         endpoint: "/teams/statistics",
         params: { team: teamId, league: leagueId, season },
@@ -228,11 +248,10 @@ export class ApiFootballClient {
       },
       TeamStatisticsSchema
     );
-    return results[0] ?? null;
   }
 
   async getLineups(fixtureId: number, pickId?: string | null): Promise<Lineup[]> {
-    return this.rawRequest(
+    return this.requestArray(
       {
         endpoint: "/fixtures/lineups",
         params: { fixture: fixtureId },
@@ -246,7 +265,7 @@ export class ApiFootballClient {
     fixtureId: number,
     pickId?: string | null
   ): Promise<Injury[]> {
-    return this.rawRequest(
+    return this.requestArray(
       {
         endpoint: "/injuries",
         params: { fixture: fixtureId },
@@ -262,7 +281,7 @@ export class ApiFootballClient {
     last: number = 10,
     pickId?: string | null
   ): Promise<Fixture[]> {
-    return this.rawRequest(
+    return this.requestArray(
       {
         endpoint: "/fixtures/headtohead",
         params: { h2h: `${homeTeamId}-${awayTeamId}`, last },
@@ -276,7 +295,7 @@ export class ApiFootballClient {
     fixtureId: number,
     pickId?: string | null
   ): Promise<Prediction | null> {
-    const results = await this.rawRequest(
+    const results = await this.requestArray(
       {
         endpoint: "/predictions",
         params: { fixture: fixtureId },
@@ -292,7 +311,7 @@ export class ApiFootballClient {
     last: number = 5,
     pickId?: string | null
   ): Promise<Fixture[]> {
-    return this.rawRequest(
+    return this.requestArray(
       {
         endpoint: "/fixtures",
         params: { team: teamId, last },
