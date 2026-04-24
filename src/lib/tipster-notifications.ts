@@ -1,6 +1,6 @@
 // src/lib/tipster-notifications.ts
 // Envoie les notifications aux followers quand un tipster publie un pick
-// 3 canaux : Email (Brevo via emails.ts) + Telegram (bot + canal public) + Push (web-push)
+// 3 canaux : Email (Brevo via emails.ts) + Telegram (bot + canal public) + Push (web-push sur users.push_subscription)
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -11,11 +11,11 @@ const supabaseAdmin = createAdminClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Configurer web-push
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+// Configuration web-push (mêmes env vars que /api/notifications/send)
+if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
-    `mailto:${process.env.VAPID_SUBJECT || "contact@pronos.club"}`,
-    process.env.VAPID_PUBLIC_KEY,
+    "mailto:contact@pronos.club",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
 }
@@ -59,26 +59,30 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 }
 
 // ── Helper Push ──
-async function sendPush(userId: string, payload: any) {
+// Lit users.push_subscription (JSON) et utilise notify_push pour opt-in global
+async function sendPushToUser(userId: string, payload: any) {
   try {
-    const { data: subs } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("*")
-      .eq("user_id", userId);
+    const { data: user } = await supabaseAdmin
+      .from("users")
+      .select("push_subscription, notify_push")
+      .eq("id", userId)
+      .single();
 
-    for (const sub of subs || []) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
-          JSON.stringify(payload)
-        );
-      } catch (err: any) {
-        if (err?.statusCode === 410 || err?.statusCode === 404 || err?.statusCode === 403) {
-          await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-        }
+    if (!user || !user.notify_push || !user.push_subscription) return;
+
+    try {
+      await webpush.sendNotification(
+        user.push_subscription as webpush.PushSubscription,
+        JSON.stringify(payload)
+      );
+    } catch (err: any) {
+      const statusCode = err?.statusCode || 0;
+      // Subscription morte : on nettoie
+      if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
+        await supabaseAdmin
+          .from("users")
+          .update({ push_subscription: null, notify_push: false })
+          .eq("id", userId);
       }
     }
   } catch (err) {
@@ -237,14 +241,12 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       await sendTelegramMessage(n.telegramChatId, tgMsg);
     }
 
-    // Push
+    // Push PWA (users.push_subscription JSON + users.notify_push opt-in global)
     if (n.usePush) {
-      await sendPush(n.userId, {
+      await sendPushToUser(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,
         body: `${pick.sport} · ${matchDateStr}`,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        data: { url: publicUrl },
+        url: "/fr/pronos-abonnes/en-cours",
       });
     }
   }
