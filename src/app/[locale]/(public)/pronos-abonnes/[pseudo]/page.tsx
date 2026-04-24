@@ -3,10 +3,22 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 import FollowButton from "@/components/tipster/FollowButton";
+
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
+
+// Parser simple pour <strong>
+function renderWithStrong(text: string) {
+  const parts = text.split(/(<strong>.*?<\/strong>)/);
+  return parts.map((part, i) => {
+    const m = part.match(/^<strong>(.*?)<\/strong>$/);
+    if (m) return <strong key={i}>{m[1]}</strong>;
+    return <span key={i}>{part}</span>;
+  });
+}
 
 export default function TipsterProfilePage({
   params,
@@ -16,9 +28,11 @@ export default function TipsterProfilePage({
   const { pseudo: rawPseudo } = use(params);
   const pseudo = decodeURIComponent(rawPseudo);
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_profil");
   const { user } = useAuth();
 
   const isPremium = (user as any)?.subscription_status === "active" || (user as any)?.subscription_status === "trialing";
+  const dateLocale = DATE_LOCALES[locale] || "fr-FR";
 
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
@@ -40,7 +54,6 @@ export default function TipsterProfilePage({
     setStats(statsData.stats);
     setPicks(picksData.picks || []);
 
-    // Charger les badges si on a l'id
     if (statsData.profile?.id) {
       const badgesRes = await fetch(`/api/tipster-concours?action=badges&user_id=${statsData.profile.id}`);
       const badgesData = await badgesRes.json();
@@ -69,7 +82,7 @@ export default function TipsterProfilePage({
         >
           <div className="mx-auto max-w-3xl">
             <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-              🎯 Profil Tipster
+              {t("hero_badge")}
             </p>
             <h1 className="mt-2 text-2xl font-black sm:text-3xl">{pseudo}</h1>
           </div>
@@ -80,22 +93,22 @@ export default function TipsterProfilePage({
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100">
               <span className="text-4xl">🔒</span>
             </div>
-            <h2 className="text-2xl font-black text-neutral-900">Profil tipster réservé aux Premium</h2>
+            <h2 className="text-2xl font-black text-neutral-900">{t("locked_title")}</h2>
             <p className="mt-3 max-w-md mx-auto text-sm text-neutral-600">
-              Pour consulter le profil complet de <strong className="text-emerald-700">{pseudo}</strong> (stats, pronostics en cours, historique détaillé), passe Premium.
+              {renderWithStrong(t("locked_desc", { pseudo }))}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href={`/${locale}/abonnement`}
                 className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-500"
               >
-                💎 Passer Premium
+                {t("locked_cta_premium")}
               </Link>
               <Link
                 href={`/${locale}/pronos-abonnes/classement`}
                 className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 text-sm font-bold text-neutral-700 transition hover:border-neutral-900"
               >
-                🏆 Voir le classement
+                {t("locked_cta_ranking")}
               </Link>
             </div>
           </div>
@@ -116,9 +129,9 @@ export default function TipsterProfilePage({
     return (
       <main className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-neutral-500">Tipster introuvable</p>
+          <p className="text-neutral-500">{t("not_found")}</p>
           <Link href={`/${locale}/pronos-abonnes`} className="mt-4 inline-block text-emerald-600 font-bold">
-            ← Retour
+            {t("back")}
           </Link>
         </div>
       </main>
@@ -127,6 +140,7 @@ export default function TipsterProfilePage({
 
   const totalUnits = stats.total_units;
   const unitsColor = totalUnits > 0 ? "text-emerald-400" : totalUnits < 0 ? "text-red-400" : "text-white";
+  const memberSince = new Date(profile.created_at).toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
 
   return (
     <main className="min-h-screen bg-white">
@@ -153,18 +167,18 @@ export default function TipsterProfilePage({
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 {badges.week_wins > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xs font-bold text-emerald-300">
-                    🏆 Semaine × {badges.week_wins}
+                    {t("badge_week_wins", { count: badges.week_wins })}
                   </span>
                 )}
                 {badges.month_wins > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-3 py-1 text-xs font-bold text-amber-300">
-                    👑 Mois × {badges.month_wins}
+                    {t("badge_month_wins", { count: badges.month_wins })}
                   </span>
                 )}
               </div>
             )}
             <p className="mt-2 text-xs text-white/50">
-              Membre depuis {new Date(profile.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+              {t("member_since", { date: memberSince })}
             </p>
 
             {profile?.id && (
@@ -177,21 +191,21 @@ export default function TipsterProfilePage({
           {/* Stats */}
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Pronos</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_picks")}</p>
               <p className="mt-1 text-2xl font-extrabold text-white tabular-nums">{stats.total_picks}</p>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Winrate</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_winrate")}</p>
               <p className="mt-1 text-2xl font-extrabold text-white tabular-nums">{stats.winrate}%</p>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Total U</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_total_units")}</p>
               <p className={`mt-1 text-2xl font-extrabold tabular-nums ${unitsColor}`}>
                 {totalUnits >= 0 ? "+" : ""}{totalUnits.toFixed(2)}
               </p>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">ROI</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_roi")}</p>
               <p className={`mt-1 text-2xl font-extrabold tabular-nums ${stats.roi > 0 ? "text-emerald-400" : stats.roi < 0 ? "text-red-400" : "text-white"}`}>
                 {stats.roi >= 0 ? "+" : ""}{stats.roi.toFixed(1)}%
               </p>
@@ -200,17 +214,17 @@ export default function TipsterProfilePage({
 
           <div className="mt-3 grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Cote moy.</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_avg_odds")}</p>
               <p className="mt-1 text-lg font-extrabold text-white tabular-nums">{stats.avg_odds.toFixed(2)}</p>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Série actuelle</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_current_streak")}</p>
               <p className={`mt-1 text-lg font-extrabold tabular-nums ${stats.current_streak > 0 ? "text-emerald-400" : stats.current_streak < 0 ? "text-red-400" : "text-white"}`}>
                 {stats.current_streak > 0 ? `+${stats.current_streak}` : stats.current_streak}
               </p>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Meilleure</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">{t("stat_best_streak")}</p>
               <p className="mt-1 text-lg font-extrabold text-emerald-400 tabular-nums">+{stats.best_streak}</p>
             </div>
           </div>
@@ -222,9 +236,9 @@ export default function TipsterProfilePage({
         <div className="mx-auto max-w-6xl px-4 py-3">
           <div className="flex gap-2">
             {[
-              { v: "all", label: `Tous (${picks.length})` },
-              { v: "live", label: `En cours (${stats.live_picks})` },
-              { v: "resolved", label: `Résolus (${stats.resolved_picks})` },
+              { v: "all", label: t("filter_all", { count: picks.length }) },
+              { v: "live", label: t("filter_live", { count: stats.live_picks }) },
+              { v: "resolved", label: t("filter_resolved", { count: stats.resolved_picks }) },
             ].map((f) => (
               <button
                 key={f.v}
@@ -246,7 +260,7 @@ export default function TipsterProfilePage({
       <div className="mx-auto max-w-6xl px-4 py-8">
         {filteredPicks.length === 0 ? (
           <div className="rounded-3xl bg-neutral-50 py-16 text-center">
-            <p className="text-neutral-500 text-sm">Aucun pronostic pour ce filtre</p>
+            <p className="text-neutral-500 text-sm">{t("empty_picks")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -3,10 +3,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function FollowButton({ tipsterId, locale }: { tipsterId: string; locale: string }) {
   const { user } = useAuth();
+  const t = useTranslations("pronos_abonnes_follow_button");
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
@@ -17,12 +19,10 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
   useEffect(() => {
     if (!tipsterId) return;
 
-    // Récupérer le nombre de followers (public)
     fetch(`/api/tipster-follows?action=count&tipster_id=${tipsterId}`)
       .then((r) => r.json())
       .then((d) => setCount(d.count || 0));
 
-    // Vérifier si le user connecté suit
     if (user) {
       fetch(`/api/tipster-follows?action=check&tipster_id=${tipsterId}`)
         .then((r) => r.json())
@@ -39,12 +39,10 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
     if (!user || !isPremium) return;
 
     if (following) {
-      // Désuivre
       await fetch(`/api/tipster-follows?tipster_id=${tipsterId}`, { method: "DELETE" });
       setFollowing(false);
       setCount(Math.max(0, count - 1));
     } else {
-      // Suivre
       await fetch("/api/tipster-follows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +56,9 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
   if (isSelf) {
     return (
       <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-4 py-2">
-        <span className="text-xs font-bold text-white/60">👥 {count} follower{count !== 1 ? "s" : ""}</span>
+        <span className="text-xs font-bold text-white/60">
+          {count === 1 ? t("self_followers_singular", { count }) : t("self_followers_plural", { count })}
+        </span>
       </div>
     );
   }
@@ -69,7 +69,7 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
         href={`/${locale}/login`}
         className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition"
       >
-        🔔 Se connecter pour suivre
+        {t("login_to_follow")}
       </Link>
     );
   }
@@ -80,7 +80,7 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
         href={`/${locale}/abonnement`}
         className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2 text-xs font-bold text-white transition"
       >
-        💎 Passer Premium pour suivre
+        {t("premium_to_follow")}
       </Link>
     );
   }
@@ -104,13 +104,13 @@ export default function FollowButton({ tipsterId, locale }: { tipsterId: string;
     >
       {following ? (
         <>
-          <span>✓ Suivi</span>
+          <span>{t("following")}</span>
           <span className="text-white/50">·</span>
           <span>{count}</span>
         </>
       ) : (
         <>
-          <span>🔔 Suivre</span>
+          <span>{t("follow")}</span>
           <span className="text-white/70">·</span>
           <span>{count}</span>
         </>

@@ -1746,5 +1746,38 @@
     "s8_p2_email": "contact@pronos.club",
     "s8_p2_after": ".",
     "cta_post_first": "🎯 Post my first pick"
+  },
+  "pronos_abonnes_profil": {
+    "meta_title": "{pseudo}'s profile · Community Picks · PRONOS.CLUB",
+    "meta_description": "Discover the stats and picks of {pseudo}, PRONOS.CLUB tipster.",
+    "hero_badge": "🎯 Tipster Profile",
+    "locked_title": "Tipster profile reserved for Premium",
+    "locked_desc": "To see the full profile of <strong>{pseudo}</strong> (stats, live picks, detailed history), go Premium.",
+    "locked_cta_premium": "💎 Go Premium",
+    "locked_cta_ranking": "🏆 View ranking",
+    "not_found": "Tipster not found",
+    "back": "← Back",
+    "badge_week_wins": "🏆 Week × {count}",
+    "badge_month_wins": "👑 Month × {count}",
+    "member_since": "Member since {date}",
+    "stat_picks": "Picks",
+    "stat_winrate": "Winrate",
+    "stat_total_units": "Total U",
+    "stat_roi": "ROI",
+    "stat_avg_odds": "Avg odds",
+    "stat_current_streak": "Current streak",
+    "stat_best_streak": "Best",
+    "filter_all": "All ({count})",
+    "filter_live": "Live ({count})",
+    "filter_resolved": "Resolved ({count})",
+    "empty_picks": "No picks for this filter"
+  },
+  "pronos_abonnes_follow_button": {
+    "self_followers_singular": "👥 {count} follower",
+    "self_followers_plural": "👥 {count} followers",
+    "login_to_follow": "🔔 Log in to follow",
+    "premium_to_follow": "💎 Go Premium to follow",
+    "following": "✓ Following",
+    "follow": "🔔 Follow"
   }
 }

@@ -1746,5 +1746,38 @@
     "s8_p2_email": "contact@pronos.club",
     "s8_p2_after": ".",
     "cta_post_first": "🎯 Publicar mi 1er pronóstico"
+  },
+  "pronos_abonnes_profil": {
+    "meta_title": "Perfil de {pseudo} · Pronósticos Abonados · PRONOS.CLUB",
+    "meta_description": "Descubre las estadísticas y pronósticos de {pseudo}, tipster PRONOS.CLUB.",
+    "hero_badge": "🎯 Perfil Tipster",
+    "locked_title": "Perfil de tipster reservado para Premium",
+    "locked_desc": "Para consultar el perfil completo de <strong>{pseudo}</strong> (estadísticas, pronósticos en curso, historial detallado), hazte Premium.",
+    "locked_cta_premium": "💎 Hazte Premium",
+    "locked_cta_ranking": "🏆 Ver ranking",
+    "not_found": "Tipster no encontrado",
+    "back": "← Volver",
+    "badge_week_wins": "🏆 Semana × {count}",
+    "badge_month_wins": "👑 Mes × {count}",
+    "member_since": "Miembro desde {date}",
+    "stat_picks": "Picks",
+    "stat_winrate": "Winrate",
+    "stat_total_units": "Total U",
+    "stat_roi": "ROI",
+    "stat_avg_odds": "Cuota med.",
+    "stat_current_streak": "Racha actual",
+    "stat_best_streak": "Mejor",
+    "filter_all": "Todos ({count})",
+    "filter_live": "En curso ({count})",
+    "filter_resolved": "Resueltos ({count})",
+    "empty_picks": "Ningún pronóstico para este filtro"
+  },
+  "pronos_abonnes_follow_button": {
+    "self_followers_singular": "👥 {count} seguidor",
+    "self_followers_plural": "👥 {count} seguidores",
+    "login_to_follow": "🔔 Inicia sesión para seguir",
+    "premium_to_follow": "💎 Hazte Premium para seguir",
+    "following": "✓ Siguiendo",
+    "follow": "🔔 Seguir"
   }
 }
