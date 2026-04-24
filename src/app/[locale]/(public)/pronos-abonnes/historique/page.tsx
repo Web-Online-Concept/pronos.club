@@ -2,40 +2,35 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
 import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type Pick = any;
 
-const SPORTS = [
-  "⚽ Football",
-  "🏀 Basketball",
-  "🎾 Tennis",
-  "🏒 Hockey",
-  "🏈 Football US",
-  "⚾ Baseball",
-  "🥊 MMA/Boxe",
-  "🏉 Rugby",
-  "🎯 Autre",
-];
-
-const RESULTS_FILTER = [
-  { value: "", label: "Tous" },
-  { value: "won", label: "✓ Gagnés" },
-  { value: "half_won", label: "½ Gagnés" },
-  { value: "refunded", label: "↻ Remboursés" },
-  { value: "half_lost", label: "½ Perdus" },
-  { value: "lost", label: "✗ Perdus" },
+const SPORT_KEYS = [
+  "football", "basketball", "tennis", "hockey", "football_us",
+  "baseball", "mma", "rugby", "multisports", "autre",
 ];
 
 export default function PronosAbonnesHistoriquePage() {
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_historique");
+  const tSports = useTranslations("pronos_abonnes_sports");
+
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState<string>("");
   const [resultFilter, setResultFilter] = useState<string>("");
+
+  const RESULTS_FILTER = [
+    { value: "", label: t("filter_all_results") },
+    { value: "won", label: t("filter_won") },
+    { value: "half_won", label: t("filter_half_won") },
+    { value: "refunded", label: t("filter_refunded") },
+    { value: "half_lost", label: t("filter_half_lost") },
+    { value: "lost", label: t("filter_lost") },
+  ];
 
   async function fetchPicks() {
     setLoading(true);
@@ -63,11 +58,11 @@ export default function PronosAbonnesHistoriquePage() {
       >
         <div className="mx-auto max-w-3xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-            📋 Pronos Abonnés
+            {t("hero_badge")}
           </p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Historique</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">{t("hero_title")}</h1>
           <p className="mt-2 text-sm text-white/60">
-            Tous les pronostics résolus par la communauté
+            {t("hero_subtitle")}
           </p>
         </div>
       </div>
@@ -84,7 +79,7 @@ export default function PronosAbonnesHistoriquePage() {
             >
               {RESULTS_FILTER.map((r) => (
                 <option key={r.value} value={r.value}>
-                  {r.value === "" ? "Tous les résultats" : r.label}
+                  {r.label}
                 </option>
               ))}
             </select>
@@ -94,10 +89,13 @@ export default function PronosAbonnesHistoriquePage() {
               onChange={(e) => setSportFilter(e.target.value)}
               className="cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-bold text-neutral-900 outline-none transition hover:border-neutral-400 focus:border-emerald-500"
             >
-              <option value="">Tous les sports</option>
-              {SPORTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <option value="">{t("filter_all_sports")}</option>
+              {SPORT_KEYS.map((key) => {
+                const label = tSports(key);
+                return (
+                  <option key={key} value={label}>{label}</option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -114,7 +112,7 @@ export default function PronosAbonnesHistoriquePage() {
               <span className="text-4xl">📋</span>
             </div>
             <p className="text-neutral-500 text-sm">
-              Aucun pronostic résolu avec ces filtres
+              {t("empty_title")}
             </p>
           </div>
         ) : (

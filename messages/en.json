@@ -1601,5 +1601,20 @@
     "rugby": "🏉 Rugby",
     "multisports": "🎲 Multi-sports",
     "autre": "🎯 Other"
+  },
+  "pronos_abonnes_historique": {
+    "meta_title": "Picks history · Community Picks · PRONOS.CLUB",
+    "meta_description": "All resolved picks posted by the community, filterable by sport and result.",
+    "hero_badge": "📋 Community Picks",
+    "hero_title": "History",
+    "hero_subtitle": "All picks resolved by the community",
+    "filter_all_results": "All results",
+    "filter_all_sports": "All sports",
+    "filter_won": "✓ Won",
+    "filter_half_won": "½ Won",
+    "filter_refunded": "↻ Refunded",
+    "filter_half_lost": "½ Lost",
+    "filter_lost": "✗ Lost",
+    "empty_title": "No resolved picks with these filters"
   }
 }

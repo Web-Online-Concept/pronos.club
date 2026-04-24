@@ -1601,5 +1601,20 @@
     "rugby": "🏉 Rugby",
     "multisports": "🎲 Multideporte",
     "autre": "🎯 Otro"
+  },
+  "pronos_abonnes_historique": {
+    "meta_title": "Historial de pronósticos · Pronósticos Abonados · PRONOS.CLUB",
+    "meta_description": "Todos los pronósticos resueltos publicados por la comunidad, filtrables por deporte y resultado.",
+    "hero_badge": "📋 Pronósticos Abonados",
+    "hero_title": "Historial",
+    "hero_subtitle": "Todos los pronósticos resueltos por la comunidad",
+    "filter_all_results": "Todos los resultados",
+    "filter_all_sports": "Todos los deportes",
+    "filter_won": "✓ Ganados",
+    "filter_half_won": "½ Ganados",
+    "filter_refunded": "↻ Reembolsados",
+    "filter_half_lost": "½ Perdidos",
+    "filter_lost": "✗ Perdidos",
+    "empty_title": "Ningún pronóstico resuelto con estos filtros"
   }
 }
