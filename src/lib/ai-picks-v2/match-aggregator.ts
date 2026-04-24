@@ -53,8 +53,15 @@ const safeSettled = async <T>(promise: Promise<T>): Promise<T | null> => {
   try {
     return await promise;
   } catch (err) {
+    console.warn("[match-aggregator] safeSettled caught error:", err);
     return null;
   }
+};
+
+const settleToValue = <T>(result: PromiseSettledResult<T | null>): T | null => {
+  if (result.status === "fulfilled") return result.value;
+  console.warn("[match-aggregator] settled rejected:", result.reason);
+  return null;
 };
 
 export type AggregateOptions = {
@@ -85,18 +92,8 @@ export const aggregateMatchData = async (
   const leagueId = fixture.league.id;
   const season = fixture.league.season;
 
-  const [
-    oddsResult,
-    homeStatsResult,
-    awayStatsResult,
-    lineupsResult,
-    injuriesResult,
-    h2hResult,
-    predictionsResult,
-  ] = await Promise.allSettled([
+  const wave1 = await Promise.allSettled([
     safeSettled(client.getOdds(fixtureId, pickId)),
-    safeSettled(client.getTeamStatistics(homeTeamId, leagueId, season, pickId)),
-    safeSettled(client.getTeamStatistics(awayTeamId, leagueId, season, pickId)),
     options.skipLineups
       ? Promise.resolve(null)
       : safeSettled(client.getLineups(fixtureId, pickId)),
@@ -109,18 +106,23 @@ export const aggregateMatchData = async (
       : safeSettled(client.getPredictions(fixtureId, pickId)),
   ]);
 
-  const extract = <T>(result: PromiseSettledResult<T | null>): T | null => {
-    if (result.status === "fulfilled") return result.value;
-    return null;
-  };
+  const [oddsResult, lineupsResult, injuriesResult, h2hResult, predictionsResult] =
+    wave1;
 
-  const odds = extract(oddsResult);
-  const homeStats = extract(homeStatsResult);
-  const awayStats = extract(awayStatsResult);
-  const lineups = extract(lineupsResult);
-  const injuries = extract(injuriesResult);
-  const h2h = extract(h2hResult);
-  const predictions = extract(predictionsResult);
+  const wave2 = await Promise.allSettled([
+    safeSettled(client.getTeamStatistics(homeTeamId, leagueId, season, pickId)),
+    safeSettled(client.getTeamStatistics(awayTeamId, leagueId, season, pickId)),
+  ]);
+
+  const [homeStatsResult, awayStatsResult] = wave2;
+
+  const odds = settleToValue<Odds[]>(oddsResult);
+  const lineups = settleToValue<Lineup[]>(lineupsResult);
+  const injuries = settleToValue<Injury[]>(injuriesResult);
+  const h2h = settleToValue<Fixture[]>(h2hResult);
+  const predictions = settleToValue<Prediction>(predictionsResult);
+  const homeStats = settleToValue<TeamStatistics>(homeStatsResult);
+  const awayStats = settleToValue<TeamStatistics>(awayStatsResult);
 
   const dataCompleteness = computeCompleteness(
     odds,
