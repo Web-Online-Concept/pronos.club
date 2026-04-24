@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type LeaderboardEntry = {
@@ -29,6 +29,7 @@ type SortKey = "total_units" | "roi" | "winrate" | "total_picks" | "avg_odds";
 
 export default function PronosAbonnesClassementPage() {
   const locale = useLocale();
+  const t = useTranslations("pronos_abonnes_classement");
   const [period, setPeriod] = useState<Period>("week");
   const [sortKey, setSortKey] = useState<SortKey>("total_units");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -47,7 +48,6 @@ export default function PronosAbonnesClassementPage() {
     fetchLeaderboard();
   }, [period]);
 
-  // Client-side sort
   const sortedLeaderboard = [...leaderboard].sort((a, b) => {
     const diff = (a[sortKey] as number) - (b[sortKey] as number);
     return sortDir === "desc" ? -diff : diff;
@@ -79,11 +79,11 @@ export default function PronosAbonnesClassementPage() {
       >
         <div className="mx-auto max-w-3xl">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-400">
-            🏆 Pronos Abonnés
+            {t("hero_badge")}
           </p>
-          <h1 className="mt-2 text-2xl font-black sm:text-3xl">Classement</h1>
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">{t("hero_title")}</h1>
           <p className="mt-2 text-sm text-white/60">
-            Les meilleurs tipsters de la communauté
+            {t("hero_subtitle")}
           </p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function PronosAbonnesClassementPage() {
                     : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-400"
                 }`}
               >
-                {p === "week" ? "Cette semaine" : p === "month" ? "Ce mois" : "All-time"}
+                {p === "week" ? t("period_week") : p === "month" ? t("period_month") : t("period_all")}
               </button>
             ))}
           </div>
@@ -122,7 +122,7 @@ export default function PronosAbonnesClassementPage() {
               <span className="text-4xl">🏆</span>
             </div>
             <p className="text-neutral-500 text-sm">
-              Aucun tipster classé pour cette période
+              {t("empty_title")}
             </p>
           </div>
         ) : (
@@ -131,38 +131,38 @@ export default function PronosAbonnesClassementPage() {
               <thead className="bg-neutral-50 text-neutral-500">
                 <tr>
                   <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider">#</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider">Tipster</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider">{t("col_tipster")}</th>
                   <th
                     onClick={() => handleSort("total_picks")}
                     className="cursor-pointer px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider hover:text-neutral-900"
                   >
-                    Picks {sortKey === "total_picks" && (sortDir === "desc" ? "▼" : "▲")}
+                    {t("col_picks")} {sortKey === "total_picks" && (sortDir === "desc" ? "▼" : "▲")}
                   </th>
                   <th
                     onClick={() => handleSort("winrate")}
                     className="cursor-pointer px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider hover:text-neutral-900"
                   >
-                    Winrate {sortKey === "winrate" && (sortDir === "desc" ? "▼" : "▲")}
+                    {t("col_winrate")} {sortKey === "winrate" && (sortDir === "desc" ? "▼" : "▲")}
                   </th>
                   <th
                     onClick={() => handleSort("avg_odds")}
                     className="cursor-pointer px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider hover:text-neutral-900"
                   >
-                    Cote moy {sortKey === "avg_odds" && (sortDir === "desc" ? "▼" : "▲")}
+                    {t("col_avg_odds")} {sortKey === "avg_odds" && (sortDir === "desc" ? "▼" : "▲")}
                   </th>
                   <th
                     onClick={() => handleSort("total_units")}
                     className="cursor-pointer px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider hover:text-neutral-900"
                   >
-                    Total U {sortKey === "total_units" && (sortDir === "desc" ? "▼" : "▲")}
+                    {t("col_total_units")} {sortKey === "total_units" && (sortDir === "desc" ? "▼" : "▲")}
                   </th>
                   <th
                     onClick={() => handleSort("roi")}
                     className="cursor-pointer px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider hover:text-neutral-900"
                   >
-                    ROI {sortKey === "roi" && (sortDir === "desc" ? "▼" : "▲")}
+                    {t("col_roi")} {sortKey === "roi" && (sortDir === "desc" ? "▼" : "▲")}
                   </th>
-                  <th className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider">Forme</th>
+                  <th className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider">{t("col_form")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -231,7 +231,7 @@ export default function PronosAbonnesClassementPage() {
         )}
 
         <p className="mt-4 text-center text-[11px] text-neutral-400">
-          Clique sur une colonne pour trier. 1 U = 1 unité de mise (convention universelle).
+          {t("footer_hint")}
         </p>
       </div>
     </main>

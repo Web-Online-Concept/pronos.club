@@ -1616,5 +1616,24 @@
     "filter_half_lost": "½ Perdus",
     "filter_lost": "✗ Perdus",
     "empty_title": "Aucun pronostic résolu avec ces filtres"
+  },
+  "pronos_abonnes_classement": {
+    "meta_title": "Classement des tipsters · Pronos Abonnés · PRONOS.CLUB",
+    "meta_description": "Le classement des meilleurs tipsters de la communauté sur la semaine, le mois ou all-time. ROI, winrate, total d'unités.",
+    "hero_badge": "🏆 Pronos Abonnés",
+    "hero_title": "Classement",
+    "hero_subtitle": "Les meilleurs tipsters de la communauté",
+    "period_week": "Cette semaine",
+    "period_month": "Ce mois",
+    "period_all": "All-time",
+    "empty_title": "Aucun tipster classé pour cette période",
+    "col_tipster": "Tipster",
+    "col_picks": "Picks",
+    "col_winrate": "Winrate",
+    "col_avg_odds": "Cote moy",
+    "col_total_units": "Total U",
+    "col_roi": "ROI",
+    "col_form": "Forme",
+    "footer_hint": "Clique sur une colonne pour trier. 1 U = 1 unité de mise (convention universelle)."
   }
 }

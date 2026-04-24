@@ -1616,5 +1616,24 @@
     "filter_half_lost": "½ Lost",
     "filter_lost": "✗ Lost",
     "empty_title": "No resolved picks with these filters"
+  },
+  "pronos_abonnes_classement": {
+    "meta_title": "Tipsters ranking · Community Picks · PRONOS.CLUB",
+    "meta_description": "The ranking of the best tipsters of the community by week, month or all-time. ROI, winrate, total units.",
+    "hero_badge": "🏆 Community Picks",
+    "hero_title": "Ranking",
+    "hero_subtitle": "The best tipsters of the community",
+    "period_week": "This week",
+    "period_month": "This month",
+    "period_all": "All-time",
+    "empty_title": "No ranked tipsters for this period",
+    "col_tipster": "Tipster",
+    "col_picks": "Picks",
+    "col_winrate": "Winrate",
+    "col_avg_odds": "Avg odds",
+    "col_total_units": "Total U",
+    "col_roi": "ROI",
+    "col_form": "Form",
+    "footer_hint": "Click on a column to sort. 1 U = 1 unit of stake (universal convention)."
   }
 }
