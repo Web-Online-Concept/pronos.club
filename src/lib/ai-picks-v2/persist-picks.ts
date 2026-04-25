@@ -93,6 +93,45 @@ const inferSportFromCandidate = (candidate: ConsensusCandidate): string => {
   return "football";
 };
 
+/**
+ * Récupère la prochaine valeur de la séquence appropriée selon le type de pick.
+ * - "classic" -> ai_picks_classic_seq -> classic_number
+ * - "scorer"  -> ai_picks_scorer_seq  -> scorer_number
+ */
+const getNextNumberForType = async (
+  pickType: "classic" | "scorer"
+): Promise<{ classic_number: number | null; scorer_number: number | null }> => {
+  const seqName =
+    pickType === "scorer" ? "ai_picks_scorer_seq" : "ai_picks_classic_seq";
+
+  const { data, error } = await supabaseAdmin.rpc("nextval_ai_seq", {
+    seq_name: seqName,
+  });
+
+  if (error || data === null || data === undefined) {
+    // Fallback : si la fonction RPC nextval_ai_seq n'existe pas, on calcule manuellement
+    const column = pickType === "scorer" ? "scorer_number" : "classic_number";
+    const { data: maxRow } = await supabaseAdmin
+      .from("ai_picks")
+      .select(column)
+      .not(column, "is", null)
+      .order(column, { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const max = (maxRow as Record<string, number | null> | null)?.[column] ?? 0;
+    const nextVal = max + 1;
+    return pickType === "scorer"
+      ? { classic_number: null, scorer_number: nextVal }
+      : { classic_number: nextVal, scorer_number: null };
+  }
+
+  const nextVal = Number(data);
+  return pickType === "scorer"
+    ? { classic_number: null, scorer_number: nextVal }
+    : { classic_number: nextVal, scorer_number: null };
+};
+
 export const persistConsensusCandidate = async (
   input: PersistInput
 ): Promise<PersistResult> => {
@@ -131,8 +170,11 @@ export const persistConsensusCandidate = async (
       bookmaker: candidate.bookmaker ?? null,
     };
 
+    const pickType = candidate.type === "scorer" ? "scorer" : "classic";
+    const numbers = await getNextNumberForType(pickType);
+
     const insertData = {
-      pick_type: candidate.type === "scorer" ? "scorer" : "classic",
+      pick_type: pickType,
       sport,
       league: candidate.league,
       event_name: candidate.eventName,
@@ -170,6 +212,8 @@ export const persistConsensusCandidate = async (
       resolved_by: null,
       resolved_at: null,
       deleted_at: null,
+      classic_number: numbers.classic_number,
+      scorer_number: numbers.scorer_number,
     };
 
     const { data, error } = await supabaseAdmin
