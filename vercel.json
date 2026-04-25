@@ -25,10 +25,6 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/ai-picks-generate",
-      "schedule": "0 7 * * *"
-    },
-    {
       "path": "/api/cron/tipster-concours-week",
       "schedule": "15 0 * * 1"
     },
