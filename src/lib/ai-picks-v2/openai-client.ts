@@ -2,12 +2,11 @@ import OpenAI from "openai";
 import { trackApiCost } from "./cost-tracker";
 import {
   GeneratorOutputSchema,
-  type GeneratorOutput,
   type GeneratorResult,
 } from "@/types/ai-picks-v2";
 
 const DEFAULT_MODEL = "gpt-5.4";
-const MAX_TOKENS = 8000;
+const MAX_COMPLETION_TOKENS = 8000;
 const TEMPERATURE = 0.3;
 const REQUEST_TIMEOUT_MS = 120000;
 const MAX_RETRIES = 2;
@@ -63,7 +62,7 @@ export const runGptGenerator = async (
 
       const completion = await client.chat.completions.create({
         model,
-        max_tokens: MAX_TOKENS,
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
         temperature: TEMPERATURE,
         response_format: { type: "json_object" },
         messages: [
@@ -188,7 +187,7 @@ export const runGptDossier = async (
     const client = getClient();
     const completion = await client.chat.completions.create({
       model,
-      max_tokens: input.maxTokens ?? 4000,
+      max_completion_tokens: input.maxTokens ?? 4000,
       temperature: 0.5,
       messages: [
         { role: "system", content: input.systemPrompt },
