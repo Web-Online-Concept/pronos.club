@@ -67,13 +67,17 @@ const buildSlugForCandidate = (candidate: ConsensusCandidate): string => {
   });
 };
 
+/**
+ * Slugs sport alignes sur ceux attendus par /lib/live-scores.ts (mapping ESPN).
+ * Permet le live score automatique via le composant <LiveScore />.
+ */
 const inferSportFromCandidate = (candidate: ConsensusCandidate): string => {
-  if (candidate.type === "scorer") return "soccer";
+  if (candidate.type === "scorer") return "football";
   const leagueLower = candidate.league.toLowerCase();
   if (leagueLower.includes("nba") || leagueLower.includes("basketball"))
     return "basketball";
   if (leagueLower.includes("nfl") || leagueLower.includes("nca football"))
-    return "americanfootball";
+    return "football-americain";
   if (leagueLower.includes("nhl") || leagueLower.includes("hockey"))
     return "hockey";
   if (leagueLower.includes("mlb") || leagueLower.includes("baseball"))
@@ -85,11 +89,8 @@ const inferSportFromCandidate = (candidate: ConsensusCandidate): string => {
   )
     return "tennis";
   if (leagueLower.includes("ufc") || leagueLower.includes("mma")) return "mma";
-  if (leagueLower.includes("formula") || leagueLower.includes("f1"))
-    return "motor";
   if (leagueLower.includes("rugby")) return "rugby";
-  if (leagueLower.includes("golf")) return "golf";
-  return "soccer";
+  return "football";
 };
 
 export const persistConsensusCandidate = async (
