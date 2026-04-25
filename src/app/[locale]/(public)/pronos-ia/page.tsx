@@ -1,9 +1,3 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia (AVEC HERO COHÉRENT)
- * ═══════════════════════════════════════════════════════════════════
- */
-
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { getTranslations } from "next-intl/server";
@@ -74,7 +68,6 @@ export default async function PronosIAPage({
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
 
-      {/* HERO FULL-WIDTH */}
       <PronosIAHero
         locale={locale}
         currentPage="live"
@@ -82,11 +75,11 @@ export default async function PronosIAPage({
         badgeLabel={t("badge_live_count", { count: totalCurrent })}
       />
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      <main className="mx-auto max-w-[640px] px-4 py-10 sm:py-14">
         {totalCurrent === 0 ? (
           <EmptyStateNoPicks locale={locale} />
         ) : (
-          <div className="space-y-12">
+          <div className="space-y-8">
             {classics.length > 0 && (
               <section>
                 <SectionHeader
@@ -95,7 +88,7 @@ export default async function PronosIAPage({
                   count={classics.length}
                   accent="violet"
                 />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-4">
                   {classics.map((pick) => (
                     <AIPickCard key={pick.id} pick={pick} locale={locale} />
                   ))}
@@ -111,7 +104,7 @@ export default async function PronosIAPage({
                   count={scorers.length}
                   accent="fuchsia"
                 />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-4">
                   {scorers.map((pick) => (
                     <AIScorerCard key={pick.id} pick={pick} locale={locale} />
                   ))}

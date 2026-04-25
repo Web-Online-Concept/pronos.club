@@ -1,9 +1,8 @@
-import { getTranslations } from "next-intl/server";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import PronosIACard from "./ui/PronosIACard";
-import PronosIAStatusBadge from "./ui/PronosIAStatusBadge";
+// src/components/ai-picks/AIPickCard.tsx
+"use client";
 
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export interface AIPickRow {
   id: string;
@@ -22,329 +21,196 @@ export interface AIPickRow {
   status: "pending" | "won" | "lost" | "void";
   final_score: string | null;
   slug?: string | null;
-  consensus_tier?:
-    | "total_agreement"
-    | "partial"
-    | "isolated_high"
-    | "isolated_low"
-    | null;
+  consensus_tier?: "total_agreement" | "partial" | "isolated_high" | "isolated_low" | null;
   consensus_score?: number | null;
 }
 
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", es: "es-ES" };
 
-const SPORT_EMOJI: Record<string, string> = {
-  soccer: "⚽",
-  tennis: "🎾",
-  basketball: "🏀",
-  americanfootball: "🏈",
-  baseball: "⚾",
-  hockey: "🏒",
-  rugby: "🏉",
-  mma: "🥊",
-  golf: "⛳",
-  motor: "🏎️",
-};
-
-
-const BOOKMAKER_LABELS: Record<string, string> = {
-  pinnacle: "Pinnacle",
-  onexbet: "1xBet",
-  winamax_fr: "Winamax",
-  betclic_fr: "Betclic",
-  unibet_fr: "Unibet",
-};
-
-
-const LEAGUE_LABELS: Record<string, string> = {
-  soccer_epl: "Premier League",
-  soccer_france_ligue_one: "Ligue 1",
-  soccer_germany_bundesliga: "Bundesliga",
-  soccer_italy_serie_a: "Serie A",
-  soccer_spain_la_liga: "La Liga",
-  soccer_uefa_champs_league: "Champions League",
-  tennis_atp: "ATP",
-  tennis_wta: "WTA",
-  basketball_nba: "NBA",
-};
-
-
-const DATE_LOCALES: Record<string, string> = {
-  fr: "fr-FR",
-  en: "en-GB",
-  es: "es-ES",
-};
-
-
-const computeUnitsResult = (
-  status: string,
-  odds: number | null
-): number | null => {
-  if (status === "won" && odds !== null) return Number((odds - 1).toFixed(2));
-  if (status === "lost") return -1;
-  if (status === "void") return 0;
-  return null;
-};
-
-
-const buildConsensusBadge = (
-  tier: AIPickRow["consensus_tier"],
-  t: (key: string) => string
-): { emoji: string; label: string; bg: string; text: string } | null => {
-  if (!tier) return null;
-  if (tier === "total_agreement") {
-    return {
-      emoji: "🟢",
-      label: t("consensus_total"),
-      bg: "bg-emerald-500/15 border-emerald-400/30",
-      text: "text-emerald-300",
-    };
-  }
-  if (tier === "partial") {
-    return {
-      emoji: "🟡",
-      label: t("consensus_partial"),
-      bg: "bg-amber-500/15 border-amber-400/30",
-      text: "text-amber-300",
-    };
-  }
-  return {
-    emoji: "🟠",
-    label: t("consensus_solo"),
-    bg: "bg-orange-500/15 border-orange-400/30",
-    text: "text-orange-300",
-  };
-};
-
-
-interface Props {
-  pick: AIPickRow;
-  locale: string;
-  isAwaiting?: boolean;
-  showResult?: boolean;
-}
-
-
-export default async function AIPickCard({
+export default function AIPickCard({
   pick,
   locale,
-  isAwaiting = false,
   showResult = false,
-}: Props) {
-  const t = await getTranslations({ locale, namespace: "ai_picks" });
+}: {
+  pick: AIPickRow;
+  locale: string;
+  showResult?: boolean;
+}) {
+  const t = useTranslations("ai_picks");
 
-  const displayStatus = isAwaiting ? "awaiting" : pick.status;
-  const accent =
-    displayStatus === "won"
-      ? "emerald"
-      : displayStatus === "lost"
-        ? "red"
-        : displayStatus === "void"
-          ? "neutral"
-          : "violet";
+  const computeUnitsResult = (): number | null => {
+    if (pick.status === "won" && pick.odds !== null) return Number((pick.odds - 1).toFixed(2));
+    if (pick.status === "lost") return -1;
+    if (pick.status === "void") return 0;
+    return null;
+  };
+  const unitsResult = computeUnitsResult();
 
-  const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🏅";
-  const leagueLabel = LEAGUE_LABELS[pick.league] ?? pick.league;
-  const bookmakerLabel = pick.odds_bookmaker
-    ? BOOKMAKER_LABELS[pick.odds_bookmaker] ?? pick.odds_bookmaker
-    : null;
+  const theme = pick.status === "won"
+    ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
+    : pick.status === "lost"
+    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: t("status_lost") }
+    : pick.status === "void"
+    ? { accent: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.2)", ring: "rgba(148,163,184,0.4)", text: "#cbd5e1", label: t("status_void") }
+    : { accent: "#a855f7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.2)", ring: "rgba(168,85,247,0.4)", text: "rgba(168,85,247,0.9)", label: t("status_pending") };
 
-  const dateLocale = DATE_LOCALES[locale] ?? "fr-FR";
-  const eventDate = new Date(pick.event_date);
-  const matchDateStr = eventDate
-    .toLocaleDateString(dateLocale, {
-      day: "numeric",
-      month: "short",
-      timeZone: "Europe/Paris",
-    })
-    .toUpperCase();
-  const matchTimeStr = eventDate.toLocaleTimeString(dateLocale, {
+  const dateLocale = DATE_LOCALES[locale] || "fr-FR";
+  const matchDate = new Date(pick.event_date);
+  const matchDateStr = matchDate.toLocaleDateString(dateLocale, {
+    day: "numeric",
+    month: "short",
+  }).toUpperCase();
+  const matchTimeStr = matchDate.toLocaleTimeString(dateLocale, {
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/Paris",
   });
 
-  const statusLabel = t(`status_${displayStatus}`);
-  const unitsResult = computeUnitsResult(pick.status, pick.odds);
-  const consensusBadge = buildConsensusBadge(pick.consensus_tier ?? null, t);
-  const detailsHref = pick.slug
-    ? `/${locale}/pronos-ia/match/${pick.slug}`
-    : null;
+  const detailsHref = pick.slug ? `/${locale}/pronos-ia/match/${pick.slug}` : null;
 
   return (
-    <PronosIACard accent={accent} hoverable>
-      <div className="flex items-center justify-between gap-2 border-b border-dashed border-white/10 px-4 py-3">
-        <div className="flex min-w-[70px] flex-col items-center gap-0.5">
-          <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-white/40">
-            {t("label_sport")}
-          </span>
-          <span className="flex items-center gap-1 text-[11px] font-bold leading-tight text-white">
-            <span className="text-sm">{sportEmoji}</span>
-            <span className="truncate">{leagueLabel}</span>
-          </span>
-        </div>
-
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-base">
-          🤖
-        </div>
-
-        <div className="flex min-w-[70px] flex-col items-center gap-0.5">
-          <span className="text-[9px] font-bold uppercase tracking-[0.05em] text-white">
-            {matchDateStr}
-          </span>
-          <span className="text-[11px] font-extrabold tabular-nums text-white">
-            {matchTimeStr}
-          </span>
-        </div>
-      </div>
-
-      <div className="px-4 pt-3">
-        <h3 className="text-center text-[13px] font-bold leading-tight text-white">
-          {pick.event_name}
-        </h3>
-      </div>
-
-      <div className="px-4 pt-3">
-        <div
-          className="rounded-lg border border-white/10 bg-black/20 p-2.5"
-          style={{ backdropFilter: "blur(4px)" }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-violet-300">
-                {t("pick_label")}
-              </div>
-              <div className="truncate text-sm font-bold text-white">
-                {pick.selection}
-              </div>
-            </div>
-            {pick.odds !== null && (
-              <div className="flex-shrink-0 text-right">
-                <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
-                  {t("odds_label")}
-                </div>
-                <div className="text-base font-extrabold tabular-nums text-white">
-                  {pick.odds.toFixed(2)}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div>
       <div
-        className="grid gap-1.5 px-4 pt-2.5"
         style={{
-          gridTemplateColumns:
-            showResult && unitsResult !== null ? "1fr 1fr 1fr" : "1fr 1fr",
+          position: "relative",
+          background: "linear-gradient(180deg, #170f24 0%, #0f0a1c 100%)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: `0 4px 24px rgba(0,0,0,0.3), inset 0 0 0 1px ${theme.ring}`,
         }}
       >
-        <div className="rounded-md bg-white/[0.04] p-1.5 text-center">
-          <p className="m-0 text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">
-            {t("label_type")}
-          </p>
-          <p className="m-0 mt-0.5 text-[11px] font-bold text-white">
-            {t("type_classic_short")}
-          </p>
+        <div
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: "3px",
+            background: `linear-gradient(90deg, transparent 0%, ${theme.accent} 30%, ${theme.accent} 70%, transparent 100%)`,
+          }}
+        />
+
+        {/* Header : Sport + Logo + Date */}
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>{t("label_sport")}</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", lineHeight: 1.1, textAlign: "center" }}>
+              {pick.league}
+            </span>
+          </div>
+
+          <img
+            src="/pronos_club.png"
+            alt="PRONOS.CLUB"
+            style={{ width: "48px", height: "48px", objectFit: "contain" }}
+          />
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.05em" }}>
+              {matchDateStr}
+            </span>
+            <span style={{ fontSize: "12px", fontWeight: 800, color: "#ffffff" }}>
+              {matchTimeStr}
+            </span>
+          </div>
         </div>
-        <div className="rounded-md bg-white/[0.04] p-1.5 text-center">
-          <p className="m-0 text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">
-            {t("label_odds")}
-          </p>
-          <p className="m-0 mt-0.5 text-[11px] font-bold tabular-nums text-white">
-            {pick.odds !== null ? pick.odds.toFixed(2) : "-"}
-          </p>
-          {bookmakerLabel && (
-            <p className="m-0 mt-0 text-[8px] font-semibold lowercase text-white/40">
-              {bookmakerLabel}
+
+        {/* Match name + sélection */}
+        <div style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "6px" }}>
+            {pick.event_name}
+          </div>
+          <div style={{ fontSize: "15px", fontWeight: 800, color: theme.text }}>
+            {pick.selection}
+          </div>
+          {pick.reasoning && (
+            <p style={{ fontSize: "11px", fontStyle: "italic", color: "rgba(255,255,255,0.5)", marginTop: "8px", lineHeight: 1.4, marginBottom: 0 }}>
+              {pick.reasoning}
             </p>
           )}
         </div>
-        {showResult && unitsResult !== null && (
-          <div
-            className={`rounded-md p-1.5 text-center ${
-              pick.status === "won"
-                ? "border border-emerald-400/30 bg-emerald-500/10"
-                : pick.status === "lost"
-                  ? "border border-red-400/30 bg-red-500/10"
-                  : "border border-white/10 bg-white/[0.04]"
-            }`}
-          >
-            <p className="m-0 text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">
-              {t("label_result")}
-            </p>
-            <p
-              className={`m-0 mt-0.5 text-[11px] font-bold tabular-nums ${
-                pick.status === "won"
-                  ? "text-emerald-300"
-                  : pick.status === "lost"
-                    ? "text-red-300"
-                    : "text-white"
-              }`}
-            >
-              {unitsResult >= 0 ? "+" : ""}
-              {unitsResult.toFixed(2)}U
+
+        {/* Data grid */}
+        <div style={{ padding: "12px 16px 14px", display: "grid", gridTemplateColumns: showResult && unitsResult !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: "6px" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_type")}</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0" }}>
+              {t("type_classic_short")}
             </p>
           </div>
-        )}
-      </div>
-
-      {pick.reasoning && (
-        <div className="px-4 pt-2.5">
-          <p className="line-clamp-2 text-[11px] leading-snug italic text-white/60">
-            <span className="mr-1 not-italic text-violet-300">💬</span>
-            {pick.reasoning}
-          </p>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_odds")}</p>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "white", margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+              {pick.odds !== null ? pick.odds.toFixed(2) : "-"}
+            </p>
+            {pick.odds_bookmaker && (
+              <p style={{ fontSize: "9px", fontWeight: 600, color: "rgba(255,255,255,0.5)", margin: "1px 0 0", textTransform: "lowercase" }}>
+                {pick.odds_bookmaker}
+              </p>
+            )}
+          </div>
+          {showResult && unitsResult !== null && (
+            <div style={{
+              background: theme.bg,
+              borderRadius: "8px",
+              padding: "8px",
+              textAlign: "center",
+              border: `1px solid ${theme.border}`,
+            }}>
+              <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_result")}</p>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: theme.text, margin: "2px 0 0", fontVariantNumeric: "tabular-nums" }}>
+                {unitsResult >= 0 ? "+" : ""}{unitsResult.toFixed(2)}U
+              </p>
+            </div>
+          )}
         </div>
-      )}
 
-      {pick.final_score && pick.status !== "pending" && (
-        <div className="mx-4 mt-2.5 flex items-center justify-center gap-2 rounded-md border border-white/10 bg-black/20 py-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
-            {t("final_score_label")}
-          </span>
-          <span className="text-xs font-bold tabular-nums text-white">
-            {pick.final_score}
+        {/* Status badge */}
+        <div style={{
+          padding: "10px 16px",
+          background: theme.bg,
+          borderTop: `1px solid ${theme.border}`,
+          textAlign: "center",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.text }}>
+            {pick.status === "won" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
+            )}
+            {pick.status === "lost" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" /></svg>
+            )}
+            {pick.status === "void" && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14" /></svg>
+            )}
+            {pick.status === "pending" && (
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: theme.accent, display: "inline-block" }} />
+            )}
+            {theme.label}
           </span>
         </div>
-      )}
 
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/10 bg-black/20 px-4 py-2">
-        <div className="flex items-center gap-1.5">
-          <PronosIAStatusBadge
-            status={displayStatus}
-            label={statusLabel}
-            size="sm"
-          />
-          {consensusBadge && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${consensusBadge.bg} ${consensusBadge.text}`}
+        {/* Footer : Intelligence Artificielle */}
+        <div style={{
+          padding: "8px 14px",
+          background: "rgba(0,0,0,0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          borderTop: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px" }}>
+            🤖
+          </div>
+          {detailsHref ? (
+            <Link
+              href={detailsHref}
+              style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none" }}
             >
-              <span>{consensusBadge.emoji}</span>
-              <span>{consensusBadge.label}</span>
+              {t("footer_ai")}
+            </Link>
+          ) : (
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              {t("footer_ai")}
             </span>
           )}
         </div>
-        {detailsHref && (
-          <Link
-            href={detailsHref}
-            className="group/btn inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/70 transition hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-white"
-          >
-            <span>{t("details_link")}</span>
-            <ChevronRight
-              size={11}
-              strokeWidth={2.5}
-              className="transition-transform group-hover/btn:translate-x-0.5"
-            />
-          </Link>
-        )}
       </div>
-
-      <div className="flex items-center justify-center gap-1.5 border-t border-white/[0.04] bg-black/30 px-4 py-2">
-        <span className="text-[10px]">🤖</span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80">
-          {t("footer_ai")}
-        </span>
-      </div>
-    </PronosIACard>
+    </div>
   );
 }
