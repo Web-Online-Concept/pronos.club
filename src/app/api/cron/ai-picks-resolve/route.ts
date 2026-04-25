@@ -1,35 +1,15 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * CRON — RÉSOLUTION QUOTIDIENNE DES PRONOS IA
- * ═══════════════════════════════════════════════════════════════════
- *
- * Route : /api/crons/ai-picks-resolve
- * Planification : tous les jours à 08h00 (heure Paris)
- *
- * Fonctionnement :
- *   1. Vérifie l'authentification CRON_SECRET
- *   2. Appelle resolveDailyPicks() qui résout tous les picks pending
- *   3. Retourne un rapport JSON avec stats
- *
- * L'heure 8h est choisie pour que tous les matchs de la veille
- * (même les NBA nocturnes qui finissent à 5-6h du matin Paris)
- * soient terminés avant qu'on tente de les résoudre.
- * ═══════════════════════════════════════════════════════════════════
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { resolveDailyPicks } from "@/lib/ai/espn-resolver";
+import { resolveV2Picks } from "@/lib/ai-picks-v2/resolver-v2";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-// Résolution peut prendre du temps si beaucoup de picks à résoudre
-export const maxDuration = 120;
+export const maxDuration = 180;
 
-
-function isAuthorized(req: NextRequest): boolean {
+const isAuthorized = (req: NextRequest): boolean => {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET non défini");
+    console.error("[Cron] CRON_SECRET non defini");
     return false;
   }
 
@@ -39,44 +19,71 @@ function isAuthorized(req: NextRequest): boolean {
   const vercelSignature = req.headers.get("x-vercel-cron-signature");
   if (vercelSignature) return true;
 
-  return false;
-}
+  const adminEmail = req.headers.get("x-admin-email");
+  if (
+    adminEmail &&
+    ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"].includes(
+      adminEmail.toLowerCase()
+    )
+  ) {
+    return true;
+  }
 
+  return false;
+};
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log("[Cron] ▶ Démarrage ai-picks-resolve");
+  console.log("[Cron] Start ai-picks-resolve (v1 + v2)");
+  const startedAt = Date.now();
+
+  let v1Report: Awaited<ReturnType<typeof resolveDailyPicks>> | null = null;
+  let v1Error: string | null = null;
 
   try {
-    const report = await resolveDailyPicks();
-
-    return NextResponse.json(
-      {
-        status: report.success ? "ok" : "error",
-        ...report,
-      },
-      {
-        status: report.success ? 200 : 500,
-      },
-    );
+    v1Report = await resolveDailyPicks();
   } catch (err) {
-    console.error("[Cron] ai-picks-resolve fatal:", err);
-    return NextResponse.json(
-      {
-        status: "fatal_error",
-        error: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 },
-    );
+    v1Error = err instanceof Error ? err.message : "Unknown v1 error";
+    console.error("[Cron] v1 resolver fatal:", err);
   }
-}
 
+  let v2Report: Awaited<ReturnType<typeof resolveV2Picks>> | null = null;
+  let v2Error: string | null = null;
+
+  try {
+    v2Report = await resolveV2Picks();
+  } catch (err) {
+    v2Error = err instanceof Error ? err.message : "Unknown v2 error";
+    console.error("[Cron] v2 resolver fatal:", err);
+  }
+
+  const durationMs = Date.now() - startedAt;
+  const overallSuccess =
+    (v1Report?.success ?? false) || v2Report !== null;
+
+  return NextResponse.json(
+    {
+      status: overallSuccess ? "ok" : "error",
+      durationMs,
+      v1: v1Report
+        ? v1Report
+        : { success: false, error: v1Error },
+      v2: v2Report
+        ? {
+            success: true,
+            totalChecked: v2Report.totalChecked,
+            resolved: v2Report.resolved,
+            stillPending: v2Report.stillPending,
+            failed: v2Report.failed,
+          }
+        : { success: false, error: v2Error },
+    },
+    { status: overallSuccess ? 200 : 500 }
+  );
+}
 
 export async function POST(req: NextRequest) {
   return GET(req);
