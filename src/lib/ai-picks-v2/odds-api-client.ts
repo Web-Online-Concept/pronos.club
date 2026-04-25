@@ -3,6 +3,29 @@ import { trackApiCost } from "./cost-tracker";
 const ODDS_API_BASE = "https://api.the-odds-api.com/v4";
 const REQUEST_TIMEOUT_MS = 15000;
 
+/**
+ * Liste blanche des bookmakers utilisés par le tipster Jérôme.
+ * L'IA ne propose des picks que basés sur ces cotes, pour cohérence
+ * avec ce que les abonnés peuvent réellement parier.
+ *
+ * Slugs au format The Odds API.
+ * NB : OrbitX absent (pas d'API publique disponible).
+ */
+const ALLOWED_BOOKMAKERS = [
+  "pinnacle",     // PS3838 (ordre prioritaire — le plus gros volume Jérôme)
+  "onexbet",      // 1xBet
+  "betclic_fr",   // Betclic
+  "winamax_fr",   // Winamax
+  "unibet_fr",    // Unibet
+  "stake",        // Stake
+] as const;
+
+/**
+ * Ordre de préférence pour la cote affichée si plusieurs bookmakers de la
+ * whitelist couvrent le même match. PS3838 en premier (cote sharp/référence).
+ */
+const BOOKMAKER_PREFERENCE_ORDER: readonly string[] = ALLOWED_BOOKMAKERS;
+
 export type OddsApiSport = {
   key: string;
   group: string;
@@ -117,7 +140,7 @@ export const getOddsForSport = async (
   const apiKey = getApiKey();
   const params = new URLSearchParams({
     apiKey,
-    regions: options.regions ?? "eu",
+    bookmakers: ALLOWED_BOOKMAKERS.join(","),
     markets: options.markets ?? "h2h,totals",
     oddsFormat: options.oddsFormat ?? "decimal",
     dateFormat: "iso",
@@ -178,14 +201,31 @@ export type SimplifiedFixture = {
   } | null;
 };
 
+/**
+ * Sélectionne le bookmaker préféré parmi ceux couvrant ce match,
+ * selon l'ordre BOOKMAKER_PREFERENCE_ORDER (PS3838 prioritaire).
+ */
+const pickPreferredBookmaker = (
+  bookmakers: OddsApiBookmaker[]
+): OddsApiBookmaker | null => {
+  if (bookmakers.length === 0) return null;
+  for (const slug of BOOKMAKER_PREFERENCE_ORDER) {
+    const found = bookmakers.find((b) => b.key === slug);
+    if (found) return found;
+  }
+  // Fallback : si aucun bookmaker de la whitelist (ne devrait pas arriver
+  // grâce au filtre côté API, mais sécurité).
+  return bookmakers[0];
+};
+
 const extractBestOddsSnapshot = (
   event: OddsApiEvent
 ): SimplifiedFixture["oddsSummary"] => {
-  const firstBookmaker = event.bookmakers[0];
-  if (!firstBookmaker) return null;
+  const preferredBookmaker = pickPreferredBookmaker(event.bookmakers);
+  if (!preferredBookmaker) return null;
 
-  const h2h = firstBookmaker.markets.find((m) => m.key === "h2h");
-  const totals = firstBookmaker.markets.find((m) => m.key === "totals");
+  const h2h = preferredBookmaker.markets.find((m) => m.key === "h2h");
+  const totals = preferredBookmaker.markets.find((m) => m.key === "totals");
 
   const homeOutcome = h2h?.outcomes.find((o) => o.name === event.home_team);
   const awayOutcome = h2h?.outcomes.find((o) => o.name === event.away_team);
@@ -199,7 +239,7 @@ const extractBestOddsSnapshot = (
   );
 
   return {
-    bookmaker: firstBookmaker.title,
+    bookmaker: preferredBookmaker.title,
     h2hHome: homeOutcome?.price,
     h2hDraw: drawOutcome?.price,
     h2hAway: awayOutcome?.price,
@@ -218,7 +258,6 @@ export const fetchAllSportsForToday = async (
     try {
       const events = await getOddsForSport({
         sportKey: sport.key,
-        regions: "eu",
         markets: "h2h,totals",
         oddsFormat: "decimal",
         daysFrom: 1,
@@ -226,6 +265,9 @@ export const fetchAllSportsForToday = async (
       });
 
       for (const event of events) {
+        // Skip si aucun de nos 6 bookmakers ne couvre ce match
+        if (event.bookmakers.length === 0) continue;
+
         const isFoot = isFootballSportKey(sport.key);
         const isMajor = isMajorEuropeanLeague(sport.key);
         results.push({
