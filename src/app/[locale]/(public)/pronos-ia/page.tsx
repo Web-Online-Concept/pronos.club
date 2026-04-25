@@ -37,10 +37,11 @@ const getCurrentPicks = unstable_cache(
     const { data, error } = await supabaseAdmin
       .from("ai_picks")
       .select(
-        "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
+        "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score, slug, consensus_tier, consensus_score",
       )
       .eq("status", "pending")
       .gt("event_date", nowISO)
+      .order("consensus_score", { ascending: false, nullsFirst: false })
       .order("event_date", { ascending: true });
 
     if (error) {
@@ -81,7 +82,7 @@ export default async function PronosIAPage({
         badgeLabel={t("badge_live_count", { count: totalCurrent })}
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         {totalCurrent === 0 ? (
           <EmptyStateNoPicks locale={locale} />
         ) : (
@@ -94,7 +95,7 @@ export default async function PronosIAPage({
                   count={classics.length}
                   accent="violet"
                 />
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {classics.map((pick) => (
                     <AIPickCard key={pick.id} pick={pick} locale={locale} />
                   ))}
@@ -110,7 +111,7 @@ export default async function PronosIAPage({
                   count={scorers.length}
                   accent="fuchsia"
                 />
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {scorers.map((pick) => (
                     <AIScorerCard key={pick.id} pick={pick} locale={locale} />
                   ))}
