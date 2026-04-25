@@ -31,10 +31,12 @@ export default function AIScorerCard({
   pick,
   locale,
   showResult = false,
+  isAwaiting = false,
 }: {
   pick: AIScorerRow;
   locale: string;
   showResult?: boolean;
+  isAwaiting?: boolean;
 }) {
   const t = useTranslations("ai_picks");
 
@@ -46,12 +48,16 @@ export default function AIScorerCard({
   };
   const unitsResult = computeUnitsResult();
 
-  const theme = pick.status === "won"
+  const displayStatus = isAwaiting ? "awaiting" : pick.status;
+
+  const theme = displayStatus === "won"
     ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
-    : pick.status === "lost"
+    : displayStatus === "lost"
     ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: t("status_lost") }
-    : pick.status === "void"
+    : displayStatus === "void"
     ? { accent: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.2)", ring: "rgba(148,163,184,0.4)", text: "#cbd5e1", label: t("status_void") }
+    : displayStatus === "awaiting"
+    ? { accent: "#06b6d4", bg: "rgba(6,182,212,0.08)", border: "rgba(6,182,212,0.2)", ring: "rgba(6,182,212,0.4)", text: "#67e8f9", label: t("status_awaiting") }
     : { accent: "#e879f9", bg: "rgba(232,121,249,0.08)", border: "rgba(232,121,249,0.2)", ring: "rgba(232,121,249,0.4)", text: "rgba(232,121,249,0.9)", label: t("status_pending") };
 
   const dateLocale = DATE_LOCALES[locale] || "fr-FR";
@@ -85,7 +91,6 @@ export default function AIScorerCard({
           }}
         />
 
-        {/* Header : Sport + Logo + Date */}
         <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "80px" }}>
             <span style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.2em" }}>{t("label_competition")}</span>
@@ -110,7 +115,6 @@ export default function AIScorerCard({
           </div>
         </div>
 
-        {/* Match name + joueur buteur */}
         <div style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px dashed rgba(255,255,255,0.08)" }}>
           <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "6px" }}>
             {pick.event_name}
@@ -125,7 +129,6 @@ export default function AIScorerCard({
           )}
         </div>
 
-        {/* Data grid */}
         <div style={{ padding: "12px 16px 14px", display: "grid", gridTemplateColumns: showResult && unitsResult !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: "6px" }}>
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
             <p style={{ fontSize: "9px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em", margin: 0 }}>{t("label_type")}</p>
@@ -155,7 +158,6 @@ export default function AIScorerCard({
           )}
         </div>
 
-        {/* Status badge */}
         <div style={{
           padding: "10px 16px",
           background: theme.bg,
@@ -163,23 +165,22 @@ export default function AIScorerCard({
           textAlign: "center",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.text }}>
-            {pick.status === "won" && (
+            {displayStatus === "won" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
             )}
-            {pick.status === "lost" && (
+            {displayStatus === "lost" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" /></svg>
             )}
-            {pick.status === "void" && (
+            {displayStatus === "void" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14" /></svg>
             )}
-            {pick.status === "pending" && (
+            {(displayStatus === "pending" || displayStatus === "awaiting") && (
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: theme.accent, display: "inline-block" }} />
             )}
             {theme.label}
           </span>
         </div>
 
-        {/* Footer : Intelligence Artificielle */}
         <div style={{
           padding: "8px 14px",
           background: "rgba(0,0,0,0.3)",
