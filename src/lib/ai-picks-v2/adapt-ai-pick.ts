@@ -51,6 +51,7 @@ const SPORT_DEFAULTS: Record<
   string,
   { name_fr: string; name_en: string; name_es: string; icon: string }
 > = {
+  // Slugs ESPN canoniques (utilises depuis la migration sport slug)
   football: { name_fr: "Football", name_en: "Football", name_es: "Fútbol", icon: "⚽" },
   tennis: { name_fr: "Tennis", name_en: "Tennis", name_es: "Tenis", icon: "🎾" },
   basketball: { name_fr: "Basketball", name_en: "Basketball", name_es: "Baloncesto", icon: "🏀" },
@@ -59,6 +60,44 @@ const SPORT_DEFAULTS: Record<
   "football-americain": { name_fr: "Football US", name_en: "American Football", name_es: "Fútbol Americano", icon: "🏈" },
   rugby: { name_fr: "Rugby", name_en: "Rugby", name_es: "Rugby", icon: "🏉" },
   mma: { name_fr: "MMA", name_en: "MMA", name_es: "MMA", icon: "🥊" },
+  // Compatibilite anciens picks v1 stockes avec les slugs OddsAPI
+  soccer: { name_fr: "Football", name_en: "Football", name_es: "Fútbol", icon: "⚽" },
+  americanfootball: { name_fr: "Football US", name_en: "American Football", name_es: "Fútbol Americano", icon: "🏈" },
+};
+
+
+// ── Mapping ligue (slug stocke en DB) → nom lisible ────────────────
+
+const LEAGUE_DISPLAY_NAMES: Record<string, string> = {
+  // Football majeurs (slugs OddsAPI / API-Football)
+  soccer_epl: "Premier League",
+  soccer_spain_la_liga: "La Liga",
+  soccer_italy_serie_a: "Serie A",
+  soccer_germany_bundesliga: "Bundesliga",
+  soccer_france_ligue_one: "Ligue 1",
+  soccer_france_ligue_two: "Ligue 2",
+  soccer_uefa_champs_league: "Champions League",
+  soccer_uefa_europa_league: "Europa League",
+  soccer_uefa_europa_conference_league: "Conference League",
+  soccer_belgium_first_div: "Belgique D1",
+  soccer_netherlands_eredivisie: "Eredivisie",
+  soccer_portugal_primeira_liga: "Primeira Liga",
+  soccer_turkey_super_league: "Super Lig",
+  soccer_usa_mls: "MLS",
+  soccer_brazil_campeonato: "Brasileirão",
+  soccer_argentina_primera_division: "Primera División",
+  soccer_japan_j_league: "J League",
+  soccer_korea_kleague1: "K League",
+  // Tennis
+  tennis_atp: "ATP",
+  tennis_wta: "WTA",
+  // US sports
+  basketball_nba: "NBA",
+  hockey_nhl: "NHL",
+  baseball_mlb: "MLB",
+  americanfootball_nfl: "NFL",
+  // MMA
+  mma_mixed_martial_arts: "MMA",
 };
 
 
@@ -111,6 +150,20 @@ const buildBookmakerObject = (bookmakerName: string | null): Bookmaker | undefin
   } as Bookmaker;
 };
 
+const formatLeagueName = (leagueSlug: string): string => {
+  // Si c'est un slug connu, on retourne le nom lisible
+  if (LEAGUE_DISPLAY_NAMES[leagueSlug]) return LEAGUE_DISPLAY_NAMES[leagueSlug];
+
+  // Sinon on essaie de formater le slug en titre
+  // Ex: "england_premier_league" -> "England Premier League"
+  return leagueSlug
+    .replace(/^soccer_/, "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
 
 // ── Fonction principale ────────────────────────────────────────────
 
@@ -119,34 +172,34 @@ export const adaptAiPickToPickFormat = (
 ): Pick & { live_score_data?: unknown } => {
   const sport = buildSportObject(aiPick.sport);
   const bookmaker = buildBookmakerObject(aiPick.odds_bookmaker);
+  const competitionLabel = formatLeagueName(aiPick.league);
 
   return {
     id: aiPick.id,
-    pick_type: "simple", // L'IA fait des picks simples actuellement
+    pick_type: "simple",
     sport_id: sport.id,
-    competition: aiPick.league,
+    competition: competitionLabel,
     bookmaker_id: bookmaker?.id ?? "",
     event_name: aiPick.event_name,
     event_date: aiPick.event_date,
     selection: aiPick.selection,
     odds: aiPick.odds ?? 1,
     min_odds: null,
-    stake: 1, // 1U fixe pour tous les picks IA
-    is_premium: false, // L'IA n'a pas de notion premium (le ribbon est gere par aiMode)
+    stake: 1,
+    is_premium: false,
     analysis_fr: aiPick.reasoning,
     analysis_en: null,
     analysis_es: null,
-    screenshot_url: null, // Pas de ticket photo cote IA
+    screenshot_url: null,
     status: aiPick.status,
-    profit: null, // Calcule cote serveur si besoin
+    profit: null,
     result_entered_at: null,
     published_at: aiPick.event_date,
     notify_sent: true,
     pick_number: aiPick.ai_pick_number ?? undefined,
     sport,
     bookmaker,
-    legs: [], // Pas de combines IA actuellement
-    // live_score_data passe through (lu par le composant LiveScore via savedScore)
+    legs: [],
     live_score_data: aiPick.live_score_data,
   } as Pick & { live_score_data?: unknown };
 };
