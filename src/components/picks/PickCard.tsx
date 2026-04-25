@@ -143,9 +143,13 @@ interface PickCardProps {
   locked?: boolean;
   /** When in user's personal history, show their profit instead of tipster's */
   userProfit?: number | null;
+  /** When true, render in AI mode (purple ribbon "🤖 IA", footer "INTELLIGENCE ARTIFICIELLE") */
+  aiMode?: boolean;
+  /** Optional href for the AI footer link (e.g. dossier detail page) */
+  aiFooterHref?: string | null;
 }
 
-export default function PickCard({ pick, locked = false, userProfit }: PickCardProps) {
+export default function PickCard({ pick, locked = false, userProfit, aiMode = false, aiFooterHref = null }: PickCardProps) {
   const { user } = useAuth();
   const [showScreenshot, setShowScreenshot] = useState(false);
   const [followed, setFollowed] = useState(false);
@@ -367,7 +371,12 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
 
         {/* Premium/Gratuit ribbon — top right corner */}
         <div className="absolute -right-[32px] top-[18px] z-10 rotate-45">
-          {pick.is_premium ? (
+          {aiMode ? (
+            <div className="w-[130px] py-[4px] text-center text-[8px] font-extrabold uppercase tracking-[0.15em] text-white shadow-lg"
+              style={{ background: "linear-gradient(90deg, #8b5cf6, #6d28d9)" }}>
+              🤖 IA
+            </div>
+          ) : pick.is_premium ? (
             <div className="w-[130px] py-[4px] text-center text-[8px] font-extrabold uppercase tracking-[0.15em] text-white shadow-lg"
               style={{ background: "linear-gradient(90deg, #f59e0b, #d97706)" }}>
               Premium
@@ -686,7 +695,22 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   </div>
 
                   {/* Follow toggle — full width */}
-                  {user && (
+                  {aiMode ? (
+                    aiFooterHref ? (
+                      <Link
+                        href={aiFooterHref}
+                        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300 transition hover:bg-violet-500/20 hover:text-violet-200"
+                      >
+                        <span>🤖</span>
+                        <span className="uppercase tracking-[0.1em]">Intelligence Artificielle</span>
+                      </Link>
+                    ) : (
+                      <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300">
+                        <span>🤖</span>
+                        <span className="uppercase tracking-[0.1em]">Intelligence Artificielle</span>
+                      </div>
+                    )
+                  ) : user && (
                     pick.is_premium && !isPremiumUser ? (
                       <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 py-2.5 text-[11px] font-bold text-white/20">
                         <span>🔒</span>
