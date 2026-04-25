@@ -1,279 +1,324 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia/historique (AVEC HERO COHÉRENT)
- * ═══════════════════════════════════════════════════════════════════
- */
+"use client";
 
-import { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
-import AIPickCard, { type AIPickRow } from "@/components/ai-picks/AIPickCard";
-import AIScorerCard, { type AIScorerRow } from "@/components/ai-picks/AIScorerCard";
-import AIHistoryFilters from "@/components/ai-picks/AIHistoryFilters";
-import AIHistoryPagination from "@/components/ai-picks/AIHistoryPagination";
+import { useState, useEffect } from "react";
+import PickCard from "@/components/picks/PickCard";
+import {
+  adaptAiPickToPickFormat,
+  buildAiPickDetailHref,
+  type AIPickRow,
+} from "@/lib/ai-picks-v2/adapt-ai-pick";
 import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
-import { buildPronosIAMetadata } from "@/lib/ai/ai-picks-metadata";
-
-export const dynamic = "force-dynamic";
+import { useTranslations, useLocale } from "next-intl";
 
 
-const PER_PAGE = 20;
-
-type FilterType = "all" | "classic" | "scorer";
-type FilterStatus = "all" | "awaiting" | "won" | "lost" | "void";
-type FilterSport = "all" | "soccer" | "tennis" | "basketball";
-
-const VALID_TYPES: FilterType[] = ["all", "classic", "scorer"];
-const VALID_STATUSES: FilterStatus[] = [
-  "all",
-  "awaiting",
-  "won",
-  "lost",
-  "void",
-];
-const VALID_SPORTS: FilterSport[] = ["all", "soccer", "tennis", "basketball"];
-
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
-  const { locale } = await params;
-  return buildPronosIAMetadata(locale, "history");
+function lastDayOfMonth(ym: string) {
+  const [y, m] = ym.split("-");
+  const d = new Date(parseInt(y), parseInt(m), 0);
+  return `${ym}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 
-export default async function HistoryPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    type?: string;
-    status?: string;
-    sport?: string;
-    page?: string;
-  }>;
-}) {
-  const { locale } = await params;
-  const sp = await searchParams;
-  const t = await getTranslations({ locale, namespace: "ai_picks" });
+// Liste des sports IA possibles avec icônes (aligné sur ce que stocke ai_picks.sport)
+const AI_SPORTS: Array<{ slug: string; icon: string; name: string }> = [
+  { slug: "football", icon: "⚽", name: "Football" },
+  { slug: "tennis", icon: "🎾", name: "Tennis" },
+  { slug: "basketball", icon: "🏀", name: "Basketball" },
+  { slug: "hockey", icon: "🏒", name: "Hockey" },
+  { slug: "baseball", icon: "⚾", name: "Baseball" },
+  { slug: "football-americain", icon: "🏈", name: "Football US" },
+  { slug: "rugby", icon: "🏉", name: "Rugby" },
+  { slug: "mma", icon: "🥊", name: "MMA" },
+];
 
-  const type: FilterType = VALID_TYPES.includes(sp.type as FilterType)
-    ? (sp.type as FilterType)
-    : "all";
-  const status: FilterStatus = VALID_STATUSES.includes(sp.status as FilterStatus)
-    ? (sp.status as FilterStatus)
-    : "all";
-  const sport: FilterSport = VALID_SPORTS.includes(sp.sport as FilterSport)
-    ? (sp.sport as FilterSport)
-    : "all";
-  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
-  const nowISO = new Date().toISOString();
+export default function PronosIAHistoriquePage() {
+  const t = useTranslations("ai_picks");
+  const locale = useLocale();
+  const MONTH_NAMES = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+  ];
 
-  let query = supabaseAdmin
-    .from("ai_picks")
-    .select(
-      "id, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, ai_confidence, status, final_score",
-      { count: "exact" },
-    )
-    .or(
-      `status.in.(won,lost,void),and(status.eq.pending,event_date.lte.${nowISO})`,
-    )
-    .order("event_date", { ascending: false });
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
-  if (type !== "all") query = query.eq("pick_type", type);
-  if (sport !== "all") query = query.eq("sport", sport);
-
-  if (status === "awaiting") {
-    query = query.eq("status", "pending").lte("event_date", nowISO);
-  } else if (status !== "all") {
-    query = query.eq("status", status);
+  function formatMonth(ym: string) {
+    const [y, m] = ym.split("-");
+    return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
   }
 
-  const from = (page - 1) * PER_PAGE;
-  const to = from + PER_PAGE - 1;
-  query = query.range(from, to);
+  const [picks, setPicks] = useState<AIPickRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [awaitingCount, setAwaitingCount] = useState(0);
+  const [finishedCount, setFinishedCount] = useState(0);
+  const BATCH = 20;
 
-  const { data, error, count } = await query;
+  const [filterMode, setFilterMode] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  if (error) {
-    console.error("[history] Erreur fetch picks:", error);
+  const [sport, setSport] = useState("all");
+
+  // Fetch counts on mount
+  useEffect(() => {
+    fetch("/api/ai-picks/history?limit=0&offset=0&status=awaiting")
+      .then((r) => r.json())
+      .then((d) => setAwaitingCount(d.count ?? 0))
+      .catch(() => {});
+
+    fetch("/api/ai-picks/history?limit=0&offset=0&exclude_pending=true")
+      .then((r) => r.json())
+      .then((d) => setFinishedCount(d.count ?? 0))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setOffset(0);
+    fetchPicks(0, true);
+  }, [statusFilter, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, sport]);
+
+  async function fetchPicks(fromOffset = 0, reset = false) {
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
+
+    const params = new URLSearchParams({
+      limit: String(BATCH),
+      offset: String(fromOffset),
+    });
+
+    if (statusFilter !== "all") {
+      params.set("status", statusFilter);
+    } else {
+      params.set("exclude_pending", "true");
+    }
+
+    if (sport !== "all") params.set("sport", sport);
+
+    if (filterMode === "month" && selectedMonth) {
+      params.set("from", `${selectedMonth}-01`);
+      params.set("to", lastDayOfMonth(selectedMonth));
+    } else if (filterMode === "year" && selectedYear) {
+      params.set("from", `${selectedYear}-01-01`);
+      params.set("to", `${selectedYear}-12-31`);
+    } else if (filterMode === "custom") {
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+    }
+
+    const res = await fetch(`/api/ai-picks/history?${params}`);
+    const data = await res.json();
+    const newPicks: AIPickRow[] = data.data ?? [];
+
+    if (reset) {
+      setPicks(newPicks);
+    } else {
+      setPicks((prev) => [...prev, ...newPicks]);
+    }
+
+    setTotal(data.count ?? 0);
+    setLoading(false);
+    setLoadingMore(false);
   }
 
-  const picks = data ?? [];
-  const totalCount = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+  function loadMore() {
+    const newOffset = offset + BATCH;
+    setOffset(newOffset);
+    fetchPicks(newOffset, false);
+  }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // COMPTEURS POUR LES 2 BADGES DU HERO
-  // (ignorent les filtres courants — on veut les totaux globaux)
-  // ═══════════════════════════════════════════════════════════════════
-  const [awaitingRes, finishedRes] = await Promise.all([
-    supabaseAdmin
-      .from("ai_picks")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending")
-      .lte("event_date", nowISO),
-    supabaseAdmin
-      .from("ai_picks")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["won", "lost", "void"]),
-  ]);
-
-  const awaitingCount = awaitingRes.count ?? 0;
-  const finishedCount = finishedRes.count ?? 0;
+  const totalLabel =
+    awaitingCount + finishedCount > 0
+      ? `${awaitingCount + finishedCount} pronos`
+      : "Historique";
 
   return (
-    <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
-
-      {/* HERO FULL-WIDTH avec 2 badges */}
+    <>
       <PronosIAHero
         locale={locale}
         currentPage="history"
-        title={t("history_page_title")}
-      >
-        {/* Badge AWAITING (amber) - seulement si > 0 */}
-        {awaitingCount > 0 && (
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+        title="Historique"
+        badgeLabel={totalLabel}
+      />
+
+      <main className="mx-auto max-w-2xl px-4 pb-4">
+        {/* Badges status counts */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {awaitingCount > 0 && (
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              </span>
+              <span className="text-xs font-semibold text-amber-400">
+                {awaitingCount > 1
+                  ? `${awaitingCount} en attente`
+                  : `${awaitingCount} en attente`}
+              </span>
+            </div>
+          )}
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
+            <span className="text-xs font-semibold text-violet-400">
+              {finishedCount > 1
+                ? `${finishedCount} pronos terminés`
+                : `${finishedCount} prono terminé`}
             </span>
-            <span className="text-xs font-semibold text-amber-400">
-              {awaitingCount > 1
-                ? t("history_badge_awaiting_many", { count: awaitingCount })
-                : t("history_badge_awaiting_one", { count: awaitingCount })}
-            </span>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="mt-4 text-center">
+          <div className="inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+            <select
+              value={
+                filterMode === "custom"
+                  ? "custom"
+                  : filterMode === "month" && selectedMonth
+                    ? `month:${selectedMonth}`
+                    : filterMode === "year" && selectedYear
+                      ? `year:${selectedYear}`
+                      : "all"
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "all") {
+                  setFilterMode("all");
+                  setSelectedMonth("");
+                  setSelectedYear("");
+                  setDateFrom("");
+                  setDateTo("");
+                } else if (val === "custom") {
+                  setFilterMode("custom");
+                  setSelectedMonth("");
+                  setSelectedYear("");
+                } else if (val.startsWith("month:")) {
+                  setFilterMode("month");
+                  setSelectedMonth(val.replace("month:", ""));
+                  setSelectedYear("");
+                } else if (val.startsWith("year:")) {
+                  setFilterMode("year");
+                  setSelectedYear(val.replace("year:", ""));
+                  setSelectedMonth("");
+                }
+              }}
+              className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            >
+              <option value="all">{isMobile ? "Dates" : "Toutes les dates"}</option>
+              <option value="custom">Dates personnalisées</option>
+            </select>
+
+            <select
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            >
+              <option value="all">{isMobile ? "Sports" : "Tous les sports"}</option>
+              {AI_SPORTS.map((s) => {
+                const shortName =
+                  isMobile && s.name.length > 10 ? s.name.slice(0, 10) + "." : s.name;
+                return (
+                  <option key={s.slug} value={s.slug}>
+                    {s.icon} {shortName}
+                  </option>
+                );
+              })}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            >
+              <option value="all">{isMobile ? "Résultats" : "Tous les résultats"}</option>
+              <option value="awaiting">En attente</option>
+              <option value="won">Gagnés</option>
+              <option value="lost">Perdus</option>
+              <option value="void">Remboursés</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Custom date range */}
+        {filterMode === "custom" && (
+          <div className="mt-3 flex flex-wrap items-end justify-center gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">
+                Du
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-neutral-400">
+                Au
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm"
+              />
+            </div>
           </div>
         )}
 
-        {/* Badge FINISHED (violet) - toujours affiché */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
-          <span className="text-xs font-semibold text-violet-300">
-            {finishedCount > 1
-              ? t("history_badge_finished_many", { count: finishedCount })
-              : t("history_badge_finished_one", { count: finishedCount })}
-          </span>
-        </div>
-      </PronosIAHero>
-
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
-
-        {/* FILTRES */}
-        <AIHistoryFilters
-          currentType={type}
-          currentStatus={status}
-          currentSport={sport}
-          locale={locale}
-        />
-
-        {/* RÉSULTATS */}
-        {totalCount === 0 ? (
-          <EmptyHistory locale={locale} />
+        {/* Picks */}
+        {loading ? (
+          <p className="mt-8 text-center opacity-50">Chargement...</p>
+        ) : picks.length === 0 ? (
+          <div className="mt-12 text-center">
+            <p className="text-4xl">📭</p>
+            <p className="mt-2 text-sm text-neutral-600 font-semibold">
+              Aucun résultat
+            </p>
+          </div>
         ) : (
           <>
-            <div className="my-6 text-center text-xs text-neutral-500">
-              {t("history_count_info", {
-                count: picks.length,
-                total: totalCount,
-                page,
-                totalPages,
-              })}
-            </div>
-
-            <div className="space-y-4">
-              {picks.map((pick) => {
-                const base = pick as unknown;
-                const isAwaiting =
-                  pick.status === "pending" &&
-                  new Date(pick.event_date) <= new Date(nowISO);
-
-                if (pick.pick_type === "classic") {
-                  return (
-                    <AIPickCard
-                      key={pick.id}
-                      pick={base as AIPickRow}
-                      locale={locale}
-                      isAwaiting={isAwaiting}
-                    />
-                  );
-                }
+            <div className="mt-6 space-y-3">
+              {picks.map((aiPick) => {
+                const adaptedPick = adaptAiPickToPickFormat(aiPick);
+                const detailHref = buildAiPickDetailHref(aiPick, locale);
                 return (
-                  <AIScorerCard
-                    key={pick.id}
-                    pick={base as AIScorerRow}
-                    locale={locale}
-                    isAwaiting={isAwaiting}
+                  <PickCard
+                    key={aiPick.id}
+                    pick={adaptedPick}
+                    aiMode
+                    aiFooterHref={detailHref}
                   />
                 );
               })}
             </div>
 
-            {totalPages > 1 && (
-              <div className="mt-10">
-                <AIHistoryPagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  type={type}
-                  status={status}
-                  sport={sport}
-                  locale={locale}
-                />
+            {picks.length < total && (
+              <div className="mt-6 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="cursor-pointer rounded-full bg-neutral-900 px-8 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {loadingMore
+                    ? "Chargement..."
+                    : `Charger plus (${picks.length}/${total})`}
+                </button>
               </div>
             )}
           </>
         )}
-
-        <div className="mt-16">
-          <AIDisclaimer locale={locale} />
-        </div>
       </main>
-    </div>
-  );
-}
-
-
-async function EmptyHistory({ locale }: { locale: string }) {
-  const t = await getTranslations({ locale, namespace: "ai_picks" });
-
-  return (
-    <div
-      className="relative my-12 overflow-hidden rounded-2xl border p-10 text-center text-white sm:p-14"
-      style={{
-        background:
-          "linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #312e81 70%, #4c1d95 100%)",
-        borderColor: "rgba(168, 85, 247, 0.25)",
-      }}
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.35) 0%, transparent 50%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute left-0 top-0 h-[2px] w-full"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent 0%, #a855f7 30%, #3b82f6 70%, transparent 100%)",
-        }}
-      />
-      <div className="relative z-10">
-        <div className="mb-4 text-5xl">🕐</div>
-        <h3 className="mb-2 text-xl font-extrabold">
-          {t("history_empty_title")}
-        </h3>
-        <p className="mx-auto max-w-md text-sm text-white/70">
-          {t("history_empty_description")}
-        </p>
-      </div>
-    </div>
+    </>
   );
 }
