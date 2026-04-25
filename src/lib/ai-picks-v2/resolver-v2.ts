@@ -1,0 +1,324 @@
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { apiFootball } from "./apifootball-client";
+import type { Fixture } from "@/types/apifootball";
+
+export type ResolveV2Report = {
+  totalChecked: number;
+  resolved: number;
+  stillPending: number;
+  failed: number;
+  details: Array<{
+    pickId: string;
+    eventName: string;
+    status: "won" | "lost" | "void" | "still_pending" | "error";
+    source: string;
+    note?: string;
+  }>;
+};
+
+type AiPickV2Row = {
+  id: string;
+  pick_type: string;
+  sport: string;
+  league: string;
+  event_name: string;
+  event_date: string;
+  selection: string;
+  market: string | null;
+  apifootball_fixture_id: number | null;
+  espn_event_id: string | null;
+  status: string;
+};
+
+const fetchPendingV2Picks = async (): Promise<AiPickV2Row[]> => {
+  const { data, error } = await supabaseAdmin
+    .from("ai_picks")
+    .select(
+      "id, pick_type, sport, league, event_name, event_date, selection, market, apifootball_fixture_id, espn_event_id, status"
+    )
+    .eq("generation_version", "v2")
+    .eq("status", "pending")
+    .is("deleted_at", null)
+    .lt("event_date", new Date().toISOString())
+    .order("event_date", { ascending: true });
+
+  if (error) {
+    console.error("[ai-picks-resolve-v2] fetch error:", error);
+    return [];
+  }
+  return (data ?? []) as AiPickV2Row[];
+};
+
+const isMatchFinished = (fixture: Fixture): boolean => {
+  const finishedShorts = ["FT", "AET", "PEN", "AWD", "WO"];
+  return finishedShorts.includes(fixture.fixture.status.short);
+};
+
+const resolveClassicPick1N2 = (
+  fixture: Fixture,
+  selection: string
+): "won" | "lost" | "void" => {
+  const homeGoals = fixture.goals.home;
+  const awayGoals = fixture.goals.away;
+  if (homeGoals === null || awayGoals === null) return "void";
+
+  const homeName = fixture.teams.home.name.toLowerCase();
+  const awayName = fixture.teams.away.name.toLowerCase();
+  const sel = selection.toLowerCase().trim();
+
+  if (sel.includes("nul") || sel === "draw" || sel === "n") {
+    return homeGoals === awayGoals ? "won" : "lost";
+  }
+
+  const isOnHome =
+    sel.includes(homeName) ||
+    homeName.includes(sel) ||
+    sel === "1" ||
+    sel === "home";
+  const isOnAway =
+    sel.includes(awayName) ||
+    awayName.includes(sel) ||
+    sel === "2" ||
+    sel === "away";
+
+  if (isOnHome) return homeGoals > awayGoals ? "won" : "lost";
+  if (isOnAway) return awayGoals > homeGoals ? "won" : "lost";
+
+  return "void";
+};
+
+const resolveDoubleChance = (
+  fixture: Fixture,
+  selection: string
+): "won" | "lost" | "void" => {
+  const homeGoals = fixture.goals.home;
+  const awayGoals = fixture.goals.away;
+  if (homeGoals === null || awayGoals === null) return "void";
+
+  const sel = selection.toLowerCase().replace(/\s+/g, "");
+
+  if (sel.includes("1x")) {
+    return homeGoals >= awayGoals ? "won" : "lost";
+  }
+  if (sel.includes("x2")) {
+    return awayGoals >= homeGoals ? "won" : "lost";
+  }
+  if (sel.includes("12")) {
+    return homeGoals !== awayGoals ? "won" : "lost";
+  }
+  return "void";
+};
+
+const resolveOverUnder = (
+  fixture: Fixture,
+  selection: string,
+  threshold: number
+): "won" | "lost" | "void" => {
+  const homeGoals = fixture.goals.home;
+  const awayGoals = fixture.goals.away;
+  if (homeGoals === null || awayGoals === null) return "void";
+  const total = homeGoals + awayGoals;
+  const sel = selection.toLowerCase();
+  const isOver = sel.includes("plus") || sel.includes("over");
+  const isUnder = sel.includes("moins") || sel.includes("under");
+  if (isOver) return total > threshold ? "won" : "lost";
+  if (isUnder) return total < threshold ? "won" : "lost";
+  return "void";
+};
+
+const resolveBtts = (
+  fixture: Fixture,
+  selection: string
+): "won" | "lost" | "void" => {
+  const homeGoals = fixture.goals.home;
+  const awayGoals = fixture.goals.away;
+  if (homeGoals === null || awayGoals === null) return "void";
+  const both = homeGoals > 0 && awayGoals > 0;
+  const sel = selection.toLowerCase();
+  const isYes = sel.includes("oui") || sel.includes("yes");
+  const isNo = sel.includes("non") || sel.includes("no");
+  if (isYes) return both ? "won" : "lost";
+  if (isNo) return !both ? "won" : "lost";
+  return "void";
+};
+
+const resolveScorer = async (
+  fixtureId: number,
+  playerName: string
+): Promise<"won" | "lost" | "void"> => {
+  try {
+    const url = `/fixtures/events`;
+    const result = await apiFootball["fetchRaw" as keyof typeof apiFootball];
+    const events = await fetch(
+      `https://v3.football.api-sports.io/fixtures/events?fixture=${fixtureId}`,
+      {
+        headers: { "x-apisports-key": process.env.API_FOOTBALL_KEY ?? "" },
+      }
+    );
+    if (!events.ok) return "void";
+    const json = (await events.json()) as {
+      response?: Array<{
+        type?: string;
+        detail?: string;
+        player?: { name?: string };
+      }>;
+    };
+    const goalEvents = (json.response ?? []).filter(
+      (e) =>
+        e.type === "Goal" &&
+        e.detail !== "Missed Penalty" &&
+        e.detail !== "Own Goal"
+    );
+    const scoredNames = goalEvents
+      .map((e) => (e.player?.name ?? "").toLowerCase().trim())
+      .filter(Boolean);
+
+    const target = playerName.toLowerCase().trim();
+    const targetParts = target.split(/\s+/);
+    const lastName = targetParts[targetParts.length - 1] ?? "";
+
+    const matched = scoredNames.some((n) => {
+      if (n.includes(target) || target.includes(n)) return true;
+      if (lastName && lastName.length > 3 && n.includes(lastName)) return true;
+      return false;
+    });
+
+    return matched ? "won" : "lost";
+  } catch (err) {
+    console.warn(
+      `[ai-picks-resolve-v2] scorer resolution failed for fixture ${fixtureId}:`,
+      err instanceof Error ? err.message : err
+    );
+    return "void";
+  }
+};
+
+const resolvePickFromApiFootball = async (
+  pick: AiPickV2Row
+): Promise<{ status: "won" | "lost" | "void" | "still_pending"; note?: string }> => {
+  if (!pick.apifootball_fixture_id) {
+    return { status: "still_pending", note: "No apifootball_fixture_id" };
+  }
+
+  const fixture = await apiFootball.getFixtureById(
+    pick.apifootball_fixture_id,
+    pick.id
+  );
+
+  if (!fixture) {
+    return { status: "still_pending", note: "Fixture not found" };
+  }
+
+  if (!isMatchFinished(fixture)) {
+    return {
+      status: "still_pending",
+      note: `Status: ${fixture.fixture.status.short}`,
+    };
+  }
+
+  if (pick.pick_type === "scorer") {
+    const result = await resolveScorer(
+      pick.apifootball_fixture_id,
+      pick.selection
+    );
+    return { status: result };
+  }
+
+  switch (pick.market) {
+    case "1N2":
+      return { status: resolveClassicPick1N2(fixture, pick.selection) };
+    case "DOUBLE_CHANCE":
+      return { status: resolveDoubleChance(fixture, pick.selection) };
+    case "OVER_UNDER_1_5":
+      return { status: resolveOverUnder(fixture, pick.selection, 1.5) };
+    case "OVER_UNDER_2_5":
+      return { status: resolveOverUnder(fixture, pick.selection, 2.5) };
+    case "OVER_UNDER_3_5":
+      return { status: resolveOverUnder(fixture, pick.selection, 3.5) };
+    case "BTTS":
+      return { status: resolveBtts(fixture, pick.selection) };
+    default:
+      return { status: "void", note: `Unknown market: ${pick.market}` };
+  }
+};
+
+const updatePickResolution = async (
+  pickId: string,
+  status: "won" | "lost" | "void",
+  source: "cron_apifootball" | "cron_espn"
+): Promise<void> => {
+  await supabaseAdmin
+    .from("ai_picks")
+    .update({
+      status,
+      resolved_at: new Date().toISOString(),
+      resolution_source: source,
+    })
+    .eq("id", pickId);
+};
+
+export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
+  const picks = await fetchPendingV2Picks();
+  const report: ResolveV2Report = {
+    totalChecked: picks.length,
+    resolved: 0,
+    stillPending: 0,
+    failed: 0,
+    details: [],
+  };
+
+  for (const pick of picks) {
+    try {
+      let resolution: { status: string; note?: string };
+
+      if (pick.apifootball_fixture_id) {
+        resolution = await resolvePickFromApiFootball(pick);
+      } else {
+        resolution = {
+          status: "still_pending",
+          note: "No apifootball_fixture_id and no ESPN fallback yet",
+        };
+      }
+
+      if (
+        resolution.status === "won" ||
+        resolution.status === "lost" ||
+        resolution.status === "void"
+      ) {
+        await updatePickResolution(
+          pick.id,
+          resolution.status,
+          "cron_apifootball"
+        );
+        report.resolved++;
+        report.details.push({
+          pickId: pick.id,
+          eventName: pick.event_name,
+          status: resolution.status,
+          source: "cron_apifootball",
+          note: resolution.note,
+        });
+      } else {
+        report.stillPending++;
+        report.details.push({
+          pickId: pick.id,
+          eventName: pick.event_name,
+          status: "still_pending",
+          source: "cron_apifootball",
+          note: resolution.note,
+        });
+      }
+    } catch (err) {
+      report.failed++;
+      report.details.push({
+        pickId: pick.id,
+        eventName: pick.event_name,
+        status: "error",
+        source: "cron_apifootball",
+        note: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
+  return report;
+};

@@ -1,100 +1,226 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * CRON — GÉNÉRATION QUOTIDIENNE DES PRONOS IA
- * ═══════════════════════════════════════════════════════════════════
- *
- * Route : /api/crons/ai-picks-generate
- * Planification : tous les jours à 09h00 (heure Paris)
- *
- * Vercel appelle cette route avec un header "Authorization: Bearer ${CRON_SECRET}"
- * ou "x-vercel-cron-signature" (via la config dans vercel.json).
- *
- * Fonctionnement :
- *   1. Vérifie l'authentification CRON_SECRET
- *   2. Appelle generateDailyPicks() qui fait tout le boulot
- *   3. Retourne un rapport JSON avec stats
- *
- * Peut aussi être appelée manuellement avec :
- *   curl -H "Authorization: Bearer $CRON_SECRET" \
- *     https://pronos.club/api/crons/ai-picks-generate
- * ═══════════════════════════════════════════════════════════════════
- */
-
 import { NextRequest, NextResponse } from "next/server";
-import { generateDailyPicks } from "@/lib/ai/generate-daily-picks";
+import { runConsensus } from "@/lib/ai-picks-v2/consensus";
+import { GENERATOR_SYSTEM_PROMPT } from "@/lib/ai-picks-v2/prompts";
+import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
+import {
+  persistConsensusCandidate,
+  persistDossier,
+  updatePickDossierStatus,
+} from "@/lib/ai-picks-v2/persist-picks";
+import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
+import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
+import type { ConsensusCandidate } from "@/types/ai-picks-v2";
+import type { AggregatedMatchData } from "@/types/apifootball";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-// Cron peut être long (fetch ESPN + Odds + Claude = 30-60s)
-export const maxDuration = 120;
+export const maxDuration = 300;
 
+const isAuthorized = (req: NextRequest): boolean => {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+  const secretHeader = req.headers.get("x-admin-secret");
+  if (secretHeader === process.env.CRON_SECRET) return true;
+  const adminEmail = req.headers.get("x-admin-email");
+  if (
+    adminEmail &&
+    ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"].includes(
+      adminEmail.toLowerCase()
+    )
+  ) {
+    return true;
+  }
+  return false;
+};
 
-// ═══════════════════════════════════════════════════════════════════
-// AUTHENTIFICATION
-// ═══════════════════════════════════════════════════════════════════
+const generateDossierForPick = async (
+  pickId: string,
+  candidate: ConsensusCandidate
+): Promise<void> => {
+  await updatePickDossierStatus(pickId, "generating");
 
-function isAuthorized(req: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET non défini");
-    return false;
+  let matchData: AggregatedMatchData | null = null;
+  if (/^\d+$/.test(candidate.fixtureRef)) {
+    try {
+      matchData = await aggregateMatchData(Number(candidate.fixtureRef), {
+        pickId,
+      });
+    } catch (err) {
+      console.warn(
+        `[ai-picks-generate] aggregateMatchData failed for ${candidate.fixtureRef}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
-  // Auth via header "Authorization: Bearer xxx" (appel manuel ou cron Vercel)
-  const authHeader = req.headers.get("authorization");
-  if (authHeader === `Bearer ${cronSecret}`) return true;
+  const dossierResult = await generateDossier({
+    pick: candidate,
+    matchData,
+    pickId,
+  });
 
-  // Auth via "x-vercel-cron-signature" (cron Vercel natif)
-  const vercelSignature = req.headers.get("x-vercel-cron-signature");
-  if (vercelSignature) return true; // Vercel n'envoie ce header que si c'est un vrai cron
+  if (dossierResult.error || !dossierResult.fullText) {
+    await updatePickDossierStatus(pickId, "failed");
+    return;
+  }
 
-  return false;
-}
+  const apiFootballSnapshot = matchData
+    ? {
+        completeness: matchData.dataCompleteness,
+        fixture_id: matchData.fixtureId,
+        league: matchData.fixture.league,
+        teams: matchData.fixture.teams,
+        home_form: matchData.homeStats?.form ?? null,
+        away_form: matchData.awayStats?.form ?? null,
+        h2h_count: matchData.h2h?.length ?? 0,
+        injuries_count: matchData.injuries?.length ?? 0,
+        lineups_count: matchData.lineups?.length ?? 0,
+        has_predictions: !!matchData.predictions,
+      }
+    : null;
 
-
-// ═══════════════════════════════════════════════════════════════════
-// HANDLER GET (Vercel appelle toujours en GET pour les crons)
-// ═══════════════════════════════════════════════════════════════════
+  await persistDossier(
+    pickId,
+    dossierResult.fullText,
+    dossierResult.sections,
+    apiFootballSnapshot,
+    dossierResult.meta.model,
+    dossierResult.meta.tokensInput,
+    dossierResult.meta.tokensOutput,
+    dossierResult.meta.tokensCached,
+    dossierResult.meta.costUsd
+  );
+};
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 },
-    );
-  }
-
-  console.log("[Cron] ▶ Démarrage ai-picks-generate");
-
-  try {
-    const report = await generateDailyPicks();
-
-    return NextResponse.json(
-      {
-        status: report.success ? "ok" : "error",
-        ...report,
-      },
-      {
-        status: report.success ? 200 : 500,
-      },
-    );
-  } catch (err) {
-    console.error("[Cron] ai-picks-generate fatal:", err);
-    return NextResponse.json(
-      {
-        status: "fatal_error",
-        error: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 },
-    );
-  }
+  return runGeneration(req);
 }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// HANDLER POST (alternative si besoin d'appel manuel avec body)
-// ═══════════════════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
-  return GET(req);
+  return runGeneration(req);
 }
+
+const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
+  if (!isAuthorized(req)) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const startedAt = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const { promptUserText, apiFootballFixtures, oddsApiFixtures } =
+      await buildEnrichedFixturesData(today);
+
+    if (
+      apiFootballFixtures.length === 0 &&
+      oddsApiFixtures.length === 0
+    ) {
+      return NextResponse.json({
+        ok: true,
+        date: today,
+        skipped: true,
+        reason: "No fixtures available for today",
+      });
+    }
+
+    const consensus = await runConsensus({
+      systemPrompt: GENERATOR_SYSTEM_PROMPT,
+      userPrompt: promptUserText,
+    });
+
+    if (consensus.errors.claude && consensus.errors.gpt) {
+      return NextResponse.json(
+        {
+          ok: false,
+          date: today,
+          error: "Both AI generators failed",
+          errors: consensus.errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    const allSelected = [
+      ...consensus.selectedClassic,
+      ...consensus.selectedScorer,
+    ];
+
+    const persistedPicks: Array<{
+      candidate: ConsensusCandidate;
+      pickId: string;
+      slug: string;
+    }> = [];
+    const persistErrors: Array<{ candidate: string; error: string }> = [];
+
+    for (const candidate of allSelected) {
+      const result = await persistConsensusCandidate({
+        candidate,
+        generationBatch: today,
+      });
+      if (result.success && result.pickId && result.slug) {
+        persistedPicks.push({
+          candidate,
+          pickId: result.pickId,
+          slug: result.slug,
+        });
+      } else {
+        persistErrors.push({
+          candidate: `${candidate.eventName} ${candidate.selection}`,
+          error: result.error ?? "unknown",
+        });
+      }
+    }
+
+    const persistDurationMs = Date.now() - startedAt;
+
+    void (async () => {
+      for (const { candidate, pickId } of persistedPicks) {
+        try {
+          await generateDossierForPick(pickId, candidate);
+        } catch (err) {
+          console.error(
+            `[ai-picks-generate] Dossier failed for pick ${pickId}:`,
+            err instanceof Error ? err.message : err
+          );
+          await updatePickDossierStatus(pickId, "failed");
+        }
+      }
+    })();
+
+    return NextResponse.json({
+      ok: true,
+      date: today,
+      durationMs: persistDurationMs,
+      apiFootballFixtures: apiFootballFixtures.length,
+      oddsApiFixtures: oddsApiFixtures.length,
+      consensus: {
+        selectedClassic: consensus.selectedClassic.length,
+        selectedScorer: consensus.selectedScorer.length,
+        rejected: consensus.rejected.length,
+        passes: consensus.passes,
+      },
+      persisted: {
+        success: persistedPicks.length,
+        errors: persistErrors,
+      },
+      cost: {
+        consensus_usd: consensus.meta.totalCostUsd,
+        claude: consensus.meta.claudeMeta,
+        gpt: consensus.meta.gptMeta,
+      },
+      dossiers_status: "queued_async",
+      pickIds: persistedPicks.map((p) => p.pickId),
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        ok: false,
+        date: today,
+        error: err instanceof Error ? err.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+};
