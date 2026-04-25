@@ -18,6 +18,7 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
  *
  * ?active=true        → scores for all pending picks (today)
  * ?pick_id=xxx        → score for one pick (auto-saves if resolved)
+ *                       Cherche d'abord dans `picks` (Tipster), puis dans `ai_picks` (IA).
  * ?event=xxx&date=xxx → direct search (combined legs)
  *    &sport=xxx&competition=xxx
  *    &save_pick_id=xxx&save_leg=N  → optional: save result to DB
@@ -120,39 +121,86 @@ async function getActivePicksScores() {
 
 // ═══════════════════════════════════════════════
 // SINGLE PICK
+// Cherche d'abord dans `picks` (Tipster), puis dans `ai_picks` (IA).
 // ═══════════════════════════════════════════════
 
 async function getPickScore(pickId: string) {
-  // First check if score is already saved in DB
-  const { data: pick } = await supabaseAdmin
+  // ── Tentative 1 : table `picks` (Tipster) ────────────────
+  const { data: tipsterPick } = await supabaseAdmin
     .from("picks")
     .select("id, event_name, event_date, competition, status, live_score_data, sport:sports(slug)")
     .eq("id", pickId)
-    .single();
+    .maybeSingle();
 
-  if (!pick) {
+  if (tipsterPick) {
+    // If already saved, return it directly
+    if (tipsterPick.live_score_data) {
+      return NextResponse.json(tipsterPick.live_score_data);
+    }
+
+    const pickAny = tipsterPick as Record<string, unknown>;
+    const sportObj = pickAny.sport as Record<string, unknown> | Array<Record<string, unknown>> | null;
+    const sportSlug = (Array.isArray(sportObj) ? sportObj[0]?.slug : sportObj?.slug) as string || "football";
+    const result = await findScore(
+      tipsterPick.event_name,
+      tipsterPick.event_date,
+      sportSlug,
+      tipsterPick.competition
+    );
+
+    if (!result) {
+      return NextResponse.json({ found: false });
+    }
+
+    // Auto-save if pick is resolved and match is final
+    const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(tipsterPick.status);
+    if (isResolved && result.matchStatus === "final") {
+      await supabaseAdmin
+        .from("picks")
+        .update({ live_score_data: result })
+        .eq("id", pickId);
+    }
+
+    return NextResponse.json(result);
+  }
+
+  // ── Tentative 2 : table `ai_picks` (IA) ──────────────────
+  const { data: aiPick } = await supabaseAdmin
+    .from("ai_picks")
+    .select("id, event_name, event_date, league, status, live_score_data, sport")
+    .eq("id", pickId)
+    .maybeSingle();
+
+  if (!aiPick) {
     return NextResponse.json({ found: false });
   }
 
   // If already saved, return it directly
-  if (pick.live_score_data) {
-    return NextResponse.json(pick.live_score_data);
+  if (aiPick.live_score_data) {
+    return NextResponse.json(aiPick.live_score_data);
   }
 
-  const pickAny = pick as Record<string, unknown>;
-  const sportObj = pickAny.sport as Record<string, unknown> | Array<Record<string, unknown>> | null;
-  const sportSlug = (Array.isArray(sportObj) ? sportObj[0]?.slug : sportObj?.slug) as string || "football";
-  const result = await findScore(pick.event_name, pick.event_date, sportSlug, pick.competition);
+  // Pour ai_picks, le sport est stocke directement comme string (ex: "football")
+  // et la "competition" est dans `league` (ex: "France - Ligue 1")
+  const aiSportSlug = (aiPick.sport as string) || "football";
+  const aiCompetition = (aiPick.league as string) || null;
+
+  const result = await findScore(
+    aiPick.event_name,
+    aiPick.event_date,
+    aiSportSlug,
+    aiCompetition
+  );
 
   if (!result) {
     return NextResponse.json({ found: false });
   }
 
   // Auto-save if pick is resolved and match is final
-  const isResolved = ["won", "lost", "half_won", "half_lost", "void"].includes(pick.status);
+  const isResolved = ["won", "lost", "void"].includes(aiPick.status);
   if (isResolved && result.matchStatus === "final") {
     await supabaseAdmin
-      .from("picks")
+      .from("ai_picks")
       .update({ live_score_data: result })
       .eq("id", pickId);
   }
