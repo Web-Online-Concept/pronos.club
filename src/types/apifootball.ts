@@ -30,7 +30,7 @@ export const FixtureSchema = z.object({
     logo: z.string().nullable(),
     flag: z.string().nullable(),
     season: z.number(),
-    round: z.string(),
+    round: z.string().nullable(),
   }),
   teams: z.object({
     home: z.object({
