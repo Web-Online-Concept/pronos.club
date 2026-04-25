@@ -82,7 +82,7 @@ export default async function PronosIAPage({
         badgeLabel={t("badge_live_count", { count: totalCurrent })}
       />
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         {totalCurrent === 0 ? (
           <EmptyStateNoPicks locale={locale} />
         ) : (
@@ -95,7 +95,7 @@ export default async function PronosIAPage({
                   count={classics.length}
                   accent="violet"
                 />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {classics.map((pick) => (
                     <AIPickCard key={pick.id} pick={pick} locale={locale} />
                   ))}
@@ -111,7 +111,7 @@ export default async function PronosIAPage({
                   count={scorers.length}
                   accent="fuchsia"
                 />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {scorers.map((pick) => (
                     <AIScorerCard key={pick.id} pick={pick} locale={locale} />
                   ))}
