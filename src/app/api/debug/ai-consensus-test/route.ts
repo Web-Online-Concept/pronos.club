@@ -1,0 +1,212 @@
+import { NextRequest, NextResponse } from "next/server";
+import { runConsensus } from "@/lib/ai-picks-v2/consensus";
+import {
+  buildGeneratorUserPrompt,
+  GENERATOR_SYSTEM_PROMPT,
+} from "@/lib/ai-picks-v2/prompts";
+import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
+import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
+import { fetchFixturesForGeneration } from "@/lib/ai-picks-v2/match-aggregator";
+import { MAJOR_LEAGUE_LIST } from "@/types/apifootball";
+
+const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"];
+
+const isAdminRequest = (req: NextRequest): boolean => {
+  const secretHeader = req.headers.get("x-admin-secret");
+  if (secretHeader && secretHeader === process.env.CRON_SECRET) {
+    return true;
+  }
+  const emailHeader = req.headers.get("x-admin-email");
+  if (emailHeader && ADMIN_EMAILS.includes(emailHeader.toLowerCase())) {
+    return true;
+  }
+  return false;
+};
+
+const buildLightFixturesData = (
+  fixtures: Array<{
+    fixture_id: number;
+    league: string;
+    country: string;
+    home: string;
+    away: string;
+    date: string;
+    season: number;
+  }>
+): string => {
+  if (fixtures.length === 0) {
+    return "Aucune fixture trouvée pour aujourd'hui dans les ligues majeures.";
+  }
+  const lines = fixtures.map(
+    (f) =>
+      `- fixture_id_or_event_id="${f.fixture_id}", source=apifootball, sport=soccer, league="${f.country} - ${f.league}", event_name="${f.home} vs ${f.away}", event_date_iso="${f.date}"`
+  );
+  return `## Fixtures du jour (foot tier 1)\n\n${lines.join("\n")}`;
+};
+
+export async function GET(req: NextRequest) {
+  if (!isAdminRequest(req)) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const url = new URL(req.url);
+  const mode = url.searchParams.get("mode") ?? "consensus";
+  const fixtureParam = url.searchParams.get("fixture");
+  const dateParam =
+    url.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+
+  try {
+    if (mode === "consensus") {
+      const startedAt = Date.now();
+      const fixtures = await fetchFixturesForGeneration({
+        date: dateParam,
+        leagueIds: [...MAJOR_LEAGUE_LIST],
+      });
+
+      const lightFixtures = fixtures.map((f) => ({
+        fixture_id: f.fixture.id,
+        league: f.league.name,
+        country: f.league.country,
+        home: f.teams.home.name,
+        away: f.teams.away.name,
+        date: f.fixture.date,
+        season: f.league.season,
+      }));
+
+      const userPrompt = buildGeneratorUserPrompt(
+        dateParam,
+        buildLightFixturesData(lightFixtures)
+      );
+
+      const consensus = await runConsensus({
+        systemPrompt: GENERATOR_SYSTEM_PROMPT,
+        userPrompt,
+      });
+
+      const totalDurationMs = Date.now() - startedAt;
+
+      return NextResponse.json({
+        ok: true,
+        mode,
+        date: dateParam,
+        fixturesCount: fixtures.length,
+        totalDurationMs,
+        selectedClassicCount: consensus.selectedClassic.length,
+        selectedScorerCount: consensus.selectedScorer.length,
+        rejectedCount: consensus.rejected.length,
+        passes: consensus.passes,
+        meta: consensus.meta,
+        errors: consensus.errors,
+        selectedClassic: consensus.selectedClassic.map((c) => ({
+          fixtureRef: c.fixtureRef,
+          eventName: c.eventName,
+          league: c.league,
+          market: c.market,
+          selection: c.selection,
+          odds: c.odds,
+          consensusScore: c.consensusScore,
+          consensusTier: c.consensusTier,
+          source: c.source,
+          confidenceClaude: c.confidenceClaude,
+          confidenceGpt: c.confidenceGpt,
+          confidenceApiFootball: c.confidenceApiFootball,
+          reasoningClaude: c.reasoningClaude,
+          reasoningGpt: c.reasoningGpt,
+        })),
+        selectedScorer: consensus.selectedScorer.map((c) => ({
+          fixtureRef: c.fixtureRef,
+          eventName: c.eventName,
+          league: c.league,
+          player: c.player,
+          team: c.team,
+          odds: c.odds,
+          consensusScore: c.consensusScore,
+          consensusTier: c.consensusTier,
+          source: c.source,
+          confidenceClaude: c.confidenceClaude,
+          confidenceGpt: c.confidenceGpt,
+          reasoningClaude: c.reasoningClaude,
+          reasoningGpt: c.reasoningGpt,
+        })),
+      });
+    }
+
+    if (mode === "dossier") {
+      if (!fixtureParam) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Missing 'fixture' query param. Usage: ?mode=dossier&fixture=1391131",
+          },
+          { status: 400 }
+        );
+      }
+      const fixtureId = Number.parseInt(fixtureParam, 10);
+      if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+        return NextResponse.json(
+          { ok: false, error: "Invalid fixture ID" },
+          { status: 400 }
+        );
+      }
+
+      const aggregated = await aggregateMatchData(fixtureId);
+
+      const fakeCandidate = {
+        key: `classic|${fixtureId}|1N2|${aggregated.fixture.teams.home.name}`,
+        type: "classic" as const,
+        fixtureRef: String(fixtureId),
+        market: "1N2",
+        selection: aggregated.fixture.teams.home.name,
+        league: aggregated.fixture.league.name,
+        eventName: `${aggregated.fixture.teams.home.name} vs ${aggregated.fixture.teams.away.name}`,
+        eventDateIso: aggregated.fixture.fixture.date,
+        odds: 1.85,
+        bookmaker: "Pinnacle",
+        source: "both" as const,
+        confidenceClaude: 78,
+        confidenceGpt: 75,
+        confidenceApiFootball: 60,
+        reasoningClaude:
+          "Test reasoning Claude pour validation du pipeline dossier.",
+        reasoningGpt:
+          "Test reasoning GPT pour validation du pipeline dossier.",
+        consensusScore: 91,
+        consensusTier: "total_agreement" as const,
+      };
+
+      const dossier = await generateDossier({
+        pick: fakeCandidate,
+        matchData: aggregated,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        mode,
+        fixtureId,
+        dataCompleteness: aggregated.dataCompleteness,
+        dossierMeta: dossier.meta,
+        dossierSections: dossier.sections,
+        dossierError: dossier.error,
+        rawDossierFirst500: dossier.fullText.slice(0, 500),
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Unknown mode '${mode}'. Valid: consensus | dossier`,
+      },
+      { status: 400 }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      { ok: false, error: message },
+      { status: 500 }
+    );
+  }
+}
