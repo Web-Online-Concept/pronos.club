@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runConsensus } from "@/lib/ai-picks-v2/consensus";
-import {
-  buildGeneratorUserPrompt,
-  GENERATOR_SYSTEM_PROMPT,
-} from "@/lib/ai-picks-v2/prompts";
+import { GENERATOR_SYSTEM_PROMPT } from "@/lib/ai-picks-v2/prompts";
 import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
 import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
-import { fetchFixturesForGeneration } from "@/lib/ai-picks-v2/match-aggregator";
-import { MAJOR_LEAGUE_LIST } from "@/types/apifootball";
+import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
 import { runClaudeGenerator } from "@/lib/ai-picks-v2/anthropic-client";
 import { runGptGenerator } from "@/lib/ai-picks-v2/openai-client";
 
@@ -27,27 +23,6 @@ const isAdminRequest = (req: NextRequest): boolean => {
   return false;
 };
 
-const buildLightFixturesData = (
-  fixtures: Array<{
-    fixture_id: number;
-    league: string;
-    country: string;
-    home: string;
-    away: string;
-    date: string;
-    season: number;
-  }>
-): string => {
-  if (fixtures.length === 0) {
-    return "Aucune fixture trouvée pour aujourd'hui dans les ligues majeures.";
-  }
-  const lines = fixtures.map(
-    (f) =>
-      `- fixture_id_or_event_id="${f.fixture_id}", source=apifootball, sport=soccer, league="${f.country} - ${f.league}", event_name="${f.home} vs ${f.away}", event_date_iso="${f.date}"`
-  );
-  return `## Fixtures du jour (foot tier 1)\n\n${lines.join("\n")}`;
-};
-
 export async function GET(req: NextRequest) {
   if (!isAdminRequest(req)) {
     return NextResponse.json(
@@ -64,31 +39,18 @@ export async function GET(req: NextRequest) {
 
   try {
     if (mode === "raw-claude") {
-      const fixtures = await fetchFixturesForGeneration({
-        date: dateParam,
-        leagueIds: [...MAJOR_LEAGUE_LIST],
-      });
-      const lightFixtures = fixtures.map((f) => ({
-        fixture_id: f.fixture.id,
-        league: f.league.name,
-        country: f.league.country,
-        home: f.teams.home.name,
-        away: f.teams.away.name,
-        date: f.fixture.date,
-        season: f.league.season,
-      }));
-      const userPrompt = buildGeneratorUserPrompt(
-        dateParam,
-        buildLightFixturesData(lightFixtures)
-      );
+      const { promptUserText, apiFootballFixtures, oddsApiFixtures } =
+        await buildEnrichedFixturesData(dateParam);
       const result = await runClaudeGenerator({
         systemPrompt: GENERATOR_SYSTEM_PROMPT,
-        userPrompt,
+        userPrompt: promptUserText,
       });
       return NextResponse.json({
         ok: true,
         mode,
-        fixturesCount: fixtures.length,
+        apiFootballFixturesCount: apiFootballFixtures.length,
+        oddsApiFixturesCount: oddsApiFixtures.length,
+        userPromptLength: promptUserText.length,
         meta: result.meta,
         error: result.error,
         rawResponse: result.rawResponse,
@@ -97,31 +59,18 @@ export async function GET(req: NextRequest) {
     }
 
     if (mode === "raw-gpt") {
-      const fixtures = await fetchFixturesForGeneration({
-        date: dateParam,
-        leagueIds: [...MAJOR_LEAGUE_LIST],
-      });
-      const lightFixtures = fixtures.map((f) => ({
-        fixture_id: f.fixture.id,
-        league: f.league.name,
-        country: f.league.country,
-        home: f.teams.home.name,
-        away: f.teams.away.name,
-        date: f.fixture.date,
-        season: f.league.season,
-      }));
-      const userPrompt = buildGeneratorUserPrompt(
-        dateParam,
-        buildLightFixturesData(lightFixtures)
-      );
+      const { promptUserText, apiFootballFixtures, oddsApiFixtures } =
+        await buildEnrichedFixturesData(dateParam);
       const result = await runGptGenerator({
         systemPrompt: GENERATOR_SYSTEM_PROMPT,
-        userPrompt,
+        userPrompt: promptUserText,
       });
       return NextResponse.json({
         ok: true,
         mode,
-        fixturesCount: fixtures.length,
+        apiFootballFixturesCount: apiFootballFixtures.length,
+        oddsApiFixturesCount: oddsApiFixtures.length,
+        userPromptLength: promptUserText.length,
         meta: result.meta,
         error: result.error,
         rawResponse: result.rawResponse,
@@ -131,29 +80,12 @@ export async function GET(req: NextRequest) {
 
     if (mode === "consensus") {
       const startedAt = Date.now();
-      const fixtures = await fetchFixturesForGeneration({
-        date: dateParam,
-        leagueIds: [...MAJOR_LEAGUE_LIST],
-      });
-
-      const lightFixtures = fixtures.map((f) => ({
-        fixture_id: f.fixture.id,
-        league: f.league.name,
-        country: f.league.country,
-        home: f.teams.home.name,
-        away: f.teams.away.name,
-        date: f.fixture.date,
-        season: f.league.season,
-      }));
-
-      const userPrompt = buildGeneratorUserPrompt(
-        dateParam,
-        buildLightFixturesData(lightFixtures)
-      );
+      const { promptUserText, apiFootballFixtures, oddsApiFixtures } =
+        await buildEnrichedFixturesData(dateParam);
 
       const consensus = await runConsensus({
         systemPrompt: GENERATOR_SYSTEM_PROMPT,
-        userPrompt,
+        userPrompt: promptUserText,
       });
 
       const totalDurationMs = Date.now() - startedAt;
@@ -162,7 +94,9 @@ export async function GET(req: NextRequest) {
         ok: true,
         mode,
         date: dateParam,
-        fixturesCount: fixtures.length,
+        apiFootballFixturesCount: apiFootballFixtures.length,
+        oddsApiFixturesCount: oddsApiFixtures.length,
+        userPromptLength: promptUserText.length,
         totalDurationMs,
         selectedClassicCount: consensus.selectedClassic.length,
         selectedScorerCount: consensus.selectedScorer.length,
