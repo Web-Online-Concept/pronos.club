@@ -1497,7 +1497,19 @@
     "history_badge_awaiting_one": "{count} a la espera del resultado",
     "history_badge_awaiting_many": "{count} a la espera de resultados",
     "history_badge_finished_one": "{count} pronóstico finalizado",
-    "history_badge_finished_many": "{count} pronósticos finalizados"
+    "history_badge_finished_many": "{count} pronósticos finalizados",
+    "label_sport": "Deporte",
+    "label_competition": "Competición",
+    "label_type": "Tipo",
+    "label_odds": "Cuota",
+    "label_result": "Resultado",
+    "type_classic_short": "Clásico",
+    "type_scorer_short": "Goleador",
+    "consensus_total": "Acuerdo IA",
+    "consensus_partial": "Consenso parcial",
+    "consensus_solo": "Selección IA",
+    "details_link": "Detalles",
+    "footer_ai": "Inteligencia Artificial"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

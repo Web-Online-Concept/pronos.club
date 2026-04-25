@@ -1497,7 +1497,19 @@
     "history_badge_awaiting_one": "{count} awaiting result",
     "history_badge_awaiting_many": "{count} awaiting results",
     "history_badge_finished_one": "{count} pick resolved",
-    "history_badge_finished_many": "{count} picks resolved"
+    "history_badge_finished_many": "{count} picks resolved",
+    "label_sport": "Sport",
+    "label_competition": "Competition",
+    "label_type": "Type",
+    "label_odds": "Odds",
+    "label_result": "Result",
+    "type_classic_short": "Classic",
+    "type_scorer_short": "Scorer",
+    "consensus_total": "AI Agreement",
+    "consensus_partial": "Partial Consensus",
+    "consensus_solo": "AI Selection",
+    "details_link": "Details",
+    "footer_ai": "Artificial Intelligence"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

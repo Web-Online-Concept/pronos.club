@@ -1497,7 +1497,19 @@
     "history_badge_awaiting_one": "{count} en attente de résultat",
     "history_badge_awaiting_many": "{count} en attente de résultat",
     "history_badge_finished_one": "{count} prono terminé",
-    "history_badge_finished_many": "{count} pronos terminés"
+    "history_badge_finished_many": "{count} pronos terminés",
+    "label_sport": "Sport",
+    "label_competition": "Compétition",
+    "label_type": "Type",
+    "label_odds": "Cote",
+    "label_result": "Résultat",
+    "type_classic_short": "Classique",
+    "type_scorer_short": "Buteur",
+    "consensus_total": "Accord IA",
+    "consensus_partial": "Consensus partiel",
+    "consensus_solo": "Sélection IA",
+    "details_link": "Détails",
+    "footer_ai": "Intelligence Artificielle"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",
