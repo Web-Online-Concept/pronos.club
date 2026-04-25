@@ -35,7 +35,7 @@ export const PickCandidateClassicSchema = z.object({
   odds: z.number().min(1.5).max(3.0),
   bookmaker: z.string().min(1),
   confidence: z.number().int().min(0).max(100),
-  reasoning_short: z.string().min(20).max(500),
+  reasoning_short: z.string().min(20).max(800),
 });
 
 export type PickCandidateClassic = z.infer<typeof PickCandidateClassicSchema>;
@@ -49,7 +49,7 @@ export const PickCandidateScorerSchema = z.object({
   team: z.string().min(1),
   odds_estimated: z.number().min(1.8).max(4.0),
   confidence: z.number().int().min(0).max(100),
-  reasoning_short: z.string().min(20).max(500),
+  reasoning_short: z.string().min(20).max(800),
 });
 
 export type PickCandidateScorer = z.infer<typeof PickCandidateScorerSchema>;

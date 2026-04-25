@@ -8,6 +8,10 @@ import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
 import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
 import { fetchFixturesForGeneration } from "@/lib/ai-picks-v2/match-aggregator";
 import { MAJOR_LEAGUE_LIST } from "@/types/apifootball";
+import { runClaudeGenerator } from "@/lib/ai-picks-v2/anthropic-client";
+import { runGptGenerator } from "@/lib/ai-picks-v2/openai-client";
+
+export const maxDuration = 300;
 
 const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"];
 
@@ -59,6 +63,72 @@ export async function GET(req: NextRequest) {
     url.searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
 
   try {
+    if (mode === "raw-claude") {
+      const fixtures = await fetchFixturesForGeneration({
+        date: dateParam,
+        leagueIds: [...MAJOR_LEAGUE_LIST],
+      });
+      const lightFixtures = fixtures.map((f) => ({
+        fixture_id: f.fixture.id,
+        league: f.league.name,
+        country: f.league.country,
+        home: f.teams.home.name,
+        away: f.teams.away.name,
+        date: f.fixture.date,
+        season: f.league.season,
+      }));
+      const userPrompt = buildGeneratorUserPrompt(
+        dateParam,
+        buildLightFixturesData(lightFixtures)
+      );
+      const result = await runClaudeGenerator({
+        systemPrompt: GENERATOR_SYSTEM_PROMPT,
+        userPrompt,
+      });
+      return NextResponse.json({
+        ok: true,
+        mode,
+        fixturesCount: fixtures.length,
+        meta: result.meta,
+        error: result.error,
+        rawResponse: result.rawResponse,
+        output: result.output,
+      });
+    }
+
+    if (mode === "raw-gpt") {
+      const fixtures = await fetchFixturesForGeneration({
+        date: dateParam,
+        leagueIds: [...MAJOR_LEAGUE_LIST],
+      });
+      const lightFixtures = fixtures.map((f) => ({
+        fixture_id: f.fixture.id,
+        league: f.league.name,
+        country: f.league.country,
+        home: f.teams.home.name,
+        away: f.teams.away.name,
+        date: f.fixture.date,
+        season: f.league.season,
+      }));
+      const userPrompt = buildGeneratorUserPrompt(
+        dateParam,
+        buildLightFixturesData(lightFixtures)
+      );
+      const result = await runGptGenerator({
+        systemPrompt: GENERATOR_SYSTEM_PROMPT,
+        userPrompt,
+      });
+      return NextResponse.json({
+        ok: true,
+        mode,
+        fixturesCount: fixtures.length,
+        meta: result.meta,
+        error: result.error,
+        rawResponse: result.rawResponse,
+        output: result.output,
+      });
+    }
+
     if (mode === "consensus") {
       const startedAt = Date.now();
       const fixtures = await fetchFixturesForGeneration({
@@ -100,6 +170,14 @@ export async function GET(req: NextRequest) {
         passes: consensus.passes,
         meta: consensus.meta,
         errors: consensus.errors,
+        rawClaudeOutputSummary: {
+          classicCount: consensus.rawOutputs.claude?.candidates_classic.length ?? 0,
+          scorerCount: consensus.rawOutputs.claude?.candidates_scorer.length ?? 0,
+        },
+        rawGptOutputSummary: {
+          classicCount: consensus.rawOutputs.gpt?.candidates_classic.length ?? 0,
+          scorerCount: consensus.rawOutputs.gpt?.candidates_scorer.length ?? 0,
+        },
         selectedClassic: consensus.selectedClassic.map((c) => ({
           fixtureRef: c.fixtureRef,
           eventName: c.eventName,
@@ -198,7 +276,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: `Unknown mode '${mode}'. Valid: consensus | dossier`,
+        error: `Unknown mode '${mode}'. Valid: consensus | dossier | raw-claude | raw-gpt`,
       },
       { status: 400 }
     );
