@@ -7,8 +7,7 @@ import {
   buildAiPickDetailHref,
   type AIPickRow,
 } from "@/lib/ai-picks-v2/adapt-ai-pick";
-import PronosIAHero from "@/components/ai-picks/ui/PronosIAHero";
-import { useTranslations, useLocale } from "next-intl";
+import { useLocale } from "next-intl";
 
 
 function lastDayOfMonth(ym: string) {
@@ -32,7 +31,6 @@ const AI_SPORTS: Array<{ slug: string; icon: string; name: string }> = [
 
 
 export default function PronosIAHistoriquePage() {
-  const t = useTranslations("ai_picks");
   const locale = useLocale();
   const MONTH_NAMES = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -86,6 +84,7 @@ export default function PronosIAHistoriquePage() {
   useEffect(() => {
     setOffset(0);
     fetchPicks(0, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, sport]);
 
   async function fetchPicks(fromOffset = 0, reset = false) {
@@ -144,12 +143,45 @@ export default function PronosIAHistoriquePage() {
 
   return (
     <>
-      <PronosIAHero
-        locale={locale}
-        currentPage="history"
-        title="Historique"
-        badgeLabel={totalLabel}
-      />
+      {/* Hero inline (compatible Client Component) */}
+      <section
+        className="relative overflow-hidden border-b"
+        style={{
+          background:
+            "linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #312e81 70%, #4c1d95 100%)",
+          borderColor: "rgba(168, 85, 247, 0.25)",
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.35) 0%, transparent 50%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)",
+          }}
+        />
+        <div className="relative mx-auto max-w-4xl px-4 py-14 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-violet-400">
+            Pronos Club · IA
+          </p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">
+            Historique
+          </h1>
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
+            <span className="text-xs font-semibold text-violet-400">
+              {totalLabel}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <main className="mx-auto max-w-2xl px-4 pb-4">
         {/* Badges status counts */}
