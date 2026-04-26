@@ -220,7 +220,7 @@ export default function PronosIAHistoriquePage() {
               onChange={(e) => setPickType(e.target.value)}
               className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
             >
-              <option value="all">{isMobile ? "Tous" : "Tous"}</option>
+              <option value="all">{isMobile ? "Types" : "Tous types"}</option>
               <option value="classic">🎯 Classiques</option>
               <option value="scorer">⚽ Buteurs</option>
             </select>
