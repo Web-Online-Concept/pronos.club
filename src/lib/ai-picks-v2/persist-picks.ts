@@ -323,19 +323,19 @@ export const persistDossier = async (
 
 
 const inferSportFromValueBet = (vb: ValueBet): string => {
-  if (vb.sportKey.startsWith("soccer_")) return "Football";
-  if (vb.sportKey.startsWith("basketball_")) return "Basketball";
-  if (vb.sportKey.startsWith("tennis")) return "Tennis";
-  if (vb.sportKey.startsWith("icehockey_")) return "Hockey";
-  if (vb.sportKey.startsWith("baseball_")) return "Baseball";
-  if (vb.sportKey.startsWith("americanfootball_")) return "American Football";
-  if (vb.sportKey.startsWith("rugby")) return "Rugby";
-  if (vb.sportKey.startsWith("mma_")) return "MMA";
-  if (vb.sportKey.startsWith("boxing_")) return "Boxing";
-  if (vb.sportKey.startsWith("aussierules_")) return "Aussie Rules";
-  if (vb.sportKey.startsWith("cricket_")) return "Cricket";
-  if (vb.sportKey.startsWith("golf_")) return "Golf";
-  return vb.sportTitle || "Sport";
+  // IMPORTANT : les slugs DOIVENT etre en lowercase pour matcher
+  // le mapping SPORT_DEFAULTS de adapt-ai-pick.ts (sinon icone medaille fallback).
+  if (vb.sportKey.startsWith("soccer_")) return "football";
+  if (vb.sportKey.startsWith("basketball_")) return "basketball";
+  if (vb.sportKey.startsWith("tennis")) return "tennis";
+  if (vb.sportKey.startsWith("icehockey_")) return "hockey";
+  if (vb.sportKey.startsWith("baseball_")) return "baseball";
+  if (vb.sportKey.startsWith("americanfootball_")) return "football-americain";
+  if (vb.sportKey.startsWith("rugby")) return "rugby";
+  if (vb.sportKey.startsWith("mma_")) return "mma";
+  if (vb.sportKey.startsWith("boxing_")) return "mma"; // pas de mapping boxe distinct
+  // Default fallback football (acceptable car la plupart des slugs sont mappes ci-dessus)
+  return "football";
 };
 
 
