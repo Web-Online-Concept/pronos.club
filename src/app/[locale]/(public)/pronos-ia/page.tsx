@@ -6,6 +6,8 @@
  * Utilise le composant <PickCard /> Tipster avec la prop aiMode={true}.
  * Garantit visuellement la même structure exacte que les pronos Tipster,
  * avec ribbon "🤖 IA" et footer "Intelligence Artificielle".
+ *
+ * Affiche les labels IA-XXXX (classiques) et BUT-XXXX (buteurs).
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -17,6 +19,7 @@ import PickCard from "@/components/picks/PickCard";
 import {
   adaptAiPickToPickFormat,
   buildAiPickDetailHref,
+  buildAiPickLabel,
   type AIPickRow,
 } from "@/lib/ai-picks-v2/adapt-ai-pick";
 import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
@@ -45,7 +48,7 @@ const getCurrentPicks = async (): Promise<AIPickRow[]> => {
   const { data, error } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, ai_pick_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, slug, consensus_tier, consensus_score, live_score_data"
+      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, slug, consensus_tier, consensus_score, live_score_data"
     )
     .eq("status", "pending")
     .is("deleted_at", null)
@@ -90,12 +93,14 @@ export default async function PronosIAPage({
             {aiPicks.map((aiPick) => {
               const adaptedPick = adaptAiPickToPickFormat(aiPick);
               const detailHref = buildAiPickDetailHref(aiPick, locale);
+              const pickLabel = buildAiPickLabel(aiPick);
               return (
                 <PickCard
                   key={aiPick.id}
                   pick={adaptedPick}
                   aiMode
                   aiFooterHref={detailHref}
+                  aiPickLabel={pickLabel}
                 />
               );
             })}

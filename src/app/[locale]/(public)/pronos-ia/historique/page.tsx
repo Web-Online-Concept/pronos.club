@@ -5,6 +5,7 @@ import PickCard from "@/components/picks/PickCard";
 import {
   adaptAiPickToPickFormat,
   buildAiPickDetailHref,
+  buildAiPickLabel,
   type AIPickRow,
 } from "@/lib/ai-picks-v2/adapt-ai-pick";
 import { useLocale } from "next-intl";
@@ -324,12 +325,14 @@ export default function PronosIAHistoriquePage() {
               {picks.map((aiPick) => {
                 const adaptedPick = adaptAiPickToPickFormat(aiPick);
                 const detailHref = buildAiPickDetailHref(aiPick, locale);
+                const pickLabel = buildAiPickLabel(aiPick);
                 return (
                   <PickCard
                     key={aiPick.id}
                     pick={adaptedPick}
                     aiMode
                     aiFooterHref={detailHref}
+                    aiPickLabel={pickLabel}
                   />
                 );
               })}
