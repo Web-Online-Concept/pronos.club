@@ -43,6 +43,32 @@ function getTipsterBankroll(): Promise<TipsterBkType> {
   return _tipsterBkPromise;
 }
 
+// Module-level cache for AI bankroll — shared across all PickCard instances in aiMode
+// Strictement séparé de Tipster (table/api/cache différents)
+type AiBkType = { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null;
+let _aiBkCache: AiBkType | undefined = undefined;
+let _aiBkPromise: Promise<AiBkType> | null = null;
+
+function getAiBankroll(): Promise<AiBkType> {
+  if (_aiBkCache !== undefined) return Promise.resolve(_aiBkCache);
+  if (_aiBkPromise) return _aiBkPromise;
+  _aiBkPromise = fetch("/api/admin/ai-bankroll")
+    .then((r) => r.json())
+    .then((d): AiBkType => {
+      if (d && d.show_on_site && d.mode !== "units_only") {
+        _aiBkCache = d;
+      } else {
+        _aiBkCache = null;
+      }
+      return _aiBkCache ?? null;
+    })
+    .catch((): AiBkType => {
+      _aiBkCache = null;
+      return null;
+    });
+  return _aiBkPromise;
+}
+
 function Countdown({ target }: { target: Date }) {
   const [now, setNow] = useState(new Date());
 
@@ -166,6 +192,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   const [userStakeEuro, setUserStakeEuro] = useState("");
   const [bkConfig, setBkConfig] = useState<{ mode: string; current_bankroll: number; unit_value: number; unit_percent: number } | null>(null);
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
+  const [aiBk, setAiBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
   const isPremiumUser = user?.subscription_status === "active" || user?.subscription_status === "trialing";
@@ -205,6 +232,14 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
       if (d) setTipsterBk(d);
     });
   }, []);
+
+  // Fetch AI bankroll config (cached at module level, only fetched when aiMode is active)
+  useEffect(() => {
+    if (!aiMode) return;
+    getAiBankroll().then((d) => {
+      if (d) setAiBk(d);
+    });
+  }, [aiMode]);
 
   function openFollowModal() {
     if (!user || followLoading) return;
@@ -348,12 +383,15 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   
   const isAwaitingResult = isPending && earliestDate <= new Date();
 
-  // Tipster unit value in euros (for display on ticket)
-  const tipsterUnitEuro = tipsterBk
-    ? tipsterBk.mode === "fixed_unit"
-      ? tipsterBk.unit_value
-      : tipsterBk.mode === "percent_bankroll"
-      ? (tipsterBk.current_bankroll * tipsterBk.unit_percent) / 100
+  // Unit value in euros (for display on ticket)
+  // En mode IA : utilise la bankroll IA (séparée totalement de Tipster)
+  // En mode normal : utilise la bankroll Tipster
+  const activeBk = aiMode ? aiBk : tipsterBk;
+  const tipsterUnitEuro = activeBk
+    ? activeBk.mode === "fixed_unit"
+      ? activeBk.unit_value
+      : activeBk.mode === "percent_bankroll"
+      ? (activeBk.current_bankroll * activeBk.unit_percent) / 100
       : 0
     : 0;
 
