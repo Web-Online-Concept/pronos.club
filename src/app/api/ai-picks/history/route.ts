@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   let query = supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, slug, consensus_tier, consensus_score, live_score_data, deleted_at",
+      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, live_score_data, deleted_at",
       { count: "exact" }
     )
     .is("deleted_at", null)

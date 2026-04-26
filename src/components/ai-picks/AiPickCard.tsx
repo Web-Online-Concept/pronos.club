@@ -47,6 +47,7 @@ export interface AiPickCardData {
   bookmaker_name: string | null;
   reasoning: string | null;
   status: "pending" | "won" | "lost" | "void";
+  profit: number | null;
   detail_href: string | null;
   live_score_data?: unknown;
 }
@@ -126,16 +127,6 @@ function getBookmakersForResolve(): Promise<BkResolveType> {
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; bg: string; text: string; icon: string }
-> = {
-  pending: { label: "En cours", bg: "bg-amber-500/15", text: "text-amber-400", icon: "⏳" },
-  won: { label: "Gagné", bg: "bg-emerald-500/15", text: "text-emerald-400", icon: "✅" },
-  lost: { label: "Perdu", bg: "bg-red-500/15", text: "text-red-400", icon: "❌" },
-  void: { label: "Remb.", bg: "bg-neutral-500/15", text: "text-neutral-400", icon: "↩️" },
-};
-
 
 // Petit composant interne pour le compte à rebours
 function Countdown({ target }: { target: Date }) {
@@ -211,7 +202,6 @@ export default function AiPickCard({ pick }: AiPickCardProps) {
       : 0
     : 0;
 
-  const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
   const eventDate = new Date(pick.event_date);
   const eventDateLabel = eventDate.toLocaleDateString("fr-FR", {
@@ -390,15 +380,76 @@ export default function AiPickCard({ pick }: AiPickCardProps) {
               </Link>
             )}
 
-            {/* Status badge */}
-            <div
-              className={`ml-auto flex items-center gap-1 rounded-lg px-3 py-2 ${status.bg}`}
-            >
-              <span className={`text-xs ${status.text}`}>{status.icon}</span>
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${status.text}`}>
-                {status.label}
-              </span>
-            </div>
+            {/* Status + profit bandeau (clone visuel Tipster) */}
+            {(() => {
+              const profit = pick.profit;
+              const isAwaitingResult =
+                isPending && eventDate.getTime() <= Date.now();
+
+              if (isAwaitingResult) {
+                return (
+                  <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
+                    <span className="text-xs">⏳</span>
+                    <span className="text-[11px] font-bold text-blue-400">En attente</span>
+                  </div>
+                );
+              }
+
+              if (pick.status === "pending") {
+                return (
+                  <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
+                    <span className="text-xs">⏳</span>
+                    <span className="text-[11px] font-bold text-white/50">En cours</span>
+                  </div>
+                );
+              }
+
+              if (pick.status === "won") {
+                return (
+                  <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 shadow-md shadow-emerald-500/20">
+                    <span className="text-xs">✅</span>
+                    <span className="text-[11px] font-extrabold text-emerald-950">Gagné</span>
+                    {profit !== null && profit !== 0 && (
+                      <span className="text-[11px] font-extrabold text-emerald-950">
+                        +{Number(profit).toFixed(3)}U
+                      </span>
+                    )}
+                    {profit !== null && profit !== 0 && unitEuro > 0 && (
+                      <span className="text-[9px] font-bold text-emerald-950/60">
+                        ({(profit * unitEuro).toFixed(2)}€)
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+
+              if (pick.status === "lost") {
+                return (
+                  <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 shadow-md shadow-red-500/20">
+                    <span className="text-xs">❌</span>
+                    <span className="text-[11px] font-extrabold text-white">Perdu</span>
+                    {profit !== null && profit !== 0 && (
+                      <span className="text-[11px] font-extrabold text-white/90">
+                        {Number(profit).toFixed(1)}U
+                      </span>
+                    )}
+                    {profit !== null && profit !== 0 && unitEuro > 0 && (
+                      <span className="text-[9px] font-bold text-white/60">
+                        ({(profit * unitEuro).toFixed(2)}€)
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+
+              // void
+              return (
+                <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-neutral-500 px-3 py-1.5 shadow-md shadow-neutral-500/20">
+                  <span className="text-xs">↩️</span>
+                  <span className="text-[11px] font-extrabold text-white">Remb.</span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Footer "Intelligence Artificielle" cliquable vers le détail dossier */}

@@ -39,6 +39,7 @@ export interface AIPickRow {
   ai_confidence: number | null;
   status: "pending" | "won" | "lost" | "void";
   final_score: string | null;
+  profit?: number | null;
   slug?: string | null;
   consensus_tier?:
     | "total_agreement"
@@ -271,6 +272,7 @@ export interface AiPickCardData {
   bookmaker_name: string | null;
   reasoning: string | null;
   status: "pending" | "won" | "lost" | "void";
+  profit: number | null;
   detail_href: string | null;
   live_score_data?: unknown;
 }
@@ -325,6 +327,7 @@ export const adaptAiPickToCardData = (
     bookmaker_name: bookmakerName,
     reasoning: aiPick.reasoning,
     status: aiPick.status,
+    profit: aiPick.profit ?? null,
     detail_href: buildAiPickDetailHref(aiPick, locale),
     live_score_data: aiPick.live_score_data,
   };
