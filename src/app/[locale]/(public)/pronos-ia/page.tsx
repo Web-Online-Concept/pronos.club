@@ -1,10 +1,10 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia (CLONE VISUEL TIPSTER, MODE IA)
+ * PAGE — /fr/pronos-ia
  * ═══════════════════════════════════════════════════════════════════
  *
- * Utilise le composant <PickCard /> Tipster avec la prop aiMode={true}.
- * Garantit visuellement la même structure exacte que les pronos Tipster,
+ * Utilise le composant <AiPickCard /> autonome (séparé de Tipster).
+ * Garantit visuellement la même structure que les pronos Tipster,
  * avec ribbon "🤖 IA" et footer "Intelligence Artificielle".
  *
  * Affiche les labels IA-XXXX (classiques) et BUT-XXXX (buteurs).
@@ -16,11 +16,9 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Clock, History } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import PickCard from "@/components/picks/PickCard";
+import AiPickCard from "@/components/ai-picks/AiPickCard";
 import {
-  adaptAiPickToPickFormat,
-  buildAiPickDetailHref,
-  buildAiPickLabel,
+  adaptAiPickToCardData,
   type AIPickRow,
 } from "@/lib/ai-picks-v2/adapt-ai-pick";
 import AIDisclaimer from "@/components/ai-picks/AIDisclaimer";
@@ -107,20 +105,12 @@ export default async function PronosIAPage({
 
             {classicPicks.length > 0 ? (
               <div className="mt-4 space-y-4">
-                {classicPicks.map((aiPick) => {
-                  const adaptedPick = adaptAiPickToPickFormat(aiPick);
-                  const detailHref = buildAiPickDetailHref(aiPick, locale);
-                  const pickLabel = buildAiPickLabel(aiPick);
-                  return (
-                    <PickCard
-                      key={aiPick.id}
-                      pick={adaptedPick}
-                      aiMode
-                      aiFooterHref={detailHref}
-                      aiPickLabel={pickLabel}
-                    />
-                  );
-                })}
+                {classicPicks.map((aiPick) => (
+                  <AiPickCard
+                    key={aiPick.id}
+                    pick={adaptAiPickToCardData(aiPick, locale)}
+                  />
+                ))}
               </div>
             ) : (
               <EmptyMessage text="Aucun pronostic classique en cours" />
@@ -140,20 +130,12 @@ export default async function PronosIAPage({
 
               {scorerPicks.length > 0 ? (
                 <div className="mt-4 space-y-4">
-                  {scorerPicks.map((aiPick) => {
-                    const adaptedPick = adaptAiPickToPickFormat(aiPick);
-                    const detailHref = buildAiPickDetailHref(aiPick, locale);
-                    const pickLabel = buildAiPickLabel(aiPick);
-                    return (
-                      <PickCard
-                        key={aiPick.id}
-                        pick={adaptedPick}
-                        aiMode
-                        aiFooterHref={detailHref}
-                        aiPickLabel={pickLabel}
-                      />
-                    );
-                  })}
+                  {scorerPicks.map((aiPick) => (
+                    <AiPickCard
+                      key={aiPick.id}
+                      pick={adaptAiPickToCardData(aiPick, locale)}
+                    />
+                  ))}
                 </div>
               ) : (
                 <EmptyMessage text="Aucun prono buteur en cours" />

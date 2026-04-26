@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import PickCard from "@/components/picks/PickCard";
+import AiPickCard from "@/components/ai-picks/AiPickCard";
 import {
-  adaptAiPickToPickFormat,
-  buildAiPickDetailHref,
-  buildAiPickLabel,
+  adaptAiPickToCardData,
   type AIPickRow,
 } from "@/lib/ai-picks-v2/adapt-ai-pick";
 
@@ -246,20 +244,12 @@ export default function HistoriqueClient({ locale }: Props) {
       ) : (
         <>
           <div className="mt-6 space-y-3">
-            {picks.map((aiPick) => {
-              const adaptedPick = adaptAiPickToPickFormat(aiPick);
-              const detailHref = buildAiPickDetailHref(aiPick, locale);
-              const pickLabel = buildAiPickLabel(aiPick);
-              return (
-                <PickCard
-                  key={aiPick.id}
-                  pick={adaptedPick}
-                  aiMode
-                  aiFooterHref={detailHref}
-                  aiPickLabel={pickLabel}
-                />
-              );
-            })}
+            {picks.map((aiPick) => (
+              <AiPickCard
+                key={aiPick.id}
+                pick={adaptAiPickToCardData(aiPick, locale)}
+              />
+            ))}
           </div>
 
           {picks.length < total && (

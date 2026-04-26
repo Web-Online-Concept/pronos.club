@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import LiveScore from "@/components/picks/LiveScore";
+import { getColorsForSports } from "@/lib/picks/sport-colors";
 import type { Pick, PickLeg, Bookmaker } from "@/lib/supabase/types";
 
 // Type for live_score_data from DB (matches LiveScore component's interface)
@@ -41,58 +42,6 @@ function getTipsterBankroll(): Promise<TipsterBkType> {
       return null;
     });
   return _tipsterBkPromise;
-}
-
-// Module-level cache for AI bankroll — shared across all PickCard instances in aiMode
-// Strictement séparé de Tipster (table/api/cache différents)
-type AiBkType = { mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null;
-let _aiBkCache: AiBkType | undefined = undefined;
-let _aiBkPromise: Promise<AiBkType> | null = null;
-
-function getAiBankroll(): Promise<AiBkType> {
-  if (_aiBkCache !== undefined) return Promise.resolve(_aiBkCache);
-  if (_aiBkPromise) return _aiBkPromise;
-  _aiBkPromise = fetch("/api/admin/ai-bankroll")
-    .then((r) => r.json())
-    .then((d): AiBkType => {
-      if (d && d.show_on_site && d.mode !== "units_only") {
-        _aiBkCache = d;
-      } else {
-        _aiBkCache = null;
-      }
-      return _aiBkCache ?? null;
-    })
-    .catch((): AiBkType => {
-      _aiBkCache = null;
-      return null;
-    });
-  return _aiBkPromise;
-}
-
-// Module-level cache for bookmakers list — used in aiMode to resolve logos by name
-// (les picks IA stockent juste le nom du bookmaker, pas l'id ni le logo_url)
-type BkResolveType = Array<{ id: string; name: string; slug: string; logo_url: string | null }> | null;
-let _bkResolveCache: BkResolveType | undefined = undefined;
-let _bkResolvePromise: Promise<BkResolveType> | null = null;
-
-function getBookmakersForResolve(): Promise<BkResolveType> {
-  if (_bkResolveCache !== undefined) return Promise.resolve(_bkResolveCache);
-  if (_bkResolvePromise) return _bkResolvePromise;
-  _bkResolvePromise = fetch("/api/bookmakers")
-    .then((r) => r.json())
-    .then((d): BkResolveType => {
-      if (Array.isArray(d)) {
-        _bkResolveCache = d;
-      } else {
-        _bkResolveCache = null;
-      }
-      return _bkResolveCache ?? null;
-    })
-    .catch((): BkResolveType => {
-      _bkResolveCache = null;
-      return null;
-    });
-  return _bkResolvePromise;
 }
 
 function Countdown({ target }: { target: Date }) {
@@ -140,41 +89,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string
   half_lost: { label: "½ Perdu", color: "text-red-400", icon: "❌" },
 };
 
-const SPORT_COLORS: Record<string, { from: string; to: string; accent: string }> = {
-  football: { from: "#0a0a0a", to: "#0a3d23", accent: "#10b981" },
-  tennis: { from: "#081828", to: "#124a78", accent: "#38bdf8" },
-  basketball: { from: "#0a0a0a", to: "#3d2008", accent: "#f97316" },
-  hockey: { from: "#0a0a0a", to: "#08163d", accent: "#3b82f6" },
-  rugby: { from: "#0a0a0a", to: "#0a0c3d", accent: "#6366f1" },
-  baseball: { from: "#0a0a0a", to: "#3d0a0a", accent: "#ef4444" },
-  mma: { from: "#0a0a0a", to: "#3d0a18", accent: "#e11d48" },
-  esport: { from: "#0a0a0a", to: "#240a3d", accent: "#a78bfa" },
-};
-
-const DEFAULT_COLORS = { from: "#0a0a0a", to: "#1a1a1a", accent: "#9ca3af" };
-const COMBI_MIXED_COLORS = { from: "#0a0a0a", to: "#2a0a3d", accent: "#c084fc" };
-
-function getPickColors(pick: Pick, legs: PickLeg[]) {
-  const isCombi = pick.pick_type === "combine" && legs.length > 1;
-
-  if (!isCombi) {
-    const sportSlug = pick.sport?.slug ?? "";
-    return SPORT_COLORS[sportSlug] ?? DEFAULT_COLORS;
-  }
-
-  // Combined: check if all legs are same sport
-  const sportSlugs = new Set(legs.map((l) => l.sport?.slug ?? pick.sport?.slug ?? ""));
-
-  if (sportSlugs.size === 1) {
-    // Same sport — use that sport's color
-    const slug = [...sportSlugs][0];
-    return SPORT_COLORS[slug] ?? DEFAULT_COLORS;
-  }
-
-  // Mixed sports — special purple
-  return COMBI_MIXED_COLORS;
-}
-
 function getStatusBg(status: string): string {
   switch (status) {
     case "won":
@@ -195,15 +109,9 @@ interface PickCardProps {
   locked?: boolean;
   /** When in user's personal history, show their profit instead of tipster's */
   userProfit?: number | null;
-  /** When true, render in AI mode (purple ribbon "🤖 IA", footer "INTELLIGENCE ARTIFICIELLE") */
-  aiMode?: boolean;
-  /** Optional href for the AI footer link (e.g. dossier detail page) */
-  aiFooterHref?: string | null;
-  /** When in AI mode, replaces the numeric pick_number display with this label (e.g. "IA-0014" or "BUT-0001") */
-  aiPickLabel?: string | null;
 }
 
-export default function PickCard({ pick, locked = false, userProfit, aiMode = false, aiFooterHref = null, aiPickLabel = null }: PickCardProps) {
+export default function PickCard({ pick, locked = false, userProfit }: PickCardProps) {
   const { user } = useAuth();
   const [showScreenshot, setShowScreenshot] = useState(false);
   const [followed, setFollowed] = useState(false);
@@ -218,14 +126,16 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   const [userStakeEuro, setUserStakeEuro] = useState("");
   const [bkConfig, setBkConfig] = useState<{ mode: string; current_bankroll: number; unit_value: number; unit_percent: number } | null>(null);
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
-  const [aiBk, setAiBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
-  const [resolvedAiBookmaker, setResolvedAiBookmaker] = useState<{ id: string; name: string; slug: string; logo_url: string | null } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
   const isPremiumUser = user?.subscription_status === "active" || user?.subscription_status === "trialing";
   const isCombi = pick.pick_type === "combine" && (pick.legs?.length ?? 0) > 1;
   const legs = (pick.legs ?? []).sort((a, b) => a.leg_number - b.leg_number);
-  const colors = getPickColors(pick, legs);
+  // Couleurs selon le(s) sport(s) - utilise l'helper partagé
+  const sportSlugs = isCombi
+    ? legs.map((l) => l.sport?.slug ?? pick.sport?.slug ?? "")
+    : [pick.sport?.slug ?? ""];
+  const colors = getColorsForSports(sportSlugs);
 
   // Fetch follow status on mount
   useEffect(() => {
@@ -259,24 +169,6 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
       if (d) setTipsterBk(d);
     });
   }, []);
-
-  // Fetch AI bankroll + résoudre logo bookmaker (uniquement en aiMode)
-  useEffect(() => {
-    if (!aiMode) return;
-    getAiBankroll().then((d) => {
-      if (d) setAiBk(d);
-    });
-    // Résolution du bookmaker IA depuis la table bookmakers (par name)
-    if (pick.bookmaker?.name) {
-      getBookmakersForResolve().then((list) => {
-        if (!list) return;
-        const found = list.find(
-          (b) => b.name.toLowerCase() === pick.bookmaker!.name.toLowerCase()
-        );
-        if (found) setResolvedAiBookmaker(found);
-      });
-    }
-  }, [aiMode, pick.bookmaker?.name]);
 
   function openFollowModal() {
     if (!user || followLoading) return;
@@ -420,23 +312,14 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   
   const isAwaitingResult = isPending && earliestDate <= new Date();
 
-  // Unit value in euros (for display on ticket)
-  // En mode IA : utilise la bankroll IA (séparée totalement de Tipster)
-  // En mode normal : utilise la bankroll Tipster
-  const activeBk = aiMode ? aiBk : tipsterBk;
-  const tipsterUnitEuro = activeBk
-    ? activeBk.mode === "fixed_unit"
-      ? activeBk.unit_value
-      : activeBk.mode === "percent_bankroll"
-      ? (activeBk.current_bankroll * activeBk.unit_percent) / 100
+  // Tipster unit value in euros (for display on ticket)
+  const tipsterUnitEuro = tipsterBk
+    ? tipsterBk.mode === "fixed_unit"
+      ? tipsterBk.unit_value
+      : tipsterBk.mode === "percent_bankroll"
+      ? (tipsterBk.current_bankroll * tipsterBk.unit_percent) / 100
       : 0
     : 0;
-
-  // Bookmaker affiché — en aiMode, on utilise le bookmaker résolu depuis la table
-  // (avec logo_url et slug réel), sinon on garde celui passé dans pick
-  const displayBookmaker = aiMode && resolvedAiBookmaker
-    ? resolvedAiBookmaker
-    : pick.bookmaker;
 
   return (
     <>
@@ -454,12 +337,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
 
         {/* Premium/Gratuit ribbon — top right corner */}
         <div className="absolute -right-[32px] top-[18px] z-10 rotate-45">
-          {aiMode ? (
-            <div className="w-[130px] py-[4px] text-center text-[8px] font-extrabold uppercase tracking-[0.15em] text-white shadow-lg"
-              style={{ background: "linear-gradient(90deg, #8b5cf6, #6d28d9)" }}>
-              🤖 IA
-            </div>
-          ) : pick.is_premium ? (
+          {pick.is_premium ? (
             <div className="w-[130px] py-[4px] text-center text-[8px] font-extrabold uppercase tracking-[0.15em] text-white shadow-lg"
               style={{ background: "linear-gradient(90deg, #f59e0b, #d97706)" }}>
               Premium
@@ -482,7 +360,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
               {/* Pick number */}
               {pick.pick_number && (
                 <span className="rounded-md bg-white/10 px-2.5 py-2.5 font-mono text-[11px] font-bold text-white/50">
-                  {(aiMode && aiPickLabel ? aiPickLabel : String(pick.pick_number).padStart(4, "0"))}
+                  {String(pick.pick_number).padStart(4, "0")}
                 </span>
               )}
               {/* Sport icon — matched to badge height */}
@@ -505,7 +383,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                 </span>
               )}
               {/* Bookmaker logo */}
-              {!locked && displayBookmaker?.logo_url && (
+              {!locked && pick.bookmaker?.logo_url && (
                 pick.screenshot_url ? (
                   <button
                     onClick={() => setShowScreenshot(true)}
@@ -513,23 +391,19 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                     title="Voir le ticket"
                   >
                     <img
-                      src={displayBookmaker.logo_url}
-                      alt={displayBookmaker.name}
+                      src={pick.bookmaker.logo_url}
+                      alt={pick.bookmaker.name}
                       className="h-[36px] w-[54px] rounded-lg object-cover"
                     />
                   </button>
                 ) : (
-                  <Link
-                    href={`/fr/bookmakers/${displayBookmaker.slug ?? displayBookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                    className="overflow-hidden rounded-lg transition hover:scale-105"
-                    title={displayBookmaker.name}
-                  >
+                  <div className="overflow-hidden rounded-lg">
                     <img
-                      src={displayBookmaker.logo_url}
-                      alt={displayBookmaker.name}
+                      src={pick.bookmaker.logo_url}
+                      alt={pick.bookmaker.name}
                       className="h-[36px] w-[54px] rounded-lg object-cover"
                     />
-                  </Link>
+                  </div>
                 )
               )}
               {!locked && isPending && <Countdown target={earliestDate} />}
@@ -702,13 +576,13 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                     </div>
 
                     {/* Bookmaker */}
-                    {displayBookmaker && (
+                    {pick.bookmaker && (
                       <Link
-                        href={`/fr/bookmakers/${displayBookmaker.slug ?? displayBookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        href={`/fr/bookmakers/${pick.bookmaker.slug ?? pick.bookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                         className="flex items-center rounded-lg bg-white/5 px-2.5 transition hover:bg-white/10"
-                        title={displayBookmaker.name}
+                        title={pick.bookmaker.name}
                       >
-                        <span className="text-[11px] font-semibold text-white/60">{displayBookmaker.name}</span>
+                        <span className="text-[11px] font-semibold text-white/60">{pick.bookmaker.name}</span>
                       </Link>
                     )}
 
@@ -782,22 +656,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                   </div>
 
                   {/* Follow toggle — full width */}
-                  {aiMode ? (
-                    aiFooterHref ? (
-                      <Link
-                        href={aiFooterHref}
-                        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300 transition hover:bg-violet-500/20 hover:text-violet-200"
-                      >
-                        <span>🤖</span>
-                        <span className="uppercase tracking-[0.1em]">Intelligence Artificielle</span>
-                      </Link>
-                    ) : (
-                      <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300">
-                        <span>🤖</span>
-                        <span className="uppercase tracking-[0.1em]">Intelligence Artificielle</span>
-                      </div>
-                    )
-                  ) : user && (
+                  {user && (
                     pick.is_premium && !isPremiumUser ? (
                       <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 py-2.5 text-[11px] font-bold text-white/20">
                         <span>🔒</span>

@@ -245,3 +245,87 @@ export const buildAiPickDetailHref = (
   if (!aiPick.slug) return null;
   return `/${locale}/pronos-ia/match/${aiPick.slug}`;
 };
+
+
+// ═══════════════════════════════════════════════════════════════════
+// Adapter pour <AiPickCard /> (composant autonome)
+// ═══════════════════════════════════════════════════════════════════
+//
+// Contrairement à adaptAiPickToPickFormat() qui transforme un ai_pick
+// en format Tipster (Pick), celle-ci construit directement le format
+// minimal attendu par AiPickCard (composant 100% séparé de Tipster).
+//
+// Utilisée par les pages /pronos-ia, /pronos-ia/historique, etc.
+
+export interface AiPickCardData {
+  id: string;
+  pick_label: string | null;
+  sport_slug: string;
+  sport_name: string;
+  sport_icon: string;
+  competition: string;
+  event_name: string;
+  event_date: string;
+  selection: string;
+  odds: number | null;
+  bookmaker_name: string | null;
+  reasoning: string | null;
+  status: "pending" | "won" | "lost" | "void";
+  detail_href: string | null;
+  live_score_data?: unknown;
+}
+
+
+/**
+ * Transforme un row `ai_picks` en données pour <AiPickCard />.
+ * Format simplifié, pas de mapping vers la table picks Tipster.
+ */
+export const adaptAiPickToCardData = (
+  aiPick: AIPickRow & { live_score_data?: unknown },
+  locale: string
+): AiPickCardData => {
+  const sportSlug =
+    aiPick.sport === "soccer"
+      ? "football"
+      : aiPick.sport === "americanfootball"
+        ? "football-americain"
+        : aiPick.sport;
+
+  const sportInfo = SPORT_DEFAULTS[sportSlug] ?? {
+    name_fr: sportSlug,
+    name_en: sportSlug,
+    name_es: sportSlug,
+    icon: "🏅",
+  };
+
+  const sportName =
+    locale === "en"
+      ? sportInfo.name_en
+      : locale === "es"
+        ? sportInfo.name_es
+        : sportInfo.name_fr;
+
+  const competition = formatLeagueName(aiPick.league);
+
+  const bookmakerName = aiPick.odds_bookmaker
+    ? BOOKMAKER_DISPLAY_NAMES[aiPick.odds_bookmaker] ?? aiPick.odds_bookmaker
+    : null;
+
+  return {
+    id: aiPick.id,
+    pick_label: buildAiPickLabel(aiPick),
+    sport_slug: sportSlug,
+    sport_name: sportName,
+    sport_icon: sportInfo.icon,
+    competition,
+    event_name: aiPick.event_name,
+    event_date: aiPick.event_date,
+    selection: aiPick.selection,
+    odds: aiPick.odds,
+    bookmaker_name: bookmakerName,
+    reasoning: aiPick.reasoning,
+    status: aiPick.status,
+    detail_href: buildAiPickDetailHref(aiPick, locale),
+    live_score_data: aiPick.live_score_data,
+  };
+};
