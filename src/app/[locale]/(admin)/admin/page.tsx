@@ -66,6 +66,7 @@ export default async function AdminDashboard() {
     { href: "/admin/picks/results", label: "Saisir résultats", icon: "✅", accent: "#f59e0b", desc: "Mettre à jour les picks" },
     { href: "/admin/picks", label: "Tous les picks", icon: "📋", accent: "#3b82f6", desc: "Gérer les publications" },
     { href: "/admin/bankroll", label: "Bankroll Tipster", icon: "🏦", accent: "#f59e0b", desc: "Capital & valeur d'unité" },
+    { href: "/admin/bilans", label: "Bilans mensuels Tipster", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels Tipster" },
   ];
 
   const aiLinks = [
@@ -75,6 +76,13 @@ export default async function AdminDashboard() {
       icon: "🤖",
       accent: (aiPicksToReview ?? 0) > 0 ? "#06b6d4" : "#8b5cf6",
       desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : `${aiPicksRejected ?? 0} rejetés par audit`,
+    },
+    {
+      href: "/admin/ai-bilans",
+      label: "Bilans mensuels IA",
+      icon: "📊",
+      accent: "#a855f7",
+      desc: "Rapports mensuels IA",
     },
   ];
 
@@ -111,7 +119,6 @@ export default async function AdminDashboard() {
     { href: "/admin/abonnes", label: "Abonnés", icon: "👥", accent: "#a78bfa", desc: "Gestion des membres" },
     { href: "/admin/notifications", label: "Notifications", icon: "🔔", accent: "#6366f1", desc: "Debug & tests push" },
     { href: "/admin/bookmakers", label: "Bookmakers", icon: "📚", accent: "#3b82f6", desc: "Affiliations & contenu" },
-    { href: "/admin/bilans", label: "Bilans mensuels", icon: "📊", accent: "#06b6d4", desc: "Rapports mensuels" },
     { href: "/admin/blog", label: "Blog", icon: "📝", accent: "#f59e0b", desc: "Articles & contenu" },
     { href: "/admin/avis", label: `Avis clients${(pendingReviews ?? 0) > 0 ? ` (${pendingReviews})` : ""}`, icon: "⭐", accent: (pendingReviews ?? 0) > 0 ? "#ef4444" : "#f59e0b", desc: (pendingReviews ?? 0) > 0 ? `${pendingReviews} en attente` : "Modération des avis" },
     { href: "/admin/reseaux", label: "Réseaux sociaux", icon: "🌐", accent: "#3b82f6", desc: "Liens sociaux" },
