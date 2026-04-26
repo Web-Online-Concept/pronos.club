@@ -3,33 +3,13 @@
  * odds-validator.ts
  * ═══════════════════════════════════════════════════════════════════
  *
- * STRATEGIE C — "Best Odds + 10%"
+ * Strategie C : Best Odds + 10%
  *
- * Quand le LLM (Claude/GPT) propose un pick avec une cote, on ne lui
- * fait PAS confiance. On va chercher la VRAIE cote dans les donnees
- * OddsAPI fraichement fetchees, parmi les 6 bookmakers Tipster.
- *
- * MATCHING DUAL :
- * - Etape 1 : match exact par externalId (cas pick deja OddsAPI)
- * - Etape 2 : fuzzy match par nom equipes + date (cas pick API-Football)
- *
- * MARKETS SUPPORTES :
- * - 1N2 (h2h)
- * - OVER_UNDER_X_5 (totals OU alternate_totals selon la ligne)
- *
- * Pour chaque pick :
- * 1. On retrouve l'event OddsAPI correspondant (exact OU fuzzy)
- * 2. On retrouve le market correspondant (h2h, totals, alternate_totals)
- * 3. On retrouve l'outcome correspondant (selection)
- * 4. On calcule la BEST ODDS parmi les 6 books
- * 5. On compare avec la cote IA :
- *    - ecart > 10% : REJET (status = 'rejected_by_validation')
- *    - ecart <= 10% : VALIDATION + on overwrite avec la best odds
- * 6. On enrichit avec un snapshot des 6 books (pour la page detail)
- *
- * Les buteurs (scorer) ne passent PAS par ce validateur (Q3=a) car
- * le market "anytime goalscorer" n'est pas dans les markets standards
- * fetches.
+ * Quand un LLM propose une cote, on la cross-check contre OddsAPI.
+ * - Match exact par externalId, sinon fuzzy match par equipes + date
+ * - Cherche le market dans h2h / totals / alternate_totals
+ * - Si ecart > 10% avec la best odds reelle : REJET
+ * - Sinon : on overwrite avec la best odds reelle + snapshot des 6 books
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -130,9 +110,7 @@ const fuzzyTeamScore = (a: string, b: string): number => {
 
   const intersection = new Set([...wordsA].filter((w) => wordsB.has(w)));
   const union = new Set([...wordsA, ...wordsB]);
-  const jaccard = intersection.size / union.size;
-
-  return Math.round(jaccard * 100);
+  return Math.round((intersection.size / union.size) * 100);
 };
 
 
@@ -179,7 +157,8 @@ const findOddsApiFixture = (
 
   for (const f of oddsApiFixtures) {
     const fDate = new Date(f.commenceTime);
-    const diffHours = Math.abs(fDate.getTime() - candidateDate.getTime()) / (1000 * 60 * 60);
+    const diffHours =
+      Math.abs(fDate.getTime() - candidateDate.getTime()) / (1000 * 60 * 60);
     if (diffHours > FUZZY_MATCH_DATE_HOURS) continue;
 
     const homeScore = fuzzyTeamScore(home, f.homeTeam);
@@ -210,6 +189,7 @@ const findOddsApiFixture = (
 type ResolvedMarket =
   | { kind: "h2h" }
   | { kind: "totals"; point: number };
+
 
 const resolveMarketFromLLM = (llmMarket: string): ResolvedMarket | null => {
   const m = llmMarket.toUpperCase();
@@ -250,12 +230,14 @@ const findOutcomeForBookmaker = (
   }
 
   if (resolvedMarket.kind === "totals") {
-    // CRITIQUE : OddsAPI retourne 2 markets pour les Over/Under :
-    // - "totals" : main line uniquement (ex: 3.5 pour ce match)
-    // - "alternate_totals" : toutes les autres lignes (1.5, 2.5, 4.5, etc.)
-    // On les concatene tous deux pour trouver le bon point.
+    // CRITIQUE : OddsAPI separe les Over/Under en 2 markets distincts :
+    // - "totals" (main line uniquement)
+    // - "alternate_totals" (toutes les autres lignes : 1.5, 2.5, 3.5, 4.5...)
+    // On cherche dans les deux.
     const totalsMain = bookmaker.markets.find((m) => m.key === "totals");
-    const totalsAlt = bookmaker.markets.find((m) => m.key === "alternate_totals");
+    const totalsAlt = bookmaker.markets.find(
+      (m) => m.key === "alternate_totals"
+    );
 
     const allOutcomes: OddsApiOutcome[] = [
       ...(totalsMain?.outcomes ?? []),
@@ -264,8 +246,10 @@ const findOutcomeForBookmaker = (
     if (allOutcomes.length === 0) return null;
 
     const sel = llmSelection.trim().toLowerCase();
-    const isOver = sel.includes("plus de") || sel.includes("over") || sel.startsWith("+");
-    const isUnder = sel.includes("moins de") || sel.includes("under") || sel.startsWith("-");
+    const isOver =
+      sel.includes("plus de") || sel.includes("over") || sel.startsWith("+");
+    const isUnder =
+      sel.includes("moins de") || sel.includes("under") || sel.startsWith("-");
 
     if (!isOver && !isUnder) return null;
 

@@ -10,14 +10,6 @@ import type { ConsensusCandidate } from "@/types/ai-picks-v2";
 export type PersistInput = {
   candidate: ConsensusCandidate;
   generationBatch: string;
-  /**
-   * Fixtures OddsAPI fraichement fetchees lors du run de generation.
-   * Utilise par le validateur pour cross-checker les cotes hallucinees.
-   *
-   * IMPORTANT : si non fourni ou tableau vide pour un pick CLASSIC,
-   * le pick est REJETE (status='rejected_by_validation') au lieu d'etre
-   * publie sans verification. Securite anti-hallucination.
-   */
   oddsApiFixtures?: SimplifiedFixture[];
 };
 
@@ -26,7 +18,6 @@ export type PersistResult = {
   pickId?: string;
   slug?: string;
   error?: string;
-  /** True si le pick a ete insere avec status='rejected_by_validation' */
   rejectedByValidation?: boolean;
 };
 
@@ -177,19 +168,12 @@ export const persistConsensusCandidate = async (
     const numbers = await getNextNumberForType(pickType);
 
     // ═══════════════════════════════════════════════════════════════
-    // VALIDATION COTES IA (Strategy C : Best Odds + 10%)
+    // VALIDATION STRICTE COTES IA (Strategy C : Best Odds + 10%)
     // ═══════════════════════════════════════════════════════════════
-    // Pour les classics seulement (les scorers passent en mode estime).
-    //
-    // STRICT MODE :
-    // Si validation OK -> on insere avec la BEST ODDS reelle
-    // Si validation KO -> on insere avec status='rejected_by_validation'
-    //                     (audit admin uniquement, PAS publie)
-    // Si oddsApiFixtures absent ou vide -> REJET aussi (securite anti-hallucination).
-    //
-    // Le pick PUBLIE n'a JAMAIS de cote non validee. Si OddsAPI tombe
-    // en panne, on prefere ne rien publier que de publier des cotes
-    // hallucinees par les LLM.
+    // Pas de fixtures OddsAPI -> REJET (pas de skipped)
+    // Cote validee -> on remplace par la BEST ODDS reelle
+    // Cote rejetee (divergence > 10% ou no_match) -> rejected_by_validation
+    // Buteurs -> mode estime (Q3=a)
 
     let finalOdds = candidate.odds;
     let finalBookmaker = candidate.bookmaker ?? null;
@@ -200,11 +184,10 @@ export const persistConsensusCandidate = async (
     let pickStatus: "pending" | "rejected_by_validation" = "pending";
 
     if (pickType === "classic") {
-      // 1) Aucune fixture OddsAPI fournie -> rejet automatique (securite)
       if (!oddsApiFixtures || oddsApiFixtures.length === 0) {
         validationStatus = "rejected";
         validationDetails =
-          "[REJECTED missing_oddsapi_data] No OddsAPI fixtures provided to validator. Cannot cross-check LLM odds. Pick rejected for safety (anti-hallucination).";
+          "[REJECTED missing_oddsapi_data] No OddsAPI fixtures provided to validator. Pick rejected for safety (anti-hallucination).";
         bookmakersSnapshot = null;
         pickStatus = "rejected_by_validation";
 
@@ -212,11 +195,9 @@ export const persistConsensusCandidate = async (
           `[persist-picks] PICK REJETE (no OddsAPI data) : ${candidate.eventName} - ${candidate.selection}`
         );
       } else {
-        // 2) Validation normale via le validateur
         const validation = validateClassicPickOdds(candidate, oddsApiFixtures);
 
         if (validation.ok) {
-          // Cote validee : on remplace par la BEST ODDS reelle
           finalOdds = validation.bestOdds;
           finalBookmaker = validation.bestBookmakerName;
           validationStatus = "validated";
@@ -224,7 +205,6 @@ export const persistConsensusCandidate = async (
           bookmakersSnapshot = validation.snapshot;
           validationDetails = `LLM proposed ${validation.llmOdds.toFixed(3)} on ${candidate.bookmaker ?? "?"}, best odds ${validation.bestOdds.toFixed(3)} on ${validation.bestBookmakerName} (divergence ${validation.divergencePct.toFixed(1)}%). Cote remplacee par best odds reelle.`;
         } else {
-          // Cote rejetee : on insere avec un status special pour audit admin
           validationStatus = "rejected";
           validationDetails = `[REJECTED ${validation.reason}] ${validation.details}`;
           validationDivergencePct =
@@ -240,7 +220,6 @@ export const persistConsensusCandidate = async (
         }
       }
     } else {
-      // Buteurs : validation skipped (Q3=a, mode estime)
       validationDetails = "Validation skipped (scorer pick, estimated odds)";
     }
 
@@ -252,9 +231,7 @@ export const persistConsensusCandidate = async (
       confidence_gpt: candidate.confidenceGpt,
       confidence_apifootball: candidate.confidenceApiFootball,
       bookmaker: finalBookmaker,
-      // Snapshot complet des 6 books (pour la page detail comparateur)
       bookmakers_snapshot: bookmakersSnapshot,
-      // Trace de la validation pour audit admin
       validation: {
         status: validationStatus,
         details: validationDetails,

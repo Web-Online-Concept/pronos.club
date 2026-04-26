@@ -181,8 +181,7 @@ export const isMajorEuropeanLeague = (sportKey: string): boolean => {
 };
 
 /**
- * Mapping slug OddsAPI -> nom affichage (pour la page detail comparateur cotes).
- * Cle = slug retourne par OddsAPI, valeur = nom utilise dans la table bookmakers.
+ * Mapping slug OddsAPI -> nom affichage (table bookmakers).
  */
 export const BOOKMAKER_SLUG_TO_DISPLAY: Record<string, string> = {
   pinnacle: "PS3838",
@@ -213,12 +212,8 @@ export type SimplifiedFixture = {
     under25?: number;
   } | null;
   /**
-   * Donnees completes des 6 bookmakers pour validation et snapshot.
-   * Conservees au lieu d'etre jetees au build du prompt LLM.
-   * Utilise par odds-validator.ts pour valider les cotes IA.
-   *
-   * Inclut les markets h2h ET totals/alternate_totals (toutes les lignes
-   * Over/Under, pas que le main line).
+   * Donnees completes des 6 bookmakers (h2h + totals + alternate_totals merges).
+   * Utilise par odds-validator.ts pour le cross-check.
    */
   rawBookmakers: OddsApiBookmaker[];
 };
@@ -278,23 +273,59 @@ export const fetchAllSportsForToday = async (
 
   for (const sport of sports) {
     try {
-      const events = await getOddsForSport({
-        sportKey: sport.key,
-        // h2h pour 1N2, totals pour le main line, alternate_totals pour
-        // toutes les autres lignes (Over/Under 1.5, 2.5, 3.5, etc.).
-        // Ce dernier point est CRITIQUE car OddsAPI ne retourne par
-        // defaut que la "main line" (souvent 3 ou 3.5), donc sans
-        // alternate_totals on ne peut pas valider un pick "Over 2.5"
-        // si la main line est 3.5.
-        markets: "h2h,totals,alternate_totals",
-        oddsFormat: "decimal",
-        daysFrom: 1,
-        pickId,
-      });
+      // 2 appels paralleles : 
+      // - main : h2h + totals (la main line uniquement)
+      // - alt  : alternate_totals (toutes les autres lignes Over/Under)
+      // OddsAPI ne supporte PAS alternate_totals dans le meme appel que totals.
+      const [mainResult, altResult] = await Promise.allSettled([
+        getOddsForSport({
+          sportKey: sport.key,
+          markets: "h2h,totals",
+          oddsFormat: "decimal",
+          daysFrom: 1,
+          pickId,
+        }),
+        getOddsForSport({
+          sportKey: sport.key,
+          markets: "alternate_totals",
+          oddsFormat: "decimal",
+          daysFrom: 1,
+          pickId,
+        }),
+      ]);
 
-      for (const event of events) {
-        // Skip si aucun de nos 6 bookmakers ne couvre ce match
+      const mainEvents =
+        mainResult.status === "fulfilled" ? mainResult.value : [];
+      const altEvents =
+        altResult.status === "fulfilled" ? altResult.value : [];
+
+      // Indexer alt par event_id pour merger
+      const altByEventId = new Map<string, OddsApiEvent>();
+      for (const evt of altEvents) {
+        altByEventId.set(evt.id, evt);
+      }
+
+      for (const event of mainEvents) {
         if (event.bookmakers.length === 0) continue;
+
+        // Merger les markets alternate_totals dans les bookmakers existants
+        const altEvent = altByEventId.get(event.id);
+        if (altEvent) {
+          for (const altBk of altEvent.bookmakers) {
+            const existingBk = event.bookmakers.find(
+              (b) => b.key === altBk.key
+            );
+            if (existingBk) {
+              // Ajouter les markets alt aux markets existants
+              for (const altMarket of altBk.markets) {
+                existingBk.markets.push(altMarket);
+              }
+            } else {
+              // Bookmaker uniquement dans alt -> ajouter complet
+              event.bookmakers.push(altBk);
+            }
+          }
+        }
 
         const isFoot = isFootballSportKey(sport.key);
         const isMajor = isMajorEuropeanLeague(sport.key);
