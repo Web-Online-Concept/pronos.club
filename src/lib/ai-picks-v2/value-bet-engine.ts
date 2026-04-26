@@ -40,6 +40,12 @@ const MAX_ODDS = 3.0;
 const MIN_EDGE_PCT = 3;
 const MAX_PICKS = 5;
 const MAX_SAME_SPORT_RATIO = 0.6; // Max 60% du meme sport
+/**
+ * Marge minimale entre maintenant et le coup d'envoi du match.
+ * En dessous, on rejette : les abonnes n'ont plus le temps de parier
+ * et les bookmakers freezent souvent les cotes en derniere minute.
+ */
+const MIN_MINUTES_BEFORE_KICKOFF = 30;
 
 // Books de reference (slug OddsAPI)
 const SHARP_BOOK_KEY = "pinnacle";
@@ -115,6 +121,7 @@ export type ValueBetEngineResult = {
   stats: {
     fixturesScanned: number;
     fixturesWithPinnacle: number;
+    fixturesRejectedTooLate: number;
     h2hMarketsAnalyzed: number;
     totalsMarketsAnalyzed: number;
     valueBetsFound: number;
@@ -248,6 +255,17 @@ const detectValueBetsForFixture = (
   stats: ValueBetEngineResult["stats"]
 ): ValueBetCandidate[] => {
   const results: ValueBetCandidate[] = [];
+
+  // ─── Filtre temporel ───────────────────────
+  // Le match doit commencer dans plus de MIN_MINUTES_BEFORE_KICKOFF
+  // pour laisser aux abonnes le temps de parier.
+  const kickoffTime = new Date(fixture.commenceTime).getTime();
+  const now = Date.now();
+  const minutesUntilKickoff = (kickoffTime - now) / (1000 * 60);
+  if (minutesUntilKickoff < MIN_MINUTES_BEFORE_KICKOFF) {
+    stats.fixturesRejectedTooLate += 1;
+    return results;
+  }
 
   const pinnacle = fixture.rawBookmakers.find((b) => b.key === SHARP_BOOK_KEY);
   if (!pinnacle) return results;
@@ -553,6 +571,7 @@ export const findValueBets = (
   const stats: ValueBetEngineResult["stats"] = {
     fixturesScanned: oddsApiFixtures.length,
     fixturesWithPinnacle: 0,
+    fixturesRejectedTooLate: 0,
     h2hMarketsAnalyzed: 0,
     totalsMarketsAnalyzed: 0,
     valueBetsFound: 0,
