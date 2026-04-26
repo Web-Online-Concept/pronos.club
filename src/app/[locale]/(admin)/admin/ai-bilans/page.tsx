@@ -1,0 +1,533 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+const MONTH_NAMES = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+
+function formatMonth(ym: string) {
+  const [y, m] = ym.split("-");
+  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+}
+
+interface AiBilan {
+  id: string;
+  pick_type: "classic" | "scorer";
+  title: string;
+  slug: string;
+  month: string;
+  content: string;
+  summary: string | null;
+  cover_image: string | null;
+  profit: number;
+  roi: number;
+  win_rate: number;
+  total_picks: number;
+  is_published: boolean;
+  published_at: string | null;
+  created_at: string;
+}
+
+type FilterType = "all" | "classic" | "scorer";
+
+export default function AdminAiBilansPage() {
+  const [bilans, setBilans] = useState<AiBilan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AiBilan | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [refreshingStats, setRefreshingStats] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Filtre liste (Tous / Classiques / Buteurs)
+  const [filterType, setFilterType] = useState<FilterType>("all");
+
+  // New bilan form
+  const [newMonth, setNewMonth] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newPickType, setNewPickType] = useState<"classic" | "scorer">("classic");
+
+  useEffect(() => {
+    fetchBilans();
+  }, []);
+
+  async function fetchBilans() {
+    setLoading(true);
+    const res = await fetch("/api/admin/ai-bilans");
+    const data = await res.json();
+    setBilans(Array.isArray(data) ? data : []);
+    setLoading(false);
+  }
+
+  async function createBilan() {
+    if (!newMonth || !newTitle) return;
+    setSaving(true);
+
+    // Auto-fetch stats for the month + type
+    const statsRes = await fetch(
+      `/api/admin/ai-bilans?calc_month=${newMonth}&type=${newPickType}`
+    );
+    const stats = await statsRes.json();
+
+    const res = await fetch("/api/admin/ai-bilans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pick_type: newPickType,
+        title: newTitle,
+        month: newMonth,
+        total_picks: stats.total_picks ?? 0,
+        win_rate: stats.win_rate ?? 0,
+        roi: stats.roi ?? 0,
+        profit: stats.profit ?? 0,
+      }),
+    });
+
+    if (res.ok) {
+      const bilan = await res.json();
+      setBilans((prev) => [bilan, ...prev]);
+      setCreating(false);
+      setNewMonth("");
+      setNewTitle("");
+      setNewPickType("classic");
+      setEditing(bilan);
+    } else {
+      const err = await res.json();
+      alert(err.error ?? "Erreur lors de la création");
+    }
+
+    setSaving(false);
+  }
+
+  async function saveBilan() {
+    if (!editing) return;
+    setSaving(true);
+    setSaved(false);
+
+    const res = await fetch("/api/admin/ai-bilans", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editing),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      setBilans((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+      setEditing(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
+
+    setSaving(false);
+  }
+
+  async function togglePublish() {
+    if (!editing) return;
+    const updated = { ...editing, is_published: !editing.is_published };
+    setEditing(updated);
+
+    await fetch("/api/admin/ai-bilans", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editing.id, is_published: !editing.is_published }),
+    });
+
+    setBilans((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+  }
+
+  async function deleteBilan() {
+    if (!editing) return;
+    if (!confirm(`Supprimer le bilan "${editing.title}" ? Cette action est irréversible.`)) return;
+
+    await fetch(`/api/admin/ai-bilans?id=${editing.id}`, { method: "DELETE" });
+    setBilans((prev) => prev.filter((b) => b.id !== editing.id));
+    setEditing(null);
+  }
+
+  async function refreshStats() {
+    if (!editing) return;
+    setRefreshingStats(true);
+
+    const res = await fetch(
+      `/api/admin/ai-bilans?calc_month=${editing.month}&type=${editing.pick_type}`
+    );
+    const stats = await res.json();
+
+    setEditing({
+      ...editing,
+      total_picks: stats.total_picks ?? editing.total_picks,
+      win_rate: stats.win_rate ?? editing.win_rate,
+      roi: stats.roi ?? editing.roi,
+      profit: stats.profit ?? editing.profit,
+    });
+
+    setRefreshingStats(false);
+  }
+
+  async function uploadImage(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!editing || !e.target.files?.[0]) return;
+    setUploadingImage(true);
+
+    const file = e.target.files[0];
+    const ext = file.name.split(".").pop();
+    const path = `${editing.slug}.${ext}`;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`/api/admin/ai-bilans-upload?path=${encodeURIComponent(path)}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.url) {
+      setEditing({ ...editing, cover_image: data.url });
+    }
+
+    setUploadingImage(false);
+  }
+
+  // Filtre liste
+  const filteredBilans = bilans.filter((b) => {
+    if (filterType === "all") return true;
+    return b.pick_type === filterType;
+  });
+
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 [color-scheme:dark] placeholder-white/20";
+
+  const textareaClass = inputClass + " min-h-[200px] resize-y";
+
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-8">
+        <div className="flex flex-col items-center gap-3 py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+          <p className="text-sm text-white/30">Chargement...</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-8">
+      <Link href="/fr/admin" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-white/30 transition hover:text-white/60">
+        ← Dashboard
+      </Link>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "rgba(168,85,247,0.15)" }}>
+            <span className="text-lg">🤖</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-extrabold text-white">Bilans IA</h1>
+            <p className="text-xs text-white/30">{bilans.length} bilan{bilans.length > 1 ? "s" : ""}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setCreating(true)}
+          className="cursor-pointer rounded-lg bg-violet-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-400"
+        >
+          + Nouveau bilan
+        </button>
+      </div>
+
+      {/* Filter tabs (Classiques / Buteurs) */}
+      <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
+        <button
+          type="button"
+          onClick={() => setFilterType("all")}
+          className={
+            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
+            (filterType === "all"
+              ? "bg-white/10 text-white"
+              : "text-white/40 hover:text-white/70")
+          }
+        >
+          Tous
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterType("classic")}
+          className={
+            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
+            (filterType === "classic"
+              ? "bg-violet-500 text-white"
+              : "text-white/40 hover:text-white/70")
+          }
+        >
+          🎯 Classiques
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterType("scorer")}
+          className={
+            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
+            (filterType === "scorer"
+              ? "bg-amber-500 text-white"
+              : "text-white/40 hover:text-white/70")
+          }
+        >
+          ⚽ Buteurs
+        </button>
+      </div>
+
+      {/* Create form */}
+      {creating && (
+        <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%)" }}>
+          <p className="text-sm font-bold text-white">Nouveau bilan IA</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Type</label>
+              <select
+                value={newPickType}
+                onChange={(e) => {
+                  const val = e.target.value as "classic" | "scorer";
+                  setNewPickType(val);
+                  if (newMonth) {
+                    const typeLabel = val === "scorer" ? "Buteurs" : "Classiques";
+                    setNewTitle(`Bilan ${typeLabel} ${formatMonth(newMonth)}`);
+                  }
+                }}
+                className={inputClass}
+              >
+                <option value="classic">🎯 Classiques</option>
+                <option value="scorer">⚽ Buteurs</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Mois</label>
+              <input
+                type="month"
+                value={newMonth}
+                onChange={(e) => {
+                  setNewMonth(e.target.value);
+                  if (e.target.value) {
+                    const typeLabel = newPickType === "scorer" ? "Buteurs" : "Classiques";
+                    setNewTitle(`Bilan ${typeLabel} ${formatMonth(e.target.value)}`);
+                  }
+                }}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Titre</label>
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Bilan Classiques Avril 2026"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={createBilan} disabled={saving || !newMonth || !newTitle} className="cursor-pointer rounded-lg bg-violet-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+              {saving ? "..." : "Créer"}
+            </button>
+            <button onClick={() => setCreating(false)} className="cursor-pointer rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-white/50">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bilans list */}
+      <div className="mt-6 space-y-2">
+        {filteredBilans.map((bilan) => (
+          <button
+            key={bilan.id}
+            onClick={() => { setEditing({ ...bilan }); setSaved(false); }}
+            className="flex w-full cursor-pointer items-center gap-4 rounded-xl border border-white/[0.06] p-4 text-left transition hover:border-white/10"
+            style={{ background: "linear-gradient(135deg, #111 0%, #151515 100%)" }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/[0.06] text-center">
+              <div>
+                <p className="text-xs font-extrabold text-white">{bilan.month.split("-")[1]}</p>
+                <p className="text-[8px] text-white/30">{bilan.month.split("-")[0]}</p>
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-white">{bilan.title}</p>
+                {bilan.pick_type === "scorer" ? (
+                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-400">⚽ Buteurs</span>
+                ) : (
+                  <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-violet-400">🎯 Classiques</span>
+                )}
+                {bilan.is_published ? (
+                  <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-400">Publié</span>
+                ) : (
+                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-400">Brouillon</span>
+                )}
+              </div>
+              <div className="mt-0.5 flex items-center gap-3 text-[10px] text-white/30">
+                <span>{bilan.total_picks} picks</span>
+                <span>WR {bilan.win_rate}%</span>
+                <span>ROI {bilan.roi >= 0 ? "+" : ""}{bilan.roi}%</span>
+                <span className={bilan.profit >= 0 ? "text-emerald-400/60" : "text-red-400/60"}>
+                  {bilan.profit >= 0 ? "+" : ""}{bilan.profit}U
+                </span>
+              </div>
+            </div>
+            <span className="text-white/20">→</span>
+          </button>
+        ))}
+      </div>
+
+      {filteredBilans.length === 0 && !creating && (
+        <div className="mt-12 text-center">
+          <p className="text-4xl">📊</p>
+          <p className="mt-2 text-sm text-white/30">
+            {bilans.length === 0
+              ? "Aucun bilan pour le moment"
+              : `Aucun bilan ${filterType === "classic" ? "classique" : "buteur"}`}
+          </p>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 pt-8 backdrop-blur-sm" onClick={() => setEditing(null)}>
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl" style={{ background: "linear-gradient(135deg, #111111 0%, #1e1b4b 100%)" }} onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
+              <div className="flex items-center gap-3">
+                {editing.pick_type === "scorer" ? (
+                  <span className="rounded bg-amber-500/20 px-2 py-1 text-[10px] font-bold uppercase text-amber-400">⚽ Buteurs</span>
+                ) : (
+                  <span className="rounded bg-violet-500/20 px-2 py-1 text-[10px] font-bold uppercase text-violet-400">🎯 Classiques</span>
+                )}
+                <div>
+                  <p className="text-sm font-bold text-white">{editing.title}</p>
+                  <p className="text-[10px] text-white/30">{formatMonth(editing.month)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={togglePublish}
+                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    editing.is_published
+                      ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                      : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                  }`}
+                >
+                  {editing.is_published ? "Dépublier" : "Publier"}
+                </button>
+                <button onClick={() => setEditing(null)} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white/50 transition hover:bg-white/20">×</button>
+              </div>
+            </div>
+
+            <div className="max-h-[75vh] overflow-y-auto px-6 py-4">
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Titre</label>
+                  <input type="text" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} className={inputClass} />
+                </div>
+
+                {/* Stats row */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/[0.06]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-500">Chiffres du mois</span>
+                  <button
+                    onClick={refreshStats}
+                    disabled={refreshingStats}
+                    className="cursor-pointer rounded bg-violet-500/20 px-2 py-0.5 text-[9px] font-bold text-violet-400 transition hover:bg-violet-500/30 disabled:opacity-50"
+                  >
+                    {refreshingStats ? "..." : "🔄 Recalculer"}
+                  </button>
+                  <div className="h-px flex-1 bg-white/[0.06]" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Total picks</label>
+                    <input type="number" value={editing.total_picks} onChange={(e) => setEditing({ ...editing, total_picks: parseInt(e.target.value) || 0 })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Win rate %</label>
+                    <input type="number" step="0.1" value={editing.win_rate} onChange={(e) => setEditing({ ...editing, win_rate: parseFloat(e.target.value) || 0 })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">ROI %</label>
+                    <input type="number" step="0.1" value={editing.roi} onChange={(e) => setEditing({ ...editing, roi: parseFloat(e.target.value) || 0 })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Profit (U)</label>
+                    <input type="number" step="0.1" value={editing.profit} onChange={(e) => setEditing({ ...editing, profit: parseFloat(e.target.value) || 0 })} className={inputClass} />
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Résumé court (affiché dans la liste)</label>
+                  <input type="text" value={editing.summary ?? ""} onChange={(e) => setEditing({ ...editing, summary: e.target.value })} placeholder="Mois positif avec un ROI solide..." className={inputClass} />
+                </div>
+
+                {/* Content */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/[0.06]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-500">Contenu du bilan</span>
+                  <div className="h-px flex-1 bg-white/[0.06]" />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+                    Contenu (texte libre — saut de ligne = nouveau paragraphe)
+                  </label>
+                  <textarea
+                    value={editing.content}
+                    onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+                    placeholder={"Résultats du mois, meilleurs picks, pires picks, contexte sportif, objectifs du mois suivant..."}
+                    className={textareaClass}
+                    rows={12}
+                  />
+                </div>
+
+                {/* Cover image */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Image de couverture</label>
+                  {editing.cover_image && (
+                    <div className="mb-2 overflow-hidden rounded-lg">
+                      <img src={editing.cover_image} alt="Couverture" className="w-full max-h-48 object-cover" />
+                    </div>
+                  )}
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-3 text-xs font-semibold text-white/40 transition hover:border-violet-500/50 hover:text-violet-400">
+                    <input type="file" accept="image/*" onChange={uploadImage} className="hidden" />
+                    {uploadingImage ? "Upload en cours..." : editing.cover_image ? "📷 Changer l'image" : "📷 Uploader une image"}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-white/[0.06] px-6 py-4">
+              <button
+                onClick={deleteBilan}
+                className="cursor-pointer rounded-lg border border-red-500/30 px-3 py-1.5 text-[10px] font-bold text-red-400 transition hover:bg-red-500/10"
+              >
+                🗑 Supprimer
+              </button>
+              <button
+                onClick={saveBilan}
+                disabled={saving}
+                className="cursor-pointer rounded-xl px-8 py-3 text-sm font-bold text-white transition disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)", boxShadow: "0 4px 14px rgba(139,92,246,0.3)" }}
+              >
+                {saving ? "Enregistrement..." : saved ? "✅ Enregistré !" : "💾 Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
