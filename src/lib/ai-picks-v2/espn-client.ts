@@ -409,8 +409,7 @@ export const getEspnEventSummary = async (
   if (!home || !away) return null;
 
   const buildTeamInfo = (
-    c: NonNullable<typeof home>,
-    boxStats: typeof data.boxscore extends { teams?: infer T } ? T : never
+    c: NonNullable<typeof home>
   ): EspnTeamInfo => {
     let recordStr: string | null = null;
     if (c.record && c.record.length > 0) {
@@ -447,8 +446,8 @@ export const getEspnEventSummary = async (
     eventId,
     date: comp.date,
     status: comp.status.type.name,
-    homeTeam: buildTeamInfo(home, boxTeams),
-    awayTeam: buildTeamInfo(away, boxTeams),
+    homeTeam: buildTeamInfo(home),
+    awayTeam: buildTeamInfo(away),
     homeScore: home.score ? parseInt(home.score, 10) : null,
     awayScore: away.score ? parseInt(away.score, 10) : null,
     boxscore: {
