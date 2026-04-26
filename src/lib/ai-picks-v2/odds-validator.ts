@@ -9,8 +9,12 @@
  * fait PAS confiance. On va chercher la VRAIE cote dans les donnees
  * OddsAPI fraichement fetchees, parmi les 6 bookmakers Tipster.
  *
+ * MATCHING DUAL :
+ * - Etape 1 : match exact par externalId (cas pick deja OddsAPI)
+ * - Etape 2 : fuzzy match par nom equipes + date (cas pick API-Football)
+ *
  * Pour chaque pick :
- * 1. On retrouve l'event OddsAPI correspondant
+ * 1. On retrouve l'event OddsAPI correspondant (exact OU fuzzy)
  * 2. On retrouve le market correspondant (h2h ou totals)
  * 3. On retrouve l'outcome correspondant (selection)
  * 4. On calcule la BEST ODDS parmi les 6 books
@@ -37,6 +41,9 @@ import { BOOKMAKER_SLUG_TO_DISPLAY } from "./odds-api-client";
 // Tolerance d'ecart entre la cote LLM et la best odds reelle
 const MAX_ODDS_DIVERGENCE_PCT = 10;
 
+// Tolerance pour le fuzzy match par date (en heures)
+const FUZZY_MATCH_DATE_HOURS = 6;
+
 
 /**
  * Snapshot d'une cote pour un bookmaker donne, sur le market+selection
@@ -51,9 +58,11 @@ export type BookmakerOddsSnapshot = {
 
 
 export type BookmakersSnapshot = {
-  market: string;          // "h2h" / "totals_2.5" / etc.
-  selection: string;       // valeur normalisee
-  fetched_at: string;      // ISO date
+  market: string;
+  selection: string;
+  fetched_at: string;
+  match_method: "exact" | "fuzzy"; // comment on a retrouve le fixture OddsAPI
+  fuzzy_match_score?: number;       // si fuzzy : score de match (0-100)
   books: BookmakerOddsSnapshot[];
   best: { key: string; name: string; odds: number } | null;
 };
@@ -62,8 +71,8 @@ export type BookmakersSnapshot = {
 export type ValidationOk = {
   ok: true;
   bestOdds: number;
-  bestBookmakerSlug: string;     // ex: "pinnacle"
-  bestBookmakerName: string;     // ex: "PS3838"
+  bestBookmakerSlug: string;
+  bestBookmakerName: string;
   llmOdds: number;
   divergencePct: number;
   snapshot: BookmakersSnapshot;
@@ -80,7 +89,7 @@ export type ValidationFail = {
     | "odds_diverge_too_much"
     | "missing_llm_odds";
   details: string;
-  snapshot?: BookmakersSnapshot; // disponible si on a quand meme trouve l'event
+  snapshot?: BookmakersSnapshot;
   llmOdds?: number;
 };
 
@@ -88,38 +97,153 @@ export type ValidationFail = {
 export type ValidationResult = ValidationOk | ValidationFail;
 
 
-// ─── Helpers ──────────────────────────────────────────────────────
+// ─── Helpers de matching ──────────────────────────────────────────
 
 
 /**
- * Match insensible a la casse + match en includes() bidirectionnel
- * pour tolerer les variations de nom d'equipe :
- * - "Real Madrid" matche "Real Madrid CF"
- * - "PSG" matche "Paris Saint-Germain" via includes() ? Non, trop tolerant.
- *   On fait juste une egalite case-insensitive et un includes() prudent.
+ * Normalise un nom d'equipe pour le fuzzy match.
+ * - Lowercase
+ * - Supprime accents
+ * - Supprime "FC", "CF", "AC", etc. en prefixe/suffixe
+ * - Supprime ponctuation et espaces multiples
+ */
+const normalizeTeamName = (name: string): string => {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // accents
+    .toLowerCase()
+    .replace(/[.,'']/g, "")
+    .replace(/\b(fc|cf|ac|sc|ss|us|ud|sd|cd|rc|sk|fk|hk|ka|club|de|del|la|le|el|al)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+
+/**
+ * Match insensible a la casse + normalisation + match en includes() bidirectionnel
+ * pour tolerer les variations de nom d'equipe.
  */
 const teamNameMatches = (selection: string, teamName: string): boolean => {
-  const sel = selection.trim().toLowerCase();
-  const team = teamName.trim().toLowerCase();
+  const sel = normalizeTeamName(selection);
+  const team = normalizeTeamName(teamName);
   if (sel === team) return true;
-  if (team.includes(sel) && sel.length >= 4) return true;
-  if (sel.includes(team) && team.length >= 4) return true;
+  if (sel.length >= 4 && team.includes(sel)) return true;
+  if (team.length >= 4 && sel.includes(team)) return true;
   return false;
 };
 
 
 /**
- * Determine quel market OddsAPI on doit chercher selon le market LLM.
- * Retourne null si le market LLM n'est pas supporte par notre validation
- * (le pick sera rejete avec reason "unsupported_market").
- *
- * Markets OddsAPI standard : "h2h", "totals", "spreads"
- * Markets LLM (cf prompts.ts):
- *   - 1N2 -> h2h
- *   - DOUBLE_CHANCE -> non supporte (a faire plus tard)
- *   - OVER_UNDER_X_5 -> totals avec point=X.5
- *   - BTTS -> non supporte (a faire plus tard)
+ * Calcule un score de fuzzy match entre 2 noms d'equipe (0-100).
+ * Base sur normalisation + similarite Jaccard sur les mots.
  */
+const fuzzyTeamScore = (a: string, b: string): number => {
+  const na = normalizeTeamName(a);
+  const nb = normalizeTeamName(b);
+  if (na === nb) return 100;
+  if (na.length === 0 || nb.length === 0) return 0;
+
+  const wordsA = new Set(na.split(" ").filter((w) => w.length >= 3));
+  const wordsB = new Set(nb.split(" ").filter((w) => w.length >= 3));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+
+  const intersection = new Set([...wordsA].filter((w) => wordsB.has(w)));
+  const union = new Set([...wordsA, ...wordsB]);
+  const jaccard = intersection.size / union.size;
+
+  return Math.round(jaccard * 100);
+};
+
+
+/**
+ * Extract home/away depuis "Team A vs Team B" ou "Team A - Team B"
+ */
+const extractTeamsFromEventName = (
+  eventName: string
+): { home: string | null; away: string | null } => {
+  const sep = eventName.includes(" vs ")
+    ? " vs "
+    : eventName.includes(" - ")
+    ? " - "
+    : null;
+  if (!sep) return { home: null, away: null };
+  const parts = eventName.split(sep);
+  return {
+    home: parts[0]?.trim() ?? null,
+    away: parts[1]?.trim() ?? null,
+  };
+};
+
+
+/**
+ * Cherche le fixture OddsAPI correspondant au candidate.
+ *
+ * Strategie :
+ * 1) Match exact par externalId (rapide)
+ * 2) Si echec : fuzzy match par equipes + date (~6h tolerance)
+ *
+ * Retourne le fixture trouve + le score de match (100 si exact, 0-99 si fuzzy).
+ * Retourne null si aucun match trouve avec un score >= 60.
+ */
+type FixtureMatch =
+  | { fixture: SimplifiedFixture; method: "exact"; score: 100 }
+  | { fixture: SimplifiedFixture; method: "fuzzy"; score: number };
+
+const findOddsApiFixture = (
+  candidate: ConsensusCandidate,
+  oddsApiFixtures: SimplifiedFixture[]
+): FixtureMatch | null => {
+  // 1) Match exact par externalId
+  const exactMatch = oddsApiFixtures.find(
+    (f) => f.externalId === candidate.fixtureRef
+  );
+  if (exactMatch) {
+    return { fixture: exactMatch, method: "exact", score: 100 };
+  }
+
+  // 2) Fuzzy match par noms d'equipe + date
+  const { home, away } = extractTeamsFromEventName(candidate.eventName);
+  if (!home || !away) return null;
+
+  const candidateDate = new Date(candidate.eventDateIso);
+  if (Number.isNaN(candidateDate.getTime())) return null;
+
+  let bestMatch: FixtureMatch | null = null;
+  let bestScore = 0;
+
+  for (const f of oddsApiFixtures) {
+    // Filtre date d'abord (rapide)
+    const fDate = new Date(f.commenceTime);
+    const diffHours = Math.abs(fDate.getTime() - candidateDate.getTime()) / (1000 * 60 * 60);
+    if (diffHours > FUZZY_MATCH_DATE_HOURS) continue;
+
+    // Score sur les 2 equipes (home/home et away/away)
+    const homeScore = fuzzyTeamScore(home, f.homeTeam);
+    const awayScore = fuzzyTeamScore(away, f.awayTeam);
+    const combined = Math.round((homeScore + awayScore) / 2);
+
+    if (combined > bestScore && combined >= 60) {
+      bestScore = combined;
+      bestMatch = { fixture: f, method: "fuzzy", score: combined };
+    }
+
+    // On considere aussi le cas inverse home/away inverse (rare mais possible)
+    const reverseHome = fuzzyTeamScore(home, f.awayTeam);
+    const reverseAway = fuzzyTeamScore(away, f.homeTeam);
+    const reverseCombined = Math.round((reverseHome + reverseAway) / 2);
+    if (reverseCombined > bestScore && reverseCombined >= 60) {
+      bestScore = reverseCombined;
+      bestMatch = { fixture: f, method: "fuzzy", score: reverseCombined };
+    }
+  }
+
+  return bestMatch;
+};
+
+
+// ─── Helpers market/outcome ───────────────────────────────────────
+
+
 type ResolvedMarket =
   | { kind: "h2h" }
   | { kind: "totals"; point: number };
@@ -130,17 +254,11 @@ const resolveMarketFromLLM = (llmMarket: string): ResolvedMarket | null => {
   if (m === "OVER_UNDER_1_5") return { kind: "totals", point: 1.5 };
   if (m === "OVER_UNDER_2_5") return { kind: "totals", point: 2.5 };
   if (m === "OVER_UNDER_3_5") return { kind: "totals", point: 3.5 };
-  // Non supportes pour l'instant (rejet) :
-  // - DOUBLE_CHANCE (1X, X2, 12)
-  // - BTTS (les deux equipes marquent)
+  // Non supportes : DOUBLE_CHANCE, BTTS
   return null;
 };
 
 
-/**
- * Trouve l'outcome (cote) correspondant au market+selection LLM dans
- * les markets d'un bookmaker donne. Retourne null si pas trouve.
- */
 const findOutcomeForBookmaker = (
   bookmaker: OddsApiBookmaker,
   resolvedMarket: ResolvedMarket,
@@ -154,17 +272,14 @@ const findOutcomeForBookmaker = (
 
     const sel = llmSelection.trim().toLowerCase();
 
-    // Cas "nul" / "draw"
     if (sel === "match nul" || sel === "nul" || sel === "draw" || sel === "n") {
       return h2h.outcomes.find((o) => o.name === "Draw") ?? null;
     }
 
-    // Cas equipe/joueur home
     if (teamNameMatches(llmSelection, homeTeam)) {
       return h2h.outcomes.find((o) => o.name === homeTeam) ?? null;
     }
 
-    // Cas equipe/joueur away
     if (teamNameMatches(llmSelection, awayTeam)) {
       return h2h.outcomes.find((o) => o.name === awayTeam) ?? null;
     }
@@ -197,19 +312,10 @@ const findOutcomeForBookmaker = (
 // ─── Fonction principale ──────────────────────────────────────────
 
 
-/**
- * Valide la cote d'un pick IA contre les vraies cotes des 6 bookmakers.
- * Retourne soit une validation OK (avec best odds + snapshot), soit
- * un echec avec une raison precise.
- *
- * BUTEURS : on ne valide PAS les picks scorer (Q3=a). Cette fonction
- * ne doit etre appelee QUE pour candidate.type === "classic".
- */
 export const validateClassicPickOdds = (
   candidate: ConsensusCandidate,
   oddsApiFixtures: SimplifiedFixture[]
 ): ValidationResult => {
-  // Garde-fou : on ne traite que les classics
   if (candidate.type !== "classic") {
     return {
       ok: false,
@@ -218,7 +324,6 @@ export const validateClassicPickOdds = (
     };
   }
 
-  // Garde-fou : il faut une cote LLM
   if (candidate.odds === null || candidate.odds === undefined) {
     return {
       ok: false,
@@ -227,18 +332,20 @@ export const validateClassicPickOdds = (
     };
   }
 
-  // 1) Retrouver le fixture dans OddsAPI
-  const fixture = oddsApiFixtures.find(
-    (f) => f.externalId === candidate.fixtureRef
-  );
-  if (!fixture) {
+  // 1) Retrouver le fixture (exact OU fuzzy)
+  const fixtureMatch = findOddsApiFixture(candidate, oddsApiFixtures);
+  if (!fixtureMatch) {
     return {
       ok: false,
       reason: "no_fixture_in_oddsapi",
-      details: `No OddsAPI fixture matched fixtureRef="${candidate.fixtureRef}". Source may be apifootball-only.`,
+      details: `No OddsAPI fixture matched (exact OR fuzzy) for "${candidate.eventName}" at ${candidate.eventDateIso}.`,
       llmOdds: candidate.odds,
     };
   }
+
+  const fixture = fixtureMatch.fixture;
+  const matchMethod = fixtureMatch.method;
+  const matchScore = fixtureMatch.score;
 
   // 2) Resoudre le market
   if (!candidate.market) {
@@ -259,7 +366,7 @@ export const validateClassicPickOdds = (
     };
   }
 
-  // 3) Pour chaque bookmaker, retrouver l'outcome (cote pour cette selection)
+  // 3) Pour chaque bookmaker, retrouver l'outcome
   const books: BookmakerOddsSnapshot[] = [];
   for (const [slug, displayName] of Object.entries(BOOKMAKER_SLUG_TO_DISPLAY)) {
     const bk = fixture.rawBookmakers.find((b) => b.key === slug);
@@ -296,6 +403,8 @@ export const validateClassicPickOdds = (
     market: marketLabel,
     selection: candidate.selection,
     fetched_at: new Date().toISOString(),
+    match_method: matchMethod,
+    fuzzy_match_score: matchMethod === "fuzzy" ? matchScore : undefined,
     books,
     best: null,
   };
@@ -304,13 +413,13 @@ export const validateClassicPickOdds = (
     return {
       ok: false,
       reason: "no_match_found",
-      details: `No bookmaker has odds for selection "${candidate.selection}" on market "${candidate.market}". Selection may not match team/outcome name.`,
+      details: `No bookmaker has odds for selection "${candidate.selection}" on market "${candidate.market}" (matched fixture via ${matchMethod}, score ${matchScore}).`,
       snapshot,
       llmOdds: candidate.odds,
     };
   }
 
-  // 5) Calculer la best odds (la plus haute = meilleur ROI pour les abonnes)
+  // 5) Best odds
   const sorted = [...booksWithOdds].sort((a, b) => b.odds - a.odds);
   const best = sorted[0];
   snapshot.best = {
@@ -327,7 +436,7 @@ export const validateClassicPickOdds = (
     return {
       ok: false,
       reason: "odds_diverge_too_much",
-      details: `LLM proposed ${llmOdds.toFixed(3)} but best real odds is ${best.odds.toFixed(3)} on ${best.name} (divergence ${divergencePct.toFixed(1)}% > ${MAX_ODDS_DIVERGENCE_PCT}%).`,
+      details: `LLM proposed ${llmOdds.toFixed(3)} but best real odds is ${best.odds.toFixed(3)} on ${best.name} (divergence ${divergencePct.toFixed(1)}% > ${MAX_ODDS_DIVERGENCE_PCT}%). Match method: ${matchMethod} (score ${matchScore}).`,
       snapshot,
       llmOdds,
     };
