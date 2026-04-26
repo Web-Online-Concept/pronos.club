@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
 import { findValueBets } from "@/lib/ai-picks-v2/value-bet-engine";
 import { findValueBetsScorer } from "@/lib/ai-picks-v2/value-bet-engine-scorer";
+import { apiFootball } from "@/lib/ai-picks-v2/apifootball-client";
 import {
   persistValueBet,
   persistValueBetScorer,
@@ -250,9 +251,17 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
     const persistDurationMs = Date.now() - startedAt;
 
     // ─── ETAPE 4 : Moteur SCORER (buteurs foot) ───
-    // On transforme les fixtures API-Football en format simple attendu
-    // par le moteur scorer.
-    const apiFootballFixturesForScorer = apiFootballFixtures.map((f) => ({
+    // On scanne les Big 5 sur 2 jours (aujourd'hui + demain) car beaucoup
+    // de matchs de soir+nuit dépassent la fenêtre kickoff > 30min quand
+    // le cron tourne le matin/midi.
+    const BIG5_LEAGUE_IDS = [39, 140, 78, 135, 61]; // EPL, La Liga, Bundesliga, Serie A, Ligue 1
+
+    const tomorrow = new Date(Date.now() + 86400000)
+      .toISOString()
+      .slice(0, 10);
+
+    // Aujourd'hui : on a deja apiFootballFixtures depuis buildEnrichedFixturesData
+    const apiFootballFixturesToday = apiFootballFixtures.map((f) => ({
       id: f.fixture.id,
       leagueId: f.league.id,
       leagueName: f.league.name,
@@ -260,6 +269,50 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       awayTeam: f.teams.away.name,
       commenceTime: f.fixture.date,
     }));
+
+    // Demain : on fetch directement les Big 5
+    const apiFootballFixturesTomorrow: Array<{
+      id: number;
+      leagueId: number;
+      leagueName: string;
+      homeTeam: string;
+      awayTeam: string;
+      commenceTime: string;
+    }> = [];
+
+    try {
+      const tomorrowFixtures = await apiFootball.getFixturesByDate(
+        tomorrow,
+        BIG5_LEAGUE_IDS
+      );
+      for (const f of tomorrowFixtures) {
+        apiFootballFixturesTomorrow.push({
+          id: f.fixture.id,
+          leagueId: f.league.id,
+          leagueName: f.league.name,
+          homeTeam: f.teams.home.name,
+          awayTeam: f.teams.away.name,
+          commenceTime: f.fixture.date,
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "[ai-picks-generate] Failed to fetch tomorrow fixtures:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    // Concatene aujourd'hui + demain (dedup par id au cas ou)
+    const seenFixtureIds = new Set<number>();
+    const apiFootballFixturesForScorer: typeof apiFootballFixturesToday = [];
+    for (const f of [
+      ...apiFootballFixturesToday,
+      ...apiFootballFixturesTomorrow,
+    ]) {
+      if (seenFixtureIds.has(f.id)) continue;
+      seenFixtureIds.add(f.id);
+      apiFootballFixturesForScorer.push(f);
+    }
 
     // Anti-doublon "1 pick par match" entre classics (OddsAPI) et
     // scorers (API-Football) : on construit une cle "home|away|date"
