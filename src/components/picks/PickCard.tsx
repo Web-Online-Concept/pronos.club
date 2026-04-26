@@ -148,9 +148,11 @@ interface PickCardProps {
   aiMode?: boolean;
   /** Optional href for the AI footer link (e.g. dossier detail page) */
   aiFooterHref?: string | null;
+  /** When in AI mode, replaces the numeric pick_number display with this label (e.g. "IA-0014" or "BUT-0001") */
+  aiPickLabel?: string | null;
 }
 
-export default function PickCard({ pick, locked = false, userProfit, aiMode = false, aiFooterHref = null }: PickCardProps) {
+export default function PickCard({ pick, locked = false, userProfit, aiMode = false, aiFooterHref = null, aiPickLabel = null }: PickCardProps) {
   const { user } = useAuth();
   const [showScreenshot, setShowScreenshot] = useState(false);
   const [followed, setFollowed] = useState(false);
@@ -400,7 +402,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
               {/* Pick number */}
               {pick.pick_number && (
                 <span className="rounded-md bg-white/10 px-2.5 py-2.5 font-mono text-[11px] font-bold text-white/50">
-                  {String(pick.pick_number).padStart(4, "0")}
+                  {(aiMode && aiPickLabel ? aiPickLabel : String(pick.pick_number).padStart(4, "0"))}
                 </span>
               )}
               {/* Sport icon — matched to badge height */}

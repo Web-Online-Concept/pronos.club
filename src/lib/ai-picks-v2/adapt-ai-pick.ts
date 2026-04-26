@@ -9,6 +9,10 @@
  * Le composant PickCard est strictement le même que pour Tipster.
  * Il est juste rendu avec la prop aiMode={true} pour adapter le
  * ribbon (🤖 IA) et le footer (Intelligence Artificielle).
+ *
+ * Numérotation séparée :
+ * - pick_type "classic" -> classic_number -> "IA-0014"
+ * - pick_type "scorer"  -> scorer_number  -> "BUT-0001"
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -20,6 +24,8 @@ import type { Pick, Sport, Bookmaker } from "@/lib/supabase/types";
 export interface AIPickRow {
   id: string;
   ai_pick_number?: number | null;
+  classic_number?: number | null;
+  scorer_number?: number | null;
   pick_type: "classic" | "scorer";
   sport: string;
   league: string;
@@ -51,7 +57,6 @@ const SPORT_DEFAULTS: Record<
   string,
   { name_fr: string; name_en: string; name_es: string; icon: string }
 > = {
-  // Slugs ESPN canoniques (utilises depuis la migration sport slug)
   football: { name_fr: "Football", name_en: "Football", name_es: "Fútbol", icon: "⚽" },
   tennis: { name_fr: "Tennis", name_en: "Tennis", name_es: "Tenis", icon: "🎾" },
   basketball: { name_fr: "Basketball", name_en: "Basketball", name_es: "Baloncesto", icon: "🏀" },
@@ -151,17 +156,34 @@ const buildBookmakerObject = (bookmakerName: string | null): Bookmaker | undefin
 };
 
 const formatLeagueName = (leagueSlug: string): string => {
-  // Si c'est un slug connu, on retourne le nom lisible
   if (LEAGUE_DISPLAY_NAMES[leagueSlug]) return LEAGUE_DISPLAY_NAMES[leagueSlug];
-
-  // Sinon on essaie de formater le slug en titre
-  // Ex: "england_premier_league" -> "England Premier League"
   return leagueSlug
     .replace(/^soccer_/, "")
     .replace(/_/g, " ")
     .split(" ")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+};
+
+
+/**
+ * Génère le label complet du pick : "IA-0014" ou "BUT-0001"
+ * - classic -> "IA-XXXX" (basé sur classic_number)
+ * - scorer  -> "BUT-XXXX" (basé sur scorer_number)
+ *
+ * Fallback sur ai_pick_number (ancien champ) si les nouveaux sont null
+ * pour compat avec les picks v1.
+ */
+export const buildAiPickLabel = (aiPick: AIPickRow): string | null => {
+  if (aiPick.pick_type === "scorer") {
+    const num = aiPick.scorer_number ?? null;
+    if (num == null) return null;
+    return `BUT-${String(num).padStart(4, "0")}`;
+  }
+  // pick_type === "classic"
+  const num = aiPick.classic_number ?? aiPick.ai_pick_number ?? null;
+  if (num == null) return null;
+  return `IA-${String(num).padStart(4, "0")}`;
 };
 
 
@@ -173,6 +195,13 @@ export const adaptAiPickToPickFormat = (
   const sport = buildSportObject(aiPick.sport);
   const bookmaker = buildBookmakerObject(aiPick.odds_bookmaker);
   const competitionLabel = formatLeagueName(aiPick.league);
+
+  // Fournir le numéro brut (utilisé en fallback si aiPickLabel pas géré)
+  // Pour les classiques, utiliser classic_number, pour les scorers utiliser scorer_number
+  const rawNumber =
+    aiPick.pick_type === "scorer"
+      ? aiPick.scorer_number
+      : aiPick.classic_number ?? aiPick.ai_pick_number;
 
   return {
     id: aiPick.id,
@@ -196,7 +225,7 @@ export const adaptAiPickToPickFormat = (
     result_entered_at: null,
     published_at: aiPick.event_date,
     notify_sent: true,
-    pick_number: aiPick.ai_pick_number ?? undefined,
+    pick_number: rawNumber ?? undefined,
     sport,
     bookmaker,
     legs: [],
