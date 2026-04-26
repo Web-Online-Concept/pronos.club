@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("event_date", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (!isCountOnly) {
     query = query.range(offset, offset + limit - 1);
