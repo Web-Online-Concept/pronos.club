@@ -47,7 +47,7 @@ const getCurrentPicks = async (): Promise<AIPickRow[]> => {
   const { data, error } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, live_score_data"
+      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, odds_comparison, live_score_data"
     )
     .eq("status", "pending")
     .is("deleted_at", null)

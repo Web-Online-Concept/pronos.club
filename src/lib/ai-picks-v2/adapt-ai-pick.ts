@@ -48,6 +48,11 @@ export interface AIPickRow {
     | "isolated_low"
     | null;
   consensus_score?: number | null;
+  /**
+   * Snapshot complet du moteur value-bet (v3) : edge_pct, fair_odds, books, etc.
+   * null pour les anciens picks v1/v2.
+   */
+  odds_comparison?: Record<string, unknown> | null;
   live_score_data?: unknown;
 }
 
@@ -274,6 +279,11 @@ export interface AiPickCardData {
   status: "pending" | "won" | "lost" | "void";
   profit: number | null;
   detail_href: string | null;
+  /**
+   * Edge mathematique +EV en % (pour les picks v3 value-bet).
+   * null pour les anciens picks (LLM v1/v2).
+   */
+  edge_pct: number | null;
   live_score_data?: unknown;
 }
 
@@ -313,6 +323,13 @@ export const adaptAiPickToCardData = (
     ? BOOKMAKER_DISPLAY_NAMES[aiPick.odds_bookmaker] ?? aiPick.odds_bookmaker
     : null;
 
+  // Extraire l'edge depuis odds_comparison (picks v3 value-bet uniquement)
+  const oc = aiPick.odds_comparison ?? {};
+  const edgePct =
+    typeof oc.edge_pct === "number" && Number.isFinite(oc.edge_pct)
+      ? oc.edge_pct
+      : null;
+
   return {
     id: aiPick.id,
     pick_label: buildAiPickLabel(aiPick),
@@ -329,6 +346,7 @@ export const adaptAiPickToCardData = (
     status: aiPick.status,
     profit: aiPick.profit ?? null,
     detail_href: buildAiPickDetailHref(aiPick, locale),
+    edge_pct: edgePct,
     live_score_data: aiPick.live_score_data,
   };
 };

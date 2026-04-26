@@ -47,8 +47,12 @@ export interface AiPickCardData {
   bookmaker_name: string | null;
   reasoning: string | null;
   status: "pending" | "won" | "lost" | "void";
-  profit: number | null;
   detail_href: string | null;
+  /**
+   * Edge mathematique +EV en % (pour les picks v3 value-bet).
+   * null pour les anciens picks (LLM v1/v2).
+   */
+  edge_pct: number | null;
   live_score_data?: unknown;
 }
 
@@ -127,6 +131,16 @@ function getBookmakersForResolve(): Promise<BkResolveType> {
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; bg: string; text: string; icon: string }
+> = {
+  pending: { label: "En cours", bg: "bg-amber-500/15", text: "text-amber-400", icon: "⏳" },
+  won: { label: "Gagné", bg: "bg-emerald-500/15", text: "text-emerald-400", icon: "✅" },
+  lost: { label: "Perdu", bg: "bg-red-500/15", text: "text-red-400", icon: "❌" },
+  void: { label: "Remb.", bg: "bg-neutral-500/15", text: "text-neutral-400", icon: "↩️" },
+};
+
 
 // Petit composant interne pour le compte à rebours
 function Countdown({ target }: { target: Date }) {
@@ -202,6 +216,7 @@ export default function AiPickCard({ pick }: AiPickCardProps) {
       : 0
     : 0;
 
+  const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
   const eventDate = new Date(pick.event_date);
   const eventDateLabel = eventDate.toLocaleDateString("fr-FR", {
@@ -380,86 +395,40 @@ export default function AiPickCard({ pick }: AiPickCardProps) {
               </Link>
             )}
 
-            {/* Status + profit bandeau (clone visuel Tipster) */}
-            {(() => {
-              const profit = pick.profit;
-              const isAwaitingResult =
-                isPending && eventDate.getTime() <= Date.now();
-
-              if (isAwaitingResult) {
-                return (
-                  <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
-                    <span className="text-xs">⏳</span>
-                    <span className="text-[11px] font-bold text-blue-400">En attente</span>
-                  </div>
-                );
-              }
-
-              if (pick.status === "pending") {
-                return (
-                  <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
-                    <span className="text-xs">⏳</span>
-                    <span className="text-[11px] font-bold text-white/50">En cours</span>
-                  </div>
-                );
-              }
-
-              if (pick.status === "won") {
-                return (
-                  <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 shadow-md shadow-emerald-500/20">
-                    <span className="text-xs">✅</span>
-                    <span className="text-[11px] font-extrabold text-emerald-950">Gagné</span>
-                    {profit !== null && profit !== 0 && (
-                      <span className="text-[11px] font-extrabold text-emerald-950">
-                        +{Number(profit).toFixed(3)}U
-                      </span>
-                    )}
-                    {profit !== null && profit !== 0 && unitEuro > 0 && (
-                      <span className="text-[9px] font-bold text-emerald-950/60">
-                        ({(profit * unitEuro).toFixed(2)}€)
-                      </span>
-                    )}
-                  </div>
-                );
-              }
-
-              if (pick.status === "lost") {
-                return (
-                  <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 shadow-md shadow-red-500/20">
-                    <span className="text-xs">❌</span>
-                    <span className="text-[11px] font-extrabold text-white">Perdu</span>
-                    {profit !== null && profit !== 0 && (
-                      <span className="text-[11px] font-extrabold text-white/90">
-                        {Number(profit).toFixed(1)}U
-                      </span>
-                    )}
-                    {profit !== null && profit !== 0 && unitEuro > 0 && (
-                      <span className="text-[9px] font-bold text-white/60">
-                        ({(profit * unitEuro).toFixed(2)}€)
-                      </span>
-                    )}
-                  </div>
-                );
-              }
-
-              // void
-              return (
-                <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-neutral-500 px-3 py-1.5 shadow-md shadow-neutral-500/20">
-                  <span className="text-xs">↩️</span>
-                  <span className="text-[11px] font-extrabold text-white">Remb.</span>
-                </div>
-              );
-            })()}
+            {/* Status badge */}
+            <div
+              className={`ml-auto flex items-center gap-1 rounded-lg px-3 py-2 ${status.bg}`}
+            >
+              <span className={`text-xs ${status.text}`}>{status.icon}</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${status.text}`}>
+                {status.label}
+              </span>
+            </div>
           </div>
 
-          {/* Footer "Intelligence Artificielle" cliquable vers le détail dossier */}
+          {/* CTA bouton "Analyse IA detaillee" — vraiment cliquable et explicite */}
           {pick.detail_href ? (
             <Link
               href={pick.detail_href}
-              className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300 transition hover:bg-violet-500/20 hover:text-violet-200"
+              className="group mt-3 flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-violet-700 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-violet-900/30 transition hover:from-violet-500 hover:to-violet-600 hover:shadow-violet-900/50"
             >
-              <span>🤖</span>
-              <span className="uppercase tracking-[0.1em]">Intelligence Artificielle</span>
+              <span className="flex items-center gap-2">
+                <span className="text-base">📈</span>
+                <span className="uppercase tracking-[0.08em]">
+                  Analyse IA détaillée
+                </span>
+                {pick.edge_pct !== null && pick.edge_pct > 0 && (
+                  <>
+                    <span className="opacity-50">·</span>
+                    <span className="text-emerald-300">
+                      +{pick.edge_pct.toFixed(2)}% d&apos;edge
+                    </span>
+                  </>
+                )}
+              </span>
+              <span className="text-base transition-transform group-hover:translate-x-1">
+                →
+              </span>
             </Link>
           ) : (
             <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-violet-500/10 py-2.5 text-[11px] font-bold text-violet-300">

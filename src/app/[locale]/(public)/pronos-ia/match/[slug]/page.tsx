@@ -9,6 +9,8 @@
  * assemble les sections visuelles. SEO friendly grace au rendu
  * server-side de tout le contenu.
  *
+ * Background blanc, sections internes restent sombres (rendu pro).
+ *
  * Path :
  * src/app/[locale]/(public)/pronos-ia/match/[slug]/page.tsx
  * ═══════════════════════════════════════════════════════════════════
@@ -85,13 +87,13 @@ export default async function DossierPage(props: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-white text-zinc-900">
       <div className="container mx-auto max-w-5xl px-4 py-8 md:py-12">
         {/* Breadcrumb */}
-        <div className="mb-6 text-sm text-white/50">
+        <div className="mb-6 text-sm text-zinc-500">
           <Link
             href={`/${locale}/pronos-ia`}
-            className="hover:text-white/80 transition"
+            className="hover:text-zinc-900 transition"
           >
             ← Retour aux Pronos IA
           </Link>
@@ -99,15 +101,15 @@ export default async function DossierPage(props: PageProps) {
 
         {/* Numero pick + identifiant */}
         <div className="mb-4 flex items-center gap-3">
-          <span className="px-3 py-1 bg-violet-600/20 text-violet-300 text-xs font-bold rounded-full font-mono">
+          <span className="px-3 py-1 bg-violet-100 text-violet-700 text-xs font-bold rounded-full font-mono">
             IA-{String(data.classicNumber ?? data.scorerNumber ?? 0).padStart(4, "0")}
           </span>
-          <span className="text-xs text-white/40 uppercase tracking-wider">
+          <span className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
             {data.sport} • {data.league}
           </span>
         </div>
 
-        {/* Sections en colonne */}
+        {/* Sections en colonne — chaque section garde son fond sombre interne */}
         <div className="space-y-6">
           {/* 1. Hero verdict */}
           <HeroPick data={data} />
