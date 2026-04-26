@@ -16,6 +16,22 @@ import { trackApiFootballCall } from "./cost-tracker";
 import { z } from "zod";
 
 const API_BASE_URL = "https://v3.football.api-sports.io";
+
+
+/**
+ * Determine la saison API-Football actuelle.
+ * Format API-Football : annee de demarrage uniquement.
+ * Ex: saison 2025/2026 (aout 2025 -> juin 2026) -> "2025"
+ *
+ * Pour les Big 5 europeens, la saison demarre en aout/septembre.
+ * On bascule sur la nouvelle saison a partir de juillet (mois 7).
+ */
+const getCurrentApiFootballSeason = (): number => {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-12
+  const year = now.getFullYear();
+  return month >= 7 ? year : year - 1;
+};
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 15000;
@@ -243,6 +259,9 @@ export class ApiFootballClient {
     const params: Record<string, string | number> = { date };
     if (leagueIds && leagueIds.length === 1) {
       params.league = leagueIds[0];
+      // API-Football exige le parametre season quand on filtre par league.
+      // Saison europeenne : "2025" pour aout 2025 -> juin 2026.
+      params.season = getCurrentApiFootballSeason();
     }
     const results = await this.requestArray(
       { endpoint: "/fixtures", params, pickId },
