@@ -6,7 +6,18 @@ import { MAJOR_LEAGUE_LIST } from "@/types/apifootball";
 
 export type EnrichedFixturesData = {
   apiFootballFixtures: Fixture[];
+  /**
+   * Fixtures OddsAPI APRES dedup (sans les matchs deja dans API-Football).
+   * Sert a construire le prompt LLM (evite la duplication aux LLM).
+   */
   oddsApiFixtures: SimplifiedFixture[];
+  /**
+   * Fixtures OddsAPI COMPLETES (avant dedup, du jour).
+   * Sert au validator des cotes pour le cross-check Tier 1
+   * (les matchs API-Football doivent quand meme avoir leur fixture OddsAPI
+   * accessible pour le fuzzy match).
+   */
+  oddsApiAllFixtures: SimplifiedFixture[];
   promptUserText: string;
 };
 
@@ -133,6 +144,7 @@ Fournis ta sélection au format JSON strict comme indiqué dans le system prompt
   return {
     apiFootballFixtures,
     oddsApiFixtures: oddsApiFiltered,
+    oddsApiAllFixtures: oddsApiTodayOnly,
     promptUserText,
   };
 };

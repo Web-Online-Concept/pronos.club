@@ -110,7 +110,7 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    const { promptUserText, apiFootballFixtures, oddsApiFixtures } =
+    const { promptUserText, apiFootballFixtures, oddsApiFixtures, oddsApiAllFixtures } =
       await buildEnrichedFixturesData(today);
 
     if (
@@ -159,7 +159,7 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       const result = await persistConsensusCandidate({
         candidate,
         generationBatch: today,
-        oddsApiFixtures, // Pour validation cotes IA (Strategy C : Best Odds + 10%)
+        oddsApiFixtures: oddsApiAllFixtures, // TOUTES les fixtures OddsAPI du jour (avec Tier 1) pour le validator Best Odds + 10%
       });
       if (result.success && result.pickId && result.slug) {
         if (result.rejectedByValidation) {
