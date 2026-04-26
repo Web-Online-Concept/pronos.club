@@ -114,7 +114,7 @@ const valueBetToConsensusCandidate = (vb: ValueBet): ConsensusCandidate => {
     reasoningClaude: `Value bet detectee : edge +${vb.edgePct.toFixed(2)}% par rapport aux fair odds Pinnacle (${vb.fairOdds.toFixed(3)}). Cote ${vb.bestSoftBookName} a ${vb.bestSoftOdds.toFixed(3)}.`,
     reasoningGpt: null,
     consensusScore: Math.round(vb.edgePct * 10),
-    consensusTier: vb.edgePct >= 7 ? "strong" : vb.edgePct >= 5 ? "moderate" : "isolated_high",
+    consensusTier: vb.edgePct >= 7 ? "total_agreement" : vb.edgePct >= 5 ? "partial" : "isolated_high",
   };
 };
 

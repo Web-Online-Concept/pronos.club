@@ -434,7 +434,7 @@ export const persistValueBet = async (
       confidence_gpt: null,
       confidence_apifootball: null,
       consensus_score: Math.round(valueBet.edgePct * 10), // edge converti en score 0-100
-      consensus_tier: valueBet.edgePct >= 7 ? "strong" : valueBet.edgePct >= 5 ? "moderate" : "isolated_high",
+      consensus_tier: valueBet.edgePct >= 7 ? "total_agreement" : valueBet.edgePct >= 5 ? "partial" : "isolated_high",
       status: "pending",
       generation_version: "v3",
       generation_batch: generationBatch,
