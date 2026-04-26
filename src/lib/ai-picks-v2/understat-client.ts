@@ -254,20 +254,48 @@ export const teamsMatchUnderstat = (a: string, b: string): boolean => {
  * Recupere les stats de tous les joueurs d'une ligue pour la saison
  * en cours.
  *
- * IMPORTANT : 1 seul fetch pour toute la ligue (Understat envoie tout
- * en une fois). Tres efficace coté requetes.
+ * Methode : POST sur l'endpoint /main/getPlayersStats/ qui retourne du
+ * JSON propre {success, players: [...]}. Plus fiable et rapide que le
+ * scraping du HTML (que Understat a deprecie en 2025).
  */
 export const getUnderstatLeaguePlayers = async (
   league: UnderstatLeague,
   season: string = getCurrentUnderstatSeason()
 ): Promise<UnderstatPlayerStats[]> => {
-  const url = `${UNDERSTAT_BASE}/league/${league}/${season}`;
-  const html = await fetchUnderstatHtml(url);
-  if (!html) return [];
+  const url = `${UNDERSTAT_BASE}/main/getPlayersStats/`;
+  const body = `league=${encodeURIComponent(league)}&season=${encodeURIComponent(season)}`;
 
-  const players = extractUnderstatJson<UnderstatPlayer[]>(html, "playersData");
+  let json: { success?: boolean; players?: UnderstatPlayer[] } | null = null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; PronosClubBot/1.0; +https://www.pronos.club)",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body,
+      next: { revalidate: 86400 }, // 24h cache
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      console.warn(`[understat] POST players returned ${res.status} for ${league}/${season}`);
+      return [];
+    }
+    json = await res.json();
+  } catch (err) {
+    console.warn(
+      `[understat] POST players failed for ${league}/${season}:`,
+      err instanceof Error ? err.message : err
+    );
+    return [];
+  }
+
+  const players = json?.players;
   if (!players || !Array.isArray(players)) {
-    console.warn(`[understat] no playersData found for ${league}/${season}`);
+    console.warn(`[understat] no players in response for ${league}/${season}`);
     return [];
   }
 
@@ -310,16 +338,58 @@ export const getUnderstatLeaguePlayers = async (
 /**
  * Recupere les stats d'equipes d'une ligue (pour calcul ajustement
  * defense adverse).
+ *
+ * Methode : POST /main/getTeamsStats/ qui retourne du JSON contenant
+ * les statistiques agregees par equipe avec history des matchs.
+ *
+ * En cas d'echec (endpoint indisponible), retourne tableau vide.
+ * Le moteur utilisera alors le fallback "ligue moyenne" (xGA = 1.4).
  */
 export const getUnderstatLeagueTeams = async (
   league: UnderstatLeague,
   season: string = getCurrentUnderstatSeason()
 ): Promise<UnderstatTeamStats[]> => {
-  const url = `${UNDERSTAT_BASE}/league/${league}/${season}`;
-  const html = await fetchUnderstatHtml(url);
-  if (!html) return [];
+  const url = `${UNDERSTAT_BASE}/main/getTeamsStats/`;
+  const body = `league=${encodeURIComponent(league)}&season=${encodeURIComponent(season)}`;
 
-  const teams = extractUnderstatJson<Record<string, unknown>>(html, "teamsData");
+  let json: { success?: boolean; teamsData?: Record<string, unknown> } | null = null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; PronosClubBot/1.0; +https://www.pronos.club)",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body,
+      next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      console.warn(`[understat] POST teams returned ${res.status} for ${league}/${season}`);
+      return [];
+    }
+    json = await res.json();
+  } catch (err) {
+    console.warn(
+      `[understat] POST teams failed for ${league}/${season}:`,
+      err instanceof Error ? err.message : err
+    );
+    return [];
+  }
+
+  // L'endpoint peut renvoyer differents formats selon la version
+  // d'Understat. On tente les 2 plus probables.
+  const teams =
+    (json && typeof json === "object" && "teamsData" in json
+      ? (json as { teamsData?: Record<string, unknown> }).teamsData
+      : null) ??
+    (json && typeof json === "object" && "teams" in json
+      ? (json as { teams?: Record<string, unknown> }).teams
+      : null);
+
   if (!teams || typeof teams !== "object") {
     console.warn(`[understat] no teamsData found for ${league}/${season}`);
     return [];
@@ -331,7 +401,7 @@ export const getUnderstatLeagueTeams = async (
     const history = Array.isArray(t.history) ? t.history : [];
     let totalXG = 0;
     let totalXGA = 0;
-    let matchCount = history.length;
+    const matchCount = history.length;
     let pts = 0;
     let scored = 0;
     let missed = 0;

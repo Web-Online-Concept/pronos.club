@@ -127,11 +127,17 @@ const fetchUnderstatDataForLeague = async (
     getUnderstatLeagueTeams(understatLeague, season),
   ]);
 
-  if (players.length === 0 || teams.length === 0) {
+  if (players.length === 0) {
     console.warn(
-      `[value-bet-scorer] no Understat data for league ${understatLeague}/${season}`
+      `[value-bet-scorer] no Understat players for league ${understatLeague}/${season}`
     );
     return null;
+  }
+
+  if (teams.length === 0) {
+    console.warn(
+      `[value-bet-scorer] no Understat teams for league ${understatLeague}/${season} - falling back to defense_mult=1.0`
+    );
   }
 
   return {
@@ -139,7 +145,7 @@ const fetchUnderstatDataForLeague = async (
     season,
     players: filterEligibleScorers(players),
     teams,
-    leagueAvgXGA: getLeagueAverageXGAPerMatch(teams),
+    leagueAvgXGA: teams.length > 0 ? getLeagueAverageXGAPerMatch(teams) : 1.4,
   };
 };
 
@@ -343,24 +349,23 @@ export const findValueBetsScorer = async (
     stats.fixturesWithBet365Scorer += 1;
 
     // Calculer le multiplicateur defense pour les 2 cotes
+    // Si teams Understat indisponibles (endpoint /getTeamsStats KO),
+    // on tombe sur 1.0 = defense moyenne, plutot que de skipper le match.
     const homeUnderstatTeam = cache.teams.find((t) =>
       teamsMatchUnderstat(t.title, fx.homeTeam)
     );
     const awayUnderstatTeam = cache.teams.find((t) =>
       teamsMatchUnderstat(t.title, fx.awayTeam)
     );
-    if (!homeUnderstatTeam || !awayUnderstatTeam) {
-      stats.candidatesRejectedNoXG += 1;
-      continue;
-    }
 
-    // Defense multiplier : si on attaque, on regarde la defense adverse
-    // Ex: xGA Le Havre = 1.6, moyenne ligue = 1.4 -> mult = 1.14
-    // Donc xG attendu joueur = xG/90 × 1.14 (defense permissive)
     const homeMult =
-      awayUnderstatTeam.xGA_per_match / cache.leagueAvgXGA; // attaque home -> defense away
+      awayUnderstatTeam && cache.leagueAvgXGA > 0
+        ? awayUnderstatTeam.xGA_per_match / cache.leagueAvgXGA
+        : 1.0; // attaque home -> defense away
     const awayMult =
-      homeUnderstatTeam.xGA_per_match / cache.leagueAvgXGA; // attaque away -> defense home
+      homeUnderstatTeam && cache.leagueAvgXGA > 0
+        ? homeUnderstatTeam.xGA_per_match / cache.leagueAvgXGA
+        : 1.0; // attaque away -> defense home
 
     // Pour chaque joueur cote chez Bet365
     const candidatesForFixture: ValueBetScorer[] = [];
