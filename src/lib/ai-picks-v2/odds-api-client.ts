@@ -180,18 +180,6 @@ export const isMajorEuropeanLeague = (sportKey: string): boolean => {
   return majorKeys.includes(sportKey);
 };
 
-/**
- * Mapping slug OddsAPI -> nom affichage (table bookmakers).
- */
-export const BOOKMAKER_SLUG_TO_DISPLAY: Record<string, string> = {
-  pinnacle: "PS3838",
-  onexbet: "1xbet",
-  betclic_fr: "Betclic",
-  winamax_fr: "Winamax",
-  unibet_fr: "Unibet",
-  stake: "Stake",
-};
-
 export type SimplifiedFixture = {
   source: "oddsapi";
   externalId: string;
@@ -212,8 +200,9 @@ export type SimplifiedFixture = {
     under25?: number;
   } | null;
   /**
-   * Donnees completes des 6 bookmakers (h2h + totals + alternate_totals merges).
-   * Utilise par odds-validator.ts pour le cross-check.
+   * Donnees completes des 6 bookmakers Tipster (h2h + totals + alternate_totals).
+   * Sert au value-bet-engine pour calculer les fair odds Pinnacle (devig)
+   * et chercher la meilleure cote soft.
    */
   rawBookmakers: OddsApiBookmaker[];
 };
@@ -273,10 +262,12 @@ export const fetchAllSportsForToday = async (
 
   for (const sport of sports) {
     try {
-      // 2 appels paralleles : 
-      // - main : h2h + totals (la main line uniquement)
-      // - alt  : alternate_totals (toutes les autres lignes Over/Under)
-      // OddsAPI ne supporte PAS alternate_totals dans le meme appel que totals.
+      // 2 appels paralleles :
+      // - "h2h,totals" : main lines (1 appel /sports/X/odds)
+      // - "alternate_totals" : toutes les autres lignes Over/Under
+      //   (necessaire pour Over 2.5 quand le main est 3.5)
+      // OddsAPI exige un appel separe car alternate_totals est un
+      // "non-featured market" (cf doc).
       const [mainResult, altResult] = await Promise.allSettled([
         getOddsForSport({
           sportKey: sport.key,
@@ -316,12 +307,10 @@ export const fetchAllSportsForToday = async (
               (b) => b.key === altBk.key
             );
             if (existingBk) {
-              // Ajouter les markets alt aux markets existants
               for (const altMarket of altBk.markets) {
                 existingBk.markets.push(altMarket);
               }
             } else {
-              // Bookmaker uniquement dans alt -> ajouter complet
               event.bookmakers.push(altBk);
             }
           }

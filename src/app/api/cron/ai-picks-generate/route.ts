@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runConsensus } from "@/lib/ai-picks-v2/consensus";
-import { GENERATOR_SYSTEM_PROMPT } from "@/lib/ai-picks-v2/prompts";
 import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
+import { findValueBets } from "@/lib/ai-picks-v2/value-bet-engine";
 import {
-  persistConsensusCandidate,
+  persistValueBet,
   persistDossier,
   updatePickDossierStatus,
 } from "@/lib/ai-picks-v2/persist-picks";
 import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
 import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
+import type { ValueBet } from "@/lib/ai-picks-v2/value-bet-engine";
 import type { ConsensusCandidate } from "@/types/ai-picks-v2";
 import type { AggregatedMatchData } from "@/types/apifootball";
 
@@ -90,6 +90,39 @@ const generateDossierForPick = async (
   );
 };
 
+
+/**
+ * Adapter ValueBet -> ConsensusCandidate pour reutiliser
+ * generateDossier() qui attend ce format.
+ */
+const valueBetToConsensusCandidate = (vb: ValueBet): ConsensusCandidate => {
+  return {
+    key: vb.uniqueKey,
+    type: "classic",
+    fixtureRef: vb.fixtureId,
+    market: vb.marketCode,
+    selection: vb.selection,
+    league: vb.league,
+    eventName: vb.eventName,
+    eventDateIso: vb.commenceTime,
+    odds: vb.bestSoftOdds,
+    bookmaker: vb.bestSoftBookName,
+    source: "both",
+    confidenceClaude: Math.round(vb.fairProbability * 100),
+    confidenceGpt: Math.round(vb.fairProbability * 100),
+    confidenceApiFootball: null,
+    reasoningClaude: `Value bet detectee : edge +${vb.edgePct.toFixed(2)}% par rapport aux fair odds Pinnacle (${vb.fairOdds.toFixed(3)}). Cote ${vb.bestSoftBookName} a ${vb.bestSoftOdds.toFixed(3)}.`,
+    reasoningGpt: null,
+    consensusScore: Math.round(vb.edgePct * 10),
+    consensusTier: vb.edgePct >= 7 ? "strong" : vb.edgePct >= 5 ? "moderate" : "isolated_high",
+  };
+};
+    dossierResult.meta.tokensOutput,
+    dossierResult.meta.tokensCached,
+    dossierResult.meta.costUsd
+  );
+};
+
 export async function GET(req: NextRequest) {
   return runGeneration(req);
 }
@@ -110,74 +143,58 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
   const today = new Date().toISOString().slice(0, 10);
 
   try {
-    const { promptUserText, apiFootballFixtures, oddsApiFixtures, oddsApiAllFixtures } =
+    // ─── ETAPE 1 : Fetch des fixtures (OddsAPI = source unique pour value bet) ───
+    const { apiFootballFixtures, oddsApiAllFixtures } =
       await buildEnrichedFixturesData(today);
 
-    if (
-      apiFootballFixtures.length === 0 &&
-      oddsApiFixtures.length === 0
-    ) {
+    if (oddsApiAllFixtures.length === 0) {
       return NextResponse.json({
         ok: true,
         date: today,
         skipped: true,
-        reason: "No fixtures available for today",
+        reason: "No OddsAPI fixtures available for today",
       });
     }
 
-    const consensus = await runConsensus({
-      systemPrompt: GENERATOR_SYSTEM_PROMPT,
-      userPrompt: promptUserText,
-    });
+    // ─── ETAPE 2 : Detection mathematique des value bets ───
+    const engineResult = findValueBets(oddsApiAllFixtures);
 
-    if (consensus.errors.claude && consensus.errors.gpt) {
-      return NextResponse.json(
-        {
-          ok: false,
-          date: today,
-          error: "Both AI generators failed",
-          errors: consensus.errors,
-        },
-        { status: 500 }
-      );
+    if (engineResult.selected.length === 0) {
+      const persistDurationMs = Date.now() - startedAt;
+      return NextResponse.json({
+        ok: true,
+        date: today,
+        durationMs: persistDurationMs,
+        skipped: true,
+        reason: "No value bets found matching criteria (edge >= 3%, odds 1.5-3.0)",
+        stats: engineResult.stats,
+        oddsApiFixtures: oddsApiAllFixtures.length,
+        apiFootballFixtures: apiFootballFixtures.length,
+      });
     }
 
-    const allSelected = [
-      ...consensus.selectedClassic,
-      ...consensus.selectedScorer,
-    ];
-
+    // ─── ETAPE 3 : Persistance des picks selectionnes ───
     const persistedPicks: Array<{
-      candidate: ConsensusCandidate;
+      valueBet: ValueBet;
       pickId: string;
       slug: string;
     }> = [];
     const persistErrors: Array<{ candidate: string; error: string }> = [];
-    const rejectedByValidation: Array<{ candidate: string; pickId: string }> = [];
 
-    for (const candidate of allSelected) {
-      const result = await persistConsensusCandidate({
-        candidate,
+    for (const valueBet of engineResult.selected) {
+      const result = await persistValueBet({
+        valueBet,
         generationBatch: today,
-        oddsApiFixtures: oddsApiAllFixtures, // TOUTES les fixtures OddsAPI du jour (avec Tier 1) pour le validator Best Odds + 10%
       });
       if (result.success && result.pickId && result.slug) {
-        if (result.rejectedByValidation) {
-          // Pick insere mais avec status='rejected_by_validation' (audit admin uniquement)
-          rejectedByValidation.push({
-            candidate: `${candidate.eventName} ${candidate.selection}`,
-            pickId: result.pickId,
-          });
-        } else {
-          persistedPicks.push({
-            candidate,
-            pickId: result.pickId,
-            slug: result.slug,
-          });
-        }
+        persistedPicks.push({
+          valueBet,
+          pickId: result.pickId,
+          slug: result.slug,
+        });
       } else {
         persistErrors.push({
-          candidate: `${candidate.eventName} ${candidate.selection}`,
+          candidate: `${valueBet.eventName} ${valueBet.selection}`,
           error: result.error ?? "unknown",
         });
       }
@@ -185,9 +202,11 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
 
     const persistDurationMs = Date.now() - startedAt;
 
+    // ─── ETAPE 4 : Generation des dossiers en arriere-plan (async) ───
     void (async () => {
-      for (const { candidate, pickId } of persistedPicks) {
+      for (const { valueBet, pickId } of persistedPicks) {
         try {
+          const candidate = valueBetToConsensusCandidate(valueBet);
           await generateDossierForPick(pickId, candidate);
         } catch (err) {
           console.error(
@@ -203,24 +222,25 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       ok: true,
       date: today,
       durationMs: persistDurationMs,
+      strategy: "value_bet_v3",
       apiFootballFixtures: apiFootballFixtures.length,
-      oddsApiFixtures: oddsApiFixtures.length,
-      consensus: {
-        selectedClassic: consensus.selectedClassic.length,
-        selectedScorer: consensus.selectedScorer.length,
-        rejected: consensus.rejected.length,
-        passes: consensus.passes,
+      oddsApiFixtures: oddsApiAllFixtures.length,
+      engine: {
+        ...engineResult.stats,
+        selected_picks: engineResult.selected.map((vb) => ({
+          event: vb.eventName,
+          sport: vb.sportTitle,
+          selection: vb.selection,
+          market: vb.marketCode,
+          odds: vb.bestSoftOdds,
+          bookmaker: vb.bestSoftBookName,
+          fair_odds: parseFloat(vb.fairOdds.toFixed(3)),
+          edge_pct: parseFloat(vb.edgePct.toFixed(2)),
+        })),
       },
       persisted: {
         success: persistedPicks.length,
-        rejected_by_validation: rejectedByValidation.length,
-        rejected_picks: rejectedByValidation,
         errors: persistErrors,
-      },
-      cost: {
-        consensus_usd: consensus.meta.totalCostUsd,
-        claude: consensus.meta.claudeMeta,
-        gpt: consensus.meta.gptMeta,
       },
       dossiers_status: "queued_async",
       pickIds: persistedPicks.map((p) => p.pickId),

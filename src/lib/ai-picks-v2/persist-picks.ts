@@ -3,14 +3,12 @@ import {
   buildMatchSlug,
   buildScorerSlug,
 } from "./slug-generator";
-import { validateClassicPickOdds } from "./odds-validator";
-import type { SimplifiedFixture } from "./odds-api-client";
 import type { ConsensusCandidate } from "@/types/ai-picks-v2";
+import type { ValueBet } from "./value-bet-engine";
 
 export type PersistInput = {
   candidate: ConsensusCandidate;
   generationBatch: string;
-  oddsApiFixtures?: SimplifiedFixture[];
 };
 
 export type PersistResult = {
@@ -18,7 +16,6 @@ export type PersistResult = {
   pickId?: string;
   slug?: string;
   error?: string;
-  rejectedByValidation?: boolean;
 };
 
 const SLUG_MAX_RETRIES = 5;
@@ -139,7 +136,7 @@ const getNextNumberForType = async (
 export const persistConsensusCandidate = async (
   input: PersistInput
 ): Promise<PersistResult> => {
-  const { candidate, generationBatch, oddsApiFixtures } = input;
+  const { candidate, generationBatch } = input;
 
   try {
     const baseSlug = buildSlugForCandidate(candidate);
@@ -164,65 +161,6 @@ export const persistConsensusCandidate = async (
         ? "claude-sonnet-4-6"
         : "gpt-5.4";
 
-    const pickType = candidate.type === "scorer" ? "scorer" : "classic";
-    const numbers = await getNextNumberForType(pickType);
-
-    // ═══════════════════════════════════════════════════════════════
-    // VALIDATION STRICTE COTES IA (Strategy C : Best Odds + 10%)
-    // ═══════════════════════════════════════════════════════════════
-    // Pas de fixtures OddsAPI -> REJET (pas de skipped)
-    // Cote validee -> on remplace par la BEST ODDS reelle
-    // Cote rejetee (divergence > 10% ou no_match) -> rejected_by_validation
-    // Buteurs -> mode estime (Q3=a)
-
-    let finalOdds = candidate.odds;
-    let finalBookmaker = candidate.bookmaker ?? null;
-    let validationStatus: "validated" | "rejected" | "skipped_scorer" = "skipped_scorer";
-    let validationDetails: string | null = null;
-    let validationDivergencePct: number | null = null;
-    let bookmakersSnapshot: unknown = null;
-    let pickStatus: "pending" | "rejected_by_validation" = "pending";
-
-    if (pickType === "classic") {
-      if (!oddsApiFixtures || oddsApiFixtures.length === 0) {
-        validationStatus = "rejected";
-        validationDetails =
-          "[REJECTED missing_oddsapi_data] No OddsAPI fixtures provided to validator. Pick rejected for safety (anti-hallucination).";
-        bookmakersSnapshot = null;
-        pickStatus = "rejected_by_validation";
-
-        console.warn(
-          `[persist-picks] PICK REJETE (no OddsAPI data) : ${candidate.eventName} - ${candidate.selection}`
-        );
-      } else {
-        const validation = validateClassicPickOdds(candidate, oddsApiFixtures);
-
-        if (validation.ok) {
-          finalOdds = validation.bestOdds;
-          finalBookmaker = validation.bestBookmakerName;
-          validationStatus = "validated";
-          validationDivergencePct = validation.divergencePct;
-          bookmakersSnapshot = validation.snapshot;
-          validationDetails = `LLM proposed ${validation.llmOdds.toFixed(3)} on ${candidate.bookmaker ?? "?"}, best odds ${validation.bestOdds.toFixed(3)} on ${validation.bestBookmakerName} (divergence ${validation.divergencePct.toFixed(1)}%). Cote remplacee par best odds reelle.`;
-        } else {
-          validationStatus = "rejected";
-          validationDetails = `[REJECTED ${validation.reason}] ${validation.details}`;
-          validationDivergencePct =
-            validation.reason === "odds_diverge_too_much" && validation.snapshot?.best && validation.llmOdds
-              ? Math.abs((validation.llmOdds - validation.snapshot.best.odds) / validation.snapshot.best.odds) * 100
-              : null;
-          bookmakersSnapshot = validation.snapshot ?? null;
-          pickStatus = "rejected_by_validation";
-
-          console.warn(
-            `[persist-picks] PICK REJETE par validation cotes : ${candidate.eventName} - ${candidate.selection} (${candidate.market}) - ${validation.reason} - ${validation.details}`
-          );
-        }
-      }
-    } else {
-      validationDetails = "Validation skipped (scorer pick, estimated odds)";
-    }
-
     const oddsComparison = {
       consensus_score: candidate.consensusScore,
       consensus_tier: candidate.consensusTier,
@@ -230,16 +168,11 @@ export const persistConsensusCandidate = async (
       confidence_claude: candidate.confidenceClaude,
       confidence_gpt: candidate.confidenceGpt,
       confidence_apifootball: candidate.confidenceApiFootball,
-      bookmaker: finalBookmaker,
-      bookmakers_snapshot: bookmakersSnapshot,
-      validation: {
-        status: validationStatus,
-        details: validationDetails,
-        divergence_pct: validationDivergencePct,
-        llm_odds_original: candidate.odds,
-        llm_bookmaker_original: candidate.bookmaker ?? null,
-      },
+      bookmaker: candidate.bookmaker ?? null,
     };
+
+    const pickType = candidate.type === "scorer" ? "scorer" : "classic";
+    const numbers = await getNextNumberForType(pickType);
 
     const insertData = {
       pick_type: pickType,
@@ -254,8 +187,8 @@ export const persistConsensusCandidate = async (
           ? candidate.player ?? candidate.selection
           : candidate.selection,
       market: candidate.market ?? "scorer",
-      odds: finalOdds,
-      odds_bookmaker: finalBookmaker,
+      odds: candidate.odds,
+      odds_bookmaker: candidate.bookmaker ?? null,
       odds_comparison: oddsComparison,
       reasoning: dominantReasoning,
       reasoning_claude: candidate.reasoningClaude,
@@ -269,7 +202,7 @@ export const persistConsensusCandidate = async (
       confidence_apifootball: candidate.confidenceApiFootball,
       consensus_score: candidate.consensusScore,
       consensus_tier: candidate.consensusTier,
-      status: pickStatus,
+      status: "pending",
       generation_version: "v2",
       generation_batch: generationBatch,
       model_used: modelUsed,
@@ -301,7 +234,6 @@ export const persistConsensusCandidate = async (
       success: true,
       pickId: data.id,
       slug,
-      rejectedByValidation: pickStatus === "rejected_by_validation",
     };
   } catch (err) {
     return {
@@ -373,6 +305,173 @@ export const persistDossier = async (
     return {
       success: false,
       error: err instanceof Error ? err.message : "Unknown dossier persist error",
+    };
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// VALUE BET PERSISTER (v3 — moteur mathématique anti-hallucination)
+// ═══════════════════════════════════════════════════════════════════
+//
+// Persiste un pick issu du moteur value-bet (cotes 100% reelles,
+// validation par +EV mathematique, plus de LLM dans le choix).
+//
+// La cote stockee = best soft odds reelle d'OddsAPI.
+// Le bookmaker stocke = nom du soft book (1xbet, Betclic, etc.)
+// Le snapshot des 6 books est stocke pour la page detail.
+// ═══════════════════════════════════════════════════════════════════
+
+
+const inferSportFromValueBet = (vb: ValueBet): string => {
+  if (vb.sportKey.startsWith("soccer_")) return "Football";
+  if (vb.sportKey.startsWith("basketball_")) return "Basketball";
+  if (vb.sportKey.startsWith("tennis")) return "Tennis";
+  if (vb.sportKey.startsWith("icehockey_")) return "Hockey";
+  if (vb.sportKey.startsWith("baseball_")) return "Baseball";
+  if (vb.sportKey.startsWith("americanfootball_")) return "American Football";
+  if (vb.sportKey.startsWith("rugby")) return "Rugby";
+  if (vb.sportKey.startsWith("mma_")) return "MMA";
+  if (vb.sportKey.startsWith("boxing_")) return "Boxing";
+  if (vb.sportKey.startsWith("aussierules_")) return "Aussie Rules";
+  if (vb.sportKey.startsWith("cricket_")) return "Cricket";
+  if (vb.sportKey.startsWith("golf_")) return "Golf";
+  return vb.sportTitle || "Sport";
+};
+
+
+export type PersistValueBetInput = {
+  valueBet: ValueBet;
+  generationBatch: string;
+  reasoningClaude?: string | null;
+  reasoningGpt?: string | null;
+  reasoningCombined?: string | null;
+};
+
+
+export type PersistValueBetResult = {
+  success: boolean;
+  pickId?: string;
+  slug?: string;
+  error?: string;
+};
+
+
+export const persistValueBet = async (
+  input: PersistValueBetInput
+): Promise<PersistValueBetResult> => {
+  const { valueBet, generationBatch, reasoningClaude, reasoningGpt, reasoningCombined } = input;
+
+  try {
+    const baseSlug = buildMatchSlug(
+      valueBet.eventName,
+      new Date(valueBet.commenceTime),
+      valueBet.selection
+    );
+    const slug = await generateUniqueSlug(baseSlug);
+
+    const sport = inferSportFromValueBet(valueBet);
+    const eventDate = new Date(valueBet.commenceTime).toISOString();
+
+    const reasoning =
+      reasoningCombined ??
+      reasoningClaude ??
+      reasoningGpt ??
+      `Value bet detectee : edge +${valueBet.edgePct.toFixed(2)}% sur ${valueBet.bestSoftBookName}.`;
+
+    const oddsComparison = {
+      // Strategy v3 : value bet detection
+      strategy: "value_bet_v3",
+      // Donnees mathematiques
+      pinnacle_raw_odds: valueBet.pinnacleRawOdds,
+      fair_odds: valueBet.fairOdds,
+      fair_probability: valueBet.fairProbability,
+      best_soft_odds: valueBet.bestSoftOdds,
+      best_soft_book_key: valueBet.bestSoftBookKey,
+      best_soft_book_name: valueBet.bestSoftBookName,
+      edge_pct: valueBet.edgePct,
+      // Snapshot pour la page detail comparateur
+      bookmakers_snapshot: {
+        market: valueBet.market,
+        market_code: valueBet.marketCode,
+        selection: valueBet.selection,
+        fetched_at: new Date().toISOString(),
+        books: valueBet.books,
+        best: {
+          key: valueBet.bestSoftBookKey,
+          name: valueBet.bestSoftBookName,
+          odds: valueBet.bestSoftOdds,
+        },
+      },
+      // Compatibilite avec ancien format (pour la page detail si elle utilise ces champs)
+      bookmaker: valueBet.bestSoftBookName,
+      validation: {
+        status: "validated",
+        method: "value_bet_engine",
+        details: `Edge +${valueBet.edgePct.toFixed(2)}%, fair odds ${valueBet.fairOdds.toFixed(3)}, best soft ${valueBet.bestSoftOdds.toFixed(3)} sur ${valueBet.bestSoftBookName}.`,
+      },
+    };
+
+    const numbers = await getNextNumberForType("classic");
+
+    const insertData = {
+      pick_type: "classic",
+      sport,
+      league: valueBet.league,
+      event_name: valueBet.eventName,
+      event_date: eventDate,
+      espn_event_id: null,
+      apifootball_fixture_id: null, // value bet vient d'OddsAPI, pas API-Football
+      selection: valueBet.selection,
+      market: valueBet.marketCode,
+      odds: valueBet.bestSoftOdds, // VRAIE COTE OddsAPI
+      odds_bookmaker: valueBet.bestSoftBookName,
+      odds_comparison: oddsComparison,
+      reasoning,
+      reasoning_claude: reasoningClaude ?? null,
+      reasoning_gpt: reasoningGpt ?? null,
+      ai_confidence: Math.min(99, Math.round(valueBet.fairProbability * 100)),
+      confidence_claude: null,
+      confidence_gpt: null,
+      confidence_apifootball: null,
+      consensus_score: Math.round(valueBet.edgePct * 10), // edge converti en score 0-100
+      consensus_tier: valueBet.edgePct >= 7 ? "strong" : valueBet.edgePct >= 5 ? "moderate" : "isolated_high",
+      status: "pending",
+      generation_version: "v3",
+      generation_batch: generationBatch,
+      model_used: "value-bet-engine-v3",
+      slug,
+      dossier_status: "queued",
+      dossier_generated_at: null,
+      resolution_source: null,
+      resolved_by: null,
+      resolved_at: null,
+      deleted_at: null,
+      classic_number: numbers.classic_number,
+      scorer_number: null,
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("ai_picks")
+      .insert(insertData)
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      return {
+        success: false,
+        error: error?.message ?? "Insert returned no data",
+      };
+    }
+
+    return {
+      success: true,
+      pickId: data.id,
+      slug,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown persist error",
     };
   }
 };
