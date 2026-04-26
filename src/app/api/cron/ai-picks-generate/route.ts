@@ -117,11 +117,6 @@ const valueBetToConsensusCandidate = (vb: ValueBet): ConsensusCandidate => {
     consensusTier: vb.edgePct >= 7 ? "strong" : vb.edgePct >= 5 ? "moderate" : "isolated_high",
   };
 };
-    dossierResult.meta.tokensOutput,
-    dossierResult.meta.tokensCached,
-    dossierResult.meta.costUsd
-  );
-};
 
 export async function GET(req: NextRequest) {
   return runGeneration(req);
