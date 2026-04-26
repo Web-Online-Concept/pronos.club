@@ -216,6 +216,9 @@ export type SimplifiedFixture = {
    * Donnees completes des 6 bookmakers pour validation et snapshot.
    * Conservees au lieu d'etre jetees au build du prompt LLM.
    * Utilise par odds-validator.ts pour valider les cotes IA.
+   *
+   * Inclut les markets h2h ET totals/alternate_totals (toutes les lignes
+   * Over/Under, pas que le main line).
    */
   rawBookmakers: OddsApiBookmaker[];
 };
@@ -277,7 +280,13 @@ export const fetchAllSportsForToday = async (
     try {
       const events = await getOddsForSport({
         sportKey: sport.key,
-        markets: "h2h,totals",
+        // h2h pour 1N2, totals pour le main line, alternate_totals pour
+        // toutes les autres lignes (Over/Under 1.5, 2.5, 3.5, etc.).
+        // Ce dernier point est CRITIQUE car OddsAPI ne retourne par
+        // defaut que la "main line" (souvent 3 ou 3.5), donc sans
+        // alternate_totals on ne peut pas valider un pick "Over 2.5"
+        // si la main line est 3.5.
+        markets: "h2h,totals,alternate_totals",
         oddsFormat: "decimal",
         daysFrom: 1,
         pickId,
