@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
 import { findValueBets } from "@/lib/ai-picks-v2/value-bet-engine";
+import { findValueBetsScorer } from "@/lib/ai-picks-v2/value-bet-engine-scorer";
 import {
   persistValueBet,
+  persistValueBetScorer,
   persistDossier,
   updatePickDossierStatus,
 } from "@/lib/ai-picks-v2/persist-picks";
 import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
 import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
 import type { ValueBet } from "@/lib/ai-picks-v2/value-bet-engine";
+import type { ValueBetScorer } from "@/lib/ai-picks-v2/value-bet-engine-scorer";
 import type { ConsensusCandidate } from "@/types/ai-picks-v2";
 import type { AggregatedMatchData } from "@/types/apifootball";
 
@@ -118,6 +121,55 @@ const valueBetToConsensusCandidate = (vb: ValueBet): ConsensusCandidate => {
   };
 };
 
+
+/**
+ * Adapter ValueBetScorer -> ConsensusCandidate (type scorer) pour
+ * reutiliser generateDossier() qui attend ce format.
+ *
+ * fixtureRef = string du fixtureId API-Football (numerique), ce qui
+ * permet a aggregateMatchData() de l'utiliser pour fetch le contexte.
+ */
+const valueBetScorerToConsensusCandidate = (
+  vb: ValueBetScorer
+): ConsensusCandidate => {
+  const defenseLabel =
+    vb.defenseMultiplier > 1.05
+      ? "permissive"
+      : vb.defenseMultiplier < 0.95
+      ? "solide"
+      : "moyenne";
+
+  const reasoning = `Value bet buteur : ${vb.playerName} (${vb.playerTeam}) avec un xG/90 de ${vb.npxG_per_90.toFixed(2)} face a une defense ${defenseLabel} (multiplicateur ${vb.defenseMultiplier.toFixed(2)}). Probabilite mathematique de marquer : ${(vb.fairProbability * 100).toFixed(1)}%, soit cote juste ${vb.fairOdds.toFixed(2)}. Bet365 propose ${vb.bookmakerOdds.toFixed(2)} (edge +${vb.edgePct.toFixed(2)}%).`;
+
+  return {
+    key: `scorer-${vb.fixtureId}-${vb.playerName}`,
+    type: "scorer",
+    fixtureRef: String(vb.fixtureId),
+    market: "ANYTIME_GOAL_SCORER",
+    selection: vb.playerName,
+    league: vb.league,
+    eventName: vb.eventName,
+    eventDateIso: vb.commenceTime,
+    odds: vb.bookmakerOdds,
+    bookmaker: vb.bookmakerName,
+    player: vb.playerName,
+    team: vb.playerTeam,
+    source: "both",
+    confidenceClaude: Math.round(vb.fairProbability * 100),
+    confidenceGpt: Math.round(vb.fairProbability * 100),
+    confidenceApiFootball: null,
+    reasoningClaude: reasoning,
+    reasoningGpt: null,
+    consensusScore: Math.min(100, Math.max(0, Math.round(vb.edgePct * 10))),
+    consensusTier:
+      vb.edgePct >= 10
+        ? "total_agreement"
+        : vb.edgePct >= 7
+        ? "partial"
+        : "isolated_high",
+  };
+};
+
 export async function GET(req: NextRequest) {
   return runGeneration(req);
 }
@@ -197,15 +249,101 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
 
     const persistDurationMs = Date.now() - startedAt;
 
-    // ─── ETAPE 4 : Generation des dossiers en arriere-plan (async) ───
+    // ─── ETAPE 4 : Moteur SCORER (buteurs foot) ───
+    // On transforme les fixtures API-Football en format simple attendu
+    // par le moteur scorer.
+    const apiFootballFixturesForScorer = apiFootballFixtures.map((f) => ({
+      id: f.fixture.id,
+      leagueId: f.league.id,
+      leagueName: f.league.name,
+      homeTeam: f.teams.home.name,
+      awayTeam: f.teams.away.name,
+      commenceTime: f.fixture.date,
+    }));
+
+    // Anti-doublon "1 pick par match" entre classics (OddsAPI) et
+    // scorers (API-Football) : on construit une cle "home|away|date"
+    // pour chaque classic foot deja retenu, et on filtre les fixtures
+    // scorer dont la cle correspond.
+    const classicMatchKeys = new Set<string>();
+    for (const vb of engineResult.selected) {
+      const dateOnly = vb.commenceTime.slice(0, 10);
+      classicMatchKeys.add(
+        `${vb.homeTeam.toLowerCase()}|${vb.awayTeam.toLowerCase()}|${dateOnly}`
+      );
+    }
+
+    const filteredScorerFixtures = apiFootballFixturesForScorer.filter((f) => {
+      const dateOnly = f.commenceTime.slice(0, 10);
+      const key = `${f.homeTeam.toLowerCase()}|${f.awayTeam.toLowerCase()}|${dateOnly}`;
+      return !classicMatchKeys.has(key);
+    });
+
+    let scorerStats = null;
+    let scorerSelected: ValueBetScorer[] = [];
+    const scorerPersisted: Array<{
+      valueBetScorer: ValueBetScorer;
+      pickId: string;
+      slug: string;
+    }> = [];
+    const scorerErrors: Array<{ candidate: string; error: string }> = [];
+
+    try {
+      const scorerResult = await findValueBetsScorer({
+        apiFootballFixtures: filteredScorerFixtures,
+        fixturesUsedByClassics: new Set(),
+      });
+      scorerStats = scorerResult.stats;
+      scorerSelected = scorerResult.selected;
+
+      for (const vbScorer of scorerSelected) {
+        const result = await persistValueBetScorer({
+          valueBetScorer: vbScorer,
+          generationBatch: today,
+        });
+        if (result.success && result.pickId && result.slug) {
+          scorerPersisted.push({
+            valueBetScorer: vbScorer,
+            pickId: result.pickId,
+            slug: result.slug,
+          });
+        } else {
+          scorerErrors.push({
+            candidate: `${vbScorer.eventName} - ${vbScorer.playerName}`,
+            error: result.error ?? "unknown",
+          });
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[ai-picks-generate] Scorer engine failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    // ─── ETAPE 5 : Generation des dossiers en arriere-plan (async) ───
     void (async () => {
+      // Dossiers pour les classics
       for (const { valueBet, pickId } of persistedPicks) {
         try {
           const candidate = valueBetToConsensusCandidate(valueBet);
           await generateDossierForPick(pickId, candidate);
         } catch (err) {
           console.error(
-            `[ai-picks-generate] Dossier failed for pick ${pickId}:`,
+            `[ai-picks-generate] Dossier failed for classic pick ${pickId}:`,
+            err instanceof Error ? err.message : err
+          );
+          await updatePickDossierStatus(pickId, "failed");
+        }
+      }
+      // Dossiers pour les scorers
+      for (const { valueBetScorer, pickId } of scorerPersisted) {
+        try {
+          const candidate = valueBetScorerToConsensusCandidate(valueBetScorer);
+          await generateDossierForPick(pickId, candidate);
+        } catch (err) {
+          console.error(
+            `[ai-picks-generate] Dossier failed for scorer pick ${pickId}:`,
             err instanceof Error ? err.message : err
           );
           await updatePickDossierStatus(pickId, "failed");
@@ -233,12 +371,31 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
           edge_pct: parseFloat(vb.edgePct.toFixed(2)),
         })),
       },
+      scorer_engine: {
+        stats: scorerStats,
+        selected_picks: scorerSelected.map((vb) => ({
+          event: vb.eventName,
+          player: vb.playerName,
+          team: vb.playerTeam,
+          odds: vb.bookmakerOdds,
+          bookmaker: vb.bookmakerName,
+          npxG_per_90: parseFloat(vb.npxG_per_90.toFixed(3)),
+          defense_multiplier: parseFloat(vb.defenseMultiplier.toFixed(2)),
+          fair_odds: parseFloat(vb.fairOdds.toFixed(2)),
+          edge_pct: parseFloat(vb.edgePct.toFixed(2)),
+        })),
+        persisted_ok: scorerPersisted.length,
+        persist_errors: scorerErrors,
+      },
       persisted: {
         success: persistedPicks.length,
         errors: persistErrors,
       },
       dossiers_status: "queued_async",
-      pickIds: persistedPicks.map((p) => p.pickId),
+      pickIds: [
+        ...persistedPicks.map((p) => p.pickId),
+        ...scorerPersisted.map((p) => p.pickId),
+      ],
     });
   } catch (err) {
     return NextResponse.json(
