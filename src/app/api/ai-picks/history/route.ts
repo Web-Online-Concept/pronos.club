@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const sportSlug = searchParams.get("sport");
+  const pickType = searchParams.get("type"); // "classic" | "scorer" | null (=all)
 
   const isCountOnly = limit === 0;
 
@@ -40,6 +41,11 @@ export async function GET(request: Request) {
 
   if (sportSlug && sportSlug !== "all") {
     query = query.eq("sport", sportSlug);
+  }
+
+  // Filtre par type de pick (classic / scorer)
+  if (pickType && (pickType === "classic" || pickType === "scorer")) {
+    query = query.eq("pick_type", pickType);
   }
 
   const { data, error, count } = await query;
