@@ -39,7 +39,6 @@ const normalizeBookmaker = (raw: string | null): string => {
 };
 
 const normalizeSport = (raw: string): string => {
-  // Compat: anciens slugs OddsAPI -> slugs ESPN
   if (raw === "soccer") return "football";
   if (raw === "americanfootball") return "football-americain";
   return raw;
@@ -51,15 +50,25 @@ export async function GET(request: Request) {
   const sportSlug = searchParams.get("sport");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const pickType = searchParams.get("type"); // "classic" | "scorer" | null (=classic by default)
+
+  // Par défaut : classique (la bankroll principale).
+  // Si "scorer" demandé → bankroll buteurs séparée.
+  const activeType: "classic" | "scorer" =
+    pickType === "scorer" ? "scorer" : "classic";
 
   let query = supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, ai_pick_number, sport, league, event_name, event_date, selection, odds, odds_bookmaker, status, profit, resolved_at"
+      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, odds, odds_bookmaker, status, profit, resolved_at"
     )
     .neq("status", "pending")
     .is("deleted_at", null)
-    .order("ai_pick_number", { ascending: true });
+    .eq("pick_type", activeType)
+    .order(
+      activeType === "scorer" ? "scorer_number" : "classic_number",
+      { ascending: true, nullsFirst: false }
+    );
 
   if (from) query = query.gte("resolved_at", `${from}T00:00:00Z`);
   if (to) query = query.lte("resolved_at", `${to}T23:59:59Z`);
@@ -181,12 +190,14 @@ export async function GET(request: Request) {
   let cumProfit = 0;
   const profitTimeline = picks.map((p, i) => {
     cumProfit += p.profit ?? 0;
+    const num =
+      activeType === "scorer" ? p.scorer_number : p.classic_number ?? p.ai_pick_number;
     return {
       idx: i + 1,
       date: p.resolved_at?.split("T")[0] ?? "",
       profit: Math.round(cumProfit * 1000) / 1000,
       event: p.event_name,
-      pickNumber: p.ai_pick_number ?? i + 1,
+      pickNumber: num ?? i + 1,
     };
   });
 
@@ -196,11 +207,13 @@ export async function GET(request: Request) {
   const roiTimeline = picks.map((p, i) => {
     cumStaked += STAKE_PER_PICK;
     cumProfitRoi += p.profit ?? 0;
+    const num =
+      activeType === "scorer" ? p.scorer_number : p.classic_number ?? p.ai_pick_number;
     return {
       idx: i + 1,
       date: p.resolved_at?.split("T")[0] ?? "",
       roi: cumStaked > 0 ? Math.round((cumProfitRoi / cumStaked) * 10000) / 100 : 0,
-      pickNumber: p.ai_pick_number ?? i + 1,
+      pickNumber: num ?? i + 1,
     };
   });
 
@@ -213,11 +226,13 @@ export async function GET(request: Request) {
     if (cumDD > peak) peak = cumDD;
     const dd = peak - cumDD;
     if (dd > maxDrawdown) maxDrawdown = dd;
+    const num =
+      activeType === "scorer" ? p.scorer_number : p.classic_number ?? p.ai_pick_number;
     return {
       idx: i + 1,
       date: p.resolved_at?.split("T")[0] ?? "",
       drawdown: -Math.round(dd * 1000) / 1000,
-      pickNumber: p.ai_pick_number ?? i + 1,
+      pickNumber: num ?? i + 1,
     };
   });
 
@@ -349,16 +364,32 @@ export async function GET(request: Request) {
     };
   });
 
-  // Bankroll IA (séparée de Tipster)
+  // ── Bankroll IA selon le type actif (séparation totale) ────────
+  const bankrollKind =
+    activeType === "scorer" ? "ai_scorer_bankroll" : "ai_bankroll";
+
   const { data: aiBkRow } = await supabaseAdmin
     .from("configs")
     .select("blob_json")
-    .eq("kind", "ai_bankroll")
+    .eq("kind", bankrollKind)
     .single();
 
   const aiBankroll = aiBkRow?.blob_json ?? null;
 
+  // Best/Worst : récupérer le bon numéro selon le type
+  const bestPickNum = bestPick
+    ? (activeType === "scorer"
+        ? bestPick.scorer_number
+        : bestPick.classic_number ?? bestPick.ai_pick_number)
+    : null;
+  const worstPickNum = worstPick
+    ? (activeType === "scorer"
+        ? worstPick.scorer_number
+        : worstPick.classic_number ?? worstPick.ai_pick_number)
+    : null;
+
   return NextResponse.json({
+    pickType: activeType,
     overview: {
       totalPicks,
       wonPicks,
@@ -380,7 +411,7 @@ export async function GET(request: Request) {
             event: bestPick.event_name,
             profit: bestPick.profit,
             odds: bestPick.odds,
-            pickNumber: bestPick.ai_pick_number,
+            pickNumber: bestPickNum,
           }
         : null,
       worstPick: worstPick
@@ -388,7 +419,7 @@ export async function GET(request: Request) {
             event: worstPick.event_name,
             profit: worstPick.profit,
             odds: worstPick.odds,
-            pickNumber: worstPick.ai_pick_number,
+            pickNumber: worstPickNum,
           }
         : null,
     },

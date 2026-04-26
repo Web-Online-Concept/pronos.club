@@ -52,6 +52,7 @@ export default function StatistiquesPage() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sport, setSport] = useState("all");
+  const [pickType, setPickType] = useState<"classic" | "scorer">("classic");
   const [filterMode, setFilterMode] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -61,7 +62,7 @@ export default function StatistiquesPage() {
 
   useEffect(() => {
     fetchStats();
-  }, [sport, filterMode, selectedMonth, selectedYear, dateFrom, dateTo]);
+  }, [sport, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, pickType]);
 
   async function fetchStats() {
     setLoading(true);
@@ -77,6 +78,7 @@ export default function StatistiquesPage() {
       if (dateFrom) params.set("from", dateFrom);
       if (dateTo) params.set("to", dateTo);
     }
+    params.set("type", pickType);
     const res = await fetch(`/api/ai-picks/stats?${params}`);
     const json = await res.json();
     setData(json);
@@ -145,15 +147,37 @@ export default function StatistiquesPage() {
             Pronos Club · IA
           </p>
           <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-4xl">
-            Statistiques IA
+            {pickType === "scorer" ? "Statistiques Buteurs" : "Statistiques IA"}
           </h1>
-          <p className="mt-3 text-sm text-white/60">Performances en grandeur réelle de notre intelligence artificielle</p>
+          <p className="mt-3 text-sm text-white/60">
+            {pickType === "scorer"
+              ? "Performances des pronos buteurs (bankroll séparée)"
+              : "Performances en grandeur réelle de notre intelligence artificielle"}
+          </p>
           {showEuro && bk && uv > 0 && (
             <div className="mt-4 inline-flex items-center gap-4 rounded-full bg-white/5 px-5 py-2">
-              <span className="text-xs text-white/40">Bankroll IA : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
+              <span className="text-xs text-white/40">Bankroll : <span className="font-bold text-white">{bk.current_bankroll.toLocaleString("fr-FR")}€</span></span>
               <span className="text-xs text-white/40">1U = <span className="font-bold text-violet-400">{uv.toFixed(2)}€</span></span>
             </div>
           )}
+
+          {/* Onglets Classiques / Buteurs */}
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={() => setPickType("classic")}
+              className={"rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " + (pickType === "classic" ? "bg-violet-500 text-white shadow-lg" : "text-white/60 hover:text-white")}
+            >
+              🎯 Classiques
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickType("scorer")}
+              className={"rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " + (pickType === "scorer" ? "bg-amber-500 text-white shadow-lg" : "text-white/60 hover:text-white")}
+            >
+              ⚽ Buteurs
+            </button>
+          </div>
         </div>
       </section>
 
