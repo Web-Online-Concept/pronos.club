@@ -69,6 +69,32 @@ function getAiBankroll(): Promise<AiBkType> {
   return _aiBkPromise;
 }
 
+// Module-level cache for bookmakers list — used in aiMode to resolve logos by name
+// (les picks IA stockent juste le nom du bookmaker, pas l'id ni le logo_url)
+type BkResolveType = Array<{ id: string; name: string; slug: string; logo_url: string | null }> | null;
+let _bkResolveCache: BkResolveType | undefined = undefined;
+let _bkResolvePromise: Promise<BkResolveType> | null = null;
+
+function getBookmakersForResolve(): Promise<BkResolveType> {
+  if (_bkResolveCache !== undefined) return Promise.resolve(_bkResolveCache);
+  if (_bkResolvePromise) return _bkResolvePromise;
+  _bkResolvePromise = fetch("/api/bookmakers")
+    .then((r) => r.json())
+    .then((d): BkResolveType => {
+      if (Array.isArray(d)) {
+        _bkResolveCache = d;
+      } else {
+        _bkResolveCache = null;
+      }
+      return _bkResolveCache ?? null;
+    })
+    .catch((): BkResolveType => {
+      _bkResolveCache = null;
+      return null;
+    });
+  return _bkResolvePromise;
+}
+
 function Countdown({ target }: { target: Date }) {
   const [now, setNow] = useState(new Date());
 
@@ -193,6 +219,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   const [bkConfig, setBkConfig] = useState<{ mode: string; current_bankroll: number; unit_value: number; unit_percent: number } | null>(null);
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
   const [aiBk, setAiBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
+  const [resolvedAiBookmaker, setResolvedAiBookmaker] = useState<{ id: string; name: string; slug: string; logo_url: string | null } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
   const isPending = pick.status === "pending";
   const isPremiumUser = user?.subscription_status === "active" || user?.subscription_status === "trialing";
@@ -233,13 +260,23 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
     });
   }, []);
 
-  // Fetch AI bankroll config (cached at module level, only fetched when aiMode is active)
+  // Fetch AI bankroll + résoudre logo bookmaker (uniquement en aiMode)
   useEffect(() => {
     if (!aiMode) return;
     getAiBankroll().then((d) => {
       if (d) setAiBk(d);
     });
-  }, [aiMode]);
+    // Résolution du bookmaker IA depuis la table bookmakers (par name)
+    if (pick.bookmaker?.name) {
+      getBookmakersForResolve().then((list) => {
+        if (!list) return;
+        const found = list.find(
+          (b) => b.name.toLowerCase() === pick.bookmaker!.name.toLowerCase()
+        );
+        if (found) setResolvedAiBookmaker(found);
+      });
+    }
+  }, [aiMode, pick.bookmaker?.name]);
 
   function openFollowModal() {
     if (!user || followLoading) return;
@@ -395,6 +432,12 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
       : 0
     : 0;
 
+  // Bookmaker affiché — en aiMode, on utilise le bookmaker résolu depuis la table
+  // (avec logo_url et slug réel), sinon on garde celui passé dans pick
+  const displayBookmaker = aiMode && resolvedAiBookmaker
+    ? resolvedAiBookmaker
+    : pick.bookmaker;
+
   return (
     <>
       <div
@@ -462,7 +505,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                 </span>
               )}
               {/* Bookmaker logo */}
-              {!locked && pick.bookmaker?.logo_url && (
+              {!locked && displayBookmaker?.logo_url && (
                 pick.screenshot_url ? (
                   <button
                     onClick={() => setShowScreenshot(true)}
@@ -470,19 +513,23 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                     title="Voir le ticket"
                   >
                     <img
-                      src={pick.bookmaker.logo_url}
-                      alt={pick.bookmaker.name}
+                      src={displayBookmaker.logo_url}
+                      alt={displayBookmaker.name}
                       className="h-[36px] w-[54px] rounded-lg object-cover"
                     />
                   </button>
                 ) : (
-                  <div className="overflow-hidden rounded-lg">
+                  <Link
+                    href={`/fr/bookmakers/${displayBookmaker.slug ?? displayBookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                    className="overflow-hidden rounded-lg transition hover:scale-105"
+                    title={displayBookmaker.name}
+                  >
                     <img
-                      src={pick.bookmaker.logo_url}
-                      alt={pick.bookmaker.name}
+                      src={displayBookmaker.logo_url}
+                      alt={displayBookmaker.name}
                       className="h-[36px] w-[54px] rounded-lg object-cover"
                     />
-                  </div>
+                  </Link>
                 )
               )}
               {!locked && isPending && <Countdown target={earliestDate} />}
@@ -655,13 +702,13 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
                     </div>
 
                     {/* Bookmaker */}
-                    {pick.bookmaker && (
+                    {displayBookmaker && (
                       <Link
-                        href={`/fr/bookmakers/${pick.bookmaker.slug ?? pick.bookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        href={`/fr/bookmakers/${displayBookmaker.slug ?? displayBookmaker.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                         className="flex items-center rounded-lg bg-white/5 px-2.5 transition hover:bg-white/10"
-                        title={pick.bookmaker.name}
+                        title={displayBookmaker.name}
                       >
-                        <span className="text-[11px] font-semibold text-white/60">{pick.bookmaker.name}</span>
+                        <span className="text-[11px] font-semibold text-white/60">{displayBookmaker.name}</span>
                       </Link>
                     )}
 
