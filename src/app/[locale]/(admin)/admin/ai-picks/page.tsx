@@ -19,6 +19,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth";
 import AdminPickRow from "@/components/admin/AdminPickRow";
 import AdminForceResolveButton from "@/components/admin/AdminForceResolveButton";
+import AdminGeneratePicksButton from "@/components/admin/AdminGeneratePicksButton";
 
 export const dynamic = "force-dynamic";
 
@@ -110,13 +111,14 @@ export default async function AdminAIPicksPage({
               >
                 ← Retour admin
               </Link>
+              <AdminGeneratePicksButton adminEmail={user.email ?? ""} />
               <AdminForceResolveButton />
             </div>
           </div>
         </header>
 
         {/* STATS GLOBALES */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-7">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           <StatCard label="Total" count={total} active={statusFilter === "all"} href={`?status=all`} />
           <StatCard label="En attente" count={statusCounts["pending"] ?? 0} active={statusFilter === "pending"} href={`?status=pending`} color="amber" />
           <StatCard label="À auditer" count={statusCounts["pending_review"] ?? 0} active={statusFilter === "pending_review"} href={`?status=pending_review`} color="cyan" />
@@ -124,6 +126,7 @@ export default async function AdminAIPicksPage({
           <StatCard label="Perdus" count={statusCounts["lost"] ?? 0} active={statusFilter === "lost"} href={`?status=lost`} color="red" />
           <StatCard label="Annulés" count={statusCounts["void"] ?? 0} active={statusFilter === "void"} href={`?status=void`} color="neutral" />
           <StatCard label="Rejetés audit" count={statusCounts["rejected_by_audit"] ?? 0} active={statusFilter === "rejected_by_audit"} href={`?status=rejected_by_audit`} color="purple" />
+          <StatCard label="Cotes invalides" count={statusCounts["rejected_by_validation"] ?? 0} active={statusFilter === "rejected_by_validation"} href={`?status=rejected_by_validation`} color="red" />
         </div>
 
         {/* LISTE */}
