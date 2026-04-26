@@ -8,6 +8,7 @@
  * avec ribbon "🤖 IA" et footer "Intelligence Artificielle".
  *
  * Affiche les labels IA-XXXX (classiques) et BUT-XXXX (buteurs).
+ * Sections séparées : Classiques (en haut) + Buteurs (en bas).
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -76,6 +77,10 @@ export default async function PronosIAPage({
   const aiPicks = await getCurrentPicks();
   const totalCurrent = aiPicks.length;
 
+  // Séparation classiques / buteurs
+  const classicPicks = aiPicks.filter((p) => p.pick_type === "classic");
+  const scorerPicks = aiPicks.filter((p) => p.pick_type === "scorer");
+
   return (
     <div className="pronos-ia-section min-h-screen bg-white text-neutral-900">
       <PronosIAHero
@@ -89,28 +94,137 @@ export default async function PronosIAPage({
         {totalCurrent === 0 ? (
           <EmptyStateNoPicks locale={locale} />
         ) : (
-          <div className="mt-4 space-y-4">
-            {aiPicks.map((aiPick) => {
-              const adaptedPick = adaptAiPickToPickFormat(aiPick);
-              const detailHref = buildAiPickDetailHref(aiPick, locale);
-              const pickLabel = buildAiPickLabel(aiPick);
-              return (
-                <PickCard
-                  key={aiPick.id}
-                  pick={adaptedPick}
-                  aiMode
-                  aiFooterHref={detailHref}
-                  aiPickLabel={pickLabel}
-                />
-              );
-            })}
-          </div>
+          <>
+            {/* ═══════════════════════════════════════════════════ */}
+            {/* SECTION 1 — Pronos Classiques                       */}
+            {/* ═══════════════════════════════════════════════════ */}
+            <SectionHeader
+              icon="🎯"
+              title="Pronos Classiques"
+              subtitle="Pronostics principaux de notre IA — comptabilisés dans la bankroll IA"
+              count={classicPicks.length}
+            />
+
+            {classicPicks.length > 0 ? (
+              <div className="mt-4 space-y-4">
+                {classicPicks.map((aiPick) => {
+                  const adaptedPick = adaptAiPickToPickFormat(aiPick);
+                  const detailHref = buildAiPickDetailHref(aiPick, locale);
+                  const pickLabel = buildAiPickLabel(aiPick);
+                  return (
+                    <PickCard
+                      key={aiPick.id}
+                      pick={adaptedPick}
+                      aiMode
+                      aiFooterHref={detailHref}
+                      aiPickLabel={pickLabel}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyMessage text="Aucun pronostic classique en cours" />
+            )}
+
+            {/* ═══════════════════════════════════════════════════ */}
+            {/* SECTION 2 — Pronos Buteurs                          */}
+            {/* ═══════════════════════════════════════════════════ */}
+            <div className="mt-12">
+              <SectionHeader
+                icon="⚽"
+                title="Pronos Buteurs"
+                subtitle="Pronostics bonus à haut risque — bankroll séparée et indépendante"
+                count={scorerPicks.length}
+                variant="scorer"
+              />
+
+              {scorerPicks.length > 0 ? (
+                <div className="mt-4 space-y-4">
+                  {scorerPicks.map((aiPick) => {
+                    const adaptedPick = adaptAiPickToPickFormat(aiPick);
+                    const detailHref = buildAiPickDetailHref(aiPick, locale);
+                    const pickLabel = buildAiPickLabel(aiPick);
+                    return (
+                      <PickCard
+                        key={aiPick.id}
+                        pick={adaptedPick}
+                        aiMode
+                        aiFooterHref={detailHref}
+                        aiPickLabel={pickLabel}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyMessage text="Aucun prono buteur en cours" />
+              )}
+            </div>
+          </>
         )}
 
         <div className="mt-16">
           <AIDisclaimer locale={locale} />
         </div>
       </main>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────
+// Components
+// ─────────────────────────────────────────────────────────────────
+
+interface SectionHeaderProps {
+  icon: string;
+  title: string;
+  subtitle: string;
+  count: number;
+  variant?: "classic" | "scorer";
+}
+
+function SectionHeader({
+  icon,
+  title,
+  subtitle,
+  count,
+  variant = "classic",
+}: SectionHeaderProps) {
+  const accentColor = variant === "scorer" ? "#f59e0b" : "#a855f7";
+  const bgColor =
+    variant === "scorer" ? "rgba(245, 158, 11, 0.08)" : "rgba(168, 85, 247, 0.08)";
+  const borderColor =
+    variant === "scorer" ? "rgba(245, 158, 11, 0.25)" : "rgba(168, 85, 247, 0.25)";
+
+  return (
+    <div
+      className="mt-6 rounded-2xl border px-5 py-4"
+      style={{ background: bgColor, borderColor }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-3xl leading-none">{icon}</span>
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-lg font-extrabold text-neutral-900">{title}</h2>
+            <span
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: accentColor }}
+            >
+              {count} {count > 1 ? "pronos" : "prono"}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function EmptyMessage({ text }: { text: string }) {
+  return (
+    <div className="mt-4 rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-6 py-8 text-center">
+      <p className="text-sm font-semibold text-neutral-500">{text}</p>
     </div>
   );
 }
