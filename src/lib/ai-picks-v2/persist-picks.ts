@@ -437,7 +437,7 @@ export const persistValueBet = async (
       consensus_score: Math.min(100, Math.max(0, Math.round(valueBet.edgePct * 10))), // edge % * 10, clampe 0-100
       consensus_tier: valueBet.edgePct >= 7 ? "total_agreement" : valueBet.edgePct >= 5 ? "partial" : "isolated_high",
       status: "pending",
-      generation_version: "v3",
+      generation_version: "v2",
       generation_batch: generationBatch,
       model_used: "value-bet-engine-v3",
       slug,
