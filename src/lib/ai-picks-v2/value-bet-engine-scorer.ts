@@ -161,6 +161,28 @@ const fetchBet365ScorerOdds = async (
   // qu'on doit filtrer pour ne garder que Bet365 + bet 92.
   try {
     const oddsRows = await apiFootball.getOdds(fixtureId);
+
+    // Debug : combien de bookmakers et bets disponibles ?
+    let totalBookmakers = 0;
+    let totalBets = 0;
+    let foundBet365 = false;
+    let foundBet92 = false;
+    for (const oddsRow of oddsRows) {
+      const bookmakers = oddsRow.bookmakers ?? [];
+      totalBookmakers += bookmakers.length;
+      for (const bm of bookmakers) {
+        if (bm.id === TARGET_BOOKMAKER_ID) foundBet365 = true;
+        const bets = bm.bets ?? [];
+        totalBets += bets.length;
+        for (const bet of bets) {
+          if (bet.id === BET_ID_ANYTIME_GOAL_SCORER) foundBet92 = true;
+        }
+      }
+    }
+    console.log(
+      `[scorer] fixture ${fixtureId} odds debug: rows=${oddsRows.length}, bookmakers=${totalBookmakers}, bets=${totalBets}, hasBet365=${foundBet365}, hasBet92=${foundBet92}`
+    );
+
     const results: ScorerOdds[] = [];
 
     for (const oddsRow of oddsRows) {
@@ -309,7 +331,15 @@ export const findValueBetsScorer = async (
 
     // Fetch cotes Bet365 scorer pour ce match
     const scorerOdds = await fetchBet365ScorerOdds(fx.id);
-    if (scorerOdds.length === 0) continue;
+    if (scorerOdds.length === 0) {
+      console.log(
+        `[scorer] fixture ${fx.id} (${fx.homeTeam} vs ${fx.awayTeam}) : aucune cote Bet365 anytime goalscorer trouvee`
+      );
+      continue;
+    }
+    console.log(
+      `[scorer] fixture ${fx.id} (${fx.homeTeam} vs ${fx.awayTeam}) : ${scorerOdds.length} joueurs cotes chez Bet365`
+    );
     stats.fixturesWithBet365Scorer += 1;
 
     // Calculer le multiplicateur defense pour les 2 cotes
