@@ -204,22 +204,10 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       });
     }
 
-    // ─── ETAPE 2 : Detection mathematique des value bets ───
+    // ─── ETAPE 2 : Detection mathematique des value bets classics ───
     const engineResult = findValueBets(oddsApiAllFixtures);
-
-    if (engineResult.selected.length === 0) {
-      const persistDurationMs = Date.now() - startedAt;
-      return NextResponse.json({
-        ok: true,
-        date: today,
-        durationMs: persistDurationMs,
-        skipped: true,
-        reason: "No value bets found matching criteria (edge >= 3%, odds 1.5-3.0)",
-        stats: engineResult.stats,
-        oddsApiFixtures: oddsApiAllFixtures.length,
-        apiFootballFixtures: apiFootballFixtures.length,
-      });
-    }
+    // Note : meme si engineResult.selected est vide, on continue pour
+    // laisser le moteur scorer (etape 4) detecter des picks buteurs.
 
     // ─── ETAPE 3 : Persistance des picks selectionnes ───
     const persistedPicks: Array<{
