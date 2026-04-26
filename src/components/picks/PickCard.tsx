@@ -101,7 +101,6 @@ const SPORT_COLORS: Record<string, { from: string; to: string; accent: string }>
 
 const DEFAULT_COLORS = { from: "#0a0a0a", to: "#1a1a1a", accent: "#9ca3af" };
 const COMBI_MIXED_COLORS = { from: "#0a0a0a", to: "#2a0a3d", accent: "#c084fc" };
-const AI_COLORS = { from: "#1e1b4b", to: "#4c1d95", accent: "#a855f7" };
 
 function getPickColors(pick: Pick, legs: PickLeg[]) {
   const isCombi = pick.pick_type === "combine" && legs.length > 1;
@@ -172,7 +171,7 @@ export default function PickCard({ pick, locked = false, userProfit, aiMode = fa
   const isPremiumUser = user?.subscription_status === "active" || user?.subscription_status === "trialing";
   const isCombi = pick.pick_type === "combine" && (pick.legs?.length ?? 0) > 1;
   const legs = (pick.legs ?? []).sort((a, b) => a.leg_number - b.leg_number);
-  const colors = aiMode ? AI_COLORS : getPickColors(pick, legs);
+  const colors = getPickColors(pick, legs);
 
   // Fetch follow status on mount
   useEffect(() => {
