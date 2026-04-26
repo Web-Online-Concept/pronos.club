@@ -362,11 +362,12 @@ export const persistValueBet = async (
   const { valueBet, generationBatch, reasoningClaude, reasoningGpt, reasoningCombined } = input;
 
   try {
-    const baseSlug = buildMatchSlug(
-      valueBet.eventName,
-      new Date(valueBet.commenceTime),
-      valueBet.selection
-    );
+    const baseSlug = buildMatchSlug({
+      homeTeam: valueBet.homeTeam,
+      awayTeam: valueBet.awayTeam,
+      league: valueBet.league,
+      eventDate: valueBet.commenceTime,
+    });
     const slug = await generateUniqueSlug(baseSlug);
 
     const sport = inferSportFromValueBet(valueBet);
