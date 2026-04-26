@@ -6,8 +6,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend
 } from "recharts";
-import { useLocale, useTranslations } from "next-intl";
-
+import { useTranslations, useLocale } from "next-intl";
 
 const RED = "#ef4444";
 const GREEN = "#059669";
@@ -387,7 +386,6 @@ export default function StatsClient() {
         </div>
       </div>
     )}
-    </div>
 
     <main className="mx-auto max-w-5xl px-4 pb-8">
       {o.totalPicks > 0 && (
