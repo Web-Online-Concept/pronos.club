@@ -22,7 +22,10 @@ export async function GET(request: Request) {
       { count: "exact" }
     )
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Fallback stable quand created_at est identique (bulk insert IA)
+    .order("classic_number", { ascending: false, nullsFirst: false })
+    .order("scorer_number", { ascending: false, nullsFirst: false });
 
   if (!isCountOnly) {
     query = query.range(offset, offset + limit - 1);
