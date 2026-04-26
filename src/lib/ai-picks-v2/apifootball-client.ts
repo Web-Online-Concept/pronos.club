@@ -28,6 +28,22 @@ const API_BASE_URL = "https://v3.football.api-sports.io";
  */
 const getCurrentApiFootballSeason = (): number => {
   const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  return month >= 7 ? year : year - 1;
+};
+
+
+/**
+ * Determine la saison API-Football actuelle.
+ * Format API-Football : annee de demarrage uniquement.
+ * Ex: saison 2025/2026 (aout 2025 -> juin 2026) -> "2025"
+ *
+ * Pour les Big 5 europeens, la saison demarre en aout/septembre.
+ * On bascule sur la nouvelle saison a partir de juillet (mois 7).
+ */
+const getCurrentApiFootballSeason = (): number => {
+  const now = new Date();
   const month = now.getMonth() + 1; // 1-12
   const year = now.getFullYear();
   return month >= 7 ? year : year - 1;
