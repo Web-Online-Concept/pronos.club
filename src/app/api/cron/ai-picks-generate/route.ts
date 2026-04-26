@@ -153,18 +153,28 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       slug: string;
     }> = [];
     const persistErrors: Array<{ candidate: string; error: string }> = [];
+    const rejectedByValidation: Array<{ candidate: string; pickId: string }> = [];
 
     for (const candidate of allSelected) {
       const result = await persistConsensusCandidate({
         candidate,
         generationBatch: today,
+        oddsApiFixtures, // Pour validation cotes IA (Strategy C : Best Odds + 10%)
       });
       if (result.success && result.pickId && result.slug) {
-        persistedPicks.push({
-          candidate,
-          pickId: result.pickId,
-          slug: result.slug,
-        });
+        if (result.rejectedByValidation) {
+          // Pick insere mais avec status='rejected_by_validation' (audit admin uniquement)
+          rejectedByValidation.push({
+            candidate: `${candidate.eventName} ${candidate.selection}`,
+            pickId: result.pickId,
+          });
+        } else {
+          persistedPicks.push({
+            candidate,
+            pickId: result.pickId,
+            slug: result.slug,
+          });
+        }
       } else {
         persistErrors.push({
           candidate: `${candidate.eventName} ${candidate.selection}`,
@@ -203,6 +213,8 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       },
       persisted: {
         success: persistedPicks.length,
+        rejected_by_validation: rejectedByValidation.length,
+        rejected_picks: rejectedByValidation,
         errors: persistErrors,
       },
       cost: {

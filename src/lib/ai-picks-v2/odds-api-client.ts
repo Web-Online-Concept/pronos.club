@@ -180,6 +180,19 @@ export const isMajorEuropeanLeague = (sportKey: string): boolean => {
   return majorKeys.includes(sportKey);
 };
 
+/**
+ * Mapping slug OddsAPI -> nom affichage (pour la page detail comparateur cotes).
+ * Cle = slug retourne par OddsAPI, valeur = nom utilise dans la table bookmakers.
+ */
+export const BOOKMAKER_SLUG_TO_DISPLAY: Record<string, string> = {
+  pinnacle: "PS3838",
+  onexbet: "1xbet",
+  betclic_fr: "Betclic",
+  winamax_fr: "Winamax",
+  unibet_fr: "Unibet",
+  stake: "Stake",
+};
+
 export type SimplifiedFixture = {
   source: "oddsapi";
   externalId: string;
@@ -199,6 +212,12 @@ export type SimplifiedFixture = {
     over25?: number;
     under25?: number;
   } | null;
+  /**
+   * Donnees completes des 6 bookmakers pour validation et snapshot.
+   * Conservees au lieu d'etre jetees au build du prompt LLM.
+   * Utilise par odds-validator.ts pour valider les cotes IA.
+   */
+  rawBookmakers: OddsApiBookmaker[];
 };
 
 /**
@@ -282,6 +301,7 @@ export const fetchAllSportsForToday = async (
           isFootball: isFoot,
           isMajorEuropean: isMajor,
           oddsSummary: extractBestOddsSnapshot(event),
+          rawBookmakers: event.bookmakers,
         });
       }
     } catch (err) {

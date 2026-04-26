@@ -3,11 +3,19 @@ import {
   buildMatchSlug,
   buildScorerSlug,
 } from "./slug-generator";
+import { validateClassicPickOdds } from "./odds-validator";
+import type { SimplifiedFixture } from "./odds-api-client";
 import type { ConsensusCandidate } from "@/types/ai-picks-v2";
 
 export type PersistInput = {
   candidate: ConsensusCandidate;
   generationBatch: string;
+  /**
+   * Fixtures OddsAPI fraichement fetchees lors du run de generation.
+   * Utilise par le validateur pour cross-checker les cotes hallucinees.
+   * Si non fourni, la validation est skipped (mode legacy / dev).
+   */
+  oddsApiFixtures?: SimplifiedFixture[];
 };
 
 export type PersistResult = {
@@ -15,6 +23,8 @@ export type PersistResult = {
   pickId?: string;
   slug?: string;
   error?: string;
+  /** True si le pick a ete insere avec status='rejected_by_validation' */
+  rejectedByValidation?: boolean;
 };
 
 const SLUG_MAX_RETRIES = 5;
@@ -135,7 +145,7 @@ const getNextNumberForType = async (
 export const persistConsensusCandidate = async (
   input: PersistInput
 ): Promise<PersistResult> => {
-  const { candidate, generationBatch } = input;
+  const { candidate, generationBatch, oddsApiFixtures } = input;
 
   try {
     const baseSlug = buildSlugForCandidate(candidate);
@@ -160,6 +170,59 @@ export const persistConsensusCandidate = async (
         ? "claude-sonnet-4-6"
         : "gpt-5.4";
 
+    const pickType = candidate.type === "scorer" ? "scorer" : "classic";
+    const numbers = await getNextNumberForType(pickType);
+
+    // ═══════════════════════════════════════════════════════════════
+    // VALIDATION COTES IA (Strategy C : Best Odds + 10%)
+    // ═══════════════════════════════════════════════════════════════
+    // Pour les classics seulement (les scorers passent en mode estime).
+    // Si validation ECHOUE -> on insere quand meme avec status="rejected_by_validation"
+    // pour garder la trace dans la DB (audit admin), mais le pick n'apparait
+    // PAS publiquement (les pages publiques filtrent status='pending'/'won'/'lost'/'void').
+
+    let finalOdds = candidate.odds;
+    let finalBookmaker = candidate.bookmaker ?? null;
+    let validationStatus: "validated" | "rejected" | "skipped" = "skipped";
+    let validationDetails: string | null = null;
+    let validationDivergencePct: number | null = null;
+    let bookmakersSnapshot: unknown = null;
+    let pickStatus: "pending" | "rejected_by_validation" = "pending";
+
+    if (pickType === "classic" && oddsApiFixtures && oddsApiFixtures.length > 0) {
+      const validation = validateClassicPickOdds(candidate, oddsApiFixtures);
+
+      if (validation.ok) {
+        // Cote validee : on remplace par la BEST ODDS reelle
+        finalOdds = validation.bestOdds;
+        finalBookmaker = validation.bestBookmakerName;
+        validationStatus = "validated";
+        validationDivergencePct = validation.divergencePct;
+        bookmakersSnapshot = validation.snapshot;
+        validationDetails = `LLM proposed ${validation.llmOdds.toFixed(3)} on ${candidate.bookmaker ?? "?"}, best odds ${validation.bestOdds.toFixed(3)} on ${validation.bestBookmakerName} (divergence ${validation.divergencePct.toFixed(1)}%). Cote remplacee par best odds reelle.`;
+      } else {
+        // Cote rejetee : on insere avec un status special pour audit admin
+        validationStatus = "rejected";
+        validationDetails = `[REJECTED ${validation.reason}] ${validation.details}`;
+        validationDivergencePct =
+          validation.reason === "odds_diverge_too_much" && validation.snapshot?.best && validation.llmOdds
+            ? Math.abs((validation.llmOdds - validation.snapshot.best.odds) / validation.snapshot.best.odds) * 100
+            : null;
+        bookmakersSnapshot = validation.snapshot ?? null;
+        pickStatus = "rejected_by_validation";
+
+        console.warn(
+          `[persist-picks] PICK REJETE par validation cotes : ${candidate.eventName} - ${candidate.selection} (${candidate.market}) - ${validation.reason} - ${validation.details}`
+        );
+      }
+    } else if (pickType === "classic" && (!oddsApiFixtures || oddsApiFixtures.length === 0)) {
+      // Mode legacy : pas de fixtures fournies -> on skippe la validation
+      validationDetails = "Validation skipped (no oddsApiFixtures provided)";
+    } else {
+      // Buteurs : validation skipped (Q3=a, mode estime)
+      validationDetails = "Validation skipped (scorer pick, estimated odds)";
+    }
+
     const oddsComparison = {
       consensus_score: candidate.consensusScore,
       consensus_tier: candidate.consensusTier,
@@ -167,11 +230,18 @@ export const persistConsensusCandidate = async (
       confidence_claude: candidate.confidenceClaude,
       confidence_gpt: candidate.confidenceGpt,
       confidence_apifootball: candidate.confidenceApiFootball,
-      bookmaker: candidate.bookmaker ?? null,
+      bookmaker: finalBookmaker,
+      // Snapshot complet des 6 books (pour la page detail comparateur)
+      bookmakers_snapshot: bookmakersSnapshot,
+      // Trace de la validation pour audit admin
+      validation: {
+        status: validationStatus,
+        details: validationDetails,
+        divergence_pct: validationDivergencePct,
+        llm_odds_original: candidate.odds,
+        llm_bookmaker_original: candidate.bookmaker ?? null,
+      },
     };
-
-    const pickType = candidate.type === "scorer" ? "scorer" : "classic";
-    const numbers = await getNextNumberForType(pickType);
 
     const insertData = {
       pick_type: pickType,
@@ -186,8 +256,8 @@ export const persistConsensusCandidate = async (
           ? candidate.player ?? candidate.selection
           : candidate.selection,
       market: candidate.market ?? "scorer",
-      odds: candidate.odds,
-      odds_bookmaker: candidate.bookmaker ?? null,
+      odds: finalOdds,
+      odds_bookmaker: finalBookmaker,
       odds_comparison: oddsComparison,
       reasoning: dominantReasoning,
       reasoning_claude: candidate.reasoningClaude,
@@ -201,7 +271,7 @@ export const persistConsensusCandidate = async (
       confidence_apifootball: candidate.confidenceApiFootball,
       consensus_score: candidate.consensusScore,
       consensus_tier: candidate.consensusTier,
-      status: "pending",
+      status: pickStatus,
       generation_version: "v2",
       generation_batch: generationBatch,
       model_used: modelUsed,
@@ -233,6 +303,7 @@ export const persistConsensusCandidate = async (
       success: true,
       pickId: data.id,
       slug,
+      rejectedByValidation: pickStatus === "rejected_by_validation",
     };
   } catch (err) {
     return {
