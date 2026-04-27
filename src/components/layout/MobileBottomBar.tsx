@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 const NAV_ITEMS = [
-  { href: "/pronostics", labelKey: "pronos", icon: "🎯" },
-  { href: "/pronos-ia", labelKey: "pronos_ia", icon: "🤖" },
+  { href: "/pronostics", labelKey: "tipster", icon: "🎯" },
+  { href: "/pronos-ia", labelKey: "ia", icon: "🎯" },
+  { href: "/pronos-abonnes/en-cours", labelKey: "abonnes", icon: "🎯" },
   { href: "/news", labelKey: "news", icon: "📰" },
-  { href: "/videos", labelKey: "videos", icon: "🎬" },
   { href: "/espace", labelKey: "account", icon: "👤" },
 ];
 
