@@ -395,14 +395,40 @@ export default function AiPickCard({ pick }: AiPickCardProps) {
               </Link>
             )}
 
-            {/* Status badge */}
+            {/* Status badge - avec gain en U et en euros si pick resolu */}
             <div
-              className={`ml-auto flex items-center gap-1 rounded-lg px-3 py-2 ${status.bg}`}
+              className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 ${status.bg}`}
             >
               <span className={`text-xs ${status.text}`}>{status.icon}</span>
               <span className={`text-[11px] font-bold uppercase tracking-wider ${status.text}`}>
                 {status.label}
               </span>
+              {/* Affichage du gain pour won / lost / void */}
+              {pick.status === "won" && pick.odds !== null && (
+                <span className={`text-[11px] font-bold tabular-nums ${status.text}`}>
+                  +{(pick.odds - 1).toFixed(3)}U
+                  {unitEuro > 0 && (
+                    <span className="ml-1 opacity-80">
+                      ({((pick.odds - 1) * unitEuro).toFixed(2)}€)
+                    </span>
+                  )}
+                </span>
+              )}
+              {pick.status === "lost" && (
+                <span className={`text-[11px] font-bold tabular-nums ${status.text}`}>
+                  -1U
+                  {unitEuro > 0 && (
+                    <span className="ml-1 opacity-80">
+                      (-{unitEuro.toFixed(2)}€)
+                    </span>
+                  )}
+                </span>
+              )}
+              {pick.status === "void" && (
+                <span className={`text-[11px] font-bold tabular-nums ${status.text}`}>
+                  0U
+                </span>
+              )}
             </div>
           </div>
 
