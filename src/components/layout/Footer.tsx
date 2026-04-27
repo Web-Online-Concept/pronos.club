@@ -18,7 +18,6 @@ const SOCIAL_ICONS: Record<string, string> = {
 export default async function Footer() {
   const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: "footer" });
-  const tn = await getTranslations({ locale, namespace: "nav" });
 
   const { data: socialLinks } = await supabaseAdmin
     .from("social_links")
@@ -27,22 +26,6 @@ export default async function Footer() {
     .order("sort_order", { ascending: true });
 
   const socials = socialLinks ?? [];
-
-  const NAV_LINKS = [
-    { href: `/${locale}/pronostics`, label: tn("pronos") },
-    { href: `/${locale}/historique`, label: tn("history_short") },
-    { href: `/${locale}/statistiques`, label: tn("stats_short") },
-    { href: `/${locale}/pronos-ia`, label: "Pronos IA" },
-    { href: `/${locale}/tipster`, label: tn("tipster_short") },
-    { href: `/${locale}/bookmakers`, label: tn("books") },
-    { href: `/${locale}/bilans`, label: tn("bilans_short") },
-    { href: `/${locale}/blog`, label: tn("blog_short") },
-    { href: `/${locale}/livescore`, label: "Scores" },
-    { href: `/${locale}/stats-sports`, label: "Stats Sports" },
-    { href: `/${locale}/news`, label: "News" },
-    { href: `/${locale}/videos`, label: "Vidéos" },
-    { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026" },
-  ];
 
   return (
     <footer className="border-t border-emerald-900/50 text-neutral-400" style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}>
@@ -86,26 +69,8 @@ export default async function Footer() {
             )}
           </div>
 
-          {/* Navigation / Compte / Légal — 3 colonnes même sur mobile */}
-          <div className="col-span-1 grid grid-cols-3 gap-4 lg:col-span-3 lg:gap-10">
-
-          {/* Navigation */}
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-              {t("nav_title")}
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-[11px] transition hover:text-emerald-400 sm:text-sm"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          {/* Compte / Légal — 2 colonnes même sur mobile */}
+          <div className="col-span-1 grid grid-cols-2 gap-4 lg:col-span-3 lg:gap-10">
 
           {/* Compte */}
           <div className="text-center">
