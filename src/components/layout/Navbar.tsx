@@ -90,7 +90,7 @@ export default function Navbar() {
   const DESKTOP_PRONOS_IA = [
     { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
     { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
-    { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats"), icon: "📊" },
+    { href: `/${locale}/pronos-ia/stats`, label: "Stats", icon: "📊" },
     { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
     { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
   ];
@@ -104,7 +104,7 @@ export default function Navbar() {
     { href: `/${locale}/pronos-abonnes`, label: "Fonctionnement", icon: "❓" },
   ];
 
-  // Desktop : dropdown "Stats & Médias"
+  // Desktop : dropdown "Médias"
   const DESKTOP_MEDIA = [
     { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
     { href: `/${locale}/stats-sports`, label: "Stats Sports", icon: "📉" },
@@ -237,7 +237,7 @@ export default function Navbar() {
             <span className="text-sm font-extrabold text-emerald-400 lg:hidden">.CLUB</span>
           </Link>
 
-          {/* Desktop nav — 4 dropdowns : Pronos Tipster + Pronos IA + Pronos Abonnes + Stats & Medias */}
+          {/* Desktop nav — 4 dropdowns : Pronos Tipster + Pronos IA + Pronos Abonnes + Medias */}
           <div className="hidden items-center gap-2 lg:flex">
             {/* Dropdown "Pronos Tipster" */}
             <div className="relative" ref={pronosRef}>
@@ -335,7 +335,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Dropdown "Stats & Médias" */}
+            {/* Dropdown "Médias" */}
             <div className="relative" ref={mediaRef}>
               <button
                 onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); setPronosIAOpen(false); setPronosAbonnesOpen(false); }}
@@ -343,7 +343,7 @@ export default function Navbar() {
                   isMediaActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Stats & Médias
+                Médias
               </button>
 
               {mediaOpen && (
@@ -540,7 +540,7 @@ export default function Navbar() {
                 {[
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
-                  { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
+                  { href: `/${locale}/pronos-ia/stats`, label: "Stats", icon: "📊" },
                   { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
                   { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
                 ].map((link) => (
@@ -578,8 +578,8 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* Stats & Médias */}
-              <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">📺 Stats & Médias</p>
+              {/* Médias */}
+              <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">📺 Médias</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
