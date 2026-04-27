@@ -1679,7 +1679,9 @@
     "history_period_meta": "{prefix}: {period}",
     "history_units_picks": "+{units}U · {count} picks",
     "badge_paid": "✓ Pagado",
-    "badge_pending": "Pendiente"
+    "badge_pending": "Pendiente",
+    "podium_meta_min": "Mínimo {min} picks",
+    "podium_meta_prize_label": "Premio:"
   },
   "pronos_abonnes_fonctionnement": {
     "meta_title": "Cómo funciona · Pronósticos Abonados · PRONOS.CLUB",

@@ -84,16 +84,6 @@ export default function ConcoursPage() {
     return `${s.toLocaleDateString(dateLocale, { day: "numeric", month: "short" })} → ${e.toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })}`;
   }
 
-  // Rendu avec <strong> pour les lignes où la trad contient <strong>...</strong>
-  function renderWithStrong(text: string) {
-    const parts = text.split(/(<strong>.*?<\/strong>)/);
-    return parts.map((part, i) => {
-      const m = part.match(/^<strong>(.*?)<\/strong>$/);
-      if (m) return <strong key={i}>{m[1]}</strong>;
-      return <span key={i}>{part}</span>;
-    });
-  }
-
   function Podium({ data, type }: { data: PeriodData; type: "week" | "month" }) {
     const top = data.ranking.slice(0, 3);
     const isWeek = type === "week";
@@ -119,7 +109,7 @@ export default function ConcoursPage() {
             {formatPeriod(data.period_start, data.period_end, type)}
           </h3>
           <p className="mt-1 text-xs text-neutral-600">
-            {renderWithStrong(t("podium_meta", { min: data.min_picks, prize: data.prize }))}
+            {t("podium_meta_min", { min: data.min_picks })} · {t("podium_meta_prize_label")} <strong>{data.prize}€</strong>
           </p>
         </div>
 
