@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
-import ConcoursWidget from "@/components/tipster/ConcoursWidget";
 import PronosAbonnesNav from "@/components/tipster/PronosAbonnesNav";
 
 type Pick = any;
@@ -88,12 +87,6 @@ export default function PronosAbonnesEnCoursPage() {
 
       {/* Content */}
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Widget concours pour les premium connectés */}
-        {isPremium && user && (
-          <div className="mb-6">
-            <ConcoursWidget userId={(user as any).id} locale={locale} />
-          </div>
-        )}
         {!isPremium ? (
           <div className="rounded-3xl border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-50 to-white py-16 text-center px-6">
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-100">
