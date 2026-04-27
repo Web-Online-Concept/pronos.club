@@ -52,10 +52,12 @@ export default function Navbar() {
   const [langOpen, setLangOpen] = useState(false);
   const [pronosOpen, setPronosOpen] = useState(false);
   const [pronosIAOpen, setPronosIAOpen] = useState(false);
+  const [pronosAbonnesOpen, setPronosAbonnesOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
   const pronosRef = useRef<HTMLDivElement>(null);
   const pronosIARef = useRef<HTMLDivElement>(null);
+  const pronosAbonnesRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -74,13 +76,13 @@ export default function Navbar() {
     { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
   ];
 
-  // Desktop : dropdown "Nos Pronos"
+  // Desktop : dropdown "Pronos Tipster"
   const DESKTOP_PRONOS = [
     { href: `/${locale}/pronostics`, label: "Pronos en cours", icon: "🎯" },
     { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
     { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
+    { href: `/${locale}/tipster`, label: "Fonctionnement", icon: "❓" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
   ];
 
@@ -89,7 +91,17 @@ export default function Navbar() {
     { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
     { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
     { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats"), icon: "📊" },
-    { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("ai_picks_how"), icon: "❓" },
+    { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
+    { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
+  ];
+
+  // Desktop : dropdown "Pronos Abonnés"
+  const DESKTOP_PRONOS_ABONNES = [
+    { href: `/${locale}/pronos-abonnes/en-cours`, label: "Pronos en cours", icon: "🎯" },
+    { href: `/${locale}/pronos-abonnes/historique`, label: t("history_short"), icon: "📋" },
+    { href: `/${locale}/pronos-abonnes/classement`, label: "Classement", icon: "🏆" },
+    { href: `/${locale}/pronos-abonnes/concours`, label: "Concours", icon: "🎁" },
+    { href: `/${locale}/pronos-abonnes`, label: "Fonctionnement", icon: "❓" },
   ];
 
   // Desktop : dropdown "Stats & Médias"
@@ -115,6 +127,9 @@ export default function Navbar() {
       }
       if (pronosIARef.current && !pronosIARef.current.contains(e.target as Node)) {
         setPronosIAOpen(false);
+      }
+      if (pronosAbonnesRef.current && !pronosAbonnesRef.current.contains(e.target as Node)) {
+        setPronosAbonnesOpen(false);
       }
       if (mediaRef.current && !mediaRef.current.contains(e.target as Node)) {
         setMediaOpen(false);
@@ -222,17 +237,17 @@ export default function Navbar() {
             <span className="text-sm font-extrabold text-emerald-400 lg:hidden">.CLUB</span>
           </Link>
 
-          {/* Desktop nav — 2 dropdowns : Nos Pronos + Stats & Médias */}
+          {/* Desktop nav — 4 dropdowns : Pronos Tipster + Pronos IA + Pronos Abonnes + Stats & Medias */}
           <div className="hidden items-center gap-2 lg:flex">
-            {/* Dropdown "Nos Pronos" */}
+            {/* Dropdown "Pronos Tipster" */}
             <div className="relative" ref={pronosRef}>
               <button
-                onClick={() => { setPronosOpen(!pronosOpen); setPronosIAOpen(false); setMediaOpen(false); }}
+                onClick={() => { setPronosOpen(!pronosOpen); setPronosIAOpen(false); setPronosAbonnesOpen(false); setMediaOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
                   isPronosActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Nos Pronos
+                Pronos Tipster
               </button>
 
               {pronosOpen && (
@@ -259,7 +274,7 @@ export default function Navbar() {
             {/* Dropdown "Pronos IA" */}
             <div className="relative" ref={pronosIARef}>
               <button
-                onClick={() => { setPronosIAOpen(!pronosIAOpen); setPronosOpen(false); setMediaOpen(false); }}
+                onClick={() => { setPronosIAOpen(!pronosIAOpen); setPronosOpen(false); setPronosAbonnesOpen(false); setMediaOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
                   isPronosIAActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
@@ -288,10 +303,42 @@ export default function Navbar() {
               )}
             </div>
 
+            {/* Dropdown "Pronos Abonnes" */}
+            <div className="relative" ref={pronosAbonnesRef}>
+              <button
+                onClick={() => { setPronosAbonnesOpen(!pronosAbonnesOpen); setPronosOpen(false); setPronosIAOpen(false); setMediaOpen(false); }}
+                className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
+                  pathname.includes("/pronos-abonnes") ? "text-emerald-400" : "text-neutral-300"
+                }`}
+              >
+                Pronos Abonnés
+              </button>
+
+              {pronosAbonnesOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-xl shadow-black/40">
+                  {DESKTOP_PRONOS_ABONNES.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setPronosAbonnesOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition hover:bg-emerald-600/15 hover:text-emerald-400 ${
+                        pathname === link.href
+                          ? "bg-emerald-600/10 text-emerald-400"
+                          : "text-neutral-300"
+                      }`}
+                    >
+                      <span className="text-lg">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Dropdown "Stats & Médias" */}
             <div className="relative" ref={mediaRef}>
               <button
-                onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); setPronosIAOpen(false); }}
+                onClick={() => { setMediaOpen(!mediaOpen); setPronosOpen(false); setPronosIAOpen(false); setPronosAbonnesOpen(false); }}
                 className={`nav-pill-dark flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-base font-semibold cursor-pointer ${
                   isMediaActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
@@ -464,15 +511,15 @@ export default function Navbar() {
 
             {/* Nav links + lang + CTA — all in scrollable area */}
             <div className="flex-1 overflow-y-auto px-3 py-4">
-              {/* Nos Pronos */}
-              <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🎯 Nos Pronos</p>
+              {/* Pronos Tipster */}
+              <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🎯 Pronos Tipster</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/pronostics`, label: "En Cours", icon: "🎯" },
                   { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
                   { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
                   { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-                  { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
+                  { href: `/${locale}/tipster`, label: "Fonctionnement", icon: "❓" },
                   { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
                 ].map((link) => (
                   <Link
@@ -494,6 +541,30 @@ export default function Navbar() {
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
                   { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
+                  { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
+                  { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-4 text-center transition hover:border-emerald-500/30 hover:bg-emerald-500/10"
+                  >
+                    <span className="text-2xl">{link.icon}</span>
+                    <span className="text-xs font-semibold text-neutral-300">{link.label}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Pronos Abonnes */}
+              <p className="mt-4 mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">⭐ Pronos Abonnés</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { href: `/${locale}/pronos-abonnes/en-cours`, label: "En Cours", icon: "🎯" },
+                  { href: `/${locale}/pronos-abonnes/historique`, label: t("history_short"), icon: "📋" },
+                  { href: `/${locale}/pronos-abonnes/classement`, label: "Classement", icon: "🏆" },
+                  { href: `/${locale}/pronos-abonnes/concours`, label: "Concours", icon: "🎁" },
+                  { href: `/${locale}/pronos-abonnes`, label: "Fonctionnement", icon: "❓" },
                 ].map((link) => (
                   <Link
                     key={link.href}
