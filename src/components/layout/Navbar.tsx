@@ -510,7 +510,7 @@ export default function Navbar() {
             </div>
 
             {/* Nav links + lang + CTA — all in scrollable area */}
-            <div className="flex-1 overflow-y-auto px-3 py-4">
+            <div className="flex-1 overflow-y-auto px-3 pt-4 pb-32" style={{ paddingBottom: "max(8rem, env(safe-area-inset-bottom))" }}>
               {/* Pronos Tipster */}
               <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">🎯 Pronos Tipster</p>
               <div className="grid grid-cols-3 gap-2">
