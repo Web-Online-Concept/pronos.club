@@ -11,7 +11,6 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const sportSlug = searchParams.get("sport");
-  const pickType = searchParams.get("type"); // "classic" | "scorer" | null (=all)
 
   const isCountOnly = limit === 0;
 
@@ -22,10 +21,11 @@ export async function GET(request: Request) {
       { count: "exact" }
     )
     .is("deleted_at", null)
+    // Module Buteurs supprime : on n'expose que les picks classiques
+    .eq("pick_type", "classic")
     .order("created_at", { ascending: false })
     // Fallback stable quand created_at est identique (bulk insert IA)
-    .order("classic_number", { ascending: false, nullsFirst: false })
-    .order("scorer_number", { ascending: false, nullsFirst: false });
+    .order("classic_number", { ascending: false, nullsFirst: false });
 
   if (!isCountOnly) {
     query = query.range(offset, offset + limit - 1);
@@ -44,11 +44,6 @@ export async function GET(request: Request) {
 
   if (sportSlug && sportSlug !== "all") {
     query = query.eq("sport", sportSlug);
-  }
-
-  // Filtre par type de pick (classic / scorer)
-  if (pickType && (pickType === "classic" || pickType === "scorer")) {
-    query = query.eq("pick_type", pickType);
   }
 
   const { data, error, count } = await query;

@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Page de détail d'un bilan IA (Server Component).
- * Clone du pattern Tipster avec couleurs adaptées au type de bilan.
+ * Module Buteurs supprime — on n'expose que les bilans classics.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -32,6 +32,7 @@ export async function generateMetadata({
     .select("title, summary, month")
     .eq("slug", slug)
     .eq("is_published", true)
+    .eq("pick_type", "classic")
     .single();
 
   if (!bilan) {
@@ -57,6 +58,7 @@ export default async function BilanIADetailPage({
     .select("*")
     .eq("slug", slug)
     .eq("is_published", true)
+    .eq("pick_type", "classic")
     .single();
 
   if (!bilan) notFound();
@@ -67,8 +69,7 @@ export default async function BilanIADetailPage({
     .split("\n")
     .filter((p: string) => p.trim() !== "");
 
-  const isScorer = bilan.pick_type === "scorer";
-  const accentColor = isScorer ? "#f59e0b" : "#a855f7";
+  const accentColor = "#a855f7";
 
   return (
     <>
@@ -107,19 +108,6 @@ export default async function BilanIADetailPage({
           </Link>
 
           <div className="text-center">
-            {/* Badge type */}
-            <div className="flex justify-center">
-              {isScorer ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                  ⚽ Pronos Buteurs
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-400">
-                  🎯 Pronos Classiques
-                </span>
-              )}
-            </div>
-
             <p
               className="mt-4 text-[11px] font-bold uppercase tracking-[0.25em]"
               style={{ color: accentColor }}
@@ -178,9 +166,7 @@ export default async function BilanIADetailPage({
             <div
               className="overflow-hidden rounded-2xl border border-white/[0.06] p-6 sm:p-8"
               style={{
-                background: isScorer
-                  ? "linear-gradient(135deg, #111111 0%, #3d2a0a 100%)"
-                  : "linear-gradient(135deg, #111111 0%, #1e1b4b 100%)",
+                background: "linear-gradient(135deg, #111111 0%, #1e1b4b 100%)",
               }}
             >
               {paragraphs.map((p: string, i: number) => (

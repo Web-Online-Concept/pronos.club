@@ -52,7 +52,8 @@ export default function StatsClient() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sport, setSport] = useState("all");
-  const [pickType, setPickType] = useState<"classic" | "scorer">("classic");
+  // Module Buteurs supprime : on filtre toujours sur classic.
+  const pickType: "classic" = "classic";
   const [filterMode, setFilterMode] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -62,7 +63,7 @@ export default function StatsClient() {
 
   useEffect(() => {
     fetchStats();
-  }, [sport, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, pickType]);
+  }, [sport, filterMode, selectedMonth, selectedYear, dateFrom, dateTo]);
 
   async function fetchStats() {
     setLoading(true);
@@ -119,7 +120,7 @@ export default function StatsClient() {
 
   return (
     <>
-      {/* Bandeau bankroll + onglets Classiques/Buteurs (juste sous le hero PronosIAHero) */}
+      {/* Bandeau bankroll (juste sous le hero PronosIAHero) */}
       <div className="mx-auto max-w-4xl px-4 pt-6 text-center">
         {showEuro && bk && uv > 0 && (
           <div className="mb-4 inline-flex items-center gap-4 rounded-full border border-violet-500/20 bg-violet-500/5 px-5 py-2">
@@ -128,28 +129,8 @@ export default function StatsClient() {
           </div>
         )}
         <p className="text-sm text-neutral-500">
-          {pickType === "scorer"
-            ? "Performances des pronos buteurs (bankroll séparée)"
-            : "Performances en grandeur réelle de notre intelligence artificielle"}
+          Performances en grandeur réelle de notre intelligence artificielle
         </p>
-
-        {/* Onglets Classiques / Buteurs */}
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setPickType("classic")}
-            className={"rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " + (pickType === "classic" ? "bg-violet-500 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-900")}
-          >
-            🎯 Classiques
-          </button>
-          <button
-            type="button"
-            onClick={() => setPickType("scorer")}
-            className={"rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " + (pickType === "scorer" ? "bg-amber-500 text-white shadow-lg" : "text-neutral-500 hover:text-neutral-900")}
-          >
-            ⚽ Buteurs
-          </button>
-        </div>
       </div>
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4">

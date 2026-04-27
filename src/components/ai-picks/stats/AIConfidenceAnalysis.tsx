@@ -14,21 +14,19 @@ import { getTranslations } from "next-intl/server";
 import { Brain, TrendingUp, TrendingDown } from "lucide-react";
 import type {
   ClassicStatsRow,
-  ScorerStatsRow,
 } from "@/lib/ai/ai-stats-types";
 import PronosIACard from "../ui/PronosIACard";
 
 
 interface Props {
   classicsTotal: ClassicStatsRow | null;
-  scorersTotal: ScorerStatsRow | null;
+  scorersTotal: null;
   locale: string;
 }
 
 
 export default async function AIConfidenceAnalysis({
   classicsTotal,
-  scorersTotal,
   locale,
 }: Props) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
@@ -51,8 +49,8 @@ export default async function AIConfidenceAnalysis({
         {t("stats_confidence_description")}
       </p>
 
-      {/* 2 cards : classiques et buteurs */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* 1 card : classiques uniquement (module Buteurs supprime) */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Classiques */}
         {classicsTotal &&
           classicsTotal.total_resolved > 0 &&
@@ -87,45 +85,6 @@ export default async function AIConfidenceAnalysis({
                   <ConfidenceGapInsight
                     won={classicsTotal.avg_confidence_won}
                     lost={classicsTotal.avg_confidence_lost}
-                    locale={locale}
-                  />
-                )}
-            </PronosIACard>
-          )}
-
-        {/* Buteurs */}
-        {scorersTotal &&
-          scorersTotal.total_resolved > 0 &&
-          (scorersTotal.avg_confidence_won !== null ||
-            scorersTotal.avg_confidence_lost !== null) && (
-            <PronosIACard accent="fuchsia">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="text-xl">⚽</span>
-                <h3 className="text-base font-bold text-white">
-                  {t("type_scorer_label")}
-                </h3>
-              </div>
-
-              <div className="space-y-3">
-                <ConfidenceRow
-                  Icon={TrendingUp}
-                  label={t("stats_confidence_won")}
-                  value={scorersTotal.avg_confidence_won}
-                  color="emerald"
-                />
-                <ConfidenceRow
-                  Icon={TrendingDown}
-                  label={t("stats_confidence_lost")}
-                  value={scorersTotal.avg_confidence_lost}
-                  color="red"
-                />
-              </div>
-
-              {scorersTotal.avg_confidence_won !== null &&
-                scorersTotal.avg_confidence_lost !== null && (
-                  <ConfidenceGapInsight
-                    won={scorersTotal.avg_confidence_won}
-                    lost={scorersTotal.avg_confidence_lost}
                     locale={locale}
                   />
                 )}

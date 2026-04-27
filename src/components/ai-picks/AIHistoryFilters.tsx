@@ -17,7 +17,6 @@ import { useTranslations } from "next-intl";
 
 
 interface Props {
-  currentType: string;
   currentStatus: string;
   currentSport: string;
   locale: string;
@@ -25,7 +24,6 @@ interface Props {
 
 
 export default function AIHistoryFilters({
-  currentType,
   currentStatus,
   currentSport,
 }: Props) {
@@ -42,7 +40,7 @@ export default function AIHistoryFilters({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  function updateFilter(key: "type" | "status" | "sport", value: string) {
+  function updateFilter(key: "status" | "sport", value: string) {
     const params = new URLSearchParams(searchParams.toString());
 
     if (value === "all") {
@@ -59,17 +57,6 @@ export default function AIHistoryFilters({
   return (
     <div className="mb-6 text-center">
       <div className="inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-
-        {/* Filtre type */}
-        <select
-          value={currentType}
-          onChange={(e) => updateFilter("type", e.target.value)}
-          className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
-        >
-          <option value="all">{isMobile ? t("history_filter_types_short") : t("history_filter_all_types")}</option>
-          <option value="classic">{t("tab_classics")}</option>
-          <option value="scorer">{t("tab_scorers")}</option>
-        </select>
 
         {/* Filtre sport */}
         <select

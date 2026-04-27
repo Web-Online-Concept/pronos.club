@@ -1,17 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import type { AiBilan } from "./page";
-
-
-const MONTH_NAMES = [
-  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
-];
-
-
-type TabType = "classic" | "scorer";
 
 
 interface Props {
@@ -21,48 +11,16 @@ interface Props {
 
 
 export default function BilansListClient({ locale, bilans }: Props) {
-  const [activeTab, setActiveTab] = useState<TabType>("classic");
-
-  const filteredBilans = bilans.filter((b) => b.pick_type === activeTab);
+  // Module Buteurs supprime : on liste uniquement les bilans classics
+  const filteredBilans = bilans.filter((b) => b.pick_type === "classic");
 
   return (
     <main className="mx-auto flex-1 w-full max-w-3xl px-4 pb-16">
-      {/* Onglets Classiques / Buteurs */}
-      <div className="mt-8 flex justify-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setActiveTab("classic")}
-            className={
-              "rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " +
-              (activeTab === "classic"
-                ? "bg-violet-500 text-white shadow-lg"
-                : "text-neutral-500 hover:text-neutral-900")
-            }
-          >
-            🎯 Classiques
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("scorer")}
-            className={
-              "rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition " +
-              (activeTab === "scorer"
-                ? "bg-amber-500 text-white shadow-lg"
-                : "text-neutral-500 hover:text-neutral-900")
-            }
-          >
-            ⚽ Buteurs
-          </button>
-        </div>
-      </div>
-
       {/* Liste */}
       {filteredBilans.length > 0 ? (
         <div className="mt-8 space-y-4">
           {filteredBilans.map((bilan) => {
             const [y, m] = bilan.month.split("-");
-            const accentColor = bilan.pick_type === "scorer" ? "amber" : "violet";
 
             return (
               <Link
@@ -71,9 +29,7 @@ export default function BilansListClient({ locale, bilans }: Props) {
                 className="group flex items-start gap-5 overflow-hidden rounded-2xl border border-white/[0.06] p-5 transition hover:-translate-y-0.5 hover:border-white/10 hover:shadow-lg"
                 style={{
                   background:
-                    bilan.pick_type === "scorer"
-                      ? "linear-gradient(135deg, #111111 0%, #3d2a0a 100%)"
-                      : "linear-gradient(135deg, #111111 0%, #1e1b4b 100%)",
+                    "linear-gradient(135deg, #111111 0%, #1e1b4b 100%)",
                 }}
               >
                 {/* Month badge */}
@@ -84,27 +40,9 @@ export default function BilansListClient({ locale, bilans }: Props) {
 
                 {/* Content */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2
-                      className={
-                        "text-lg font-extrabold text-white transition " +
-                        (accentColor === "amber"
-                          ? "group-hover:text-amber-400"
-                          : "group-hover:text-violet-400")
-                      }
-                    >
-                      {bilan.title}
-                    </h2>
-                    {bilan.pick_type === "scorer" ? (
-                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-400">
-                        ⚽ Buteurs
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[9px] font-bold uppercase text-violet-400">
-                        🎯 Classiques
-                      </span>
-                    )}
-                  </div>
+                  <h2 className="text-lg font-extrabold text-white transition group-hover:text-violet-400">
+                    {bilan.title}
+                  </h2>
 
                   {/* Stats bar */}
                   <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -136,12 +74,7 @@ export default function BilansListClient({ locale, bilans }: Props) {
                 </div>
 
                 <svg
-                  className={
-                    "mt-2 h-5 w-5 flex-shrink-0 text-white/20 transition " +
-                    (accentColor === "amber"
-                      ? "group-hover:text-amber-400"
-                      : "group-hover:text-violet-400")
-                  }
+                  className="mt-2 h-5 w-5 flex-shrink-0 text-white/20 transition group-hover:text-violet-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -157,7 +90,7 @@ export default function BilansListClient({ locale, bilans }: Props) {
         <div className="mt-16 text-center">
           <p className="text-4xl">📊</p>
           <p className="mt-2 text-sm font-semibold text-neutral-500">
-            Aucun bilan {activeTab === "scorer" ? "Buteurs" : "Classiques"} publié pour le moment
+            Aucun bilan publié pour le moment
           </p>
           <p className="mt-1 text-xs text-neutral-400">
             Les bilans mensuels seront publiés en début de chaque mois

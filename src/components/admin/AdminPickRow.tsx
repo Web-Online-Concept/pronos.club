@@ -109,7 +109,7 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
         <td className="px-4 py-3">
           <div className="font-medium text-neutral-200">{pick.event_name}</div>
           <div className="mt-0.5 text-xs text-neutral-500">
-            {pick.league} · {pick.pick_type === "scorer" ? "⚽ Buteur" : "🎯 Classique"}
+            {pick.league} · 🎯 Classique
           </div>
           {pick.final_score && (
             <div className="mt-0.5 text-xs font-mono text-neutral-400">
@@ -121,7 +121,7 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
         <td className="px-4 py-3">
           <div className="font-semibold text-neutral-100">{pick.selection}</div>
           <div className="mt-0.5 text-xs text-neutral-500">
-            {pick.market === "scorer" ? "Buteur" : pick.market}
+            {pick.market}
           </div>
         </td>
 

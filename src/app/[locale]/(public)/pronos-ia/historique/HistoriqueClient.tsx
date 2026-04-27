@@ -57,13 +57,14 @@ export default function HistoriqueClient({ locale }: Props) {
   const [dateTo, setDateTo] = useState("");
 
   const [sport, setSport] = useState("all");
-  const [pickType, setPickType] = useState("all"); // "all" | "classic" | "scorer"
+  // Module Buteurs supprime : on filtre toujours sur classic.
+  const pickType = "classic";
 
   useEffect(() => {
     setOffset(0);
     fetchPicks(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, sport, pickType]);
+  }, [statusFilter, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, sport]);
 
   async function fetchPicks(fromOffset = 0, reset = false) {
     if (reset) setLoading(true);
@@ -81,7 +82,7 @@ export default function HistoriqueClient({ locale }: Props) {
     }
 
     if (sport !== "all") params.set("sport", sport);
-    if (pickType !== "all") params.set("type", pickType);
+    params.set("type", pickType);
 
     if (filterMode === "month" && selectedMonth) {
       params.set("from", `${selectedMonth}-01`);
@@ -120,17 +121,6 @@ export default function HistoriqueClient({ locale }: Props) {
       {/* Filters */}
       <div className="mt-4 text-center">
         <div className="inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-          {/* Filtre type (Classiques / Buteurs) */}
-          <select
-            value={pickType}
-            onChange={(e) => setPickType(e.target.value)}
-            className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
-          >
-            <option value="all">{isMobile ? "Types" : "Tous types"}</option>
-            <option value="classic">🎯 Classiques</option>
-            <option value="scorer">⚽ Buteurs</option>
-          </select>
-
           {/* Filtre dates */}
           <select
             value={

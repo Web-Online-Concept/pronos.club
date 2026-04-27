@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Page publique liste des bilans IA mensuels.
- * Server Component avec sub-component Client pour gérer les onglets.
+ * Module Buteurs supprime — on n'expose que les bilans classics.
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -22,7 +22,7 @@ export async function generateMetadata({
   return {
     title: "Bilans mensuels IA · PRONOS.CLUB",
     description:
-      "Bilans mensuels des performances de notre intelligence artificielle. Pronos classiques et pronos buteurs.",
+      "Bilans mensuels des performances de notre intelligence artificielle.",
   };
 }
 
@@ -55,8 +55,8 @@ export default async function PronosIABilansPage({
     .from("ai_bilans")
     .select("*")
     .eq("is_published", true)
-    .order("month", { ascending: false })
-    .order("pick_type", { ascending: true });
+    .eq("pick_type", "classic")
+    .order("month", { ascending: false });
 
   const bilans = (data ?? []) as AiBilan[];
 
@@ -96,7 +96,7 @@ export default async function PronosIABilansPage({
             Bilans mensuels
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/40">
-            Performances de notre IA mois par mois — Classiques et Buteurs séparés
+            Performances de notre IA mois par mois
           </p>
           {bilans.length > 0 && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">

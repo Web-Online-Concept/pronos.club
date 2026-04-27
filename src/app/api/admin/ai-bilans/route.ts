@@ -8,15 +8,13 @@ import { NextResponse } from "next/server";
  * API Admin — /api/admin/ai-bilans
  * ═══════════════════════════════════════════════════════════════════
  *
- * Clone du pattern /api/admin/bilans Tipster, adapté pour la table
- * `ai_bilans` (séparée de `bilans` Tipster) et pour gérer les 2 types
- * de bilans (classic / scorer) via le champ `pick_type`.
+ * Module Buteurs supprime — on ne gere que les bilans de type "classic".
  *
- * GET  ?calc_month=YYYY-MM&type=classic|scorer  → calcule les stats
- * GET                                            → liste tous les bilans
- * POST                                           → crée un nouveau bilan
- * PUT                                            → met à jour un bilan
- * DELETE ?id=xxx                                 → supprime un bilan
+ * GET  ?calc_month=YYYY-MM  → calcule les stats du mois
+ * GET                        → liste tous les bilans classic
+ * POST                       → crée un nouveau bilan classic
+ * PUT                        → met à jour un bilan
+ * DELETE ?id=xxx             → supprime un bilan
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -32,11 +30,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Type de bilan à calculer (par défaut classic)
-    const pickTypeParam = searchParams.get("type");
-    const pickType: "classic" | "scorer" =
-      pickTypeParam === "scorer" ? "scorer" : "classic";
-
     const [y, m] = calcMonth.split("-");
     const from = `${calcMonth}-01`;
     const to = `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`;
@@ -49,7 +42,7 @@ export async function GET(request: Request) {
       .select("status, profit, odds")
       .neq("status", "pending")
       .is("deleted_at", null)
-      .eq("pick_type", pickType)
+      .eq("pick_type", "classic")
       .gte("event_date", from)
       .lte("event_date", to);
 
@@ -73,12 +66,12 @@ export async function GET(request: Request) {
     });
   }
 
-  // Liste de tous les bilans IA
+  // Liste de tous les bilans IA classics
   const { data, error } = await supabaseAdmin
     .from("ai_bilans")
     .select("*")
-    .order("month", { ascending: false })
-    .order("pick_type", { ascending: true });
+    .eq("pick_type", "classic")
+    .order("month", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
@@ -94,7 +87,6 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    pick_type,
     title,
     month,
     content,
@@ -113,14 +105,8 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!pick_type || (pick_type !== "classic" && pick_type !== "scorer")) {
-    return NextResponse.json(
-      { error: "pick_type must be 'classic' or 'scorer'" },
-      { status: 400 }
-    );
-  }
-
-  // Slug : `<type>-<month>` pour assurer l'unicité (ex: "classic-2026-04")
+  // Module Buteurs supprime : tous les nouveaux bilans sont classics
+  const pick_type = "classic";
   const slug = `${pick_type}-${month}`;
 
   const { data, error } = await supabaseAdmin
@@ -188,10 +174,6 @@ export async function PUT(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Note : les bilans IA ne notifient pas les abonnés Tipster.
-  // Si tu veux une notification email pour les bilans IA plus tard,
-  // on créera un système séparé (sendAiBilanEmail) à ce moment-là.
-
   return NextResponse.json(data);
 }
 
@@ -208,7 +190,6 @@ export async function DELETE(request: Request) {
 
   if (!id) return NextResponse.json({ error: "Missing bilan id" }, { status: 400 });
 
-  // Récupérer le bilan pour supprimer aussi son image de couverture
   const { data: bilan } = await supabaseAdmin
     .from("ai_bilans")
     .select("slug, cover_image")
@@ -216,7 +197,6 @@ export async function DELETE(request: Request) {
     .single();
 
   if (bilan?.cover_image) {
-    // Le path stocké est l'URL publique complète, on extrait la partie après le bucket
     const path = bilan.cover_image.split("/ai-bilans-covers/").pop();
     if (path) {
       await supabaseAdmin.storage.from("ai-bilans-covers").remove([path]);

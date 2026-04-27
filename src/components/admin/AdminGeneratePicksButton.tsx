@@ -11,7 +11,6 @@ type GenerationResult = {
   oddsApiFixtures?: number;
   consensus?: {
     selectedClassic: number;
-    selectedScorer: number;
     rejected: number;
   };
   persisted?: {
@@ -87,7 +86,7 @@ export default function AdminGeneratePicksButton({
                   <span className="text-neutral-500">Fixtures :</span> {result.apiFootballFixtures ?? 0} apifoot + {result.oddsApiFixtures ?? 0} oddsapi
                 </div>
                 <div>
-                  <span className="text-neutral-500">Consensus :</span> {result.consensus?.selectedClassic ?? 0} classics + {result.consensus?.selectedScorer ?? 0} scorers
+                  <span className="text-neutral-500">Consensus :</span> {result.consensus?.selectedClassic ?? 0} classics
                 </div>
                 <div>
                   <span className="text-neutral-500">Persistés :</span>{" "}

@@ -31,7 +31,7 @@ interface AiBilan {
   created_at: string;
 }
 
-type FilterType = "all" | "classic" | "scorer";
+// Module Buteurs supprime : plus de type filter, on n'expose que les bilans classics.
 
 export default function AdminAiBilansPage() {
   const [bilans, setBilans] = useState<AiBilan[]>([]);
@@ -43,13 +43,14 @@ export default function AdminAiBilansPage() {
   const [refreshingStats, setRefreshingStats] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Filtre liste (Tous / Classiques / Buteurs)
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  // Module Buteurs supprime : on filtre toujours sur classic uniquement.
+  const filterType: "classic" = "classic";
 
   // New bilan form
   const [newMonth, setNewMonth] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [newPickType, setNewPickType] = useState<"classic" | "scorer">("classic");
+  // Module Buteurs supprime : tous les bilans sont type classic
+  const newPickType: "classic" = "classic";
 
   useEffect(() => {
     fetchBilans();
@@ -93,7 +94,6 @@ export default function AdminAiBilansPage() {
       setCreating(false);
       setNewMonth("");
       setNewTitle("");
-      setNewPickType("classic");
       setEditing(bilan);
     } else {
       const err = await res.json();
@@ -192,11 +192,8 @@ export default function AdminAiBilansPage() {
     setUploadingImage(false);
   }
 
-  // Filtre liste
-  const filteredBilans = bilans.filter((b) => {
-    if (filterType === "all") return true;
-    return b.pick_type === filterType;
-  });
+  // Filtre liste : on n'expose que les bilans classics
+  const filteredBilans = bilans.filter((b) => b.pick_type === filterType);
 
   const inputClass =
     "w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm text-white outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 [color-scheme:dark] placeholder-white/20";
@@ -238,69 +235,11 @@ export default function AdminAiBilansPage() {
         </button>
       </div>
 
-      {/* Filter tabs (Classiques / Buteurs) */}
-      <div className="mt-4 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
-        <button
-          type="button"
-          onClick={() => setFilterType("all")}
-          className={
-            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
-            (filterType === "all"
-              ? "bg-white/10 text-white"
-              : "text-white/40 hover:text-white/70")
-          }
-        >
-          Tous
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilterType("classic")}
-          className={
-            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
-            (filterType === "classic"
-              ? "bg-violet-500 text-white"
-              : "text-white/40 hover:text-white/70")
-          }
-        >
-          🎯 Classiques
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilterType("scorer")}
-          className={
-            "rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider transition " +
-            (filterType === "scorer"
-              ? "bg-amber-500 text-white"
-              : "text-white/40 hover:text-white/70")
-          }
-        >
-          ⚽ Buteurs
-        </button>
-      </div>
-
       {/* Create form */}
       {creating && (
         <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%)" }}>
           <p className="text-sm font-bold text-white">Nouveau bilan IA</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Type</label>
-              <select
-                value={newPickType}
-                onChange={(e) => {
-                  const val = e.target.value as "classic" | "scorer";
-                  setNewPickType(val);
-                  if (newMonth) {
-                    const typeLabel = val === "scorer" ? "Buteurs" : "Classiques";
-                    setNewTitle(`Bilan ${typeLabel} ${formatMonth(newMonth)}`);
-                  }
-                }}
-                className={inputClass}
-              >
-                <option value="classic">🎯 Classiques</option>
-                <option value="scorer">⚽ Buteurs</option>
-              </select>
-            </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">Mois</label>
               <input
@@ -309,8 +248,7 @@ export default function AdminAiBilansPage() {
                 onChange={(e) => {
                   setNewMonth(e.target.value);
                   if (e.target.value) {
-                    const typeLabel = newPickType === "scorer" ? "Buteurs" : "Classiques";
-                    setNewTitle(`Bilan ${typeLabel} ${formatMonth(e.target.value)}`);
+                    setNewTitle(`Bilan ${formatMonth(e.target.value)}`);
                   }
                 }}
                 className={inputClass}
@@ -356,11 +294,7 @@ export default function AdminAiBilansPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-bold text-white">{bilan.title}</p>
-                {bilan.pick_type === "scorer" ? (
-                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-400">⚽ Buteurs</span>
-                ) : (
-                  <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-violet-400">🎯 Classiques</span>
-                )}
+                <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-violet-400">🎯 Classiques</span>
                 {bilan.is_published ? (
                   <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-400">Publié</span>
                 ) : (
@@ -385,9 +319,7 @@ export default function AdminAiBilansPage() {
         <div className="mt-12 text-center">
           <p className="text-4xl">📊</p>
           <p className="mt-2 text-sm text-white/30">
-            {bilans.length === 0
-              ? "Aucun bilan pour le moment"
-              : `Aucun bilan ${filterType === "classic" ? "classique" : "buteur"}`}
+            Aucun bilan pour le moment
           </p>
         </div>
       )}
@@ -400,11 +332,7 @@ export default function AdminAiBilansPage() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
               <div className="flex items-center gap-3">
-                {editing.pick_type === "scorer" ? (
-                  <span className="rounded bg-amber-500/20 px-2 py-1 text-[10px] font-bold uppercase text-amber-400">⚽ Buteurs</span>
-                ) : (
-                  <span className="rounded bg-violet-500/20 px-2 py-1 text-[10px] font-bold uppercase text-violet-400">🎯 Classiques</span>
-                )}
+                <span className="rounded bg-violet-500/20 px-2 py-1 text-[10px] font-bold uppercase text-violet-400">🎯 Classiques</span>
                 <div>
                   <p className="text-sm font-bold text-white">{editing.title}</p>
                   <p className="text-[10px] text-white/30">{formatMonth(editing.month)}</p>
