@@ -45,7 +45,7 @@ export default function MemberDashboard() {
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* SECTION 1 — SUIVI PRONOS.CLUB */}
+        {/* SECTION 1 — SUIVI PRONOS.CLUB (tipster Jérôme officiel) */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         <SectionHeader icon="📊" title={t("section_suivi")} />
 
@@ -77,15 +77,6 @@ export default function MemberDashboard() {
             <h3 className="mt-2 font-bold text-white">{t("notif_title")}</h3>
             <p className="mt-1 text-sm text-white/40">{t("notif_desc")}</p>
           </Link>
-
-          {/* Tipsters Suivis — premium only */}
-          {isPremium && (
-            <Link href={`/${locale}/espace/abonnes-suivis`} className={CARD_CLASS} style={CARD_STYLE}>
-              <span className="text-2xl">👥</span>
-              <h3 className="mt-2 font-bold text-white">Tipsters Suivis</h3>
-              <p className="mt-1 text-sm text-white/40">Pronos en cours des tipsters que vous suivez</p>
-            </Link>
-          )}
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════ */}
@@ -96,13 +87,6 @@ export default function MemberDashboard() {
             <SectionHeader icon="🛠️" title={t("section_outils")} />
 
             <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Calculateurs */}
-              <Link href={`/${locale}/espace/calculateurs`} className={CARD_CLASS} style={CARD_STYLE}>
-                <span className="text-2xl">🧮</span>
-                <h3 className="mt-2 font-bold text-white">{t("calc_title")}</h3>
-                <p className="mt-1 text-sm text-white/40">{t("calc_desc")}</p>
-              </Link>
-
               {/* Pronos Abonnés — visible par l'admin uniquement pendant le développement */}
               {isAdmin && (
                 <Link href={`/${locale}/espace/tipster`} className={CARD_CLASS} style={CARD_STYLE}>
@@ -111,6 +95,20 @@ export default function MemberDashboard() {
                   <p className="mt-1 text-sm text-white/40">Poste tes pronos et grimpe au classement</p>
                 </Link>
               )}
+
+              {/* Abonnés Suivi */}
+              <Link href={`/${locale}/espace/abonnes-suivis`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">👥</span>
+                <h3 className="mt-2 font-bold text-white">Abonnés Suivi</h3>
+                <p className="mt-1 text-sm text-white/40">Pronos en cours des tipsters que vous suivez</p>
+              </Link>
+
+              {/* Calculateurs */}
+              <Link href={`/${locale}/espace/calculateurs`} className={CARD_CLASS} style={CARD_STYLE}>
+                <span className="text-2xl">🧮</span>
+                <h3 className="mt-2 font-bold text-white">{t("calc_title")}</h3>
+                <p className="mt-1 text-sm text-white/40">{t("calc_desc")}</p>
+              </Link>
 
               {/* Montantes */}
               <Link href={`/${locale}/espace/montantes`} className={CARD_CLASS} style={CARD_STYLE}>
