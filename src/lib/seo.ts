@@ -109,4 +109,32 @@ export const pageSEO: Record<string, { title: string; description: string }> = {
     title: "Connexion — PRONOS.CLUB",
     description: "Connectez-vous ou créez votre compte PRONOS.CLUB. Accédez à vos pronostics et votre espace personnel.",
   },
+  "pronos-abonnes": {
+    title: "Pronos Abonnés — Communauté de Tipsters | PRONOS.CLUB",
+    description: "Découvrez les pronostics sportifs de notre communauté d'abonnés. Suivez vos tipsters favoris, comparez les performances et participez aux concours hebdomadaires et mensuels.",
+  },
+  "pronos-abonnes-en-cours": {
+    title: "Pronos Abonnés en Cours — PRONOS.CLUB",
+    description: "Tous les pronostics sportifs en cours postés par la communauté d'abonnés PRONOS.CLUB. Picks simples et combinés, triés par heure de match.",
+  },
+  "pronos-abonnes-historique": {
+    title: "Historique des Pronos Abonnés — PRONOS.CLUB",
+    description: "Historique complet et vérifiable des pronostics sportifs postés par la communauté. Filtrez par sport, tipster et résultat. Transparence totale.",
+  },
+  "pronos-abonnes-classement": {
+    title: "Classement des Tipsters — PRONOS.CLUB",
+    description: "Classement des meilleurs tipsters de la communauté PRONOS.CLUB. Top semaine, top mois et all-time. ROI, profit et taux de réussite vérifiables.",
+  },
+  "pronos-abonnes-concours": {
+    title: "Concours Tipsters — Gagnez Chaque Semaine | PRONOS.CLUB",
+    description: "Participez aux concours hebdomadaires et mensuels réservés aux abonnés Premium. Gagnez des récompenses en cash en postant les meilleurs pronostics.",
+  },
+  "pronos-abonnes-fonctionnement": {
+    title: "Comment Fonctionnent les Pronos Abonnés — PRONOS.CLUB",
+    description: "Guide complet du système Pronos Abonnés : comment poster un pick, suivre les tipsters, gagner les concours et grimper au classement.",
+  },
+  "pronos-abonnes-tipster": {
+    title: "Profil Tipster — PRONOS.CLUB",
+    description: "Découvrez le profil complet d'un tipster de la communauté PRONOS.CLUB. Statistiques détaillées, historique des picks et ROI vérifiable.",
+  },
 };
