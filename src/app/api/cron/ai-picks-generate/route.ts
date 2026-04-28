@@ -33,6 +33,17 @@ const MAX_VALUEBET_PICKS = 2;
 // Plafond global jamais depasse
 const MAX_TOTAL_PICKS = 7;
 
+/**
+ * Marge minimale entre maintenant et le coup d'envoi du match.
+ * En dessous, on rejette : les abonnes n'ont plus le temps de parier
+ * et les bookmakers freezent souvent les cotes en derniere minute.
+ *
+ * IMPORTANT : doit rester coherent avec MIN_MINUTES_BEFORE_KICKOFF
+ * dans value-bet-engine.ts. Si on change la valeur ici, la changer
+ * aussi la-bas.
+ */
+const MIN_MINUTES_BEFORE_KICKOFF = 30;
+
 
 const isAuthorized = (req: NextRequest): boolean => {
   const authHeader = req.headers.get("authorization");
@@ -183,6 +194,10 @@ const getSportCategory = (candidate: ConsensusCandidate): string => {
 /**
  * Resoudre les cotes pour les candidats Couche A et appliquer les quotas par sport.
  * Retourne uniquement les picks resolus avec cotes valides.
+ *
+ * IMPORTANT : applique aussi le filtre temporel MIN_MINUTES_BEFORE_KICKOFF
+ * pour rejeter les matchs trop proches du coup d'envoi (coherent avec
+ * value-bet-engine.ts).
  */
 type ResolvedLLMPick = {
   candidate: ConsensusCandidate;
@@ -196,6 +211,7 @@ type ResolvedLLMPick = {
 type LayerAStats = {
   llm_candidates_total: number;
   resolved_success: number;
+  rejected_too_late: number;
   rejected_no_home_away: number;
   rejected_fixture_not_found: number;
   rejected_market_not_supported: number;
@@ -214,6 +230,7 @@ const resolveAndQuotaLayerA = (
   const stats: LayerAStats = {
     llm_candidates_total: candidates.length,
     resolved_success: 0,
+    rejected_too_late: 0,
     rejected_no_home_away: 0,
     rejected_fixture_not_found: 0,
     rejected_market_not_supported: 0,
@@ -232,9 +249,21 @@ const resolveAndQuotaLayerA = (
 
   const resolved: ResolvedLLMPick[] = [];
   const sportCounts = new Map<string, number>();
+  const now = Date.now();
 
   for (const cand of sorted) {
     if (resolved.length >= MAX_LLM_TOTAL) break;
+
+    // ─── Filtre temporel ─────────────────────────
+    // Le match doit commencer dans plus de MIN_MINUTES_BEFORE_KICKOFF.
+    // Sinon les abonnes n'ont pas le temps de parier et les books
+    // freezent souvent les cotes en derniere minute.
+    const kickoffTime = new Date(cand.eventDateIso).getTime();
+    const minutesUntilKickoff = (kickoffTime - now) / (1000 * 60);
+    if (minutesUntilKickoff < MIN_MINUTES_BEFORE_KICKOFF) {
+      stats.rejected_too_late += 1;
+      continue;
+    }
 
     // Sans home_team / away_team le resolver ne peut pas matcher h2h
     if (!cand.homeTeam || !cand.awayTeam) {
@@ -366,7 +395,7 @@ const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
       userPrompt: promptUserText,
     });
 
-    // ─── ETAPE 3 : COUCHE A — Resolution des cotes + quotas par sport ───
+    // ─── ETAPE 3 : COUCHE A — Resolution des cotes + filtre temporel + quotas par sport ───
     const layerA = resolveAndQuotaLayerA(
       consensus.selectedClassic,
       oddsApiAllFixtures
