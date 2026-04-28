@@ -77,6 +77,15 @@ export default function MemberDashboard() {
             <h3 className="mt-2 font-bold text-white">{t("notif_title")}</h3>
             <p className="mt-1 text-sm text-white/40">{t("notif_desc")}</p>
           </Link>
+
+          {/* Tipsters Suivis — premium only */}
+          {isPremium && (
+            <Link href={`/${locale}/espace/abonnes-suivis`} className={CARD_CLASS} style={CARD_STYLE}>
+              <span className="text-2xl">👥</span>
+              <h3 className="mt-2 font-bold text-white">Tipsters Suivis</h3>
+              <p className="mt-1 text-sm text-white/40">Pronos en cours des tipsters que vous suivez</p>
+            </Link>
+          )}
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════ */}
