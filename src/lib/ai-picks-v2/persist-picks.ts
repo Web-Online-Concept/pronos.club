@@ -139,6 +139,40 @@ export const persistConsensusCandidate = async (
   const { candidate, generationBatch } = input;
 
   try {
+    // ─── Anti-doublon cross-run (v3) ───────────────────────────
+    // Si un pick "pending" existe deja pour ce match aujourd'hui (peu importe
+    // la selection), on skip pour eviter de poster 2 picks contradictoires
+    // sur le meme match. Coherent avec persistValueBet.
+    const dateOnly = candidate.eventDateIso.slice(0, 10);
+    const dateStart = `${dateOnly}T00:00:00.000Z`;
+    const dateEnd = `${dateOnly}T23:59:59.999Z`;
+
+    const { data: existingPicks, error: existingErr } = await supabaseAdmin
+      .from("ai_picks")
+      .select("id, selection")
+      .eq("event_name", candidate.eventName)
+      .eq("status", "pending")
+      .is("deleted_at", null)
+      .gte("event_date", dateStart)
+      .lte("event_date", dateEnd)
+      .limit(1);
+
+    if (existingErr) {
+      console.warn(
+        `[persistConsensusCandidate] dedup query failed for ${candidate.eventName}:`,
+        existingErr.message
+      );
+      // En cas d'erreur de query on continue (mieux que bloquer)
+    } else if (existingPicks && existingPicks.length > 0) {
+      console.log(
+        `[persistConsensusCandidate] skip dedup: pick pending existe deja pour ${candidate.eventName} (selection actuelle: "${existingPicks[0].selection}")`
+      );
+      return {
+        success: false,
+        error: `dedup_skip: pick pending existe deja pour ${candidate.eventName}`,
+      };
+    }
+
     const baseSlug = buildSlugForCandidate(candidate);
     const slug = await generateUniqueSlug(baseSlug);
 
