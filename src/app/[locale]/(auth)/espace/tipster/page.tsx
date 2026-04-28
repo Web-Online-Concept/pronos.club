@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TipsterPickCard from "@/components/tipster/TipsterPickCard";
-import ConcoursWidget from "@/components/tipster/ConcoursWidget";
 
 export default function TipsterDashboard() {
   const { user } = useAuth();
@@ -125,11 +124,6 @@ export default function TipsterDashboard() {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-8">
-        {user && (
-          <div className="mb-6">
-            <ConcoursWidget userId={(user as any).id} locale={locale} />
-          </div>
-        )}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
