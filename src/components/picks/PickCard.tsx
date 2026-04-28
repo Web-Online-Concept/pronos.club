@@ -668,21 +668,21 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   </div>
 
                   {/* Row 6: status + profit — separate row for mobile */}
-                  <div className="mt-2 flex items-center">
+                  <div className="mt-2 flex flex-col items-end gap-1">
                     {(() => {
                       const displayProfit = userProfit !== undefined && userProfit !== null ? userProfit : pick.profit;
                       return isAwaitingResult ? (
-                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
                           <span className="text-xs">⏳</span>
                           <span className="text-[11px] font-bold text-blue-400">En attente</span>
                         </div>
                       ) : pick.status === "pending" ? (
-                        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5">
                           <span className="text-xs">{status.icon}</span>
                           <span className="text-[11px] font-bold text-white/50">{status.label}</span>
                         </div>
                       ) : pick.status === "won" || pick.status === "half_won" ? (
-                        <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 shadow-md shadow-emerald-500/20">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 shadow-md shadow-emerald-500/20">
                           <span className="text-xs">{status.icon}</span>
                           <span className="text-[11px] font-extrabold text-emerald-950">{status.label}</span>
                           {displayProfit !== null && displayProfit !== 0 && (
@@ -695,7 +695,7 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           )}
                         </div>
                       ) : pick.status === "lost" || pick.status === "half_lost" ? (
-                        <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 shadow-md shadow-red-500/20">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 shadow-md shadow-red-500/20">
                           <span className="text-xs">{status.icon}</span>
                           <span className="text-[11px] font-extrabold text-white">{status.label}</span>
                           {displayProfit !== null && displayProfit !== 0 && (
@@ -708,9 +708,36 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                           )}
                         </div>
                       ) : (
-                        <div className="ml-auto flex items-center gap-1.5 rounded-lg bg-neutral-500 px-3 py-1.5 shadow-md shadow-neutral-500/20">
+                        <div className="flex items-center gap-1.5 rounded-lg bg-neutral-500 px-3 py-1.5 shadow-md shadow-neutral-500/20">
                           <span className="text-xs">{status.icon}</span>
                           <span className="text-[11px] font-extrabold text-white">{status.label}</span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Override : ligne en plus si l'abonne a modifie son resultat */}
+                    {hasOverride && userStatusOverride && (() => {
+                      const overrideStatus = STATUS_CONFIG[userStatusOverride] ?? STATUS_CONFIG.pending;
+                      const overrideProfitU = userProfitOverride ? parseFloat(userProfitOverride) : 0;
+                      const overrideProfitEuro = userProfitEuroOverride ? parseFloat(userProfitEuroOverride) : 0;
+                      const isWon = userStatusOverride === "won" || userStatusOverride === "half_won";
+                      const isLost = userStatusOverride === "lost" || userStatusOverride === "half_lost";
+                      const colorClass = isWon ? "text-emerald-400" : isLost ? "text-red-400" : "text-neutral-400";
+                      return (
+                        <div className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400">✏️ Pour vous</span>
+                          <span className="text-[10px]">{overrideStatus.icon}</span>
+                          <span className={`text-[10px] font-bold ${colorClass}`}>{overrideStatus.label}</span>
+                          {overrideProfitU !== 0 && (
+                            <span className={`text-[10px] font-bold ${colorClass}`}>
+                              {overrideProfitU > 0 ? "+" : ""}{overrideProfitU.toFixed(3)}U
+                            </span>
+                          )}
+                          {overrideProfitEuro !== 0 && (
+                            <span className={`text-[9px] font-semibold ${colorClass} opacity-70`}>
+                              ({overrideProfitEuro > 0 ? "+" : ""}{overrideProfitEuro.toFixed(2)}€)
+                            </span>
+                          )}
                         </div>
                       );
                     })()}
