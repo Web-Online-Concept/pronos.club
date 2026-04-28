@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /fr/pronos-ia/comment-ca-marche (AVEC HERO COHÉRENT)
+ * PAGE — /fr/pronos-ia/comment-ca-marche (V3 hybride)
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -131,6 +131,9 @@ export default async function HowItWorksPage({
               </Step>
               <Step number={4} title={t("howitworks_s2_step4_title")}>
                 {t("howitworks_s2_step4_text")}
+              </Step>
+              <Step number={5} title={t("howitworks_s2_step5_title")}>
+                {t("howitworks_s2_step5_text")}
               </Step>
             </ul>
           </Section>
