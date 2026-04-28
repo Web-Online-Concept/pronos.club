@@ -21,6 +21,7 @@ type PeriodData = {
   period_end: string;
   min_picks: number;
   prize: number;
+  active: boolean;
   ranking: RankingEntry[];
   non_eligible: RankingEntry[];
 };
@@ -288,10 +289,24 @@ export default function ConcoursPage() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           </div>
         ) : tab === "current" && current ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Podium data={current.week} type="week" />
-            <Podium data={current.month} type="month" />
-          </div>
+          (current.week.active || current.month.active) ? (
+            <div className={`grid grid-cols-1 gap-6 ${current.week.active && current.month.active ? "lg:grid-cols-2" : ""}`}>
+              {current.week.active && <Podium data={current.week} type="week" />}
+              {current.month.active && <Podium data={current.month} type="month" />}
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-neutral-50 py-16 text-center">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white">
+                <span className="text-4xl">🚫</span>
+              </div>
+              <p className="text-neutral-700 text-base font-bold">
+                {t("disabled_title")}
+              </p>
+              <p className="mt-2 text-sm text-neutral-500">
+                {t("disabled_subtitle")}
+              </p>
+            </div>
+          )
         ) : tab === "history" ? (
           history.length === 0 ? (
             <div className="rounded-3xl bg-neutral-50 py-16 text-center">

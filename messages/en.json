@@ -1254,10 +1254,7 @@
     "livescore": "Scores",
     "news": "News",
     "pronos_ia": "AI Picks",
-    "videos": "Videos",
-    "tipster": "Tipster",
-    "ia": "AI",
-    "abonnes": "Members"
+    "videos": "Videos"
   },
   "livescore": {
     "meta_title": "Livescore — Live Scores | PRONOS.CLUB",
@@ -1680,8 +1677,8 @@
     "history_units_picks": "+{units}U · {count} picks",
     "badge_paid": "✓ Paid",
     "badge_pending": "Pending",
-    "podium_meta_min": "Minimum {min} picks",
-    "podium_meta_prize_label": "Prize:"
+    "disabled_title": "Contests currently disabled",
+    "disabled_subtitle": "Come back later, contests will be back soon."
   },
   "pronos_abonnes_fonctionnement": {
     "meta_title": "How it works · Community Picks · PRONOS.CLUB",
