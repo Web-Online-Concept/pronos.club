@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
   const { data: picks, error } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, classic_number, sport, league, event_name, event_date, selection, market, odds, stake, pick_type, generation_version, resolution_source, status"
+      "id, classic_number, sport, league, event_name, event_date, selection, market, odds, pick_type, generation_version, resolution_source, status"
     )
     .eq("status", "pending")
     .is("deleted_at", null)

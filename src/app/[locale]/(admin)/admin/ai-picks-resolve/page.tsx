@@ -18,7 +18,6 @@ type AiPick = {
   selection: string;
   market: string | null;
   odds: number;
-  stake: number;
   pick_type: string;
   generation_version: string | null;
   resolution_source: string | null;
@@ -226,8 +225,6 @@ export default function AiPicksResolvePage() {
                     <span className="font-bold text-emerald-700">{pick.selection}</span>
                     <span className="text-neutral-400"> · cote </span>
                     <span className="font-mono font-bold text-neutral-900">{Number(pick.odds).toFixed(2)}</span>
-                    <span className="text-neutral-400"> · stake </span>
-                    <span className="font-bold text-neutral-700">{pick.stake}U</span>
                   </p>
                 </div>
 
