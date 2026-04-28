@@ -23,6 +23,16 @@ export const CONSENSUS_TIERS = [
 
 export type ConsensusTier = (typeof CONSENSUS_TIERS)[number];
 
+/**
+ * Schema PickCandidateClassic version v3 (anti-hallucination).
+ *
+ * Le LLM ne propose plus de cote ni de bookmaker — c'est l'odds-resolver
+ * qui injecte la vraie cote depuis OddsAPI apres validation. Les champs
+ * odds et bookmaker sont rendus optionnels pour permettre cette dissociation.
+ *
+ * Ajout de home_team et away_team (necessaires au resolver pour le matching
+ * fuzzy des outcomes h2h).
+ */
 export const PickCandidateClassicSchema = z.object({
   fixture_id_or_event_id: z.string().min(1),
   data_source: z.enum(DATA_SOURCES),
@@ -30,10 +40,14 @@ export const PickCandidateClassicSchema = z.object({
   league: z.string().min(1),
   event_name: z.string().min(1),
   event_date_iso: z.string().min(1),
+  home_team: z.string().min(1).optional(),
+  away_team: z.string().min(1).optional(),
   selection: z.string().min(1),
   market: z.enum(CLASSIC_MARKETS),
-  odds: z.number().min(1.5).max(3.0),
-  bookmaker: z.string().min(1),
+  /** Cote optionnelle (le resolver l'injecte apres si LLM ne fournit pas) */
+  odds: z.number().min(1.0).max(20.0).optional(),
+  /** Bookmaker optionnel (le resolver l'injecte apres) */
+  bookmaker: z.string().optional(),
   confidence: z.number().int().min(0).max(100),
   reasoning_short: z.string().min(20).max(800),
 });
@@ -89,6 +103,10 @@ export type ConsensusCandidate = {
   league: string;
   eventName: string;
   eventDateIso: string;
+  /** Equipes (utiles pour le resolver) */
+  homeTeam?: string;
+  awayTeam?: string;
+  /** Cote (peut etre 0 avant resolution par odds-resolver) */
   odds: number;
   bookmaker?: string;
   player?: string;
