@@ -200,9 +200,11 @@ export type SimplifiedFixture = {
     under25?: number;
   } | null;
   /**
-   * Donnees completes des 6 bookmakers Tipster (h2h + totals + alternate_totals).
+   * Donnees completes des 6 bookmakers Tipster (h2h + totals + alternate_totals
+   * + h2h_3_way + double_chance + btts selon disponibilite).
    * Sert au value-bet-engine pour calculer les fair odds Pinnacle (devig)
-   * et chercher la meilleure cote soft.
+   * et chercher la meilleure cote soft, ainsi qu'a l'odds-resolver pour
+   * resoudre les picks LLM (DOUBLE_CHANCE, BTTS, etc.).
    */
   rawBookmakers: OddsApiBookmaker[];
 };
@@ -254,6 +256,29 @@ const extractBestOddsSnapshot = (
   };
 };
 
+/**
+ * Helper : merger les markets d'un event additionnel (ex: btts, double_chance)
+ * dans la liste de bookmakers d'un event principal.
+ * Les markets supplementaires sont ajoutes aux bookmakers existants
+ * (ou les bookmakers sont ajoutes s'ils n'existaient pas).
+ */
+const mergeAdditionalMarkets = (
+  mainEvent: OddsApiEvent,
+  additionalEvent: OddsApiEvent | undefined
+): void => {
+  if (!additionalEvent) return;
+  for (const addBk of additionalEvent.bookmakers) {
+    const existingBk = mainEvent.bookmakers.find((b) => b.key === addBk.key);
+    if (existingBk) {
+      for (const addMarket of addBk.markets) {
+        existingBk.markets.push(addMarket);
+      }
+    } else {
+      mainEvent.bookmakers.push(addBk);
+    }
+  }
+};
+
 export const fetchAllSportsForToday = async (
   pickId?: string | null
 ): Promise<SimplifiedFixture[]> => {
@@ -262,13 +287,18 @@ export const fetchAllSportsForToday = async (
 
   for (const sport of sports) {
     try {
-      // 2 appels paralleles :
+      // 4 appels paralleles :
       // - "h2h,totals" : main lines (1 appel /sports/X/odds)
       // - "alternate_totals" : toutes les autres lignes Over/Under
-      //   (necessaire pour Over 2.5 quand le main est 3.5)
-      // OddsAPI exige un appel separe car alternate_totals est un
-      // "non-featured market" (cf doc).
-      const [mainResult, altResult] = await Promise.allSettled([
+      // - "btts" : both teams to score (foot uniquement, sera ignore par les autres sports)
+      // - "h2h_3_way,double_chance" : double chance (foot uniquement)
+      //
+      // OddsAPI exige des appels separes car ces markets sont
+      // "non-featured" (cf doc).
+      //
+      // Note sur le cout : 4 appels * ~30 sports actifs = ~120 appels OddsAPI
+      // par run. Surveiller le quota.
+      const [mainResult, altResult, bttsResult, dcResult] = await Promise.allSettled([
         getOddsForSport({
           sportKey: sport.key,
           markets: "h2h,totals",
@@ -283,38 +313,46 @@ export const fetchAllSportsForToday = async (
           daysFrom: 1,
           pickId,
         }),
+        getOddsForSport({
+          sportKey: sport.key,
+          markets: "btts",
+          oddsFormat: "decimal",
+          daysFrom: 1,
+          pickId,
+        }),
+        getOddsForSport({
+          sportKey: sport.key,
+          markets: "double_chance",
+          oddsFormat: "decimal",
+          daysFrom: 1,
+          pickId,
+        }),
       ]);
 
       const mainEvents =
         mainResult.status === "fulfilled" ? mainResult.value : [];
       const altEvents =
         altResult.status === "fulfilled" ? altResult.value : [];
+      const bttsEvents =
+        bttsResult.status === "fulfilled" ? bttsResult.value : [];
+      const dcEvents =
+        dcResult.status === "fulfilled" ? dcResult.value : [];
 
-      // Indexer alt par event_id pour merger
+      // Indexer alt/btts/dc par event_id pour merger
       const altByEventId = new Map<string, OddsApiEvent>();
-      for (const evt of altEvents) {
-        altByEventId.set(evt.id, evt);
-      }
+      for (const evt of altEvents) altByEventId.set(evt.id, evt);
+      const bttsByEventId = new Map<string, OddsApiEvent>();
+      for (const evt of bttsEvents) bttsByEventId.set(evt.id, evt);
+      const dcByEventId = new Map<string, OddsApiEvent>();
+      for (const evt of dcEvents) dcByEventId.set(evt.id, evt);
 
       for (const event of mainEvents) {
         if (event.bookmakers.length === 0) continue;
 
-        // Merger les markets alternate_totals dans les bookmakers existants
-        const altEvent = altByEventId.get(event.id);
-        if (altEvent) {
-          for (const altBk of altEvent.bookmakers) {
-            const existingBk = event.bookmakers.find(
-              (b) => b.key === altBk.key
-            );
-            if (existingBk) {
-              for (const altMarket of altBk.markets) {
-                existingBk.markets.push(altMarket);
-              }
-            } else {
-              event.bookmakers.push(altBk);
-            }
-          }
-        }
+        // Merger les markets additionnels dans les bookmakers existants
+        mergeAdditionalMarkets(event, altByEventId.get(event.id));
+        mergeAdditionalMarkets(event, bttsByEventId.get(event.id));
+        mergeAdditionalMarkets(event, dcByEventId.get(event.id));
 
         const isFoot = isFootballSportKey(sport.key);
         const isMajor = isMajorEuropeanLeague(sport.key);
