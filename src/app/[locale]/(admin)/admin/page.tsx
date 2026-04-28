@@ -36,6 +36,14 @@ export default async function AdminDashboard() {
     .select("*", { count: "exact", head: true })
     .eq("status", "rejected_by_audit");
 
+  // Picks IA pending dont le match est passe (a resoudre manuellement)
+  const { count: aiPicksToResolve } = await supabaseAdmin
+    .from("ai_picks")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending")
+    .is("deleted_at", null)
+    .lt("event_date", new Date().toISOString());
+
   // Stats Pronos Abonnés
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   const { count: tipsterPicksToResolve } = await supabaseAdmin
@@ -76,6 +84,13 @@ export default async function AdminDashboard() {
       icon: "🤖",
       accent: (aiPicksToReview ?? 0) > 0 ? "#06b6d4" : "#8b5cf6",
       desc: (aiPicksToReview ?? 0) > 0 ? `${aiPicksToReview} à auditer` : `${aiPicksRejected ?? 0} rejetés par audit`,
+    },
+    {
+      href: "/admin/ai-picks-resolve",
+      label: `Résoudre manuellement${(aiPicksToResolve ?? 0) > 0 ? ` (${aiPicksToResolve})` : ""}`,
+      icon: "✅",
+      accent: (aiPicksToResolve ?? 0) > 0 ? "#f59e0b" : "#10b981",
+      desc: (aiPicksToResolve ?? 0) > 0 ? `${aiPicksToResolve} à résoudre` : "Matchs terminés",
     },
     {
       href: "/admin/ai-bilans",
