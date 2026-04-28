@@ -19,8 +19,8 @@
  *   - Filtre cote dans [1.5, 3.0]
  *   - Filtre edge >= 3%
  *   - Tri par edge decroissant
- *   - Anti-saturation : max 60% du meme sport sur les 5 picks finaux
- *   - Top 5 selectionnes
+ *   - Quotas par sport : max 3 picks foot, max 2 picks par autre sport
+ *   - Plafond global : max 7 picks
  *
  * ZERO HALLUCINATION POSSIBLE : toutes les cotes proviennent
  * directement d'OddsAPI (donnees reelles bookmakers).
@@ -38,8 +38,12 @@ import type {
 const MIN_ODDS = 1.5;
 const MAX_ODDS = 3.0;
 const MIN_EDGE_PCT = 3;
-const MAX_PICKS = 5;
-const MAX_SAME_SPORT_RATIO = 0.6; // Max 60% du meme sport
+const MAX_PICKS = 7;
+
+// Quotas par sport : max picks/jour par categorie
+const MAX_PICKS_FOOTBALL = 3;
+const MAX_PICKS_OTHER_SPORTS = 2;
+
 /**
  * Marge minimale entre maintenant et le coup d'envoi du match.
  * En dessous, on rejette : les abonnes n'ont plus le temps de parier
@@ -113,7 +117,7 @@ export type ValueBet = {
 
 
 export type ValueBetEngineResult = {
-  /** Top 5 (max) selectionnes apres anti-saturation */
+  /** Picks selectionnes apres quotas (max 7) */
   selected: ValueBet[];
   /** Toutes les value bets trouvees, triees par edge desc */
   allCandidates: ValueBet[];
@@ -125,10 +129,52 @@ export type ValueBetEngineResult = {
     h2hMarketsAnalyzed: number;
     totalsMarketsAnalyzed: number;
     valueBetsFound: number;
-    selectedAfterAntiSaturation: number;
+    selectedAfterQuotas: number;
     rejectedByOddsRange: number;
     rejectedByMinEdge: number;
+    /** Nombre de picks rejetes parce que quota du sport atteint */
+    rejectedByQuota: number;
+    /** Repartition finale des picks selectionnes par sport */
+    sportDistribution: Record<string, number>;
   };
+};
+
+
+// ─── Helper detection foot ────────────────────────────────────────
+
+
+/**
+ * OddsAPI utilise des sportKey comme :
+ *   - soccer_epl, soccer_france_ligue_one, soccer_uefa_champs_league...
+ *   - basketball_nba, basketball_euroleague...
+ *   - icehockey_nhl, icehockey_sweden_hockey_league...
+ *   - tennis_atp_..., tennis_wta_...
+ *   - mma_mixed_martial_arts
+ *   - americanfootball_nfl
+ *   - baseball_mlb
+ *   - rugbyleague_nrl, rugbyunion_six_nations...
+ *
+ * On detecte le foot par prefixe car il y a des dizaines de ligues.
+ */
+const isFootball = (sportKey: string): boolean => {
+  return sportKey.toLowerCase().startsWith("soccer");
+};
+
+
+/**
+ * Categorie sport simplifiee pour les quotas.
+ * Foot = "football", tout le reste = sportKey brut.
+ * Cela permet de regrouper toutes les ligues de foot ensemble
+ * (Ligue 1, Premier League, Serie A...) sous un meme quota,
+ * tandis que NBA != Euroleague != ACB pour basket.
+ *
+ * Note : on garde sportKey brut pour les autres sports car la
+ * granularite ligue est interessante (eviter 2 picks meme jour
+ * sur la meme ligue de basket par exemple).
+ */
+const getSportCategory = (sportKey: string): string => {
+  if (isFootball(sportKey)) return "football";
+  return sportKey;
 };
 
 
@@ -505,23 +551,29 @@ const buildBooksSnapshot = (
 };
 
 
-// ─── Anti-saturation par sport ────────────────────────────────────
+// ─── Selection avec quotas par sport ─────────────────────────────
 
 
 /**
- * Selection greedy par edge decroissant en respectant max 60% du
- * meme sport. Au-dela de la limite par sport, on saute pour passer
- * au suivant.
+ * Selection greedy par edge decroissant en respectant les quotas :
+ *   - Foot (toutes ligues confondues) : max 3 picks
+ *   - Tout autre sport : max 2 picks par sportKey
+ *   - Plafond global : 7 picks
+ *   - Pas 2 picks sur le meme fixture
+ *
+ * Si un sport ne produit pas de candidate ce jour-la, on ne le force
+ * pas : on ne sort que des picks ayant edge >= 3% (qualite > quantite).
  */
-const applyAntiSaturation = (
+const applySportQuotas = (
   candidates: ValueBetCandidate[],
-  fixturesById: Map<string, SimplifiedFixture>
+  fixturesById: Map<string, SimplifiedFixture>,
+  stats: ValueBetEngineResult["stats"]
 ): ValueBet[] => {
-  // Tri par edge desc
+  // Tri par edge desc — qualite avant tout
   const sorted = [...candidates].sort((a, b) => b.edgePct - a.edgePct);
 
   const selected: ValueBet[] = [];
-  const fixturesUsed = new Set<string>(); // Pour eviter 2 picks sur le meme match
+  const fixturesUsed = new Set<string>();
   const sportCounts = new Map<string, number>();
 
   for (const cand of sorted) {
@@ -530,21 +582,21 @@ const applyAntiSaturation = (
     // Pas 2 picks sur le meme fixture
     if (fixturesUsed.has(cand.fixtureId)) continue;
 
-    // Anti-saturation : max 60% du meme sport sur le total final
-    const currentCount = sportCounts.get(cand.sportKey) ?? 0;
-    const futureCount = currentCount + 1;
-    const futureTotal = selected.length + 1;
-    const ratio = futureCount / futureTotal;
+    // Resoudre la categorie sport (foot regroupe, autres = sportKey brut)
+    const category = getSportCategory(cand.sportKey);
+    const currentCount = sportCounts.get(category) ?? 0;
 
-    // On accepte si ratio reste <= 60% OU si c'est le 1er du sport
-    // (un sport a forcement 100% au depart, c'est normal)
-    // Plus precisement : on rejette si ce serait le N+1 du meme sport
-    // alors que le total final ne pourrait pas absorber le ratio.
-    // Regle simple : sur 5 picks max, max 3 du meme sport.
-    const maxAllowedSameSport = Math.ceil(MAX_PICKS * MAX_SAME_SPORT_RATIO);
-    if (futureCount > maxAllowedSameSport) continue;
+    // Quota : 3 pour foot, 2 pour le reste
+    const maxForCategory = category === "football"
+      ? MAX_PICKS_FOOTBALL
+      : MAX_PICKS_OTHER_SPORTS;
 
-    // Calculer le snapshot books a la volee
+    if (currentCount >= maxForCategory) {
+      stats.rejectedByQuota += 1;
+      continue;
+    }
+
+    // Snapshot books a la volee
     const fixture = fixturesById.get(cand.fixtureId);
     const books = fixture
       ? buildBooksSnapshot(fixture, cand.market, cand.selection, cand.marketCode)
@@ -552,11 +604,11 @@ const applyAntiSaturation = (
 
     selected.push({ ...cand, books });
     fixturesUsed.add(cand.fixtureId);
-    sportCounts.set(cand.sportKey, futureCount);
-
-    // Marqueur ratio (silencieux, juste pour traceback)
-    void ratio;
+    sportCounts.set(category, currentCount + 1);
   }
+
+  // Repartition finale pour stats
+  stats.sportDistribution = Object.fromEntries(sportCounts.entries());
 
   return selected;
 };
@@ -575,9 +627,11 @@ export const findValueBets = (
     h2hMarketsAnalyzed: 0,
     totalsMarketsAnalyzed: 0,
     valueBetsFound: 0,
-    selectedAfterAntiSaturation: 0,
+    selectedAfterQuotas: 0,
     rejectedByOddsRange: 0,
     rejectedByMinEdge: 0,
+    rejectedByQuota: 0,
+    sportDistribution: {},
   };
 
   // Detection brute toutes fixtures
@@ -591,9 +645,9 @@ export const findValueBets = (
 
   stats.valueBetsFound = allCandidatesRaw.length;
 
-  // Anti-saturation par sport + top 5
-  const selected = applyAntiSaturation(allCandidatesRaw, fixturesById);
-  stats.selectedAfterAntiSaturation = selected.length;
+  // Application des quotas par sport
+  const selected = applySportQuotas(allCandidatesRaw, fixturesById, stats);
+  stats.selectedAfterQuotas = selected.length;
 
   // Pour les "all candidates" exposes, on ajoute aussi le snapshot books
   // pour audit/debug (mais sans dedup fixture)
