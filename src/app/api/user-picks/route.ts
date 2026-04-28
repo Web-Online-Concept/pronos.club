@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (pickId) {
     const { data } = await supabase
       .from("user_picks")
-      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value, user_stake_euro")
+      .select("followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_unit_value, user_stake_euro, user_status_override, user_profit_override, user_profit_euro_override")
       .eq("user_id", user.id)
       .eq("pick_id", pickId)
       .single();
@@ -28,6 +28,9 @@ export async function GET(request: Request) {
       user_leg_odds: data?.user_leg_odds ?? null,
       user_unit_value: data?.user_unit_value ?? null,
       user_stake_euro: data?.user_stake_euro ?? null,
+      user_status_override: data?.user_status_override ?? null,
+      user_profit_override: data?.user_profit_override ?? null,
+      user_profit_euro_override: data?.user_profit_euro_override ?? null,
     });
   }
 
@@ -49,7 +52,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { pick_id, followed, user_odds, user_bookmaker_id, user_bookmaker_other, user_leg_odds, user_stake_euro } = await request.json();
+  const {
+    pick_id,
+    followed,
+    user_odds,
+    user_bookmaker_id,
+    user_bookmaker_other,
+    user_leg_odds,
+    user_stake_euro,
+    user_status_override,
+    user_profit_override,
+    user_profit_euro_override,
+  } = await request.json();
 
   if (!pick_id || typeof followed !== "boolean") {
     return NextResponse.json({ error: "Missing pick_id or followed" }, { status: 400 });
@@ -67,6 +81,11 @@ export async function POST(request: Request) {
     if (user_bookmaker_other !== undefined) row.user_bookmaker_other = user_bookmaker_other || null;
     if (user_leg_odds !== undefined) row.user_leg_odds = user_leg_odds || null;
     if (user_stake_euro !== undefined && user_stake_euro !== null) row.user_stake_euro = user_stake_euro;
+
+    // Override : status + profit U + profit EUR
+    if (user_status_override !== undefined) row.user_status_override = user_status_override || null;
+    if (user_profit_override !== undefined) row.user_profit_override = user_profit_override === null ? null : Number(user_profit_override);
+    if (user_profit_euro_override !== undefined) row.user_profit_euro_override = user_profit_euro_override === null ? null : Number(user_profit_euro_override);
 
     // Freeze user's unit value at the time of follow
     try {
@@ -100,7 +119,7 @@ export async function POST(request: Request) {
         }
       }
     } catch {
-      // Bankroll not configured — stays null
+      // Bankroll not configured -- stays null
     }
   }
 

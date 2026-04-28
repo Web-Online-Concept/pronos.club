@@ -124,6 +124,11 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
   const [bookmakers, setBookmakers] = useState<Bookmaker[]>([]);
   const [userLegOdds, setUserLegOdds] = useState<Record<number, string>>({});
   const [userStakeEuro, setUserStakeEuro] = useState("");
+  // OVERRIDE : permet a l'abonne de definir son propre resultat
+  const [userStatusOverride, setUserStatusOverride] = useState<string>("");
+  const [userProfitOverride, setUserProfitOverride] = useState<string>("");
+  const [userProfitEuroOverride, setUserProfitEuroOverride] = useState<string>("");
+  const [hasOverride, setHasOverride] = useState(false);
   const [bkConfig, setBkConfig] = useState<{ mode: string; current_bankroll: number; unit_value: number; unit_percent: number } | null>(null);
   const [tipsterBk, setTipsterBk] = useState<{ mode: string; unit_value: number; unit_percent: number; current_bankroll: number; show_on_site: boolean } | null>(null);
   const status = STATUS_CONFIG[pick.status] ?? STATUS_CONFIG.pending;
@@ -151,6 +156,17 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
           setUserBookName(d.user_bookmaker_other);
         }
         if (d.user_stake_euro) setUserStakeEuro(Number(d.user_stake_euro).toFixed(2));
+        // Override
+        if (d.user_status_override) {
+          setUserStatusOverride(d.user_status_override);
+          setHasOverride(true);
+        }
+        if (d.user_profit_override !== null && d.user_profit_override !== undefined) {
+          setUserProfitOverride(String(d.user_profit_override));
+        }
+        if (d.user_profit_euro_override !== null && d.user_profit_euro_override !== undefined) {
+          setUserProfitEuroOverride(String(d.user_profit_euro_override));
+        }
         // Resolve bookmaker name if followed with a bookmaker_id
         if (d.followed && d.user_bookmaker_id && !d.user_bookmaker_other) {
           fetch("/api/bookmakers").then((r) => r.json()).then((books: Bookmaker[]) => {
@@ -242,6 +258,47 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
     setUserOdds((Math.ceil(product * 1000) / 1000).toFixed(3));
   }
 
+  // Auto-calc profit U / EUR quand on selectionne un statut override
+  function applyOverrideStatus(newStatus: string) {
+    setUserStatusOverride(newStatus);
+    if (!newStatus) {
+      setUserProfitOverride("");
+      setUserProfitEuroOverride("");
+      return;
+    }
+    const oddsNum = parseFloat(userOdds) || pick.odds || 1;
+    const stakeU = pick.stake ?? 0;
+    const stakeEur = userStakeEuro ? parseFloat(userStakeEuro) : 0;
+
+    let profitU = 0;
+    let profitEur = 0;
+    if (newStatus === "won") {
+      profitU = stakeU * (oddsNum - 1);
+      profitEur = stakeEur * (oddsNum - 1);
+    } else if (newStatus === "half_won") {
+      profitU = (stakeU * (oddsNum - 1)) / 2;
+      profitEur = (stakeEur * (oddsNum - 1)) / 2;
+    } else if (newStatus === "void") {
+      profitU = 0;
+      profitEur = 0;
+    } else if (newStatus === "half_lost") {
+      profitU = -stakeU / 2;
+      profitEur = -stakeEur / 2;
+    } else if (newStatus === "lost") {
+      profitU = -stakeU;
+      profitEur = -stakeEur;
+    }
+
+    setUserProfitOverride((Math.round(profitU * 1000) / 1000).toString());
+    setUserProfitEuroOverride((Math.round(profitEur * 100) / 100).toString());
+  }
+
+  function clearOverride() {
+    setUserStatusOverride("");
+    setUserProfitOverride("");
+    setUserProfitEuroOverride("");
+  }
+
   async function confirmFollow() {
     setFollowLoading(true);
     setShowFollowModal(false);
@@ -275,9 +332,13 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
           user_bookmaker_other: userBookmakerId === "other" ? userBookOther : null,
           user_leg_odds: legOddsPayload,
           user_stake_euro: userStakeEuro ? parseFloat(userStakeEuro) : null,
+          user_status_override: userStatusOverride || null,
+          user_profit_override: userStatusOverride && userProfitOverride !== "" ? parseFloat(userProfitOverride) : null,
+          user_profit_euro_override: userStatusOverride && userProfitEuroOverride !== "" ? parseFloat(userProfitEuroOverride) : null,
         }),
       });
       if (!res.ok) setFollowed(false);
+      else setHasOverride(!!userStatusOverride);
     } catch {
       setFollowed(false);
     }
@@ -671,6 +732,11 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                         >
                           <span className="flex items-center gap-2">
                             ✓ Ajouté à vos stats
+                            {hasOverride && (
+                              <span className="rounded bg-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                                ✏️ Modifié
+                              </span>
+                            )}
                             {(userOdds || userBookName) && (
                               <span className="text-[10px] font-normal text-emerald-400/60">
                                 {userOdds ? `@${parseFloat(userOdds).toFixed(3)}` : ""}{userOdds && userBookName ? " sur " : ""}{userBookName || ""}
@@ -877,6 +943,85 @@ export default function PickCard({ pick, locked = false, userProfit }: PickCardP
                   />
                 )}
               </div>
+
+              {/* Override : Mon resultat (uniquement si deja suivi) */}
+              {followed && (
+                <div className="border-t border-white/10 pt-4">
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
+                    Mon résultat <span className="text-white/30">(optionnel)</span>
+                  </label>
+                  <p className="mb-2 text-[10px] text-white/40 leading-relaxed">
+                    Si ton bookmaker a appliqué un résultat différent, modifie-le ici. Tes stats persos et ta bankroll seront mises à jour.
+                  </p>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { v: "won", label: "Gagné", color: "emerald" },
+                      { v: "half_won", label: "½ G.", color: "emerald" },
+                      { v: "void", label: "Remb.", color: "neutral" },
+                      { v: "half_lost", label: "½ P.", color: "red" },
+                      { v: "lost", label: "Perdu", color: "red" },
+                    ].map((s) => (
+                      <button
+                        key={s.v}
+                        type="button"
+                        onClick={() => applyOverrideStatus(s.v)}
+                        className={`cursor-pointer rounded-lg px-1 py-2 text-[10px] font-bold transition ${
+                          userStatusOverride === s.v
+                            ? s.color === "emerald"
+                              ? "bg-emerald-500/30 text-emerald-300 ring-1 ring-emerald-500/60"
+                              : s.color === "red"
+                              ? "bg-red-500/30 text-red-300 ring-1 ring-red-500/60"
+                              : "bg-neutral-500/30 text-neutral-200 ring-1 ring-neutral-500/60"
+                            : "bg-white/5 text-white/40 hover:bg-white/10"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {userStatusOverride && (
+                    <>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">
+                            Profit (U)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={userProfitOverride}
+                            onChange={(e) => setUserProfitOverride(e.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-2 py-2 text-center font-mono text-sm font-bold text-white outline-none transition focus:border-emerald-500"
+                            inputMode="decimal"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-white/40">
+                            Profit (€)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={userProfitEuroOverride}
+                            onChange={(e) => setUserProfitEuroOverride(e.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-2 py-2 text-center font-mono text-sm font-bold text-white outline-none transition focus:border-emerald-500"
+                            inputMode="decimal"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={clearOverride}
+                        className="mt-2 w-full cursor-pointer rounded-lg bg-white/5 py-2 text-[10px] font-bold text-white/40 transition hover:bg-white/10 hover:text-white/60"
+                      >
+                        ↺ Annuler mon override (reprendre le résultat tipster)
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Confirm */}
               <button

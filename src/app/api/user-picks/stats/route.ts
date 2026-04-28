@@ -9,14 +9,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get all followed pick IDs
+  // Get all followed pick IDs WITH override fields
   const { data: followedRows } = await supabase
     .from("user_picks")
-    .select("pick_id")
+    .select("pick_id, user_status_override, user_profit_override")
     .eq("user_id", user.id)
     .eq("followed", true);
 
-  const followedIds = (followedRows ?? []).map((r) => r.pick_id);
+  const followedMap = new Map(
+    (followedRows ?? []).map((r) => [r.pick_id, r])
+  );
+  const followedIds = [...followedMap.keys()];
 
   if (followedIds.length === 0) {
     return NextResponse.json({
@@ -33,17 +36,29 @@ export async function GET() {
   // Get the actual picks data
   const { data: picks } = await supabase
     .from("picks")
-    .select("status, profit, stake")
+    .select("id, status, profit, stake")
     .in("id", followedIds);
 
   const allPicks = picks ?? [];
   const totalFollowed = allPicks.length;
-  const won = allPicks.filter((p) => p.status === "won" || p.status === "half_won").length;
-  const lost = allPicks.filter((p) => p.status === "lost" || p.status === "half_lost").length;
-  const voidPicks = allPicks.filter((p) => p.status === "void").length;
-  const resolved = totalFollowed - voidPicks - allPicks.filter((p) => p.status === "pending").length;
-  const profit = allPicks.reduce((s, p) => s + (p.profit ?? 0), 0);
-  const staked = allPicks.reduce((s, p) => s + (p.stake ?? 0), 0);
+
+  // Compute effective status & profit per pick (override priority)
+  const effective = allPicks.map((p) => {
+    const userPick = followedMap.get(p.id);
+    const status = userPick?.user_status_override ?? p.status;
+    const profit = userPick?.user_profit_override !== null && userPick?.user_profit_override !== undefined
+      ? Number(userPick.user_profit_override)
+      : (p.profit ?? 0);
+    return { id: p.id, status, profit, stake: p.stake ?? 0 };
+  });
+
+  const won = effective.filter((p) => p.status === "won" || p.status === "half_won").length;
+  const lost = effective.filter((p) => p.status === "lost" || p.status === "half_lost").length;
+  const voidPicks = effective.filter((p) => p.status === "void").length;
+  const pending = effective.filter((p) => p.status === "pending").length;
+  const resolved = totalFollowed - voidPicks - pending;
+  const profit = effective.reduce((s, p) => s + p.profit, 0);
+  const staked = effective.reduce((s, p) => s + p.stake, 0);
   const roi = staked > 0 ? (profit / staked) * 100 : 0;
   const winRate = resolved > 0 ? (won / resolved) * 100 : 0;
 
