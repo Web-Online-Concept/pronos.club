@@ -1254,7 +1254,10 @@
     "livescore": "Scores",
     "news": "News",
     "pronos_ia": "Pronos IA",
-    "videos": "Videos"
+    "videos": "Videos",
+    "tipster": "Pronos Tipster",
+    "ia": "Pronos IA",
+    "abonnes": "Pronos Abonados"
   },
   "livescore": {
     "meta_title": "Livescore — Resultados en vivo | PRONOS.CLUB",
@@ -1676,9 +1679,7 @@
     "history_period_meta": "{prefix}: {period}",
     "history_units_picks": "+{units}U · {count} picks",
     "badge_paid": "✓ Pagado",
-    "badge_pending": "Pendiente",
-    "disabled_title": "Concursos actualmente desactivados",
-    "disabled_subtitle": "Vuelve más tarde, los concursos volverán pronto."
+    "badge_pending": "Pendiente"
   },
   "pronos_abonnes_fonctionnement": {
     "meta_title": "Cómo funciona · Pronósticos Abonados · PRONOS.CLUB",
