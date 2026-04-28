@@ -16,7 +16,7 @@
  *   4. Si oui, c'est une value bet : edge = (cote_book / fair_odds - 1) * 100
  *
  * Ensuite on applique :
- *   - Filtre cote dans [1.5, 3.0]
+ *   - Filtre cote dans [1.4, 3.0]
  *   - Filtre edge >= 1.5%
  *   - Tri par edge decroissant
  *   - Quotas par sport : max 3 picks foot, max 2 picks par autre sport
@@ -35,7 +35,7 @@ import type {
 
 
 // Seuils configurables
-const MIN_ODDS = 1.5;
+const MIN_ODDS = 1.4;
 const MAX_ODDS = 3.0;
 const MIN_EDGE_PCT = 1.5;
 const MAX_PICKS = 7;
