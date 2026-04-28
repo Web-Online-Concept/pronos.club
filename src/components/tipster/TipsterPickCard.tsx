@@ -1,6 +1,7 @@
 // src/components/tipster/TipsterPickCard.tsx
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -41,6 +42,21 @@ export default function TipsterPickCard({
   const t = useTranslations("pronos_abonnes_card");
   const pseudo = pick.users?.pseudo || "TIPSTER";
   const avatar = pick.users?.avatar_url;
+
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModalOpen(false);
+    };
+    document.addEventListener("keydown", handleEsc);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "";
+    };
+  }, [modalOpen]);
 
   const theme = pick.result === "won"
     ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
@@ -111,13 +127,15 @@ export default function TipsterPickCard({
         {/* Image du pick */}
         <div style={{ padding: "12px", background: "rgba(0,0,0,0.2)" }}>
           <div
+            onClick={() => setModalOpen(true)}
             style={{
               width: "100%",
               aspectRatio: "1/1",
               borderRadius: "8px",
               overflow: "hidden",
-              background: "rgba(255,255,255,0.02)",
+              background: "rgba(0,0,0,0.4)",
               position: "relative",
+              cursor: "zoom-in",
             }}
           >
             <img
@@ -126,7 +144,7 @@ export default function TipsterPickCard({
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                objectFit: "contain",
                 display: "block",
               }}
             />
@@ -261,6 +279,65 @@ export default function TipsterPickCard({
           </>
         );
       })()}
+
+      {/* Modal : ticket en grand */}
+      {modalOpen && (
+        <div
+          onClick={() => setModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.92)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            cursor: "zoom-out",
+          }}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setModalOpen(false); }}
+            aria-label="Fermer"
+            style={{
+              position: "absolute",
+              top: "16px",
+              right: "16px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#ffffff",
+              fontSize: "20px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+          >
+            ✕
+          </button>
+          <img
+            src={pick.image_url}
+            alt="Pronostic"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              borderRadius: "12px",
+              boxShadow: "0 8px 60px rgba(0,0,0,0.6)",
+              cursor: "default",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
