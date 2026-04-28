@@ -17,7 +17,7 @@
  *
  * Ensuite on applique :
  *   - Filtre cote dans [1.5, 3.0]
- *   - Filtre edge >= 3%
+ *   - Filtre edge >= 1.5%
  *   - Tri par edge decroissant
  *   - Quotas par sport : max 3 picks foot, max 2 picks par autre sport
  *   - Plafond global : max 7 picks
@@ -37,7 +37,7 @@ import type {
 // Seuils configurables
 const MIN_ODDS = 1.5;
 const MAX_ODDS = 3.0;
-const MIN_EDGE_PCT = 3;
+const MIN_EDGE_PCT = 1.5;
 const MAX_PICKS = 7;
 
 // Quotas par sport : max picks/jour par categorie
@@ -562,7 +562,8 @@ const buildBooksSnapshot = (
  *   - Pas 2 picks sur le meme fixture
  *
  * Si un sport ne produit pas de candidate ce jour-la, on ne le force
- * pas : on ne sort que des picks ayant edge >= 3% (qualite > quantite).
+ * pas : on ne sort que des picks ayant edge >= MIN_EDGE_PCT
+ * (qualite > quantite).
  */
 const applySportQuotas = (
   candidates: ValueBetCandidate[],
