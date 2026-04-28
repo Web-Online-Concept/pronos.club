@@ -1509,7 +1509,12 @@
     "details_link": "Detalles",
     "footer_ai": "Inteligencia Artificial",
     "howitworks_s2_step5_title": "Complemento value bet y publicación",
-    "howitworks_s2_step5_text": "Como complemento a los pronósticos editoriales, un motor matemático busca las diferencias de cuotas entre Pinnacle (referencia sharp) y otras casas, para detectar hasta 2 value bets adicionales al día. Todo se publica en el sitio con un análisis detallado para cada pick."
+    "howitworks_s2_step5_text": "Como complemento a los pronósticos editoriales, un motor matemático busca las diferencias de cuotas entre Pinnacle (referencia sharp) y otras casas, para detectar hasta 2 value bets adicionales al día. Todo se publica en el sitio con un análisis detallado para cada pick.",
+    "howitworks_s3_valuebet_title": "🧮 Pronósticos value bet (Capa B)",
+    "howitworks_s3_valuebet_1": "Máximo 2 por día",
+    "howitworks_s3_valuebet_2": "Detectados matemáticamente (sin IA)",
+    "howitworks_s3_valuebet_3": "Edge mínimo +1.5% vs cuota sharp Pinnacle",
+    "howitworks_s3_valuebet_4": "Todos los deportes: fútbol, tenis, hockey, béisbol, MMA..."
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

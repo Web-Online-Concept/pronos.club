@@ -1509,7 +1509,12 @@
     "details_link": "Détails",
     "footer_ai": "Intelligence Artificielle",
     "howitworks_s2_step5_title": "Complément value bet et publication",
-    "howitworks_s2_step5_text": "En complément des pronostics éditoriaux, un moteur mathématique cherche les écarts de cote entre Pinnacle (référence sharp) et les autres bookmakers, pour détecter jusqu'à 2 value bets supplémentaires par jour. L'ensemble est publié sur le site avec une analyse détaillée pour chaque pick."
+    "howitworks_s2_step5_text": "En complément des pronostics éditoriaux, un moteur mathématique cherche les écarts de cote entre Pinnacle (référence sharp) et les autres bookmakers, pour détecter jusqu'à 2 value bets supplémentaires par jour. L'ensemble est publié sur le site avec une analyse détaillée pour chaque pick.",
+    "howitworks_s3_valuebet_title": "🧮 Pronos value bet (Couche B)",
+    "howitworks_s3_valuebet_1": "Maximum 2 par jour",
+    "howitworks_s3_valuebet_2": "Détectés mathématiquement (sans IA)",
+    "howitworks_s3_valuebet_3": "Edge minimum +1.5% vs cote sharp Pinnacle",
+    "howitworks_s3_valuebet_4": "Tous sports : foot, tennis, hockey, baseball, MMA..."
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

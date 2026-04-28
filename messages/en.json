@@ -1509,7 +1509,12 @@
     "details_link": "Details",
     "footer_ai": "Artificial Intelligence",
     "howitworks_s2_step5_title": "Value bet complement and publication",
-    "howitworks_s2_step5_text": "In addition to the editorial picks, a mathematical engine looks for odds discrepancies between Pinnacle (sharp reference) and other bookmakers, to detect up to 2 additional value bets per day. Everything is published on the site with a detailed analysis for each pick."
+    "howitworks_s2_step5_text": "In addition to the editorial picks, a mathematical engine looks for odds discrepancies between Pinnacle (sharp reference) and other bookmakers, to detect up to 2 additional value bets per day. Everything is published on the site with a detailed analysis for each pick.",
+    "howitworks_s3_valuebet_title": "🧮 Value bet picks (Layer B)",
+    "howitworks_s3_valuebet_1": "Maximum 2 per day",
+    "howitworks_s3_valuebet_2": "Detected mathematically (no AI)",
+    "howitworks_s3_valuebet_3": "Minimum edge +1.5% vs Pinnacle sharp odds",
+    "howitworks_s3_valuebet_4": "All sports: football, tennis, hockey, baseball, MMA..."
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

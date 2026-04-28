@@ -143,7 +143,7 @@ export default async function HowItWorksPage({
             title={t("howitworks_s3_title")}
             intro={t("howitworks_s3_intro")}
           >
-            <div>
+            <div className="grid gap-4 md:grid-cols-2">
               <InfoBox
                 title={t("howitworks_s3_classics_title")}
                 items={[
@@ -153,6 +153,16 @@ export default async function HowItWorksPage({
                   t("howitworks_s3_classics_4"),
                 ]}
                 accent="violet"
+              />
+              <InfoBox
+                title={t("howitworks_s3_valuebet_title")}
+                items={[
+                  t("howitworks_s3_valuebet_1"),
+                  t("howitworks_s3_valuebet_2"),
+                  t("howitworks_s3_valuebet_3"),
+                  t("howitworks_s3_valuebet_4"),
+                ]}
+                accent="fuchsia"
               />
             </div>
           </Section>
