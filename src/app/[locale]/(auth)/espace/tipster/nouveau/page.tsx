@@ -21,7 +21,8 @@ export default function NouveauPickPage() {
   const tSports = useTranslations("pronos_abonnes_sports");
 
   const [matchDate, setMatchDate] = useState("");
-  const [matchTime, setMatchTime] = useState("");
+  const [matchHour, setMatchHour] = useState("");
+  const [matchMinute, setMatchMinute] = useState("");
   const [sport, setSport] = useState("");
   const [odds, setOdds] = useState("");
   const [pickType, setPickType] = useState<"simple" | "combiné">("simple");
@@ -54,7 +55,7 @@ export default function NouveauPickPage() {
   async function handleSubmit() {
     setError("");
 
-    if (!matchDate || !matchTime) {
+    if (!matchDate || !matchHour || !matchMinute) {
       setError(t("error_date_required"));
       return;
     }
@@ -80,7 +81,7 @@ export default function NouveauPickPage() {
       return;
     }
 
-    const matchDateTime = new Date(`${matchDate}T${matchTime}:00`);
+    const matchDateTime = new Date(`${matchDate}T${matchHour}:${matchMinute}:00`);
     if (matchDateTime.getTime() < Date.now() + 30 * 60 * 1000) {
       setError(t("error_match_too_soon"));
       return;
@@ -217,12 +218,28 @@ export default function NouveauPickPage() {
               <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
                 {t("label_time")} <span className="text-red-500">{t("required_mark")}</span>
               </label>
-              <input
-                type="time"
-                value={matchTime}
-                onChange={(e) => setMatchTime(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
-              />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <select
+                  value={matchHour}
+                  onChange={(e) => setMatchHour(e.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
+                >
+                  <option value="">--</option>
+                  {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((h) => (
+                    <option key={h} value={h}>{h}h</option>
+                  ))}
+                </select>
+                <select
+                  value={matchMinute}
+                  onChange={(e) => setMatchMinute(e.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-neutral-200 bg-white px-3 py-3 text-sm font-semibold text-neutral-900 outline-none focus:border-emerald-500"
+                >
+                  <option value="">--</option>
+                  {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           <p className="text-[11px] text-amber-600 -mt-3">
