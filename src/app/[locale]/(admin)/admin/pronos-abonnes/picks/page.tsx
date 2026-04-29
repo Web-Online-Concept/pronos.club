@@ -42,6 +42,9 @@ export default function AdminTipsterPicksPage() {
   const [adminNote, setAdminNote] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
+  // Modal image plein écran
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+
   async function fetchPicks() {
     setLoading(true);
     const res = await fetch(`/api/admin/tipster-picks?filter=${filter}`);
@@ -53,6 +56,20 @@ export default function AdminTipsterPicksPage() {
   useEffect(() => {
     if (isAdmin) fetchPicks();
   }, [isAdmin, filter]);
+
+  // Fermer la modal image avec Échap + verrouiller le scroll body
+  useEffect(() => {
+    if (!imageModalUrl) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setImageModalUrl(null);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [imageModalUrl]);
 
   async function handleSubmitModal() {
     if (!openModal) return;
@@ -177,43 +194,58 @@ export default function AdminTipsterPicksPage() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
           </div>
         ) : picks.length === 0 ? (
-          <div className="rounded-3xl bg-white border border-neutral-200 py-16 text-center">
-            <p className="text-neutral-500 text-sm">Aucun pick dans ce filtre</p>
+          <div className="rounded-3xl bg-white py-16 text-center">
+            <p className="text-neutral-500">Aucun pick à afficher dans ce filtre.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {picks.map((pick) => {
               const matchDate = new Date(pick.match_date);
               const matchPassed = matchDate.getTime() < Date.now();
-
               return (
-                <div key={pick.id} className="rounded-2xl bg-white border-2 border-neutral-200 overflow-hidden shadow-sm">
+                <div key={pick.id} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col">
                   {/* Header tipster */}
-                  <div className="flex items-center gap-2 px-4 py-3 bg-neutral-50 border-b">
-                    {pick.users?.avatar_url ? (
-                      <img src={pick.users.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-bold">
-                        {(pick.users?.pseudo || "?").charAt(0).toUpperCase()}
+                  <div className="p-3 border-b border-neutral-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {pick.users?.avatar_url ? (
+                        <img src={pick.users.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-neutral-200 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate">{pick.users?.pseudo ?? "?"}</p>
+                        <p className="text-[10px] text-neutral-500 truncate">{pick.users?.email}</p>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-sm text-neutral-900 truncate">{pick.users?.pseudo || "?"}</p>
-                      <p className="text-[10px] text-neutral-500 truncate">{pick.users?.email || "-"}</p>
                     </div>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                      pick.status === "live" ? "bg-amber-100 text-amber-700" :
-                      pick.status === "resolved" ? "bg-emerald-100 text-emerald-700" :
+                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      pick.status === "live" ? "bg-emerald-100 text-emerald-700" :
+                      pick.status === "resolved" ? "bg-neutral-200 text-neutral-700" :
                       "bg-red-100 text-red-700"
                     }`}>
                       {pick.status === "live" ? "Live" : pick.status === "resolved" ? "Résolu" : "Rejeté"}
                     </span>
                   </div>
 
-                  {/* Image */}
-                  <div className="relative aspect-square bg-neutral-100">
-                    <img src={pick.image_url} alt="" className="w-full h-full object-cover" />
-                  </div>
+                  {/* Image — clic pour zoom plein écran */}
+                  <button
+                    type="button"
+                    onClick={() => setImageModalUrl(pick.image_url)}
+                    className="relative aspect-square bg-neutral-100 cursor-zoom-in group overflow-hidden"
+                    aria-label="Voir l'image en plein écran"
+                  >
+                    <img
+                      src={pick.image_url}
+                      alt=""
+                      className="w-full h-full"
+                      style={{ objectFit: "contain", background: "rgba(0,0,0,0.04)" }}
+                    />
+                    {/* Indicateur visuel "cliquable" au hover */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 rounded-full px-3 py-1.5 text-xs font-bold text-neutral-900 shadow-lg">
+                        🔍 Voir en grand
+                      </div>
+                    </div>
+                  </button>
 
                   {/* Info */}
                   <div className="p-4 space-y-2">
@@ -320,7 +352,7 @@ export default function AdminTipsterPicksPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal résolution */}
       {openModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setOpenModal(null)}>
           <div className="bg-white rounded-3xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -379,6 +411,34 @@ export default function AdminTipsterPicksPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal image plein écran */}
+      {imageModalUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)" }}
+          onClick={() => setImageModalUrl(null)}
+        >
+          {/* Bouton fermer */}
+          <button
+            type="button"
+            onClick={() => setImageModalUrl(null)}
+            className="absolute top-4 right-4 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl flex items-center justify-center transition cursor-pointer"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+
+          {/* Image en contain pour la voir entièrement */}
+          <img
+            src={imageModalUrl}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full"
+            style={{ objectFit: "contain" }}
+          />
         </div>
       )}
     </main>
