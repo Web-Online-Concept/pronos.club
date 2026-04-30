@@ -36,12 +36,12 @@ import type {
 
 // Seuils configurables
 const MIN_ODDS = 1.4;
-const MAX_ODDS = 3.0;
-const MIN_EDGE_PCT = 1.5;
-const MAX_PICKS = 7;
+const MAX_ODDS = 3.5;
+const MIN_EDGE_PCT = 1.0;
+const MAX_PICKS = 10;
 
 // Quotas par sport : max picks/jour par categorie
-const MAX_PICKS_FOOTBALL = 3;
+const MAX_PICKS_FOOTBALL = 5;
 const MAX_PICKS_OTHER_SPORTS = 2;
 
 /**
