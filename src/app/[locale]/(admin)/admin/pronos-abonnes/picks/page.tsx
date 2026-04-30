@@ -11,7 +11,8 @@ type Pick = {
   match_date: string;
   sport: string;
   odds: number;
-  pick_type: "simple" | "combiné";
+  final_odds: number | null;
+  pick_type: "simple" | "combiné" | "combine";
   image_url: string;
   submitted_at: string;
   status: "live" | "resolved" | "rejected";
@@ -30,6 +31,13 @@ const RESULT_LABELS: { value: string; label: string; color: string }[] = [
   { value: "lost", label: "✗ Perdu", color: "bg-red-600 hover:bg-red-500" },
 ];
 
+// Helper : detecte si un pick est un combine (gere les 2 orthographes)
+const isComboType = (pickType: string | null | undefined): boolean => {
+  if (!pickType) return false;
+  const normalized = pickType.toLowerCase().trim();
+  return normalized === "combine" || normalized === "combiné";
+};
+
 export default function AdminTipsterPicksPage() {
   const { user } = useAuth();
   const isAdmin = user?.is_admin === true;
@@ -40,6 +48,7 @@ export default function AdminTipsterPicksPage() {
   const [openModal, setOpenModal] = useState<{ pick: Pick; mode: "resolve" | "change_result" | "reject" } | null>(null);
   const [selectedResult, setSelectedResult] = useState<string>("");
   const [adminNote, setAdminNote] = useState<string>("");
+  const [finalOdds, setFinalOdds] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   // Modal image plein écran
@@ -71,6 +80,12 @@ export default function AdminTipsterPicksPage() {
     };
   }, [imageModalUrl]);
 
+  // Conditions d'affichage du champ "Cote finale"
+  const shouldShowFinalOddsField =
+    openModal !== null &&
+    isComboType(openModal.pick.pick_type) &&
+    (selectedResult === "won" || selectedResult === "half_won");
+
   async function handleSubmitModal() {
     if (!openModal) return;
     setSaving(true);
@@ -83,6 +98,25 @@ export default function AdminTipsterPicksPage() {
         return;
       }
       body.result = selectedResult;
+
+      // Validation cote finale (uniquement si le champ est visible et rempli)
+      if (shouldShowFinalOddsField && finalOdds.trim() !== "") {
+        const parsed = parseFloat(finalOdds.replace(",", "."));
+        if (isNaN(parsed) || parsed < 1.01 || parsed > 1000) {
+          alert("Cote finale invalide (doit être entre 1.01 et 1000)");
+          setSaving(false);
+          return;
+        }
+        if (parsed >= openModal.pick.odds) {
+          if (!confirm(
+            `La cote finale (${parsed}) est supérieure ou égale à la cote du ticket (${openModal.pick.odds}). C'est inhabituel pour un combiné avec leg remboursé. Continuer quand même ?`
+          )) {
+            setSaving(false);
+            return;
+          }
+        }
+        body.final_odds = parsed;
+      }
     }
     if (adminNote) body.admin_note = adminNote;
 
@@ -100,6 +134,7 @@ export default function AdminTipsterPicksPage() {
     setOpenModal(null);
     setSelectedResult("");
     setAdminNote("");
+    setFinalOdds("");
     fetchPicks();
   }
 
@@ -256,11 +291,18 @@ export default function AdminTipsterPicksPage() {
                       </div>
                       <div className="bg-neutral-50 rounded-lg py-2 px-1">
                         <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Cote</p>
-                        <p className="text-xs font-bold mt-0.5">{parseFloat(String(pick.odds)).toFixed(2)}</p>
+                        <p className="text-xs font-bold mt-0.5">
+                          {parseFloat(String(pick.odds)).toFixed(2)}
+                          {pick.final_odds !== null && pick.final_odds !== undefined && (
+                            <span className="block text-[9px] font-normal text-amber-600 mt-0.5">
+                              → {parseFloat(String(pick.final_odds)).toFixed(2)}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div className="bg-neutral-50 rounded-lg py-2 px-1">
                         <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Type</p>
-                        <p className="text-xs font-bold mt-0.5">{pick.pick_type === "combiné" ? "Combi" : "Simple"}</p>
+                        <p className="text-xs font-bold mt-0.5">{isComboType(pick.pick_type) ? "Combi" : "Simple"}</p>
                       </div>
                     </div>
 
@@ -301,13 +343,21 @@ export default function AdminTipsterPicksPage() {
                     {pick.status === "live" && (
                       <>
                         <button
-                          onClick={() => { setOpenModal({ pick, mode: "resolve" }); setSelectedResult(""); setAdminNote(""); }}
+                          onClick={() => {
+                            setOpenModal({ pick, mode: "resolve" });
+                            setSelectedResult("");
+                            setAdminNote("");
+                            setFinalOdds("");
+                          }}
                           className="flex-1 cursor-pointer rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500"
                         >
                           ✓ Résoudre
                         </button>
                         <button
-                          onClick={() => { setOpenModal({ pick, mode: "reject" }); setAdminNote(""); }}
+                          onClick={() => {
+                            setOpenModal({ pick, mode: "reject" });
+                            setAdminNote("");
+                          }}
                           className="cursor-pointer rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-500"
                         >
                           🚫 Rejeter
@@ -317,7 +367,16 @@ export default function AdminTipsterPicksPage() {
                     {pick.status === "resolved" && (
                       <>
                         <button
-                          onClick={() => { setOpenModal({ pick, mode: "change_result" }); setSelectedResult(pick.result || ""); setAdminNote(pick.admin_note || ""); }}
+                          onClick={() => {
+                            setOpenModal({ pick, mode: "change_result" });
+                            setSelectedResult(pick.result || "");
+                            setAdminNote(pick.admin_note || "");
+                            setFinalOdds(
+                              pick.final_odds !== null && pick.final_odds !== undefined
+                                ? String(pick.final_odds)
+                                : ""
+                            );
+                          }}
                           className="flex-1 cursor-pointer rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-500"
                         >
                           ✏️ Modifier résultat
@@ -355,7 +414,7 @@ export default function AdminTipsterPicksPage() {
       {/* Modal résolution */}
       {openModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setOpenModal(null)}>
-          <div className="bg-white rounded-3xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-black text-neutral-900 mb-2">
               {openModal.mode === "resolve" ? "✓ Résoudre ce pick" :
                openModal.mode === "change_result" ? "✏️ Modifier le résultat" :
@@ -363,6 +422,9 @@ export default function AdminTipsterPicksPage() {
             </h2>
             <p className="text-xs text-neutral-500 mb-4">
               <strong>{openModal.pick.users?.pseudo}</strong> · {openModal.pick.sport} @ {parseFloat(String(openModal.pick.odds)).toFixed(2)}
+              {isComboType(openModal.pick.pick_type) && (
+                <span className="ml-1 text-violet-600 font-semibold">· Combi</span>
+              )}
             </p>
 
             {(openModal.mode === "resolve" || openModal.mode === "change_result") && (
@@ -379,6 +441,42 @@ export default function AdminTipsterPicksPage() {
                     {r.label}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Champ Cote finale — uniquement combiné + won/half_won */}
+            {shouldShowFinalOddsField && (
+              <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1">
+                  ⚠️ Combiné gagné
+                </p>
+                <p className="text-xs text-amber-900/80 mb-3 leading-relaxed">
+                  Si <strong>1 leg du combiné a été remboursé</strong>, saisis ici la cote finale effective.
+                  Sinon laisse vide → la cote du ticket ({parseFloat(String(openModal.pick.odds)).toFixed(2)}) sera conservée.
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-900 font-semibold whitespace-nowrap">Cote finale :</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="1.01"
+                    max="1000"
+                    value={finalOdds}
+                    onChange={(e) => setFinalOdds(e.target.value)}
+                    placeholder="ex: 1.85"
+                    className="flex-1 rounded-lg border-2 border-amber-300 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-amber-500"
+                  />
+                </div>
+                {finalOdds && !isNaN(parseFloat(finalOdds.replace(",", "."))) && (
+                  <p className="text-[11px] text-amber-700 mt-2">
+                    Profit calculé : <strong>
+                      {selectedResult === "won"
+                        ? `+${(parseFloat(finalOdds.replace(",", ".")) - 1).toFixed(3)}U`
+                        : `+${((parseFloat(finalOdds.replace(",", ".")) - 1) / 2).toFixed(3)}U`}
+                    </strong>
+                  </p>
+                )}
               </div>
             )}
 

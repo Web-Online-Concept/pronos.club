@@ -1,5 +1,10 @@
 // src/app/api/admin/tipster-picks/route.ts
-// Admin : mod\u00e9ration des picks tipsters (liste, r\u00e9solution, suppression)
+// Admin : moderation des picks tipsters (liste, resolution, suppression)
+//
+// v2 (avril 2026) : ajout du champ `final_odds` pour gerer les combines
+// avec leg rembourse. La cote utilisee pour calculer units_result est :
+//   - final_odds si elle est fournie (combine avec remboursement partiel)
+//   - sinon la cote `odds` du ticket original
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +14,14 @@ const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Helper : detecte si un pick est un combine (supporte les 2 orthographes
+// au cas ou le code de soumission stocke avec ou sans accent)
+const isComboType = (pickType: string | null | undefined): boolean => {
+  if (!pickType) return false;
+  const normalized = pickType.toLowerCase().trim();
+  return normalized === "combine" || normalized === "combiné";
+};
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -61,7 +74,7 @@ export async function GET(req: NextRequest) {
     } else if (filter === "resolved") {
       query = query.eq("status", "resolved").order("resolved_at", { ascending: false });
     } else if (filter === "ready_to_resolve") {
-      // Picks live dont le match est termin\u00e9 (depuis 2h pour \u00eatre s\u00fbr)
+      // Picks live dont le match est termine (depuis 2h pour etre sur)
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       query = query
         .eq("status", "live")
@@ -82,13 +95,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── PATCH : r\u00e9soudre / modifier / rejeter un pick ──
+// ── PATCH : resoudre / modifier / rejeter un pick ──
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { pick_id, action, result, admin_note } = body;
+  const { pick_id, action, result, admin_note, final_odds } = body;
 
   if (!pick_id) return NextResponse.json({ error: "Missing pick_id" }, { status: 400 });
 
@@ -101,18 +114,53 @@ export async function PATCH(req: NextRequest) {
 
     if (!pick) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (action === "resolve") {
-      // R\u00e9soudre le pick avec un r\u00e9sultat
-      if (!result || !["won", "half_won", "refunded", "half_lost", "lost"].includes(result)) {
-        return NextResponse.json({ error: "R\u00e9sultat invalide" }, { status: 400 });
+    // ─── Validation final_odds (si fournie) ──────────────────
+    // final_odds n'a de sens que pour un combine ET un resultat won/half_won
+    let finalOddsValue: number | null = null;
+    if (final_odds !== undefined && final_odds !== null && final_odds !== "") {
+      const parsed = parseFloat(String(final_odds));
+      if (isNaN(parsed) || parsed < 1.01 || parsed > 1000) {
+        return NextResponse.json(
+          { error: "Cote finale invalide (doit etre entre 1.01 et 1000)" },
+          { status: 400 }
+        );
       }
-      const unitsResult = computeUnitsResult(result, pick.odds);
+      // Ne pas accepter final_odds sur un pick simple
+      if (!isComboType(pick.pick_type)) {
+        return NextResponse.json(
+          { error: "Cote finale uniquement applicable aux combines" },
+          { status: 400 }
+        );
+      }
+      // Ne pas accepter final_odds sur un resultat autre que won/half_won
+      if (action === "resolve" || action === "change_result") {
+        if (result !== "won" && result !== "half_won") {
+          return NextResponse.json(
+            { error: "Cote finale uniquement applicable aux combines gagnants" },
+            { status: 400 }
+          );
+        }
+      }
+      finalOddsValue = parsed;
+    }
+
+    if (action === "resolve") {
+      // Resoudre le pick avec un resultat
+      if (!result || !["won", "half_won", "refunded", "half_lost", "lost"].includes(result)) {
+        return NextResponse.json({ error: "Resultat invalide" }, { status: 400 });
+      }
+
+      // Cote utilisee pour le calcul : final_odds si fournie, sinon odds du ticket
+      const oddsForComputation = finalOddsValue ?? pick.odds;
+      const unitsResult = computeUnitsResult(result, oddsForComputation);
+
       const { data: updated, error } = await supabaseAdmin
         .from("tipster_picks")
         .update({
           status: "resolved",
           result,
           units_result: unitsResult,
+          final_odds: finalOddsValue,
           resolved_at: new Date().toISOString(),
           resolved_by: admin.id,
           admin_note: admin_note || null,
@@ -125,16 +173,25 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (action === "change_result") {
-      // Modifier un r\u00e9sultat d\u00e9j\u00e0 enregistr\u00e9
+      // Modifier un resultat deja enregistre
       if (!result || !["won", "half_won", "refunded", "half_lost", "lost"].includes(result)) {
-        return NextResponse.json({ error: "R\u00e9sultat invalide" }, { status: 400 });
+        return NextResponse.json({ error: "Resultat invalide" }, { status: 400 });
       }
-      const unitsResult = computeUnitsResult(result, pick.odds);
+
+      // Si le nouveau resultat n'est plus won/half_won, on efface final_odds
+      // (cas edge : admin avait mis won + final_odds, puis change pour lost)
+      const shouldKeepFinalOdds = result === "won" || result === "half_won";
+      const finalOddsToStore = shouldKeepFinalOdds ? finalOddsValue : null;
+
+      const oddsForComputation = finalOddsToStore ?? pick.odds;
+      const unitsResult = computeUnitsResult(result, oddsForComputation);
+
       const { data: updated, error } = await supabaseAdmin
         .from("tipster_picks")
         .update({
           result,
           units_result: unitsResult,
+          final_odds: finalOddsToStore,
           admin_note: admin_note || pick.admin_note,
         })
         .eq("id", pick_id)
@@ -150,7 +207,7 @@ export async function PATCH(req: NextRequest) {
         .from("tipster_picks")
         .update({
           status: "rejected",
-          admin_note: admin_note || "Rejet\u00e9 par l'administration",
+          admin_note: admin_note || "Rejete par l'administration",
           resolved_at: new Date().toISOString(),
           resolved_by: admin.id,
         })
@@ -162,13 +219,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (action === "reopen") {
-      // Remettre en live (ex: si r\u00e9sultat contest\u00e9)
+      // Remettre en live (ex: si resultat conteste)
+      // On reset aussi final_odds car le pick repart de zero
       const { data: updated, error } = await supabaseAdmin
         .from("tipster_picks")
         .update({
           status: "live",
           result: null,
           units_result: null,
+          final_odds: null,
           resolved_at: null,
           resolved_by: null,
         })
@@ -187,7 +246,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ── DELETE : supprimer d\u00e9finitivement un pick (y compris le screen) ──
+// ── DELETE : supprimer definitivement un pick (y compris le screen) ──
 export async function DELETE(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
