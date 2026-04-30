@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import PsychoSection from "../PsychoSection";
 
 type LineDetail = {
   opponent_name: string;
@@ -37,8 +36,6 @@ type Opportunity = {
   opponent_fragility_score: number;
   total_score: number;
   badge: "green" | "orange" | "red";
-  psycho_notes: string | null;
-  psycho_flags: Record<string, boolean> | null;
   bertrand_decision: "play" | "skip" | "pending" | null;
   excel_details: {
     favori_details?: LineDetail[];
@@ -86,7 +83,6 @@ export default function OpportunityDetailPage() {
   async function fetchOpportunity() {
     setLoading(true);
     try {
-      // On essaie d'abord aujourd'hui, puis hier, puis avant-hier
       const dates: string[] = [];
       for (let i = 0; i < 3; i++) {
         const d = new Date(Date.now() - i * 86400000).toISOString().split("T")[0];
@@ -461,14 +457,7 @@ export default function OpportunityDetailPage() {
           )}
         </div>
 
-        {/* Section 6 : Module psycho */}
-        <PsychoSection
-          opportunityId={opportunity.id}
-          initialNotes={opportunity.psycho_notes}
-          initialFlags={opportunity.psycho_flags}
-        />
-
-        {/* Section 7 : Décision */}
+        {/* Section 6 : Décision */}
         <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-6">
           <h2 className="text-lg font-black text-neutral-900">🎲 Ma décision</h2>
           <p className="mt-1 text-xs text-neutral-600">
