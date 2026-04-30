@@ -34,12 +34,11 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const badge = searchParams.get("badge"); // green | orange | red | all (defaut: green)
+  const badge = searchParams.get("badge");
   const leagueId = searchParams.get("league_id");
-  const date = searchParams.get("date"); // YYYY-MM-DD (defaut: today)
-  const decision = searchParams.get("decision"); // play | skip | pending | all
+  const date = searchParams.get("date");
+  const decision = searchParams.get("decision");
 
-  // Filtre date par defaut : aujourd'hui (generation_batch)
   const today = new Date().toISOString().split("T")[0];
   const targetDate = date || today;
 
@@ -54,13 +53,13 @@ export async function GET(req: NextRequest) {
       target_intrinsic, opponent_intrinsic, level_gap,
       target_form_score, opponent_fragility_score,
       total_score, badge,
+      excel_details,
       psycho_notes, psycho_flags, bertrand_decision, bertrand_decided_at,
       detected_at, generation_batch,
       o05_leagues:league_id(name, country, division)
     `)
     .eq("generation_batch", targetDate);
 
-  // Filtre badge (defaut: green pour focus immediat)
   if (badge && badge !== "all") {
     query = query.eq("badge", badge);
   }
@@ -118,7 +117,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Missing opportunity_id" }, { status: 400 });
   }
 
-  // Validation decision
   if (body.bertrand_decision && !["play", "skip", "pending"].includes(body.bertrand_decision)) {
     return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
   }

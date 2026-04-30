@@ -29,7 +29,7 @@ type Opportunity = {
   target_role: "home" | "away";
   opponent_team_name: string;
   stake_score: number;
-  stake_situations: Array<{ type: string; detail: string; gap_points: number }>;
+  stake_situations: Array<{ type: string; detail: string; gap_points: number }> | null;
   target_intrinsic: number;
   opponent_intrinsic: number;
   level_gap: number;
@@ -41,10 +41,10 @@ type Opportunity = {
   psycho_flags: Record<string, boolean> | null;
   bertrand_decision: "play" | "skip" | "pending" | null;
   excel_details: {
-    favori_details: LineDetail[];
-    outsider_details: LineDetail[];
-    anomalies_total: number;
-  };
+    favori_details?: LineDetail[];
+    outsider_details?: LineDetail[];
+    anomalies_total?: number;
+  } | null;
   o05_leagues: { name: string; country: string } | null;
 };
 
@@ -80,28 +80,35 @@ export default function OpportunityDetailPage() {
   useEffect(() => {
     if (!id) return;
     fetchOpportunity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function fetchOpportunity() {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const res = await fetch(`/api/over-05-buts-equipes/opportunities?badge=all&date=${today}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const found = (data.opportunities ?? []).find((o: Opportunity) => o.id === id);
-      if (!found) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-        const res2 = await fetch(`/api/over-05-buts-equipes/opportunities?badge=all&date=${yesterday}`);
-        const data2 = await res2.json();
-        const found2 = (data2.opportunities ?? []).find((o: Opportunity) => o.id === id);
-        if (!found2) {
-          throw new Error("Opportunité introuvable");
-        }
-        setOpportunity(found2);
-      } else {
-        setOpportunity(found);
+      // On essaie d'abord aujourd'hui, puis hier, puis avant-hier
+      const dates: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const d = new Date(Date.now() - i * 86400000).toISOString().split("T")[0];
+        dates.push(d);
       }
+
+      let found: Opportunity | null = null;
+      for (const date of dates) {
+        const res = await fetch(`/api/over-05-buts-equipes/opportunities?badge=all&date=${date}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const match = (data.opportunities ?? []).find((o: Opportunity) => o.id === id);
+        if (match) {
+          found = match;
+          break;
+        }
+      }
+
+      if (!found) {
+        throw new Error("Opportunité introuvable");
+      }
+      setOpportunity(found);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -204,6 +211,12 @@ export default function OpportunityDetailPage() {
   const matchDate = new Date(opportunity.match_date);
   const targetIsHome = opportunity.target_role === "home";
 
+  // GARDE-FOUS : sécurise les arrays au cas où null/undefined
+  const stakeSituations = opportunity.stake_situations ?? [];
+  const favoriDetails = opportunity.excel_details?.favori_details ?? [];
+  const outsiderDetails = opportunity.excel_details?.outsider_details ?? [];
+  const anomaliesTotal = opportunity.excel_details?.anomalies_total ?? 0;
+
   return (
     <main className="min-h-screen pb-12 bg-neutral-50">
       {/* Header */}
@@ -274,19 +287,23 @@ export default function OpportunityDetailPage() {
             Stake score : {opportunity.stake_score} / 3
           </p>
           <div className="mt-3 space-y-2">
-            {opportunity.stake_situations.map((s, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 rounded-lg bg-neutral-50 border border-neutral-100 p-3 text-sm text-neutral-700"
-              >
-                <span className="font-bold flex-shrink-0">
-                  {s.type === "title" && "🏆"}
-                  {s.type === "europe" && "🏅"}
-                  {s.type === "relegation" && "⚠️"}
-                </span>
-                <span>{s.detail}</span>
-              </div>
-            ))}
+            {stakeSituations.length === 0 ? (
+              <p className="text-xs text-neutral-500 italic">Aucune situation détectée</p>
+            ) : (
+              stakeSituations.map((s, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-lg bg-neutral-50 border border-neutral-100 p-3 text-sm text-neutral-700"
+                >
+                  <span className="font-bold flex-shrink-0">
+                    {s.type === "title" && "🏆"}
+                    {s.type === "europe" && "🏅"}
+                    {s.type === "relegation" && "⚠️"}
+                  </span>
+                  <span>{s.detail}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -300,7 +317,7 @@ export default function OpportunityDetailPage() {
               <p className="mt-2 text-3xl font-black text-emerald-600">
                 {Number(opportunity.target_intrinsic).toFixed(2)}
               </p>
-              <p className="text-[10px] text-neutral-500">plus c'est bas, plus l'équipe est forte</p>
+              <p className="text-[10px] text-neutral-500">plus c&apos;est bas, plus l&apos;équipe est forte</p>
             </div>
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
               <p className="text-[10px] uppercase tracking-wider text-amber-700">OUTSIDER</p>
@@ -325,51 +342,55 @@ export default function OpportunityDetailPage() {
             </span>
           </p>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-neutral-200 text-neutral-500">
-                  <th className="py-2 text-left font-bold">Date</th>
-                  <th className="py-2 text-left font-bold">Adversaire</th>
-                  <th className="py-2 text-center font-bold">Score</th>
-                  <th className="py-2 text-center font-bold">Niv adv.</th>
-                  <th className="py-2 text-center font-bold">Pts5</th>
-                  <th className="py-2 text-center font-bold">Q</th>
-                  <th className="py-2 text-center font-bold">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {opportunity.excel_details.favori_details.map((line, i) => (
-                  <tr key={i} className="border-b border-neutral-100 text-neutral-700">
-                    <td className="py-2">
-                      {new Date(line.match_date).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </td>
-                    <td className="py-2 font-bold text-neutral-900">{line.opponent_name}</td>
-                    <td className="py-2 text-center">
-                      <span
-                        className={
-                          line.goals_team > line.goals_opponent
-                            ? "text-emerald-600 font-bold"
-                            : line.goals_team < line.goals_opponent
-                              ? "text-red-600 font-bold"
-                              : "text-neutral-500"
-                        }
-                      >
-                        {line.goals_team}-{line.goals_opponent}
-                      </span>
-                    </td>
-                    <td className="py-2 text-center">
-                      {line.opponent_intrinsic !== null ? Number(line.opponent_intrinsic).toFixed(2) : "?"}
-                    </td>
-                    <td className="py-2 text-center">{line.pts5_opponent ?? "?"}</td>
-                    <td className="py-2 text-center font-bold">{line.ad_letter ?? "-"}</td>
-                    <td className="py-2 text-center font-black text-emerald-600">{line.score_line}</td>
+            {favoriDetails.length === 0 ? (
+              <p className="text-xs text-neutral-500 italic">Pas de détails disponibles</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-neutral-500">
+                    <th className="py-2 text-left font-bold">Date</th>
+                    <th className="py-2 text-left font-bold">Adversaire</th>
+                    <th className="py-2 text-center font-bold">Score</th>
+                    <th className="py-2 text-center font-bold">Niv adv.</th>
+                    <th className="py-2 text-center font-bold">Pts5</th>
+                    <th className="py-2 text-center font-bold">Q</th>
+                    <th className="py-2 text-center font-bold">Pts</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {favoriDetails.map((line, i) => (
+                    <tr key={i} className="border-b border-neutral-100 text-neutral-700">
+                      <td className="py-2">
+                        {new Date(line.match_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </td>
+                      <td className="py-2 font-bold text-neutral-900">{line.opponent_name}</td>
+                      <td className="py-2 text-center">
+                        <span
+                          className={
+                            line.goals_team > line.goals_opponent
+                              ? "text-emerald-600 font-bold"
+                              : line.goals_team < line.goals_opponent
+                                ? "text-red-600 font-bold"
+                                : "text-neutral-500"
+                          }
+                        >
+                          {line.goals_team}-{line.goals_opponent}
+                        </span>
+                      </td>
+                      <td className="py-2 text-center">
+                        {line.opponent_intrinsic !== null ? Number(line.opponent_intrinsic).toFixed(2) : "?"}
+                      </td>
+                      <td className="py-2 text-center">{line.pts5_opponent ?? "?"}</td>
+                      <td className="py-2 text-center font-bold">{line.ad_letter ?? "-"}</td>
+                      <td className="py-2 text-center font-black text-emerald-600">{line.score_line}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -383,55 +404,59 @@ export default function OpportunityDetailPage() {
             </span>
           </p>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-neutral-200 text-neutral-500">
-                  <th className="py-2 text-left font-bold">Date</th>
-                  <th className="py-2 text-left font-bold">Adversaire</th>
-                  <th className="py-2 text-center font-bold">Score</th>
-                  <th className="py-2 text-center font-bold">Niv adv.</th>
-                  <th className="py-2 text-center font-bold">Pts5</th>
-                  <th className="py-2 text-center font-bold">Q</th>
-                  <th className="py-2 text-center font-bold">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {opportunity.excel_details.outsider_details.map((line, i) => (
-                  <tr key={i} className="border-b border-neutral-100 text-neutral-700">
-                    <td className="py-2">
-                      {new Date(line.match_date).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </td>
-                    <td className="py-2 font-bold text-neutral-900">{line.opponent_name}</td>
-                    <td className="py-2 text-center">
-                      <span
-                        className={
-                          line.goals_team > line.goals_opponent
-                            ? "text-emerald-600 font-bold"
-                            : line.goals_team < line.goals_opponent
-                              ? "text-red-600 font-bold"
-                              : "text-neutral-500"
-                        }
-                      >
-                        {line.goals_team}-{line.goals_opponent}
-                      </span>
-                    </td>
-                    <td className="py-2 text-center">
-                      {line.opponent_intrinsic !== null ? Number(line.opponent_intrinsic).toFixed(2) : "?"}
-                    </td>
-                    <td className="py-2 text-center">{line.pts5_opponent ?? "?"}</td>
-                    <td className="py-2 text-center font-bold">{line.ad_letter ?? "-"}</td>
-                    <td className="py-2 text-center font-black text-amber-600">{line.score_line}</td>
+            {outsiderDetails.length === 0 ? (
+              <p className="text-xs text-neutral-500 italic">Pas de détails disponibles</p>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-neutral-500">
+                    <th className="py-2 text-left font-bold">Date</th>
+                    <th className="py-2 text-left font-bold">Adversaire</th>
+                    <th className="py-2 text-center font-bold">Score</th>
+                    <th className="py-2 text-center font-bold">Niv adv.</th>
+                    <th className="py-2 text-center font-bold">Pts5</th>
+                    <th className="py-2 text-center font-bold">Q</th>
+                    <th className="py-2 text-center font-bold">Pts</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {outsiderDetails.map((line, i) => (
+                    <tr key={i} className="border-b border-neutral-100 text-neutral-700">
+                      <td className="py-2">
+                        {new Date(line.match_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </td>
+                      <td className="py-2 font-bold text-neutral-900">{line.opponent_name}</td>
+                      <td className="py-2 text-center">
+                        <span
+                          className={
+                            line.goals_team > line.goals_opponent
+                              ? "text-emerald-600 font-bold"
+                              : line.goals_team < line.goals_opponent
+                                ? "text-red-600 font-bold"
+                                : "text-neutral-500"
+                          }
+                        >
+                          {line.goals_team}-{line.goals_opponent}
+                        </span>
+                      </td>
+                      <td className="py-2 text-center">
+                        {line.opponent_intrinsic !== null ? Number(line.opponent_intrinsic).toFixed(2) : "?"}
+                      </td>
+                      <td className="py-2 text-center">{line.pts5_opponent ?? "?"}</td>
+                      <td className="py-2 text-center font-bold">{line.ad_letter ?? "-"}</td>
+                      <td className="py-2 text-center font-black text-amber-600">{line.score_line}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-          {opportunity.excel_details.anomalies_total !== 0 && (
+          {anomaliesTotal !== 0 && (
             <p className="mt-3 text-xs text-red-600">
-              ⚠️ Anomalies détectées : {opportunity.excel_details.anomalies_total} pts
+              ⚠️ Anomalies détectées : {anomaliesTotal} pts
             </p>
           )}
         </div>
