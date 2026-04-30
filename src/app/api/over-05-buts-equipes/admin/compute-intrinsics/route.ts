@@ -3,7 +3,9 @@
 // Route admin pour calculer les niveaux intrinseques de toutes les equipes
 // des 14 championnats configures dans o05_leagues.
 //
-// Acces : Florent uniquement (whitelist O05 + flag admin recommande).
+// Auth (2 modes acceptes) :
+//   - Session cookie Supabase (flotoulouse7@gmail.com via navigateur)
+//   - Header x-admin-email (pour usage PowerShell, comme ai-picks-generate)
 //
 // Comportement :
 //   1. Recupere la liste des championnats actifs depuis o05_leagues
@@ -21,7 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { isO05Authorized } from "@/lib/over-05-buts-equipes/auth";
+import { isO05Authorized, O05_AUTHORIZED_EMAILS } from "@/lib/over-05-buts-equipes/auth";
 import {
   getO05Standings,
   type O05StandingTeam,
@@ -60,12 +62,37 @@ type ComputeReport = {
 };
 
 
-export async function POST(req: NextRequest) {
-  // Auth check : whitelist O05
+/**
+ * Auth fallback : accepte soit la session cookie Supabase (navigateur),
+ * soit l'header x-admin-email (PowerShell, comme le cron ai-picks-generate).
+ *
+ * Pour le header x-admin-email, seul flotoulouse7@gmail.com est accepte
+ * (c'est l'admin technique qui a le droit de relancer ce gros calcul).
+ * Bertrand peut consulter via session cookie mais pas via header.
+ */
+const isAuthorized = async (req: NextRequest): Promise<boolean> => {
+  // Mode 1 : header x-admin-email (PowerShell)
+  const adminEmail = req.headers.get("x-admin-email");
+  if (
+    adminEmail &&
+    adminEmail.toLowerCase() === "flotoulouse7@gmail.com"
+  ) {
+    return true;
+  }
+
+  // Mode 2 : session cookie Supabase (navigateur)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (user && user.email && isO05Authorized(user.email)) {
+    return true;
+  }
 
-  if (!user || !user.email || !isO05Authorized(user.email)) {
+  return false;
+};
+
+
+export async function POST(req: NextRequest) {
+  if (!(await isAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -76,7 +103,8 @@ export async function POST(req: NextRequest) {
   const standingsCache = new Map<string, O05StandingTeam[] | null>();
   let apiCallsCount = 0;
 
-  // Helper : track les appels API via le cache
+  // Helper : track les appels API via le cache (utilise pour le standings
+  // de saison courante du championnat parent, avant les calculs par equipe)
   const fetchWithCache = async (
     leagueId: number,
     season: number
@@ -168,13 +196,6 @@ export async function POST(req: NextRequest) {
           standingsCache
         );
 
-        // Compter les appels API supplementaires faits par computeTeamIntrinsic
-        // (le cache est partage donc tous les nouveaux fetch passent par fetchWithCache.
-        //  Mais computeSeasonScore appelle directement getO05Standings via son
-        //  helper interne. Je mets a jour apiCallsCount apres coup en comparant
-        //  la taille du cache).
-        // (deja gere par standingsCache.size implicitement)
-
         // 2c. Upsert dans o05_intrinsic_levels
         const insertData = {
           team_id: intrinsicResult.team_id,
@@ -234,7 +255,7 @@ export async function POST(req: NextRequest) {
     report.total_errors += errors;
   }
 
-  // Recompter les API calls reels (taille du cache - cache misses geres comme null)
+  // Recompter les API calls reels (taille du cache)
   report.api_calls_used = standingsCache.size;
   report.duration_ms = Date.now() - startedAt;
 
@@ -249,10 +270,7 @@ export async function POST(req: NextRequest) {
 
 // GET : pour preview/test rapide sans declencher le calcul
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user || !user.email || !isO05Authorized(user.email)) {
+  if (!(await isAuthorized(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -276,6 +294,6 @@ export async function GET(req: NextRequest) {
     teams_in_intrinsic_table: totalRows ?? 0,
     estimated_api_calls: 70,
     estimated_duration: "30 secondes a 2 minutes selon API-Football",
-    usage: "POST avec session admin (flotoulouse7@gmail.com)",
+    usage: "POST avec session admin (flotoulouse7@gmail.com) ou header x-admin-email",
   });
 }
