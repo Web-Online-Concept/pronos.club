@@ -2,33 +2,34 @@
 //
 // Module 1 — Detection des enjeux sportifs par championnat.
 //
-// LOGIQUE CORRIGEE (v2) :
-// Pour chaque equipe, on verifie son ecart SPECIFIQUE avec son voisin direct,
-// pas un ecart global au niveau du championnat.
+// LOGIQUE v4 (alignee sur message Bertrand 30/04) :
 //
-//   Situation A : Lutte pour le titre
-//     -> equipe dans le Top N (defini par title_race_top_n)
-//     -> ET (si elle est leader) ecart <= 2 pts avec le 2e
-//        OU (si elle poursuit) ecart <= 2 pts avec le leader
+// "S'il n'y a pas d'enjeu (place a perdre pour l'equipe qui doit marquer),
+//  on n'etudie pas le match"
 //
-//   Situation B : Course a l'Europe
+// → L'ENJEU EST STRICTEMENT DEFENSIF : l'equipe a une PLACE A PERDRE.
+//   Les equipes qui peuvent GAGNER une place (grimper) ne sont PAS en enjeu
+//   au sens Bertrand. C'est la peur de tomber qui motive, pas l'envie de monter.
+//
+//   Situation A : Lutte pour le titre (PROTECTION du leader)
+//     -> equipe LEADER (rang 1) ET ecart <= 2 pts avec le 2e
+//     (Les poursuivants ne sont PAS en enjeu : ils n'ont pas de place a perdre)
+//
+//   Situation B : Course a l'Europe (PROTECTION de la place)
 //     -> equipe DANS une place qualificative (UCL/UEL/UECL)
 //        ET ecart <= 2 pts avec l'equipe juste en-dessous
-//        (= peut perdre sa place europeenne ou descendre dans la hierarchie UCL→UEL→UECL)
-//     OU
-//     -> equipe JUSTE EN-DESSOUS d'une place qualificative
-//        ET ecart <= 2 pts avec l'equipe juste au-dessus
-//        (= peut gagner une place europeenne)
+//     (Les equipes qui peuvent grimper ne sont PAS en enjeu)
 //
-//   Situation C : Lutte pour la relegation
-//     -> equipe DANS la zone rouge (relegation auto ou playoff)
-//        ET niveau intrinseque significativement meilleur que sa position actuelle
-//        (= reveil attendu, equipe normalement bien mieux placee)
-//     OU
+//   Situation C : Lutte pour la relegation (PROTECTION pour ne pas tomber)
 //     -> equipe JUSTE AU-DESSUS de la zone rouge
-//        ET ecart <= 2 pts avec la premiere place de zone rouge
+//        ET ecart <= 2 pts avec la 1ere place de zone rouge
+//     (Les equipes DEJA en zone rouge ne sont PAS un enjeu de "protection",
+//      elles luttent pour s'extirper - cas different)
 //
-// Sortie : Map<team_id, StakeInfo> ne contenant QUE les equipes avec un enjeu.
+//   Situation D : Equipe en zone rouge avec niveau intrinseque sup
+//     -> equipe DANS la zone rouge ET niveau intrinseque < rang/10
+//     (Cas particulier : equipe qui devrait remonter mecaniquement,
+//      a une "place" historique a recuperer)
 
 import type { O05StandingTeam } from "./apifootball-standings";
 
@@ -48,7 +49,7 @@ export type StakeInfo = {
   team_name: string;
   rank: number;
   points: number;
-  stake_score: number; // 0-3 (0 = pas d'enjeu, 3 = enjeu maximal)
+  stake_score: number;
   situations: StakeSituation[];
 };
 
@@ -84,15 +85,13 @@ export type LeagueWithRules = {
 // ─── Constantes ────────────────────────────────────────────────────
 
 
-const POINTS_GAP_THRESHOLD = 2; // strict <= 2 pts
+const POINTS_GAP_MAX = 2;  // strict <= 2 pts
+const POINTS_GAP_MIN = 0;  // gap doit etre >= 0 (pas negatif, anomalie API)
 
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
 
-/**
- * Combine les positions des 3 coupes europeennes en un seul Set.
- */
 const getEuropeanPositions = (rules: LeagueRulesJSON["european_rules"]): Set<number> => {
   return new Set([
     ...rules.ucl_positions,
@@ -102,9 +101,6 @@ const getEuropeanPositions = (rules: LeagueRulesJSON["european_rules"]): Set<num
 };
 
 
-/**
- * Combine les positions de relegation (auto + playoff).
- */
 const getRelegationPositions = (rules: LeagueRulesJSON["relegation_rules"]): Set<number> => {
   return new Set([
     ...rules.auto_relegated,
@@ -113,10 +109,6 @@ const getRelegationPositions = (rules: LeagueRulesJSON["relegation_rules"]): Set
 };
 
 
-/**
- * Helper : nom court de la coupe europeenne pour une position.
- * Ex: 4e en La Liga (ucl_positions=[1,2,3,4,5]) → "UCL"
- */
 const getCupNameForPosition = (
   rank: number,
   rules: LeagueRulesJSON["european_rules"]
@@ -128,16 +120,14 @@ const getCupNameForPosition = (
 };
 
 
+const isValidGap = (gap: number): boolean => {
+  return gap >= POINTS_GAP_MIN && gap <= POINTS_GAP_MAX;
+};
+
+
 // ─── Fonction principale ──────────────────────────────────────────
 
 
-/**
- * Detecte les equipes en enjeu sportif dans un championnat.
- *
- * @param standings Classement actuel
- * @param league Championnat avec ses regles
- * @param intrinsicMap Map<team_id, intrinsic_average> pour Cas C relegation
- */
 export const detectStakesForLeague = (
   standings: O05StandingTeam[],
   league: LeagueWithRules,
@@ -148,55 +138,41 @@ export const detectStakesForLeague = (
 
   const europeanPositions = getEuropeanPositions(league.european_rules);
   const relegationPositions = getRelegationPositions(league.relegation_rules);
-  const titleTopN = league.title_rules.title_race_top_n;
 
-  // Tri par rang
   const sorted = [...standings].sort((a, b) => a.rank - b.rank);
-
-  // Index pour acces rapide par rang
   const byRank = new Map<number, O05StandingTeam>();
   for (const t of sorted) byRank.set(t.rank, t);
 
   for (const team of sorted) {
     const situations: StakeSituation[] = [];
 
-    // ─── SITUATION A : Lutte pour le titre ─────────────────
-    if (team.rank <= titleTopN) {
-      const leader = sorted[0];
+    // ─── SITUATION A : Lutte titre (PROTECTION du leader) ───────
+    // Le leader (rang 1) a une place à perdre si le 2e est proche
+    if (team.rank === 1 && sorted.length >= 2) {
       const second = sorted[1];
-
-      if (team.rank === 1 && second) {
-        const gapToSecond = team.points - second.points;
-        if (gapToSecond <= POINTS_GAP_THRESHOLD) {
-          situations.push({
-            type: "title",
-            detail: `Leader avec ${gapToSecond} pt(s) d'avance sur ${second.team.name}`,
-            gap_points: gapToSecond,
-          });
-        }
-      } else if (team.rank > 1 && leader) {
-        const gapToLeader = leader.points - team.points;
-        if (gapToLeader <= POINTS_GAP_THRESHOLD) {
-          situations.push({
-            type: "title",
-            detail: `${team.rank}e a ${gapToLeader} pt(s) du leader ${leader.team.name}`,
-            gap_points: gapToLeader,
-          });
-        }
+      const gap = team.points - second.points;
+      if (isValidGap(gap)) {
+        situations.push({
+          type: "title",
+          detail: `Leader avec ${gap} pt(s) d'avance sur ${second.team.name}`,
+          gap_points: gap,
+        });
       }
     }
+    // Note : on n'ajoute PAS les poursuivants ; ils n'ont pas de place
+    // a perdre, ils en ont une a gagner (et selon Bertrand ce n'est pas
+    // un enjeu).
 
-    // ─── SITUATION B : Course a l'Europe ───────────────────
-    // CAS B1 : equipe DANS une place europeenne -> menace de descendre
+    // ─── SITUATION B : Europe (PROTECTION de la place) ──────────
+    // Equipe DANS une place europeenne ET menacee par celle juste en-dessous
     if (europeanPositions.has(team.rank)) {
       const teamBelow = byRank.get(team.rank + 1);
       if (teamBelow) {
         const gap = team.points - teamBelow.points;
-        if (gap <= POINTS_GAP_THRESHOLD) {
+        if (isValidGap(gap)) {
           const myCup = getCupNameForPosition(team.rank, league.european_rules);
           const isBelowEuropean = europeanPositions.has(team.rank + 1);
           if (isBelowEuropean) {
-            // Descente vers une coupe inferieure (UCL→UEL ou UEL→UECL)
             const belowCup = getCupNameForPosition(team.rank + 1, league.european_rules);
             situations.push({
               type: "europe",
@@ -204,7 +180,6 @@ export const detectStakesForLeague = (
               gap_points: gap,
             });
           } else {
-            // Risque de tomber HORS Europe
             situations.push({
               type: "europe",
               detail: `Place ${myCup} (${team.rank}e) menacee : ${gap} pt(s) d'avance sur ${teamBelow.team.name} (hors Europe)`,
@@ -213,36 +188,13 @@ export const detectStakesForLeague = (
           }
         }
       }
-    } else {
-      // CAS B2 : equipe HORS Europe mais juste en-dessous -> peut grimper
-      const teamAbove = byRank.get(team.rank - 1);
-      if (teamAbove && europeanPositions.has(team.rank - 1)) {
-        const gap = teamAbove.points - team.points;
-        if (gap <= POINTS_GAP_THRESHOLD) {
-          const aboveCup = getCupNameForPosition(team.rank - 1, league.european_rules);
-          situations.push({
-            type: "europe",
-            detail: `A ${gap} pt(s) d'une place ${aboveCup} (${team.rank}e vs ${team.rank - 1}e ${teamAbove.team.name})`,
-            gap_points: gap,
-          });
-        }
-      }
     }
+    // Note : on n'ajoute PAS les equipes juste sous l'Europe qui peuvent
+    // grimper ; elles n'ont pas de place europeenne A PERDRE.
 
-    // ─── SITUATION C : Lutte pour la relegation ────────────
-    if (relegationPositions.has(team.rank)) {
-      // Equipe DANS la zone rouge
-      // Cas C1 : niveau intrinseque > position actuelle (reveil attendu)
-      const intrinsic = intrinsicMap.get(team.team.id);
-      if (intrinsic !== undefined && intrinsic < team.rank / 10) {
-        situations.push({
-          type: "relegation",
-          detail: `Zone rouge (${team.rank}e) mais niveau intrinseque ${intrinsic.toFixed(2)} bien meilleur`,
-          gap_points: 0,
-        });
-      }
-    } else {
-      // Equipe HORS zone rouge -> verifier si juste au-dessus
+    // ─── SITUATION C : Relegation (PROTECTION pour ne pas tomber) ──
+    // Equipe HORS zone rouge mais juste au-dessus, menacee par 1ere de zone
+    if (!relegationPositions.has(team.rank)) {
       const sortedRelegation = Array.from(relegationPositions).sort((a, b) => a - b);
       if (sortedRelegation.length > 0) {
         const firstRelegation = sortedRelegation[0];
@@ -251,7 +203,7 @@ export const detectStakesForLeague = (
           const firstRelegationTeam = byRank.get(firstRelegation);
           if (firstRelegationTeam) {
             const gap = team.points - firstRelegationTeam.points;
-            if (gap <= POINTS_GAP_THRESHOLD) {
+            if (isValidGap(gap)) {
               situations.push({
                 type: "relegation",
                 detail: `Juste au-dessus de la zone rouge (${gap} pt(s) d'avance sur ${firstRelegationTeam.team.name})`,
@@ -263,7 +215,23 @@ export const detectStakesForLeague = (
       }
     }
 
-    // Si au moins 1 situation -> ajouter au resultat
+    // ─── SITUATION D : Equipe en zone rouge avec niveau intrinseque sup ──
+    // Cas particulier : equipe DANS zone rouge mais "trop forte" pour y rester.
+    // Bertrand : "place a perdre" peut s'interpreter comme la place
+    // historique du club (= projet en debut de saison). Si une equipe est
+    // historiquement au-dessus de sa position actuelle, elle a une "place
+    // historique a perdre" si elle est releguee.
+    if (relegationPositions.has(team.rank)) {
+      const intrinsic = intrinsicMap.get(team.team.id);
+      if (intrinsic !== undefined && intrinsic < team.rank / 10) {
+        situations.push({
+          type: "relegation",
+          detail: `Zone rouge (${team.rank}e) mais niveau intrinseque ${intrinsic.toFixed(2)} bien meilleur (place historique a defendre)`,
+          gap_points: 0,
+        });
+      }
+    }
+
     if (situations.length > 0) {
       const stakeScore = computeStakeScore(situations);
       result.set(team.team.id, {
@@ -281,14 +249,6 @@ export const detectStakesForLeague = (
 };
 
 
-/**
- * Calcule le stake_score (0-3) en fonction des situations detectees.
- *
- * Logique :
- *   - 1 situation seule : stake_score = 2 (enjeu fort)
- *   - 1 situation avec gap = 0 (course tres serree) : stake_score = 3
- *   - Plusieurs situations cumulees : stake_score = 3 (enjeu maximal)
- */
 const computeStakeScore = (situations: StakeSituation[]): number => {
   if (situations.length === 0) return 0;
   if (situations.length >= 2) return 3;
@@ -298,9 +258,6 @@ const computeStakeScore = (situations: StakeSituation[]): number => {
 };
 
 
-/**
- * Helper : detecte les enjeux pour TOUS les championnats.
- */
 export const detectStakesAllLeagues = (
   standingsByLeague: Map<number, O05StandingTeam[]>,
   leagues: LeagueWithRules[],

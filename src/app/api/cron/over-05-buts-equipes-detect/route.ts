@@ -5,14 +5,8 @@
 //
 // Schedule Vercel : 0 5 * * * (5h UTC = 6h Paris en hiver, 7h Paris en ete)
 //
-// Auth : CRON_SECRET (Vercel) ou x-admin-email pour test manuel
-//
-// Pipeline :
-//   1. Refresh score_s1 de toutes les equipes (14 calls)
-//   2. Pour chaque championnat : fetch standings + detect stakes (deja fetch)
-//   3. Pour chaque championnat : fetch fixtures 48h a venir (14 calls)
-//   4. Pour chaque match candidat : analyse + scoring + badge
-//   5. Persist dans o05_opportunities + log dans o05_cron_logs
+// v3 : retire le chargement des scores s2-s5 (filtre forfaitaire supprime
+//      car contraire a la methode Bertrand qui veut de la disparite).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
@@ -23,7 +17,6 @@ import {
 import {
   getO05FixturesByDateRange,
   getO05TeamLastFixtures,
-  isO05FixtureFinished,
   type O05Fixture,
 } from "@/lib/over-05-buts-equipes/apifootball-fixtures";
 import { refreshCurrentSeasonScores } from "@/lib/over-05-buts-equipes/refresh-current-season";
@@ -31,7 +24,6 @@ import { getCurrentApiFootballSeason } from "@/lib/over-05-buts-equipes/compute-
 import {
   detectStakesAllLeagues,
   type LeagueWithRules,
-  type StakeInfo,
 } from "@/lib/over-05-buts-equipes/detect-stakes";
 import {
   analyzeOpportunity,
@@ -40,7 +32,7 @@ import {
 } from "@/lib/over-05-buts-equipes/detect-opportunities";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes max
+export const maxDuration = 300;
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,46 +45,30 @@ const supabaseAdmin = createAdminClient(
 
 const isAuthorized = (req: NextRequest): boolean => {
   const cronSecret = process.env.CRON_SECRET;
-
-  // Mode 1 : Bearer CRON_SECRET (Vercel cron)
   const authHeader = req.headers.get("authorization");
   if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true;
-
-  // Mode 2 : signature Vercel cron
   const vercelSignature = req.headers.get("x-vercel-cron-signature");
   if (vercelSignature) return true;
-
-  // Mode 3 : header x-admin-email (test manuel PowerShell)
   const adminEmail = req.headers.get("x-admin-email");
-  if (
-    adminEmail &&
-    adminEmail.toLowerCase() === "flotoulouse7@gmail.com"
-  ) {
+  if (adminEmail && adminEmail.toLowerCase() === "flotoulouse7@gmail.com") {
     return true;
   }
-
   return false;
 };
 
 
-// ─── Helpers de date ───────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────
 
 
 const formatDate = (date: Date): string => {
-  // YYYY-MM-DD
   return date.toISOString().split("T")[0];
 };
-
-
-// ─── Helper de fetch des derniers matchs avec cache ────────────────
-
 
 const buildFetchOpponentLast5 = (cache: Map<number, O05Fixture[]>) => {
   return async (teamId: number): Promise<O05Fixture[]> => {
     if (cache.has(teamId)) return cache.get(teamId)!;
     try {
       const fixtures = await getO05TeamLastFixtures(teamId, 10);
-      // On garde les 10 derniers car on filtrera par "termines" et on a besoin de 5 finis
       cache.set(teamId, fixtures);
       return fixtures;
     } catch (err) {
@@ -119,15 +95,12 @@ export async function GET(req: NextRequest) {
   const runDate = formatDate(new Date());
   const currentSeason = getCurrentApiFootballSeason();
 
-  // Initialiser le log cron
-  const { data: logRow } = await supabaseAdmin
+  await supabaseAdmin
     .from("o05_cron_logs")
     .upsert(
       { run_date: runDate, started_at: new Date().toISOString(), status: "running" },
       { onConflict: "run_date" }
-    )
-    .select()
-    .single();
+    );
 
   const stats = {
     fixtures_scanned: 0,
@@ -162,7 +135,7 @@ export async function GET(req: NextRequest) {
 
     const { data: intrinsics } = await supabaseAdmin
       .from("o05_intrinsic_levels")
-      .select("team_id, intrinsic_average, current_league_id")
+      .select("team_id, intrinsic_average")
       .eq("computed_for_season", currentSeason);
 
     const intrinsicMap = new Map<number, number>();
@@ -170,9 +143,6 @@ export async function GET(req: NextRequest) {
       intrinsicMap.set(row.team_id, Number(row.intrinsic_average));
     }
 
-    // Fetch standings actuels (deja fetch par refresh, on les re-fetch ici car
-    // refreshCurrentSeasonScores ne les retourne pas. Cout : 14 calls supplementaires)
-    // Optimisation possible plus tard : faire en sorte que refresh retourne les standings.
     const standingsByLeague = new Map<number, O05StandingTeam[]>();
     for (const league of leagues) {
       try {
@@ -186,7 +156,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ─── 3. Detection des enjeux (Module 1) ─────────────────────
+    // ─── 3. Detection des enjeux ────────────────────────────────
     console.log("[o05-cron] Step 3: detect stakes");
     const stakesMap = detectStakesAllLeagues(
       standingsByLeague,
@@ -213,7 +183,6 @@ export async function GET(req: NextRequest) {
         );
         stats.api_calls_used++;
         for (const f of fixtures) {
-          // Garder uniquement les fixtures NON commences (NS = Not Started)
           if (f.fixture.status.short === "NS" || f.fixture.status.short === "TBD") {
             allFixtures.push({ fixture: f, league_id: league.id });
           }
@@ -237,12 +206,10 @@ export async function GET(req: NextRequest) {
     for (const { fixture, league_id } of allFixtures) {
       const homeId = fixture.teams.home.id;
       const awayId = fixture.teams.away.id;
-
       const homeIntrinsic = intrinsicMap.get(homeId);
       const awayIntrinsic = intrinsicMap.get(awayId);
 
       if (homeIntrinsic === undefined || awayIntrinsic === undefined) {
-        // Equipe sans niveau intrinseque calcule -> SKIP
         continue;
       }
 
@@ -282,7 +249,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Compter les API calls reels via le cache
     stats.api_calls_used += lastFixturesCache.size;
 
     // ─── 6. Persist les opportunites ────────────────────────────
@@ -310,7 +276,7 @@ export async function GET(req: NextRequest) {
             target_intrinsic: opp.target_intrinsic,
             opponent_intrinsic: opp.opponent_intrinsic,
             level_gap: opp.level_gap,
-            level_gap_score: 0, // module 3 simplifie : 0 pour l'instant
+            level_gap_score: 0,
             target_form_score: opp.score_favori,
             opponent_fragility_score: opp.score_outsider,
             target_anomalies: 0,
