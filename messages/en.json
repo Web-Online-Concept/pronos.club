@@ -1601,6 +1601,7 @@
     "status_half_lost": "½ Lost",
     "status_lost": "Lost",
     "status_live": "Live",
+    "status_pending_validation": "Awaiting results",
     "delete_button": "🗑 Delete",
     "delete_window": "⏱ Delete window: {time} left",
     "delete_locked": "Pick locked (modification window expired)",

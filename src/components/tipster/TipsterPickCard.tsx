@@ -1,9 +1,17 @@
 // src/components/tipster/TipsterPickCard.tsx
+//
+// MODIF v2 (30/04/2026) :
+// Detection automatique du cas "en attente de validation manuelle" :
+//   - status = "live" ET match_date < now()
+//   - => badge orange "En attente des résultats"
+// Le pari s'affiche désormais dans l'historique avec ce badge
+// jusqu'à validation manuelle par l'admin.
+
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 type Pick = {
   id: string;
@@ -58,17 +66,33 @@ export default function TipsterPickCard({
     };
   }, [modalOpen]);
 
-  const theme = pick.result === "won"
-    ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
-    : pick.result === "half_won"
-    ? { accent: "#10b981", bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.15)", ring: "rgba(16,185,129,0.3)", text: "#6ee7b7", label: t("status_half_won") }
-    : pick.result === "refunded"
-    ? { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", ring: "rgba(59,130,246,0.4)", text: "#93c5fd", label: t("status_refunded") }
-    : pick.result === "half_lost"
-    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)", ring: "rgba(239,68,68,0.3)", text: "#fca5a5", label: t("status_half_lost") }
-    : pick.result === "lost"
-    ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: t("status_lost") }
-    : { accent: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", ring: "rgba(255,255,255,0.06)", text: "rgba(251,191,36,0.9)", label: t("status_live") };
+  // Detection : status "live" + match deja commence = en attente de validation manuelle
+  const matchHasStarted = new Date(pick.match_date).getTime() < Date.now();
+  const isPendingValidation = pick.status === "live" && matchHasStarted;
+
+  // Theme selon resultat (ou cas special "en attente de validation")
+  const theme = isPendingValidation
+    ? {
+        accent: "#f59e0b",
+        bg: "rgba(245,158,11,0.10)",
+        border: "rgba(245,158,11,0.25)",
+        ring: "rgba(245,158,11,0.4)",
+        text: "#fbbf24",
+        label: t.has("status_pending_validation")
+          ? t("status_pending_validation")
+          : "En attente des résultats",
+      }
+    : pick.result === "won"
+      ? { accent: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)", ring: "rgba(16,185,129,0.4)", text: "#34d399", label: t("status_won") }
+      : pick.result === "half_won"
+        ? { accent: "#10b981", bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.15)", ring: "rgba(16,185,129,0.3)", text: "#6ee7b7", label: t("status_half_won") }
+        : pick.result === "refunded"
+          ? { accent: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)", ring: "rgba(59,130,246,0.4)", text: "#93c5fd", label: t("status_refunded") }
+          : pick.result === "half_lost"
+            ? { accent: "#ef4444", bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.15)", ring: "rgba(239,68,68,0.3)", text: "#fca5a5", label: t("status_half_lost") }
+            : pick.result === "lost"
+              ? { accent: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)", ring: "rgba(239,68,68,0.4)", text: "#fca5a5", label: t("status_lost") }
+              : { accent: "#fbbf24", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.2)", ring: "rgba(255,255,255,0.06)", text: "rgba(251,191,36,0.9)", label: t("status_live") };
 
   const dateLocale = DATE_LOCALES[locale] || "fr-FR";
   const matchDate = new Date(pick.match_date);
@@ -194,22 +218,28 @@ export default function TipsterPickCard({
           textAlign: "center",
         }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: theme.text }}>
-            {pick.result === "won" && (
+            {isPendingValidation && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+            )}
+            {!isPendingValidation && pick.result === "won" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
             )}
-            {pick.result === "half_won" && (
+            {!isPendingValidation && pick.result === "half_won" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" opacity="0.6" /></svg>
             )}
-            {pick.result === "refunded" && (
+            {!isPendingValidation && pick.result === "refunded" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.65-4.65M20 15a9 9 0 01-14.65 4.65" /></svg>
             )}
-            {pick.result === "half_lost" && (
+            {!isPendingValidation && pick.result === "half_lost" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" opacity="0.6" /></svg>
             )}
-            {pick.result === "lost" && (
+            {!isPendingValidation && pick.result === "lost" && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 18L18 6M6 6l12 12" /></svg>
             )}
-            {!pick.result && (
+            {!isPendingValidation && !pick.result && (
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(251,191,36,0.9)", display: "inline-block" }} />
             )}
             {theme.label}

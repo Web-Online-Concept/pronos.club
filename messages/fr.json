@@ -1601,6 +1601,7 @@
     "status_half_lost": "½ Perdu",
     "status_lost": "Perdu",
     "status_live": "En cours",
+    "status_pending_validation": "En attente des résultats",
     "delete_button": "🗑 Supprimer",
     "delete_window": "⏱ Fenêtre de suppression : encore {time}",
     "delete_locked": "Pronostic verrouillé (fenêtre de modification expirée)",

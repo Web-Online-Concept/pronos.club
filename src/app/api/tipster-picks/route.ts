@@ -1,5 +1,11 @@
 // src/app/api/tipster-picks/route.ts
 // CRUD public picks + filtrage + upload image
+//
+// MODIF v2 (30/04/2026) :
+// Le filtre "resolved" inclut maintenant aussi les paris dont le match a
+// commencé MAIS qui ne sont pas encore validés manuellement par l'admin
+// (status = "live" + match_date < now). Ils s'affichent dans l'historique
+// avec le badge "En attente des résultats" géré côté composant.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -55,15 +61,25 @@ export async function GET(req: NextRequest) {
         users:user_id (id, pseudo, avatar_url)
       `);
 
+    const nowIso = new Date().toISOString();
+
     if (filter === "live") {
+      // PRONOS EN COURS : status "live" ET match pas encore commencé
       query = query
         .eq("status", "live")
-        .gte("match_date", new Date().toISOString())
+        .gte("match_date", nowIso)
         .order("match_date", { ascending: true });
     } else if (filter === "resolved") {
+      // HISTORIQUE : on veut voir
+      //   - Les paris déjà résolus (status = "resolved")
+      //   - + Les paris dont le match a commencé mais pas encore validés
+      //     par l'admin (status = "live" ET match_date < now)
+      //     -> ils s'afficheront avec le badge "En attente des résultats"
       query = query
-        .eq("status", "resolved")
-        .order("resolved_at", { ascending: false });
+        .or(
+          `status.eq.resolved,and(status.eq.live,match_date.lt.${nowIso})`
+        )
+        .order("match_date", { ascending: false });
     } else if (filter === "mine") {
       const user = await getAuthUser();
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
