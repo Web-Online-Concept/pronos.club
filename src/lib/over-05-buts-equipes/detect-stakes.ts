@@ -2,24 +2,33 @@
 //
 // Module 1 — Detection des enjeux sportifs par championnat.
 //
-// Pour chaque championnat actif, on identifie les equipes qui sont en
-// situation d'enjeu reel selon la logique Bertrand :
+// LOGIQUE CORRIGEE (v2) :
+// Pour chaque equipe, on verifie son ecart SPECIFIQUE avec son voisin direct,
+// pas un ecart global au niveau du championnat.
 //
 //   Situation A : Lutte pour le titre
-//     -> equipe dans le Top N (defini par title_race_top_n) AVEC ecart <= 2 pts
-//        avec ses poursuivants/leaders directs
+//     -> equipe dans le Top N (defini par title_race_top_n)
+//     -> ET (si elle est leader) ecart <= 2 pts avec le 2e
+//        OU (si elle poursuit) ecart <= 2 pts avec le leader
 //
-//   Situation B : Course a l'Europe (UCL / UEL / UECL)
-//     -> equipe DANS une place qualificative ET ecart <= 2 pts avec position juste en-dessous
-//     -> equipe JUSTE EN-DESSOUS d'une place qualificative ET ecart <= 2 pts avec position juste au-dessus
+//   Situation B : Course a l'Europe
+//     -> equipe DANS une place qualificative (UCL/UEL/UECL)
+//        ET ecart <= 2 pts avec l'equipe juste en-dessous
+//        (= peut perdre sa place europeenne ou descendre dans la hierarchie UCL→UEL→UECL)
+//     OU
+//     -> equipe JUSTE EN-DESSOUS d'une place qualificative
+//        ET ecart <= 2 pts avec l'equipe juste au-dessus
+//        (= peut gagner une place europeenne)
 //
 //   Situation C : Lutte pour la relegation
-//     -> equipe DANS la zone rouge ET niveau intrinseque > position actuelle (= reveil attendu)
-//     -> equipe JUSTE AU-DESSUS de la zone rouge ET ecart <= 2 pts vers cette zone
+//     -> equipe DANS la zone rouge (relegation auto ou playoff)
+//        ET niveau intrinseque significativement meilleur que sa position actuelle
+//        (= reveil attendu, equipe normalement bien mieux placee)
+//     OU
+//     -> equipe JUSTE AU-DESSUS de la zone rouge
+//        ET ecart <= 2 pts avec la premiere place de zone rouge
 //
-// Sortie : Map<team_id, StakeInfo> ou StakeInfo = { stake_score: 1-3, situations: [...] }
-//
-// Une equipe sans enjeu N'EST PAS dans la map.
+// Sortie : Map<team_id, StakeInfo> ne contenant QUE les equipes avec un enjeu.
 
 import type { O05StandingTeam } from "./apifootball-standings";
 
@@ -72,15 +81,17 @@ export type LeagueWithRules = {
 };
 
 
+// ─── Constantes ────────────────────────────────────────────────────
+
+
+const POINTS_GAP_THRESHOLD = 2; // strict <= 2 pts
+
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 
-const POINTS_GAP_THRESHOLD = 2; // strict <= 2 pts (validation Florent)
-
-
 /**
- * Combine les positions des 3 coupes europeennes en un seul Set
- * pour faciliter les checks.
+ * Combine les positions des 3 coupes europeennes en un seul Set.
  */
 const getEuropeanPositions = (rules: LeagueRulesJSON["european_rules"]): Set<number> => {
   return new Set([
@@ -92,7 +103,7 @@ const getEuropeanPositions = (rules: LeagueRulesJSON["european_rules"]): Set<num
 
 
 /**
- * Combine les positions de relegation (auto + playoff) en un seul Set.
+ * Combine les positions de relegation (auto + playoff).
  */
 const getRelegationPositions = (rules: LeagueRulesJSON["relegation_rules"]): Set<number> => {
   return new Set([
@@ -103,38 +114,17 @@ const getRelegationPositions = (rules: LeagueRulesJSON["relegation_rules"]): Set
 
 
 /**
- * Determine la "frontiere europeenne" la plus proche pour une position donnee.
- * Ex: si rank=4 et ucl_positions=[1,2,3], alors la frontiere est entre 3 et 4.
- *
- * Retourne :
- *   - la position de la frontiere superieure (derniere place qualificative)
- *   - la position de la frontiere inferieure (premiere place non-qualificative)
- *   - null si pas de frontiere proche pour ce rank
+ * Helper : nom court de la coupe europeenne pour une position.
+ * Ex: 4e en La Liga (ucl_positions=[1,2,3,4,5]) → "UCL"
  */
-const getEuropeanFrontier = (
+const getCupNameForPosition = (
   rank: number,
-  europeanPositions: Set<number>
-): { lastQualified: number; firstNonQualified: number } | null => {
-  // Trouve toutes les positions europeennes triees
-  const sortedPositions = Array.from(europeanPositions).sort((a, b) => a - b);
-  if (sortedPositions.length === 0) return null;
-
-  const lastQualified = Math.max(...sortedPositions);
-  const firstNonQualified = lastQualified + 1;
-
-  // Cas 1 : equipe DANS la zone qualificative
-  // Son enjeu : ne pas tomber a firstNonQualified (= rank 6 ou 7 selon le cas)
-  if (europeanPositions.has(rank)) {
-    return { lastQualified, firstNonQualified };
-  }
-
-  // Cas 2 : equipe JUSTE en dessous (= a la position firstNonQualified)
-  // Son enjeu : entrer dans le dernier rang qualificatif
-  if (rank === firstNonQualified) {
-    return { lastQualified, firstNonQualified };
-  }
-
-  return null;
+  rules: LeagueRulesJSON["european_rules"]
+): string => {
+  if (rules.ucl_positions.includes(rank)) return "UCL";
+  if (rules.uel_positions.includes(rank)) return "UEL";
+  if (rules.uecl_positions.includes(rank)) return "UECL";
+  return "Europe";
 };
 
 
@@ -144,11 +134,9 @@ const getEuropeanFrontier = (
 /**
  * Detecte les equipes en enjeu sportif dans un championnat.
  *
- * @param standings Classement actuel du championnat (deja fetche)
- * @param league Championnat avec ses regles (european, relegation, title)
- * @param intrinsicMap Map<team_id, intrinsic_average> pour le check du Cas C relegation
- *                     (equipe en zone rouge avec niveau intrinseque > position actuelle)
- * @returns Map<team_id, StakeInfo> ne contenant QUE les equipes avec un enjeu
+ * @param standings Classement actuel
+ * @param league Championnat avec ses regles
+ * @param intrinsicMap Map<team_id, intrinsic_average> pour Cas C relegation
  */
 export const detectStakesForLeague = (
   standings: O05StandingTeam[],
@@ -162,23 +150,22 @@ export const detectStakesForLeague = (
   const relegationPositions = getRelegationPositions(league.relegation_rules);
   const titleTopN = league.title_rules.title_race_top_n;
 
-  // Tri par rang (au cas ou le standings ne soit pas deja trie)
+  // Tri par rang
   const sorted = [...standings].sort((a, b) => a.rank - b.rank);
 
-  // Pour chaque equipe, on verifie les 3 situations
+  // Index pour acces rapide par rang
+  const byRank = new Map<number, O05StandingTeam>();
+  for (const t of sorted) byRank.set(t.rank, t);
+
   for (const team of sorted) {
     const situations: StakeSituation[] = [];
 
     // ─── SITUATION A : Lutte pour le titre ─────────────────
-    // Top N (defini dans title_rules) avec ecart <= 2 pts
     if (team.rank <= titleTopN) {
-      // Equipe dans le top -> verifier ecart avec leader (1er) ou poursuivant
       const leader = sorted[0];
-      const gapToLeader = leader.points - team.points;
+      const second = sorted[1];
 
-      // Si elle est leader, verifier ecart avec le 2eme
-      if (team.rank === 1 && sorted.length >= 2) {
-        const second = sorted[1];
+      if (team.rank === 1 && second) {
         const gapToSecond = team.points - second.points;
         if (gapToSecond <= POINTS_GAP_THRESHOLD) {
           situations.push({
@@ -187,42 +174,57 @@ export const detectStakesForLeague = (
             gap_points: gapToSecond,
           });
         }
-      } else if (team.rank > 1 && gapToLeader <= POINTS_GAP_THRESHOLD) {
-        // Equipe poursuivante avec ecart faible
-        situations.push({
-          type: "title",
-          detail: `${team.rank}e a ${gapToLeader} pt(s) du leader ${leader.team.name}`,
-          gap_points: gapToLeader,
-        });
+      } else if (team.rank > 1 && leader) {
+        const gapToLeader = leader.points - team.points;
+        if (gapToLeader <= POINTS_GAP_THRESHOLD) {
+          situations.push({
+            type: "title",
+            detail: `${team.rank}e a ${gapToLeader} pt(s) du leader ${leader.team.name}`,
+            gap_points: gapToLeader,
+          });
+        }
       }
     }
 
     // ─── SITUATION B : Course a l'Europe ───────────────────
-    // Frontiere des places UCL/UEL/UECL
-    const frontier = getEuropeanFrontier(team.rank, europeanPositions);
-    if (frontier) {
-      const { lastQualified, firstNonQualified } = frontier;
-      const lastQualTeam = sorted.find((t) => t.rank === lastQualified);
-      const firstNonQualTeam = sorted.find((t) => t.rank === firstNonQualified);
-
-      if (lastQualTeam && firstNonQualTeam) {
-        const gap = lastQualTeam.points - firstNonQualTeam.points;
+    // CAS B1 : equipe DANS une place europeenne -> menace de descendre
+    if (europeanPositions.has(team.rank)) {
+      const teamBelow = byRank.get(team.rank + 1);
+      if (teamBelow) {
+        const gap = team.points - teamBelow.points;
         if (gap <= POINTS_GAP_THRESHOLD) {
-          if (europeanPositions.has(team.rank)) {
-            // Equipe DANS la zone qualificative
+          const myCup = getCupNameForPosition(team.rank, league.european_rules);
+          const isBelowEuropean = europeanPositions.has(team.rank + 1);
+          if (isBelowEuropean) {
+            // Descente vers une coupe inferieure (UCL→UEL ou UEL→UECL)
+            const belowCup = getCupNameForPosition(team.rank + 1, league.european_rules);
             situations.push({
               type: "europe",
-              detail: `Place europeenne (${team.rank}e) menacee : ${gap} pt(s) d'avance sur le ${firstNonQualified}e`,
+              detail: `Place ${myCup} (${team.rank}e) menacee : ${gap} pt(s) d'avance sur ${teamBelow.team.name} (${belowCup})`,
               gap_points: gap,
             });
           } else {
-            // Equipe juste en-dessous
+            // Risque de tomber HORS Europe
             situations.push({
               type: "europe",
-              detail: `A ${gap} pt(s) d'une place europeenne (${team.rank}e vs ${lastQualified}e)`,
+              detail: `Place ${myCup} (${team.rank}e) menacee : ${gap} pt(s) d'avance sur ${teamBelow.team.name} (hors Europe)`,
               gap_points: gap,
             });
           }
+        }
+      }
+    } else {
+      // CAS B2 : equipe HORS Europe mais juste en-dessous -> peut grimper
+      const teamAbove = byRank.get(team.rank - 1);
+      if (teamAbove && europeanPositions.has(team.rank - 1)) {
+        const gap = teamAbove.points - team.points;
+        if (gap <= POINTS_GAP_THRESHOLD) {
+          const aboveCup = getCupNameForPosition(team.rank - 1, league.european_rules);
+          situations.push({
+            type: "europe",
+            detail: `A ${gap} pt(s) d'une place ${aboveCup} (${team.rank}e vs ${team.rank - 1}e ${teamAbove.team.name})`,
+            gap_points: gap,
+          });
         }
       }
     }
@@ -233,7 +235,6 @@ export const detectStakesForLeague = (
       // Cas C1 : niveau intrinseque > position actuelle (reveil attendu)
       const intrinsic = intrinsicMap.get(team.team.id);
       if (intrinsic !== undefined && intrinsic < team.rank / 10) {
-        // intrinsic moyen < rang/10 actuel = equipe normalement bien mieux placee
         situations.push({
           type: "relegation",
           detail: `Zone rouge (${team.rank}e) mais niveau intrinseque ${intrinsic.toFixed(2)} bien meilleur`,
@@ -244,17 +245,16 @@ export const detectStakesForLeague = (
       // Equipe HORS zone rouge -> verifier si juste au-dessus
       const sortedRelegation = Array.from(relegationPositions).sort((a, b) => a - b);
       if (sortedRelegation.length > 0) {
-        const firstRelegation = sortedRelegation[0]; // ex: 16 (premiere place de barrage)
-        const justAboveZone = firstRelegation - 1; // ex: 15 (juste au-dessus)
+        const firstRelegation = sortedRelegation[0];
+        const justAboveZone = firstRelegation - 1;
         if (team.rank === justAboveZone) {
-          // Verifier ecart avec la premiere place de zone rouge
-          const firstRelegationTeam = sorted.find((t) => t.rank === firstRelegation);
+          const firstRelegationTeam = byRank.get(firstRelegation);
           if (firstRelegationTeam) {
             const gap = team.points - firstRelegationTeam.points;
             if (gap <= POINTS_GAP_THRESHOLD) {
               situations.push({
                 type: "relegation",
-                detail: `Juste au-dessus de la zone rouge (${gap} pt(s) d'avance sur le ${firstRelegation}e)`,
+                detail: `Juste au-dessus de la zone rouge (${gap} pt(s) d'avance sur ${firstRelegationTeam.team.name})`,
                 gap_points: gap,
               });
             }
@@ -288,26 +288,18 @@ export const detectStakesForLeague = (
  *   - 1 situation seule : stake_score = 2 (enjeu fort)
  *   - 1 situation avec gap = 0 (course tres serree) : stake_score = 3
  *   - Plusieurs situations cumulees : stake_score = 3 (enjeu maximal)
- *   - Aucune situation : stake_score = 0 (pas dans le resultat)
  */
 const computeStakeScore = (situations: StakeSituation[]): number => {
   if (situations.length === 0) return 0;
-  if (situations.length >= 2) return 3; // cumul = enjeu fort
-
+  if (situations.length >= 2) return 3;
   const single = situations[0];
-  if (single.gap_points === 0) return 3; // course tres serree
-  if (single.gap_points <= 1) return 2; // enjeu fort
-  return 2; // gap = 2 = enjeu fort aussi (on est deja dans le filtre <= 2)
+  if (single.gap_points === 0) return 3;
+  return 2;
 };
 
 
 /**
  * Helper : detecte les enjeux pour TOUS les championnats.
- *
- * @param standingsByLeague Map<league_id, standings> deja fetches
- * @param leagues Liste des championnats avec leurs regles
- * @param intrinsicMap Map<team_id, intrinsic_average>
- * @returns Map<team_id, StakeInfo> globale (toutes ligues confondues)
  */
 export const detectStakesAllLeagues = (
   standingsByLeague: Map<number, O05StandingTeam[]>,
@@ -315,16 +307,13 @@ export const detectStakesAllLeagues = (
   intrinsicMap: Map<number, number>
 ): Map<number, StakeInfo> => {
   const globalResult = new Map<number, StakeInfo>();
-
   for (const league of leagues) {
     const standings = standingsByLeague.get(league.id);
     if (!standings) continue;
-
     const leagueStakes = detectStakesForLeague(standings, league, intrinsicMap);
     for (const [teamId, stakeInfo] of leagueStakes) {
       globalResult.set(teamId, stakeInfo);
     }
   }
-
   return globalResult;
 };
