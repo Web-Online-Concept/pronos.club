@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/tipster-concours-month",
       "schedule": "30 0 1 * *"
+    },
+    {
+      "path": "/api/cron/over-05-buts-equipes-detect",
+      "schedule": "0 5 * * *"
     }
   ]
 }
