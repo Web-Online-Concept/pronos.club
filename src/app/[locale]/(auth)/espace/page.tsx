@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
 import EspaceHero from "@/components/layout/EspaceHero";
 import { useTranslations, useLocale } from "next-intl";
+import { isO05Authorized } from "@/lib/over-05-buts-equipes/auth";
 
 export default function MemberDashboard() {
   const t = useTranslations("dashboard");
@@ -11,6 +12,7 @@ export default function MemberDashboard() {
   const { user, signOut } = useAuth();
   const isAdmin = user?.is_admin === true;
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
+  const hasO05Access = isO05Authorized(user?.email);
 
   const CARD_CLASS =
     "overflow-hidden rounded-xl border border-white/[0.06] p-5 text-center transition hover:-translate-y-0.5 hover:shadow-lg";
@@ -122,6 +124,30 @@ export default function MemberDashboard() {
                 <span className="text-2xl">🎲</span>
                 <h3 className="mt-2 font-bold text-white">Martingales</h3>
                 <p className="mt-1 text-sm text-white/40">Gérez vos martingales paris sportifs</p>
+              </Link>
+            </div>
+          </>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* SECTION 2-bis — OUTILS PRIVÉS (whitelist email uniquement) */}
+        {/* ═══════════════════════════════════════════════════════════════ */}
+        {hasO05Access && (
+          <>
+            <SectionHeader icon="🔐" title="Outils Privés" />
+
+            <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Over 0.5 buts Equipes */}
+              <Link
+                href={`/${locale}/espace/over-05-buts-equipes`}
+                className={CARD_CLASS}
+                style={CARD_STYLE}
+              >
+                <span className="text-2xl">⚽</span>
+                <h3 className="mt-2 font-bold text-white">Over 0.5 buts Equipes</h3>
+                <p className="mt-1 text-sm text-white/40">
+                  Détection quotidienne d'opportunités de paris en live
+                </p>
               </Link>
             </div>
           </>
