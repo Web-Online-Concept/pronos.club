@@ -2,57 +2,19 @@
 // Resolution manuelle d'un pick IA par admin
 // Reproduit exactement ce que fait le resolver-v2 cron, mais avec resolution_source='manual_admin'
 //
-// v2 (avril 2026) : ajout du calcul automatique du profit en base lors de la
-// résolution. Stake fixe = 1U pour les Pronos IA.
+// v3 (avril 2026) : ajout du calcul automatique du profit en base lors de la
+// resolution. Stake fixe = 1U pour les Pronos IA. Logique partagee avec
+// resolver-v2 via /lib/ai-picks-v2/compute-profit.ts.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { computeProfit, type ResolutionStatus } from "@/lib/ai-picks-v2/compute-profit";
 
 const ADMIN_EMAILS = ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"];
 
 const VALID_STATUSES = ["won", "half_won", "void", "half_lost", "lost"] as const;
 type ValidStatus = (typeof VALID_STATUSES)[number];
-
-// Stake fixe IA = 1U partout (cohérent avec /api/ai-picks/stats/route.ts)
-const STAKE_PER_PICK = 1;
-
-
-/**
- * Calcule le profit (en unités) selon le status de résolution et la cote.
- * Cohérent avec la convention paris sportifs :
- *   - won      : +(odds - 1)         ex: cote 2.05 -> +1.05U
- *   - half_won : +((odds - 1) / 2)    ex: cote 2.05 -> +0.525U
- *   - void     : 0 (mise remboursée)
- *   - half_lost: -0.5 (moitié de la mise)
- *   - lost     : -1 (mise perdue)
- *
- * Stake hardcodé à 1U car c'est la convention pour les Pronos IA.
- */
-const computeProfit = (status: ValidStatus, odds: number | null): number => {
-  if (status === "void") return 0;
-  if (!odds || odds <= 1) {
-    // Securite : si la cote est manquante ou invalide, on ne peut pas calculer
-    // un profit positif. On retourne 0 (won/half_won) ou la perte fixe (lost/half_lost).
-    if (status === "won" || status === "half_won") return 0;
-    if (status === "lost") return -STAKE_PER_PICK;
-    if (status === "half_lost") return -STAKE_PER_PICK / 2;
-    return 0;
-  }
-
-  switch (status) {
-    case "won":
-      return STAKE_PER_PICK * (odds - 1);
-    case "half_won":
-      return (STAKE_PER_PICK * (odds - 1)) / 2;
-    case "half_lost":
-      return -STAKE_PER_PICK / 2;
-    case "lost":
-      return -STAKE_PER_PICK;
-    default:
-      return 0;
-  }
-};
 
 
 export async function POST(req: NextRequest) {
@@ -107,17 +69,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Calcul du profit selon status + cote (stake = 1U)
-  const profit = computeProfit(status as ValidStatus, pick.odds);
-  // Arrondi 3 decimales pour eviter les nombres a 15 decimales en base
-  const profitRounded = Math.round(profit * 1000) / 1000;
+  // Helper partage avec le cron resolver-v2 pour eviter toute divergence.
+  const profit = computeProfit(status as ResolutionStatus, pick.odds);
 
   // Update : reproduit la signature de updatePickResolution du resolver-v2
-  // + ajout du profit calcule
+  // + ajout du profit calcule + tracking de qui a resolu
   const { error: updateErr } = await supabaseAdmin
     .from("ai_picks")
     .update({
       status,
-      profit: profitRounded,
+      profit,
       resolved_at: new Date().toISOString(),
       resolution_source: "manual_admin",
       resolved_by: user.email,
@@ -130,14 +91,14 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(
-    `[admin-ai-picks-resolve] Pick ${pickId} (${pick.event_name}) resolved as ${status} by ${user.email}, profit=${profitRounded}U`
+    `[admin-ai-picks-resolve] Pick ${pickId} (${pick.event_name}) resolved as ${status} by ${user.email}, profit=${profit}U`
   );
 
   return NextResponse.json({
     success: true,
     pickId,
     status,
-    profit: profitRounded,
+    profit,
     eventName: pick.event_name,
   });
 }

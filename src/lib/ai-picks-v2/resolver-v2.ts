@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { apiFootball } from "./apifootball-client";
+import { computeProfit, type ResolutionStatus } from "./compute-profit";
 import type { Fixture } from "@/types/apifootball";
 
 export type ResolveV2Report = {
@@ -13,6 +14,7 @@ export type ResolveV2Report = {
     status: "won" | "lost" | "void" | "still_pending" | "error";
     source: string;
     note?: string;
+    profit?: number;
   }>;
 };
 
@@ -28,13 +30,14 @@ type AiPickV2Row = {
   apifootball_fixture_id: number | null;
   espn_event_id: string | null;
   status: string;
+  odds: number | null;
 };
 
 const fetchPendingV2Picks = async (): Promise<AiPickV2Row[]> => {
   const { data, error } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, pick_type, sport, league, event_name, event_date, selection, market, apifootball_fixture_id, espn_event_id, status"
+      "id, pick_type, sport, league, event_name, event_date, selection, market, apifootball_fixture_id, espn_event_id, status, odds"
     )
     .eq("generation_version", "v2")
     .eq("status", "pending")
@@ -242,19 +245,32 @@ const resolvePickFromApiFootball = async (
   }
 };
 
+
+/**
+ * v3 (avril 2026) : ajout du calcul automatique du profit en base lors de la
+ * resolution. Logique partagee avec /api/admin/ai-picks/resolve via le helper
+ * /lib/ai-picks-v2/compute-profit.ts.
+ */
 const updatePickResolution = async (
   pickId: string,
   status: "won" | "lost" | "void",
-  source: "cron_apifootball" | "cron_espn"
-): Promise<void> => {
+  source: "cron_apifootball" | "cron_espn",
+  odds: number | null
+): Promise<number> => {
+  // Calcul du profit selon status + cote (stake = 1U)
+  const profit = computeProfit(status as ResolutionStatus, odds);
+
   await supabaseAdmin
     .from("ai_picks")
     .update({
       status,
+      profit,
       resolved_at: new Date().toISOString(),
       resolution_source: source,
     })
     .eq("id", pickId);
+
+  return profit;
 };
 
 export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
@@ -285,10 +301,11 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
         resolution.status === "lost" ||
         resolution.status === "void"
       ) {
-        await updatePickResolution(
+        const profit = await updatePickResolution(
           pick.id,
           resolution.status,
-          "cron_apifootball"
+          "cron_apifootball",
+          pick.odds
         );
         report.resolved++;
         report.details.push({
@@ -297,6 +314,7 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
           status: resolution.status,
           source: "cron_apifootball",
           note: resolution.note,
+          profit,
         });
       } else {
         report.stillPending++;
