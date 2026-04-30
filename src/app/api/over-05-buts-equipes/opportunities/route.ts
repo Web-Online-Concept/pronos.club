@@ -2,7 +2,7 @@
 //
 // API pour les opportunites O05 :
 //   - GET  : liste les opportunites avec filtres (badge, league, date, decision)
-//   - PATCH: met a jour la decision et les notes psycho d'une opportunite
+//   - PATCH: met a jour la decision d'une opportunite (play/skip/pending)
 //
 // Auth : whitelist O05 (flotoulouse7@gmail.com + bertrandwebjob@yahoo.fr)
 
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       target_form_score, opponent_fragility_score,
       total_score, badge,
       excel_details,
-      psycho_notes, psycho_flags, bertrand_decision, bertrand_decided_at,
+      bertrand_decision, bertrand_decided_at,
       detected_at, generation_batch,
       o05_leagues:league_id(name, country, division)
     `)
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
 }
 
 
-// ─── PATCH : mise a jour decision/psycho ──────────────────────────
+// ─── PATCH : mise a jour decision ─────────────────────────────────
 
 
 export async function PATCH(req: NextRequest) {
@@ -102,8 +102,6 @@ export async function PATCH(req: NextRequest) {
 
   let body: {
     opportunity_id?: string;
-    psycho_notes?: string;
-    psycho_flags?: Record<string, boolean>;
     bertrand_decision?: "play" | "skip" | "pending";
   };
 
@@ -122,8 +120,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updateData: Record<string, unknown> = {};
-  if (body.psycho_notes !== undefined) updateData.psycho_notes = body.psycho_notes;
-  if (body.psycho_flags !== undefined) updateData.psycho_flags = body.psycho_flags;
   if (body.bertrand_decision !== undefined) {
     updateData.bertrand_decision = body.bertrand_decision;
     updateData.bertrand_decided_at = new Date().toISOString();
