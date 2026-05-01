@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { apiFootball } from "./apifootball-client";
 import { computeProfit, type ResolutionStatus } from "./compute-profit";
+import { resolvePickFromEspn, type EspnPick } from "./espn-resolver";
 import type { Fixture } from "@/types/apifootball";
 
 export type ResolveV2Report = {
@@ -250,6 +251,10 @@ const resolvePickFromApiFootball = async (
  * v3 (avril 2026) : ajout du calcul automatique du profit en base lors de la
  * resolution. Logique partagee avec /api/admin/ai-picks/resolve via le helper
  * /lib/ai-picks-v2/compute-profit.ts.
+ *
+ * v4 (01/05/2026) : ajout du fallback ESPN pour les pronos non-foot.
+ *                   resolution_source devient "cron_apifootball" ou "cron_espn"
+ *                   selon la branche utilisee.
  */
 const updatePickResolution = async (
   pickId: string,
@@ -286,14 +291,28 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
   for (const pick of picks) {
     try {
       let resolution: { status: string; note?: string };
+      // v4 : tracker la source utilisee pour resolution_source en base
+      let usedSource: "cron_apifootball" | "cron_espn" = "cron_apifootball";
 
       if (pick.apifootball_fixture_id) {
+        // BRANCHE 1 : foot via API-Football (existant)
         resolution = await resolvePickFromApiFootball(pick);
+        usedSource = "cron_apifootball";
       } else {
-        resolution = {
-          status: "still_pending",
-          note: "No apifootball_fixture_id and no ESPN fallback yet",
+        // BRANCHE 2 (v4 NOUVEAU) : non-foot via ESPN scoreboard
+        const espnPick: EspnPick = {
+          id: pick.id,
+          pick_type: pick.pick_type,
+          sport: pick.sport,
+          league: pick.league,
+          event_name: pick.event_name,
+          event_date: pick.event_date,
+          selection: pick.selection,
+          market: pick.market,
+          espn_event_id: pick.espn_event_id,
         };
+        resolution = await resolvePickFromEspn(espnPick);
+        usedSource = "cron_espn";
       }
 
       if (
@@ -304,7 +323,7 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
         const profit = await updatePickResolution(
           pick.id,
           resolution.status,
-          "cron_apifootball",
+          usedSource,
           pick.odds
         );
         report.resolved++;
@@ -312,7 +331,7 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
           pickId: pick.id,
           eventName: pick.event_name,
           status: resolution.status,
-          source: "cron_apifootball",
+          source: usedSource,
           note: resolution.note,
           profit,
         });
@@ -322,7 +341,7 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
           pickId: pick.id,
           eventName: pick.event_name,
           status: "still_pending",
-          source: "cron_apifootball",
+          source: usedSource,
           note: resolution.note,
         });
       }
@@ -332,7 +351,7 @@ export const resolveV2Picks = async (): Promise<ResolveV2Report> => {
         pickId: pick.id,
         eventName: pick.event_name,
         status: "error",
-        source: "cron_apifootball",
+        source: pick.apifootball_fixture_id ? "cron_apifootball" : "cron_espn",
         note: err instanceof Error ? err.message : "Unknown error",
       });
     }
