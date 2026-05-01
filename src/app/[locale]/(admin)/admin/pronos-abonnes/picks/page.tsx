@@ -31,6 +31,20 @@ const RESULT_LABELS: { value: string; label: string; color: string }[] = [
   { value: "lost", label: "✗ Perdu", color: "bg-red-600 hover:bg-red-500" },
 ];
 
+// Liste des sports disponibles (doit correspondre aux valeurs i18n pronos_abonnes_sports)
+const SPORTS_LIST: { value: string; label: string }[] = [
+  { value: "⚽ Football", label: "⚽ Football" },
+  { value: "🏀 Basketball", label: "🏀 Basketball" },
+  { value: "🎾 Tennis", label: "🎾 Tennis" },
+  { value: "🏒 Hockey", label: "🏒 Hockey" },
+  { value: "🏈 Football US", label: "🏈 Football US" },
+  { value: "⚾ Baseball", label: "⚾ Baseball" },
+  { value: "🥊 MMA/Boxe", label: "🥊 MMA/Boxe" },
+  { value: "🏉 Rugby", label: "🏉 Rugby" },
+  { value: "🎲 Multisports", label: "🎲 Multisports" },
+  { value: "🎯 Autre", label: "🎯 Autre" },
+];
+
 // Helper : detecte si un pick est un combine (gere les 2 orthographes)
 const isComboType = (pickType: string | null | undefined): boolean => {
   if (!pickType) return false;
@@ -45,8 +59,9 @@ export default function AdminTipsterPicksPage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ready_to_resolve" | "live" | "resolved" | "all">("ready_to_resolve");
-  const [openModal, setOpenModal] = useState<{ pick: Pick; mode: "resolve" | "change_result" | "reject" } | null>(null);
+  const [openModal, setOpenModal] = useState<{ pick: Pick; mode: "resolve" | "change_result" | "reject" | "edit_sport" } | null>(null);
   const [selectedResult, setSelectedResult] = useState<string>("");
+  const [newSport, setNewSport] = useState<string>("");
   const [adminNote, setAdminNote] = useState<string>("");
   const [finalOdds, setFinalOdds] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -91,6 +106,14 @@ export default function AdminTipsterPicksPage() {
     setSaving(true);
 
     const body: any = { pick_id: openModal.pick.id, action: openModal.mode };
+    if (openModal.mode === "edit_sport") {
+      if (!newSport) {
+        alert("Choisis un sport");
+        setSaving(false);
+        return;
+      }
+      body.sport = newSport;
+    }
     if (openModal.mode === "resolve" || openModal.mode === "change_result") {
       if (!selectedResult) {
         alert("Choisis un résultat");
@@ -135,6 +158,7 @@ export default function AdminTipsterPicksPage() {
     setSelectedResult("");
     setAdminNote("");
     setFinalOdds("");
+    setNewSport("");
     fetchPicks();
   }
 
@@ -364,6 +388,19 @@ export default function AdminTipsterPicksPage() {
                         </button>
                       </>
                     )}
+                    {(pick.status === "live" || pick.status === "resolved") && (
+                      <button
+                        onClick={() => {
+                          setOpenModal({ pick, mode: "edit_sport" });
+                          setNewSport(pick.sport);
+                          setAdminNote("");
+                        }}
+                        title="Modifier le sport (cas d'erreur de saisie tipster)"
+                        className="cursor-pointer rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500"
+                      >
+                        ✏️ Sport
+                      </button>
+                    )}
                     {pick.status === "resolved" && (
                       <>
                         <button
@@ -418,6 +455,7 @@ export default function AdminTipsterPicksPage() {
             <h2 className="text-xl font-black text-neutral-900 mb-2">
               {openModal.mode === "resolve" ? "✓ Résoudre ce pick" :
                openModal.mode === "change_result" ? "✏️ Modifier le résultat" :
+               openModal.mode === "edit_sport" ? "✏️ Modifier le sport" :
                "🚫 Rejeter ce pick"}
             </h2>
             <p className="text-xs text-neutral-500 mb-4">
@@ -426,6 +464,28 @@ export default function AdminTipsterPicksPage() {
                 <span className="ml-1 text-violet-600 font-semibold">· Combi</span>
               )}
             </p>
+
+            {openModal.mode === "edit_sport" && (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Nouveau sport</p>
+                <p className="text-xs text-neutral-500 mb-2">Sport actuel : <strong>{openModal.pick.sport}</strong></p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SPORTS_LIST.map((s) => (
+                    <button
+                      key={s.value}
+                      onClick={() => setNewSport(s.value)}
+                      className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-bold border-2 transition ${
+                        newSport === s.value
+                          ? "bg-violet-600 text-white border-violet-600"
+                          : "bg-white text-neutral-700 border-neutral-200 hover:border-violet-400"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {(openModal.mode === "resolve" || openModal.mode === "change_result") && (
               <div className="space-y-2 mb-4">

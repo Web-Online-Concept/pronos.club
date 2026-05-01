@@ -238,6 +238,25 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ pick: updated });
     }
 
+    if (action === "edit_sport") {
+      // Modifier uniquement le sport d'un pick (cas d'erreur de saisie tipster)
+      const newSport = body.sport;
+      if (!newSport || typeof newSport !== "string" || newSport.trim() === "") {
+        return NextResponse.json({ error: "Sport invalide" }, { status: 400 });
+      }
+      const { data: updated, error } = await supabaseAdmin
+        .from("tipster_picks")
+        .update({
+          sport: newSport.trim(),
+          admin_note: admin_note || pick.admin_note,
+        })
+        .eq("id", pick_id)
+        .select()
+        .single();
+      if (error) throw error;
+      return NextResponse.json({ pick: updated });
+    }
+
     return NextResponse.json({ error: "Action inconnue" }, { status: 400 });
 
   } catch (err: any) {
