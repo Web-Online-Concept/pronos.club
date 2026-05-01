@@ -5,8 +5,8 @@
 //
 // Schedule Vercel : 0 5 * * * (5h UTC = 6h Paris en hiver, 7h Paris en ete)
 //
-// v3 : retire le chargement des scores s2-s5 (filtre forfaitaire supprime
-//      car contraire a la methode Bertrand qui veut de la disparite).
+// v4 : passe les rangs actuels au candidate pour le filtre disparite
+//      (Bertrand 01/05/2026)
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
@@ -144,12 +144,18 @@ export async function GET(req: NextRequest) {
     }
 
     const standingsByLeague = new Map<number, O05StandingTeam[]>();
+    // v4 : map <team_id, current_rank> pour le filtre disparite
+    const currentRankByTeam = new Map<number, number>();
     for (const league of leagues) {
       try {
         const standings = await getO05Standings(league.id, currentSeason);
         if (standings) {
           standingsByLeague.set(league.id, standings);
           stats.api_calls_used++;
+          // Indexer les rangs actuels pour le filtre disparite
+          for (const s of standings) {
+            currentRankByTeam.set(s.team.id, s.rank);
+          }
         }
       } catch (err) {
         stats.errors.push(`Standings ${league.name}: ${err instanceof Error ? err.message : "error"}`);
@@ -208,8 +214,19 @@ export async function GET(req: NextRequest) {
       const awayId = fixture.teams.away.id;
       const homeIntrinsic = intrinsicMap.get(homeId);
       const awayIntrinsic = intrinsicMap.get(awayId);
+      // v4 : recuperer les rangs actuels
+      const homeRank = currentRankByTeam.get(homeId);
+      const awayRank = currentRankByTeam.get(awayId);
 
-      if (homeIntrinsic === undefined || awayIntrinsic === undefined) {
+      if (
+        homeIntrinsic === undefined ||
+        awayIntrinsic === undefined ||
+        homeRank === undefined ||
+        awayRank === undefined
+      ) {
+        // Equipe sans intrinsic ou sans rang -> SKIP
+        // (rare cas : equipe qui ne joue pas dans nos standings,
+        // ex: equipe de coupe nationale)
         continue;
       }
 
@@ -224,6 +241,8 @@ export async function GET(req: NextRequest) {
         away_team_name: fixture.teams.away.name,
         home_intrinsic: homeIntrinsic,
         away_intrinsic: awayIntrinsic,
+        home_current_rank: homeRank,
+        away_current_rank: awayRank,
       };
 
       try {
@@ -285,6 +304,10 @@ export async function GET(req: NextRequest) {
               outsider_details: opp.outsider_details,
               favori_details: opp.favori_details,
               anomalies_total: opp.anomalies_total,
+              // v4 : rang actuel pour affichage frontend
+              target_current_rank: opp.target_current_rank,
+              opponent_current_rank: opp.opponent_current_rank,
+              rank_gap: opp.rank_gap,
             },
             advanced_stats: null,
             total_score: opp.total_score,

@@ -1,19 +1,18 @@
 // src/lib/over-05-buts-equipes/detect-opportunities.ts
 //
-// Module 4 v3 — Detection des opportunites de pari "+0.5 but equipe"
+// Module 4 v4 — Detection des opportunites de pari "+0.5 but equipe"
 //
-// LOGIQUE v3 alignee sur message Bertrand 30/04/2026 :
+// LOGIQUE v4 alignee sur message Bertrand 30/04/2026 + 01/05/2026 :
 //   "Critères de sélection du match à étudier par ordre d'importance:
 //    1) Enjeu : place à perdre pour l'équipe qui doit marquer
-//    2) Disparité de niveau = projet du club en début de championnat
-//       MAIS PAS sur le classement actuel"
+//    2) Disparité de niveau = ECART DE CLASSEMENT ACTUEL >= 10 places
+//       (pas la moyenne 5 saisons, mais le rang ACTUEL)
+//    3) Analyse des 5 derniers matchs avec ta formule Excel"
 //
-// → La disparite de niveau est SOUHAITABLE (capturee par les intrinseques).
-//   Plus elle est grande, mieux c'est.
-//
-// → SUPPRIME : LEVEL_GAP_MAX et OUTSIDER_FORFAIT_MAX_SEASONS
-//   Ces filtres etaient contraires a la methode Bertrand qui veut
-//   justement de la disparite de niveau.
+// CHANGEMENT v4 vs v3 :
+//   AJOUT du filtre disparite de rang actuel >= MIN_RANK_GAP (10 places).
+//   Ex: Frankfurt 6e vs Hambourg 18e = ecart 12 places -> OK
+//       Stuttgart 11e vs Hoffenheim 13e = ecart 2 places -> SKIP
 
 import {
   isO05FixtureFinished,
@@ -36,6 +35,10 @@ export type OpportunityCandidate = {
   away_team_name: string;
   home_intrinsic: number;
   away_intrinsic: number;
+  // v4 : rang actuel de chaque equipe dans son championnat
+  // (necessaire pour le filtre disparite)
+  home_current_rank: number;
+  away_current_rank: number;
 };
 
 
@@ -65,8 +68,11 @@ export type OpportunityResult = {
   target_team_id: number;
   target_team_name: string;
   target_role: "home" | "away";
+  target_current_rank: number;
   opponent_team_id: number;
   opponent_team_name: string;
+  opponent_current_rank: number;
+  rank_gap: number;
   target_intrinsic: number;
   opponent_intrinsic: number;
   level_gap: number;
@@ -89,6 +95,11 @@ export const BADGE_THRESHOLDS = {
   green: 25,
   orange: 15,
 } as const;
+
+// v4 : ecart minimum de classement ACTUEL pour qu'on parle de disparite
+// Bertrand : 12 places = vraie disparite, 2 places = pas de disparite
+// Seuil retenu : 10 places (proche du cas Frankfurt-Hambourg)
+const MIN_RANK_GAP = 10;
 
 const OUTSIDER_ANOMALY_PENALTIES = [-5, -4, -3, -2, -1];
 const FAVORI_ANOMALY_PENALTIES = [-5, -4, -3, -2, -1];
@@ -323,41 +334,57 @@ export const analyzeOpportunity = async (
   pts5Cache: Map<number, number>,
   fetchOpponentLast5: (oppId: number) => Promise<O05Fixture[]>
 ): Promise<OpportunityResult | null> => {
-  // ─── CRITERE 2 (Bertrand) : Disparite de niveau via intrinseques ──
-  // Determiner FAVORI (intrinsic le plus bas) et OUTSIDER (le plus haut)
-  // Plus la disparite est grande, meilleur le signal (selon Bertrand).
+  // ─── CRITERE 2 (Bertrand) v4 : Disparite de classement ACTUEL ──
+  // Bertrand 01/05 : "la disparite c'est sur le classement ACTUEL,
+  //                   sinon ca n'a aucun interet"
+  // On filtre les matchs ou les 2 equipes sont proches au classement.
+  const rankGap = Math.abs(
+    candidate.home_current_rank - candidate.away_current_rank
+  );
+  if (rankGap < MIN_RANK_GAP) {
+    return null; // Pas de vraie disparite -> SKIP
+  }
+
+  // Determiner FAVORI (intrinsic le plus bas = meilleure equipe historique)
+  // et OUTSIDER (intrinsic le plus haut = pire equipe historique).
+  // Note : on garde l'intrinsic pour le scoring Excel (formules I/E vs S),
+  // mais le filtre disparite ci-dessus utilise le rang actuel.
   let favoriId: number;
   let favoriName: string;
   let favoriRole: "home" | "away";
   let favoriIntrinsic: number;
+  let favoriCurrentRank: number;
   let outsiderId: number;
   let outsiderName: string;
   let outsiderIntrinsic: number;
+  let outsiderCurrentRank: number;
 
   if (candidate.home_intrinsic < candidate.away_intrinsic) {
     favoriId = candidate.home_team_id;
     favoriName = candidate.home_team_name;
     favoriRole = "home";
     favoriIntrinsic = candidate.home_intrinsic;
+    favoriCurrentRank = candidate.home_current_rank;
     outsiderId = candidate.away_team_id;
     outsiderName = candidate.away_team_name;
     outsiderIntrinsic = candidate.away_intrinsic;
+    outsiderCurrentRank = candidate.away_current_rank;
   } else {
     favoriId = candidate.away_team_id;
     favoriName = candidate.away_team_name;
     favoriRole = "away";
     favoriIntrinsic = candidate.away_intrinsic;
+    favoriCurrentRank = candidate.away_current_rank;
     outsiderId = candidate.home_team_id;
     outsiderName = candidate.home_team_name;
     outsiderIntrinsic = candidate.home_intrinsic;
+    outsiderCurrentRank = candidate.home_current_rank;
   }
 
   // ─── CRITERE 1 (Bertrand) : Enjeu obligatoire sur le FAVORI ──
-  // "S'il n'y a pas d'enjeu (place a perdre pour l'equipe qui doit marquer),
-  //  on n'etudie pas le match"
   const favoriStake = stakesMap.get(favoriId);
   if (!favoriStake) {
-    return null; // Pas d'enjeu sur le favori → SKIP
+    return null;
   }
 
   const stakeInfo = favoriStake;
@@ -405,8 +432,11 @@ export const analyzeOpportunity = async (
     target_team_id: favoriId,
     target_team_name: favoriName,
     target_role: favoriRole,
+    target_current_rank: favoriCurrentRank,
     opponent_team_id: outsiderId,
     opponent_team_name: outsiderName,
+    opponent_current_rank: outsiderCurrentRank,
+    rank_gap: rankGap,
     target_intrinsic: favoriIntrinsic,
     opponent_intrinsic: outsiderIntrinsic,
     level_gap: outsiderIntrinsic - favoriIntrinsic,
