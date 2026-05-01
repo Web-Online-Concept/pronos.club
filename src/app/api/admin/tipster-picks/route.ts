@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { BOOKMAKERS } from "@/lib/tipster-bookmakers";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -238,18 +239,86 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ pick: updated });
     }
 
-    if (action === "edit_sport") {
-      // Modifier uniquement le sport d'un pick (cas d'erreur de saisie tipster)
-      const newSport = body.sport;
-      if (!newSport || typeof newSport !== "string" || newSport.trim() === "") {
-        return NextResponse.json({ error: "Sport invalide" }, { status: 400 });
+    if (action === "edit_pick") {
+      // Modifier les champs de saisie d'un pick (cas d'erreur de saisie tipster).
+      //
+      // Champs editables :
+      //   - sport, match_date, bookmaker : toujours editables (aucun impact metier)
+      //   - pick_type, odds : editables uniquement si pick.status !== "resolved"
+      //     (sinon il faudrait recalculer units_result et c'est risque)
+      //
+      // Si l'admin veut modifier odds/pick_type sur un pick deja resolu,
+      // il doit d'abord cliquer "Re-ouvrir" puis re-resoudre.
+
+      const updates: Record<string, unknown> = {};
+      const changingOdds = body.odds !== undefined && body.odds !== null;
+      const changingPickType = body.pick_type !== undefined && body.pick_type !== null;
+
+      // Bloc strict si pick deja resolu et qu'on touche a odds ou pick_type
+      if (pick.status === "resolved" && (changingOdds || changingPickType)) {
+        return NextResponse.json(
+          { error: "Pour modifier la cote ou le type d'un pick resolu, re-ouvre-le d'abord (bouton Re-ouvrir)." },
+          { status: 400 }
+        );
       }
+
+      // Sport (toujours OK)
+      if (body.sport !== undefined && body.sport !== null) {
+        if (typeof body.sport !== "string" || body.sport.trim() === "") {
+          return NextResponse.json({ error: "Sport invalide" }, { status: 400 });
+        }
+        updates.sport = body.sport.trim();
+      }
+
+      // Date du match (toujours OK)
+      if (body.match_date !== undefined && body.match_date !== null) {
+        const parsed = new Date(body.match_date);
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json({ error: "Date du match invalide" }, { status: 400 });
+        }
+        updates.match_date = parsed.toISOString();
+      }
+
+      // Bookmaker (toujours OK)
+      if (body.bookmaker !== undefined && body.bookmaker !== null) {
+        if (typeof body.bookmaker !== "string" || body.bookmaker.trim() === "") {
+          return NextResponse.json({ error: "Bookmaker invalide" }, { status: 400 });
+        }
+        if (!(BOOKMAKERS as readonly string[]).includes(body.bookmaker)) {
+          return NextResponse.json({ error: "Bookmaker non reconnu" }, { status: 400 });
+        }
+        updates.bookmaker = body.bookmaker;
+      }
+
+      // Pick type (uniquement si non resolu)
+      if (changingPickType) {
+        const newType = String(body.pick_type).toLowerCase().trim();
+        if (!["simple", "combine", "combiné"].includes(newType) && newType !== "combiné") {
+          return NextResponse.json({ error: "Type invalide (simple ou combine)" }, { status: 400 });
+        }
+        updates.pick_type = newType === "simple" ? "simple" : "combiné";
+      }
+
+      // Odds (uniquement si non resolu)
+      if (changingOdds) {
+        const parsedOdds = parseFloat(String(body.odds));
+        if (isNaN(parsedOdds) || parsedOdds <= 1 || parsedOdds > 1000) {
+          return NextResponse.json({ error: "Cote invalide (entre 1.01 et 1000)" }, { status: 400 });
+        }
+        updates.odds = parsedOdds;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ error: "Aucun champ a modifier" }, { status: 400 });
+      }
+
+      if (admin_note) {
+        updates.admin_note = admin_note;
+      }
+
       const { data: updated, error } = await supabaseAdmin
         .from("tipster_picks")
-        .update({
-          sport: newSport.trim(),
-          admin_note: admin_note || pick.admin_note,
-        })
+        .update(updates)
         .eq("id", pick_id)
         .select()
         .single();

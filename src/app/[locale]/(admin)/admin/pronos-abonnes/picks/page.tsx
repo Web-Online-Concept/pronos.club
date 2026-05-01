@@ -10,6 +10,7 @@ type Pick = {
   user_id: string;
   match_date: string;
   sport: string;
+  bookmaker: string | null;
   odds: number;
   final_odds: number | null;
   pick_type: "simple" | "combiné" | "combine";
@@ -45,6 +46,12 @@ const SPORTS_LIST: { value: string; label: string }[] = [
   { value: "🎯 Autre", label: "🎯 Autre" },
 ];
 
+// Bookmakers disponibles (doit correspondre a BOOKMAKERS dans @/lib/tipster-bookmakers)
+const BOOKMAKERS_LIST: string[] = [
+  "ps3838", "1xbet", "betclic", "winamax", "unibet", "stake",
+  "vbet", "zebet", "parionsweb", "pmu", "netbet", "bwin", "bet365", "pinnacle",
+];
+
 // Helper : detecte si un pick est un combine (gere les 2 orthographes)
 const isComboType = (pickType: string | null | undefined): boolean => {
   if (!pickType) return false;
@@ -59,9 +66,13 @@ export default function AdminTipsterPicksPage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ready_to_resolve" | "live" | "resolved" | "all">("ready_to_resolve");
-  const [openModal, setOpenModal] = useState<{ pick: Pick; mode: "resolve" | "change_result" | "reject" | "edit_sport" } | null>(null);
+  const [openModal, setOpenModal] = useState<{ pick: Pick; mode: "resolve" | "change_result" | "reject" | "edit_pick" } | null>(null);
   const [selectedResult, setSelectedResult] = useState<string>("");
-  const [newSport, setNewSport] = useState<string>("");
+  const [editSport, setEditSport] = useState<string>("");
+  const [editMatchDate, setEditMatchDate] = useState<string>("");
+  const [editPickType, setEditPickType] = useState<"simple" | "combiné">("simple");
+  const [editOdds, setEditOdds] = useState<string>("");
+  const [editBookmaker, setEditBookmaker] = useState<string>("");
   const [adminNote, setAdminNote] = useState<string>("");
   const [finalOdds, setFinalOdds] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -106,13 +117,43 @@ export default function AdminTipsterPicksPage() {
     setSaving(true);
 
     const body: any = { pick_id: openModal.pick.id, action: openModal.mode };
-    if (openModal.mode === "edit_sport") {
-      if (!newSport) {
-        alert("Choisis un sport");
+    if (openModal.mode === "edit_pick") {
+      // Comparer avec les valeurs originales pour n'envoyer que les changements
+      if (editSport && editSport !== openModal.pick.sport) {
+        body.sport = editSport;
+      }
+      if (editMatchDate) {
+        // editMatchDate est au format datetime-local (ex: "2026-05-06T18:30")
+        // -> on le passe tel quel, le serveur fera new Date()
+        const newDate = new Date(editMatchDate);
+        const oldDate = new Date(openModal.pick.match_date);
+        if (newDate.getTime() !== oldDate.getTime()) {
+          body.match_date = newDate.toISOString();
+        }
+      }
+      if (editPickType && editPickType !== openModal.pick.pick_type) {
+        body.pick_type = editPickType;
+      }
+      if (editOdds && parseFloat(editOdds.replace(",", ".")) !== parseFloat(String(openModal.pick.odds))) {
+        const parsed = parseFloat(editOdds.replace(",", "."));
+        if (isNaN(parsed) || parsed < 1.01 || parsed > 1000) {
+          alert("Cote invalide (entre 1.01 et 1000)");
+          setSaving(false);
+          return;
+        }
+        body.odds = parsed;
+      }
+      if (editBookmaker && editBookmaker !== openModal.pick.bookmaker) {
+        body.bookmaker = editBookmaker;
+      }
+
+      // Verifier qu'au moins un champ a change
+      const changedFields = Object.keys(body).filter(k => k !== "pick_id" && k !== "action" && k !== "admin_note");
+      if (changedFields.length === 0) {
+        alert("Aucun champ n'a été modifié");
         setSaving(false);
         return;
       }
-      body.sport = newSport;
     }
     if (openModal.mode === "resolve" || openModal.mode === "change_result") {
       if (!selectedResult) {
@@ -158,7 +199,10 @@ export default function AdminTipsterPicksPage() {
     setSelectedResult("");
     setAdminNote("");
     setFinalOdds("");
-    setNewSport("");
+    setEditSport("");
+    setEditMatchDate("");
+    setEditOdds("");
+    setEditBookmaker("");
     fetchPicks();
   }
 
@@ -388,19 +432,6 @@ export default function AdminTipsterPicksPage() {
                         </button>
                       </>
                     )}
-                    {(pick.status === "live" || pick.status === "resolved") && (
-                      <button
-                        onClick={() => {
-                          setOpenModal({ pick, mode: "edit_sport" });
-                          setNewSport(pick.sport);
-                          setAdminNote("");
-                        }}
-                        title="Modifier le sport (cas d'erreur de saisie tipster)"
-                        className="cursor-pointer rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500"
-                      >
-                        ✏️ Sport
-                      </button>
-                    )}
                     {pick.status === "resolved" && (
                       <>
                         <button
@@ -435,6 +466,26 @@ export default function AdminTipsterPicksPage() {
                       </button>
                     )}
                     <button
+                      onClick={() => {
+                        setOpenModal({ pick, mode: "edit_pick" });
+                        setEditSport(pick.sport);
+                        // Convertir match_date ISO en format datetime-local (YYYY-MM-DDTHH:mm)
+                        const d = new Date(pick.match_date);
+                        const pad = (n: number) => String(n).padStart(2, "0");
+                        setEditMatchDate(
+                          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+                        );
+                        setEditPickType(isComboType(pick.pick_type) ? "combiné" : "simple");
+                        setEditOdds(String(pick.odds));
+                        setEditBookmaker((pick as any).bookmaker || "");
+                        setAdminNote(pick.admin_note || "");
+                      }}
+                      title="Modifier la saisie du tipster"
+                      className="cursor-pointer rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500"
+                    >
+                      ✏️ Modifier
+                    </button>
+                    <button
                       onClick={() => handleDelete(pick.id)}
                       className="cursor-pointer rounded-lg bg-white border-2 border-red-300 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
                     >
@@ -455,7 +506,7 @@ export default function AdminTipsterPicksPage() {
             <h2 className="text-xl font-black text-neutral-900 mb-2">
               {openModal.mode === "resolve" ? "✓ Résoudre ce pick" :
                openModal.mode === "change_result" ? "✏️ Modifier le résultat" :
-               openModal.mode === "edit_sport" ? "✏️ Modifier le sport" :
+               openModal.mode === "edit_pick" ? "✏️ Modifier la saisie" :
                "🚫 Rejeter ce pick"}
             </h2>
             <p className="text-xs text-neutral-500 mb-4">
@@ -465,24 +516,110 @@ export default function AdminTipsterPicksPage() {
               )}
             </p>
 
-            {openModal.mode === "edit_sport" && (
-              <div className="space-y-2 mb-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Nouveau sport</p>
-                <p className="text-xs text-neutral-500 mb-2">Sport actuel : <strong>{openModal.pick.sport}</strong></p>
-                <div className="grid grid-cols-2 gap-2">
-                  {SPORTS_LIST.map((s) => (
+            {openModal.mode === "edit_pick" && (
+              <div className="space-y-4 mb-4">
+                {openModal.pick.status === "resolved" && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+                    ⚠️ Pick déjà résolu : la cote et le type ne sont pas modifiables ici.
+                    Pour cela, clique d'abord sur "Ré-ouvrir".
+                  </div>
+                )}
+
+                {/* Sport */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">Sport</label>
+                  <select
+                    value={editSport}
+                    onChange={(e) => setEditSport(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-violet-500"
+                  >
+                    {SPORTS_LIST.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date du match */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">Date et heure du match</label>
+                  <input
+                    type="datetime-local"
+                    value={editMatchDate}
+                    onChange={(e) => setEditMatchDate(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-violet-500"
+                  />
+                </div>
+
+                {/* Type (bloque si resolu) */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                    Type
+                    {openModal.pick.status === "resolved" && (
+                      <span className="ml-2 text-amber-600 normal-case">🔒 Verrouillé (pick résolu)</span>
+                    )}
+                  </label>
+                  <div className="mt-1 grid grid-cols-2 gap-2">
                     <button
-                      key={s.value}
-                      onClick={() => setNewSport(s.value)}
-                      className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-bold border-2 transition ${
-                        newSport === s.value
+                      type="button"
+                      onClick={() => setEditPickType("simple")}
+                      disabled={openModal.pick.status === "resolved"}
+                      className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-bold border-2 transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                        editPickType === "simple"
                           ? "bg-violet-600 text-white border-violet-600"
                           : "bg-white text-neutral-700 border-neutral-200 hover:border-violet-400"
                       }`}
                     >
-                      {s.label}
+                      Simple
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setEditPickType("combiné")}
+                      disabled={openModal.pick.status === "resolved"}
+                      className={`cursor-pointer rounded-xl px-3 py-2 text-sm font-bold border-2 transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                        editPickType === "combiné"
+                          ? "bg-violet-600 text-white border-violet-600"
+                          : "bg-white text-neutral-700 border-neutral-200 hover:border-violet-400"
+                      }`}
+                    >
+                      Combiné
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cote (bloque si resolu) */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                    Cote du ticket
+                    {openModal.pick.status === "resolved" && (
+                      <span className="ml-2 text-amber-600 normal-case">🔒 Verrouillé (pick résolu)</span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="1.01"
+                    max="1000"
+                    value={editOdds}
+                    onChange={(e) => setEditOdds(e.target.value)}
+                    disabled={openModal.pick.status === "resolved"}
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-violet-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Bookmaker */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">Bookmaker</label>
+                  <select
+                    value={editBookmaker}
+                    onChange={(e) => setEditBookmaker(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-violet-500"
+                  >
+                    <option value="">— Choisir —</option>
+                    {BOOKMAKERS_LIST.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
