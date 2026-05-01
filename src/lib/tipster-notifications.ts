@@ -98,6 +98,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Paris",
   });
 
   const publicUrl = `https://pronos.club/fr/pronos-abonnes/en-cours`;
