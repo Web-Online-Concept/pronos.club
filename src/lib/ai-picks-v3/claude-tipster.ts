@@ -59,6 +59,27 @@ const PRICING_OUTPUT_PER_MTOK = 15.0;
 const PRICING_CACHE_READ_PER_MTOK = 0.3;
 
 // ============================================================================
+// RÈGLES MÉTIER — SEUILS (centralisés ici pour cohérence avec gpt-validator)
+// ============================================================================
+
+/** Cote minimum ABSOLUE pour un pick simple (règle publique PRONOS.CLUB) */
+const MIN_COTE_SIMPLE = 1.50;
+/** Cote maximum pour un pick simple */
+const MAX_COTE_SIMPLE = 3.50;
+/** Cote minimum par sélection dans un combiné */
+const MIN_COTE_SELECTION_COMBINE = 1.30;
+/** Cote totale minimum pour un combiné */
+const MIN_COTE_TOTALE_COMBINE = 1.50;
+/** Cote totale maximum pour un combiné */
+const MAX_COTE_TOTALE_COMBINE = 4.00;
+/**
+ * Écart maximum toléré entre cote_arjel et cote_hors_arjel (en ratio).
+ * Au-delà de 30%, on considère qu'il y a une hallucination Claude.
+ * Ex : 1.14 vs 2.36 = écart 107% → rejet.
+ */
+const MAX_ECART_ARJEL_HORS_ARJEL = 0.30;
+
+// ============================================================================
 // CLIENT ANTHROPIC (lazy init)
 // ============================================================================
 
@@ -169,19 +190,27 @@ const extractNarrativeText = (text: string): string => {
 };
 
 // ============================================================================
-// VALIDATION PICKS POST-PARSING (sanity checks)
+// VALIDATION PICKS POST-PARSING (sanity checks + règles métier)
 // ============================================================================
 
 /**
- * Valide la structure de chaque pick et filtre ceux qui sont invalides.
- * Ne fait PAS de jugement sur la qualité du pick (c'est le rôle du gpt-validator).
+ * Valide la structure de chaque pick ET applique les règles métier strictes.
  *
- * Vérifications :
- *   - id présent et numérique
- *   - sport valide
- *   - confiance dans [65, 100] (simple) ou [70, 100] (combiné)
- *   - mise_unites === 1 (flat bet obligatoire — sinon fix automatique)
- *   - cote_arjel et cote_hors_arjel cohérents
+ * ═══════════════════════════════════════════════════════════════
+ * FIXES A1 + B1 (session 02/05/2026) :
+ *
+ * A1 — Filtres cotes minimum/maximum (rejet automatique) :
+ *   - Simple : meilleure cote (max arjel/hors_arjel) doit être ≥ 1.50 et ≤ 3.50
+ *   - Combiné par sélection : chaque cote doit être ≥ 1.30
+ *   - Combiné total : meilleure cote totale doit être ≥ 1.50 et ≤ 4.00
+ *
+ * B1 — Filtre cohérence ARJEL/hors_ARJEL (rejet si hallucination probable) :
+ *   - Si écart entre cote_arjel et cote_hors_arjel > 30%, pick rejeté
+ *   - Un écart de 107% (ex: 1.14 vs 2.36) est physiquement impossible
+ *   - S'applique aux simples (arjel/hors_arjel) et aux combinés (cote_totale_*)
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * Auto-fix : si mise_unites != 1, forcée à 1 (flat bet obligatoire).
  *
  * Logs warnings pour traçabilité, ne lance pas d'erreur.
  */
@@ -197,13 +226,17 @@ const validateAndFixPicks = (output: TipsterOutput): TipsterOutput => {
       return false;
     }
 
+    // ── PICK SIMPLE ──────────────────────────────────────────────────────────
     if (pick.type === "simple") {
+      // Confiance [65, 100]
       if (pick.confiance < 65 || pick.confiance > 100) {
         console.warn(
           `[claude-tipster] Pick simple #${pick.id} confiance ${pick.confiance} hors [65,100], ignoré`
         );
         return false;
       }
+
+      // Au moins une cote présente
       if (
         (pick.cote_arjel === null || pick.cote_arjel === undefined) &&
         (pick.cote_hors_arjel === null || pick.cote_hors_arjel === undefined)
@@ -213,23 +246,123 @@ const validateAndFixPicks = (output: TipsterOutput): TipsterOutput => {
         );
         return false;
       }
+
+      // FIX A1 — Cote min 1.50, max 3.50 (sur la MEILLEURE cote disponible)
+      const bestCote = Math.max(
+        pick.cote_arjel ?? 0,
+        pick.cote_hors_arjel ?? 0
+      );
+      if (bestCote < MIN_COTE_SIMPLE) {
+        console.warn(
+          `[claude-tipster] Pick simple #${pick.id} meilleure cote ${bestCote} < ${MIN_COTE_SIMPLE} (règle absolue), rejeté`
+        );
+        return false;
+      }
+      if (bestCote > MAX_COTE_SIMPLE) {
+        console.warn(
+          `[claude-tipster] Pick simple #${pick.id} meilleure cote ${bestCote} > ${MAX_COTE_SIMPLE}, rejeté`
+        );
+        return false;
+      }
+
+      // FIX B1 — Écart ARJEL/hors_ARJEL > 30% = hallucination probable
+      if (
+        pick.cote_arjel != null &&
+        pick.cote_hors_arjel != null &&
+        pick.cote_arjel > 0 &&
+        pick.cote_hors_arjel > 0
+      ) {
+        const higher = Math.max(pick.cote_arjel, pick.cote_hors_arjel);
+        const lower = Math.min(pick.cote_arjel, pick.cote_hors_arjel);
+        const ecart = (higher - lower) / lower;
+        if (ecart > MAX_ECART_ARJEL_HORS_ARJEL) {
+          console.warn(
+            `[claude-tipster] Pick simple #${pick.id} écart ARJEL/hors_ARJEL ${(ecart * 100).toFixed(1)}% > ${MAX_ECART_ARJEL_HORS_ARJEL * 100}% (hallucination probable : ${pick.cote_arjel} vs ${pick.cote_hors_arjel}), rejeté`
+          );
+          return false;
+        }
+      }
+
+    // ── PICK COMBINÉ ─────────────────────────────────────────────────────────
     } else if (pick.type === "combine") {
+      // Confiance [70, 100]
       if (pick.confiance < 70 || pick.confiance > 100) {
         console.warn(
           `[claude-tipster] Pick combiné #${pick.id} confiance ${pick.confiance} hors [70,100], ignoré`
         );
         return false;
       }
+
+      // 2 sélections exactement
       if (
         !Array.isArray(pick.selections) ||
         pick.selections.length < 2 ||
         pick.selections.length > 2
       ) {
         console.warn(
-          `[claude-tipster] Pick combiné #${pick.id} avec ${pick.selections?.length} sélections (attendu: 2), ignoré`
+          `[claude-tipster] Pick combiné #${pick.id} avec ${pick.selections?.length} sélection(s) (attendu: 2), ignoré`
         );
         return false;
       }
+
+      // FIX A1 — Chaque sélection doit avoir cote ≥ 1.30
+      for (const sel of pick.selections) {
+        const selCote = (sel as { cote?: number }).cote;
+        if (typeof selCote !== "number" || selCote < MIN_COTE_SELECTION_COMBINE) {
+          console.warn(
+            `[claude-tipster] Pick combiné #${pick.id} — sélection "${(sel as { match?: string }).match ?? "?"}" cote ${selCote ?? "undefined"} < ${MIN_COTE_SELECTION_COMBINE}, combiné entier rejeté`
+          );
+          return false;
+        }
+      }
+
+      // FIX A1 — Cote totale : meilleure entre arjel/hors_arjel doit être dans [1.50, 4.00]
+      const combine = pick as unknown as {
+        cote_totale_arjel?: number | null;
+        cote_totale_hors_arjel?: number | null;
+      };
+      const bestTotalCote = Math.max(
+        combine.cote_totale_arjel ?? 0,
+        combine.cote_totale_hors_arjel ?? 0
+      );
+      if (bestTotalCote === 0) {
+        console.warn(
+          `[claude-tipster] Pick combiné #${pick.id} sans cote totale, ignoré`
+        );
+        return false;
+      }
+      if (bestTotalCote < MIN_COTE_TOTALE_COMBINE) {
+        console.warn(
+          `[claude-tipster] Pick combiné #${pick.id} cote totale ${bestTotalCote} < ${MIN_COTE_TOTALE_COMBINE}, rejeté`
+        );
+        return false;
+      }
+      if (bestTotalCote > MAX_COTE_TOTALE_COMBINE) {
+        console.warn(
+          `[claude-tipster] Pick combiné #${pick.id} cote totale ${bestTotalCote} > ${MAX_COTE_TOTALE_COMBINE}, rejeté`
+        );
+        return false;
+      }
+
+      // FIX B1 — Écart entre cote_totale_arjel et cote_totale_hors_arjel > 30%
+      if (
+        combine.cote_totale_arjel != null &&
+        combine.cote_totale_hors_arjel != null &&
+        combine.cote_totale_arjel > 0 &&
+        combine.cote_totale_hors_arjel > 0
+      ) {
+        const higher = Math.max(combine.cote_totale_arjel, combine.cote_totale_hors_arjel);
+        const lower = Math.min(combine.cote_totale_arjel, combine.cote_totale_hors_arjel);
+        const ecart = (higher - lower) / lower;
+        if (ecart > MAX_ECART_ARJEL_HORS_ARJEL) {
+          console.warn(
+            `[claude-tipster] Pick combiné #${pick.id} écart cote totale ARJEL/hors_ARJEL ${(ecart * 100).toFixed(1)}% > ${MAX_ECART_ARJEL_HORS_ARJEL * 100}% (${combine.cote_totale_arjel} vs ${combine.cote_totale_hors_arjel}), rejeté`
+          );
+          return false;
+        }
+      }
+
+    // ── TYPE INCONNU ──────────────────────────────────────────────────────────
     } else {
       const unknownPick = pick as { id?: number; type?: string };
       console.warn(
@@ -248,6 +381,13 @@ const validateAndFixPicks = (output: TipsterOutput): TipsterOutput => {
 
     return true;
   });
+
+  const rejectedCount = output.pronostics.length - validPicks.length;
+  if (rejectedCount > 0) {
+    console.log(
+      `[claude-tipster] validateAndFixPicks : ${rejectedCount} pick(s) rejeté(s) sur ${output.pronostics.length} (cotes/cohérence invalides)`
+    );
+  }
 
   return {
     ...output,
@@ -282,7 +422,7 @@ const computeCostUsd = (
  * Cas d'erreur :
  *   - Si l'appel API échoue (network, rate limit, etc.) → retourne TipsterResult avec error défini, output=null
  *   - Si le parsing JSON échoue → retourne TipsterResult avec error défini, output=null
- *   - Sinon → retourne TipsterResult avec output défini (peut contenir 0 picks si Claude a tout passé)
+ *   - Sinon → retourne TipsterResult avec output défini (peut contenir 0 picks si tout filtré)
  */
 export const runClaudeTipster = async (
   fetchOutput: FetchOutput
@@ -378,7 +518,7 @@ export const runClaudeTipster = async (
     };
   }
 
-  // Validation + auto-fix des picks
+  // Validation + auto-fix des picks (règles métier + cohérence cotes)
   const validated = validateAndFixPicks(parsedOutput);
 
   return {

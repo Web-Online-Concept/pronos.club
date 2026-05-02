@@ -9,22 +9,24 @@
  *   - Décision par défaut : "approve". Le veto doit être rare.
  *   - 3 verdicts possibles : approve | warning | veto.
  *
- * Cas concrets de veto :
- *   - Stat citée comme argument N'EXISTE PAS dans la data fournie
- *   - Argument cite une surface différente du tournoi (Hard pour Clay)
- *   - Pick contre l'évidence (favori clair avec 4+ indicateurs en sa faveur, on a pris l'outsider)
- *   - Cote citée ne correspond à aucun book réel
+ * FIX A3 + C1 (session 02/05/2026) :
+ *   - VALIDATOR_SYSTEM_PROMPT enrichi avec les règles métier tipster
+ *   - GPT doit maintenant vetoer les violations techniques (cotes, écarts)
+ *   - Auparavant GPT ne vérifiait que la cohérence factuelle → laissait passer des cotes < 1.50
  *
- * Cas de warning (pas de veto) :
- *   - Pick à confiance 65 sur cote 1.55 (limite mais pas grave)
- *   - 2 arguments mais l'un est faible
- *   - Choix de marché surprenant mais défendable
+ * Cas de veto (mise à jour) :
+ *   VIOLATIONS TECHNIQUES (nouvelles — priorité absolue) :
+ *     - Cote simple < 1.50 ou > 3.50 (règle publique PRONOS.CLUB)
+ *     - Cote par sélection combiné < 1.30
+ *     - Cote totale combiné < 1.50 ou > 4.00
+ *     - Écart > 30% entre cote_arjel et cote_hors_arjel (hallucination)
+ *   VIOLATIONS FACTUELLES (existantes) :
+ *     - Stat citée qui N'EXISTE PAS dans la data fournie
+ *     - Argument cite la mauvaise surface en tennis
+ *     - Pick contre l'évidence absolue (favori 4+ indicateurs, outsider pris sans justification)
+ *     - Cote citée incohérente avec ce que la data fournit
  *
- * Cas d'approve (par défaut) :
- *   - Tout pick avec arguments cohérents tirés de la data, même si on aurait
- *     personnellement préféré l'autre côté du marché
- *
- * Coût estimé : ~0,01-0,02$ / appel (max 7 picks à valider).
+ * Coût estimé : ~0,01-0,02$ / appel (max 10 picks à valider).
  */
 
 import OpenAI from "openai";
@@ -69,6 +71,15 @@ const getOpenAIClient = (): OpenAI => {
 // PROMPTS
 // ============================================================================
 
+/**
+ * FIX C1 — VALIDATOR_SYSTEM_PROMPT enrichi avec les règles métier tipster.
+ *
+ * Avant ce fix, GPT ne connaissait que les règles factuelles et laissait passer
+ * des picks avec cote 1.08, 1.20, 1.23 — en violation des règles publiques du service.
+ *
+ * Maintenant GPT vérifie EN PREMIER les règles techniques (cotes min/max, écarts),
+ * et veto immédiatement sans avoir besoin d'analyser la data pour ces cas.
+ */
 const VALIDATOR_SYSTEM_PROMPT = `Tu es un validator INDULGENT pour des pronostics sportifs générés par un autre IA tipster.
 
 Ton rôle : vérifier qu'il n'y a PAS d'erreur grossière, mais accepter par défaut.
@@ -83,15 +94,55 @@ Pour chaque pick, tu dois rendre un verdict parmi 3 :
 
 - **"warning"** : Le pick a une faiblesse (argument moyen, choix surprenant) mais reste défendable. Le pick est conservé, juste flagué.
 
-- **"veto"** : Le pick a un problème GRAVE et doit être retiré. Réservé aux cas suivants :
-   * Stat citée comme argument qui N'EXISTE PAS dans la data fournie (hallucination)
-   * Argument cite la mauvaise surface en tennis (ex: H2H Hard pour justifier un pick Clay)
-   * Pick contre l'évidence absolue (favori avec 4+ indicateurs forts en sa faveur, le tipster a pris l'outsider sans justification solide)
-   * Cote citée incohérente avec ce que la data fournit pour ce match
+- **"veto"** : Le pick a un problème GRAVE et doit être retiré.
+
+═══════════════════════════════════════════════════
+RÈGLES DE VETO — PRIORITÉ ABSOLUE
+═══════════════════════════════════════════════════
+
+**CATÉGORIE A — VIOLATIONS TECHNIQUES (veto automatique, aucune discussion)** :
+
+Ces règles sont des contraintes PUBLIQUES de PRONOS.CLUB. Un pick qui les viole est directement invalidé, quelle que soit la qualité de l'analyse.
+
+1. **Cote simple < 1.50** : Si la meilleure cote disponible (max de cote_arjel et cote_hors_arjel) est inférieure à 1.50 → VETO immédiat.
+   Exemples de cotes INTERDITES : 1.08, 1.20, 1.23, 1.35, 1.48, 1.49
+   Exemple de reason : "Veto technique : cote 1.23 < minimum absolu 1.50."
+
+2. **Cote simple > 3.50** : Si la meilleure cote dépasse 3.50 → VETO immédiat.
+   Exemple de reason : "Veto technique : cote 3.75 > maximum 3.50."
+
+3. **Cote par sélection d'un combiné < 1.30** : Si une sélection d'un combiné a une cote inférieure à 1.30 → VETO du combiné entier.
+   Exemple : sélection à 1.20 dans un combiné → VETO.
+   Exemple de reason : "Veto technique : sélection [match] à cote 1.20 < minimum 1.30 par sélection."
+
+4. **Cote totale d'un combiné hors [1.50 – 4.00]** : Si la meilleure cote totale (max de cote_totale_arjel et cote_totale_hors_arjel) est < 1.50 ou > 4.00 → VETO.
+
+5. **Écart ARJEL/hors_ARJEL > 30%** : Si l'écart entre cote_arjel et cote_hors_arjel (ou cote_totale_arjel et cote_totale_hors_arjel) dépasse 30%, c'est un signe de confusion de marché ou d'hallucination → VETO.
+   Formule : (max - min) / min > 0.30
+   Exemple : cote_arjel=1.14, cote_hors_arjel=2.36 → écart de 107% → VETO.
+   Exemple : cote_arjel=1.85, cote_hors_arjel=2.10 → écart de 13.5% → OK.
+   Exemple de reason : "Veto technique : écart ARJEL/hors_ARJEL de 107% (1.14 vs 2.36), hallucination probable."
+
+**CATÉGORIE B — VIOLATIONS FACTUELLES (veto si erreur grave)** :
+
+6. **Stat hallucinée** : Un argument cite une stat qui N'EXISTE PAS dans la data fournie (ex : "Joueur A a 78% first serve" alors que la data ne mentionne aucun %).
+
+7. **Surface incohérente en tennis** : Un argument tire une conclusion d'un H2H sur Hard pour justifier un pick sur Clay (ou inversement). La surface de l'argument DOIT correspondre à la surface du tournoi du jour.
+
+8. **Pick contre l'évidence absolue** : Un favori clair (4+ indicateurs forts en sa faveur : ranking, forme, surface YTD, H2H) est ignoré au profit de l'outsider sans justification solide dans l'analyse.
+
+9. **Cote inventée** : La cote citée ne correspond à aucune des cotes présentes dans la data pour ce match.
+
+═══════════════════════════════════════════════════
 
 PHILOSOPHIE : Tu n'es PAS un second tipster. Tu n'as PAS à dire "j'aurais préféré l'autre côté".
-Tu vérifies uniquement la **rigueur factuelle** et l'**absence d'erreur grossière**.
-Si le pick est défendable même si tu n'es pas 100% d'accord, tu APPROUVES.
+
+Pour la Catégorie A : vérifie les champs JSON du pick directement (pas besoin de la data).
+Pour la Catégorie B : compare les arguments du pick à la data fournie.
+
+Si le pick est défendable même si tu n'es pas 100% d'accord → APPROUVES.
+Si le pick a une petite faiblesse mais reste défendable → WARNING.
+Si le pick viole une règle de la Catégorie A ou B → VETO avec reason précise.
 
 OUTPUT FORMAT (JSON strict, RIEN d'autre) :
 
@@ -107,12 +158,12 @@ OUTPUT FORMAT (JSON strict, RIEN d'autre) :
 }
 \`\`\`
 
-Règles :
+Règles de format :
 - 1 verdict par pick (même nombre de verdicts que de picks)
 - pick_id doit correspondre à l'id du pick analysé
 - reason en français, factuelle, sans hype
 - Si decision = "approve", reason peut être courte ("Arguments cohérents avec la data.")
-- Si decision = "warning" ou "veto", reason DOIT pointer le problème précis`;
+- Si decision = "warning" ou "veto", reason DOIT pointer le problème précis (catégorie + détail chiffré si possible)`;
 
 const buildValidatorUserPrompt = (
   fetchOutput: FetchOutput,
@@ -137,7 +188,13 @@ ${JSON.stringify(picks, null, 2)}
 
 Pour CHAQUE pick ci-dessus, rends un verdict (approve / warning / veto) en JSON selon le format défini dans le system prompt.
 
-Rappel : sois INDULGENT. Veto seulement si erreur factuelle grave.`;
+Commence par vérifier les règles de Catégorie A (violations techniques — directement dans les champs JSON du pick), puis les règles de Catégorie B (violations factuelles — en comparant les arguments à la data).
+
+Rappel :
+- VETO immédiat si cote simple < 1.50 ou > 3.50
+- VETO immédiat si sélection combiné < 1.30
+- VETO immédiat si écart ARJEL/hors_ARJEL > 30%
+- Pour le reste : sois INDULGENT. Veto seulement si erreur factuelle grave.`;
 };
 
 /**
@@ -260,9 +317,9 @@ const computeCostUsd = (
  * Si le validator GPT échoue (API down, parsing impossible, etc.), on n'arrête
  * PAS la pipeline : on auto-approuve tous les picks Claude par défaut.
  *
- * Logique métier : Claude tipster est déjà rigoureux (prompt v2.2 strict).
- * Le validator est une couche de sécurité bonus — si elle plante, mieux vaut
- * publier les picks Claude que de tout bloquer.
+ * Logique métier : claude-tipster.ts filtre déjà les violations techniques
+ * (cotes min/max, écarts ARJEL/hors_ARJEL) AVANT d'envoyer à GPT.
+ * Donc si GPT est down, les picks reçus par le fallback sont déjà propres.
  */
 const autoApproveAll = (picks: TipsterPick[]): ValidatorVerdict[] => {
   return picks.map((pick) => ({
@@ -284,8 +341,9 @@ const autoApproveAll = (picks: TipsterPick[]): ValidatorVerdict[] => {
  *   - Si parsing JSON échoue → auto-approve tous les picks (fallback)
  *   - Si le nombre de verdicts ≠ nombre de picks → auto-approve les picks manquants
  *
- * Cette robustesse est volontaire : on préfère publier 7 picks Claude que de
- * tout bloquer parce que GPT a hoqueté.
+ * Note : les picks reçus par cette fonction ont déjà passé validateAndFixPicks()
+ * dans claude-tipster.ts. Les violations techniques (cotes) ont déjà été filtrées.
+ * GPT intervient ici comme 2e couche (factuelle + technique en double-check).
  */
 export const runGptValidator = async (
   fetchOutput: FetchOutput,
