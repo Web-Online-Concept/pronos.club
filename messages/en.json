@@ -1511,7 +1511,10 @@
     "howitworks_faq_a9": "Each pick comes with a complete 7-section dossier (match context, team form, H2H, lineups and injuries, tactical analysis, AI reasoning, conclusion). Click on any pick from the /pronos-ia page to access its full dossier. These analyses are also indexed by Google — you can find them by searching the match name.",
     "howitworks_cta_title": "See today's picks",
     "howitworks_cta_text": "The pipeline runs every morning at 8h45 (heure de Paris). Find today's picks with their complete analyses.",
-    "howitworks_cta_button": "See AI Picks"
+    "howitworks_cta_button": "See AI Picks",
+    "howitworks_meta_title": "How our AI picks work · PRONOS.CLUB",
+    "howitworks_meta_description": "Discover exactly how our AI generates sports picks every morning: 5-step pipeline, selection rules, monitored bookmakers, complete analysis dossier per pick.",
+    "howitworks_badge": "How it works"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

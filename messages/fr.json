@@ -1511,7 +1511,10 @@
     "howitworks_faq_a9": "Chaque pick est accompagné d'un dossier complet en 7 sections (contexte du match, forme des équipes, H2H, compositions et blessures, analyse tactique, raisonnement IA, conclusion). Cliquez sur n'importe quel pick depuis la page /pronos-ia pour accéder à son dossier complet. Ces analyses sont également indexées par Google — vous pouvez les retrouver en cherchant le nom du match.",
     "howitworks_cta_title": "Voir les pronostics du jour",
     "howitworks_cta_text": "Le pipeline tourne chaque matin à 8h45 (heure de Paris). Retrouvez les picks du jour avec leurs analyses complètes.",
-    "howitworks_cta_button": "Voir les Pronos IA"
+    "howitworks_cta_button": "Voir les Pronos IA",
+    "howitworks_meta_title": "Comment fonctionnent les Pronos IA · PRONOS.CLUB",
+    "howitworks_meta_description": "Découvrez exactement comment notre IA génère des pronostics sportifs chaque matin : pipeline en 5 étapes, règles de sélection, bookmakers surveillés, dossier d'analyse complet par pick.",
+    "howitworks_badge": "Comment ça marche"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",

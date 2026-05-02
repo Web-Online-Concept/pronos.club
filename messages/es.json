@@ -1511,7 +1511,10 @@
     "howitworks_faq_a9": "Cada pronóstico incluye un dossier completo de 7 secciones (contexto del partido, forma de los equipos, H2H, alineaciones y lesiones, análisis táctico, razonamiento IA, conclusión). Haz clic en cualquier pronóstico desde la página /pronos-ia para acceder a su dossier completo. Estos análisis también están indexados por Google — puedes encontrarlos buscando el nombre del partido.",
     "howitworks_cta_title": "Ver los pronósticos de hoy",
     "howitworks_cta_text": "El pipeline se ejecuta cada mañana a las 8:45 (hora de París). Encuentra los pronósticos del día con sus análisis completos.",
-    "howitworks_cta_button": "Ver Pronósticos IA"
+    "howitworks_cta_button": "Ver Pronósticos IA",
+    "howitworks_meta_title": "Cómo funcionan nuestros pronósticos IA · PRONOS.CLUB",
+    "howitworks_meta_description": "Descubre exactamente cómo nuestra IA genera pronósticos deportivos cada mañana: pipeline de 5 pasos, reglas de selección, casas de apuestas monitoreadas, dossier de análisis completo por pronóstico.",
+    "howitworks_badge": "Cómo funciona"
   },
   "tipster_hero": {
     "tag": "PRONOS CLUB · TIPSTER",
