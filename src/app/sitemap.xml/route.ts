@@ -70,13 +70,13 @@ export async function GET() {
     .order("published_at", { ascending: false });
 
   // Pronos IA — dossiers pick individuels (1 page SEO par pick)
+  // On filtre dossier_status="ready" uniquement : seules ces pages ont du contenu réel
   const { data: aiPicksDossiers } = await supabaseAdmin
     .from("ai_picks")
     .select("slug, event_date, updated_at")
     .not("slug", "is", null)
     .is("deleted_at", null)
-    .in("status", ["pending", "won", "lost", "void"])
-    .not("dossier_status", "eq", "failed")
+    .eq("dossier_status", "ready")
     .order("event_date", { ascending: false })
     .limit(500); // cap à 500 pour ne pas exploser le sitemap
 
