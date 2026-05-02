@@ -113,6 +113,17 @@ export type EnrichedFixture = {
   // Cotes par bookmaker
   cotes_books: CotesBooks;
 
+  // === IDs externes pour résolution ===
+  /**
+   * ID de la fixture côté api-football (foot uniquement).
+   * Stocké pendant l'enrichissement, utilisé par le resolver pour
+   * appeler /fixtures?id={fixture_id} sans avoir à refaire le lookup.
+   * null si :
+   *   - pas un match foot
+   *   - fixture pas trouvée côté api-football
+   */
+  apifootball_fixture_id?: number | null;
+
   // === Champs communs forme / H2H ===
 
   /**
@@ -195,6 +206,21 @@ export type TipsterPickCombine = {
     selection: string;
     cote: number;
     book: SupportedBookmaker;
+    /**
+     * Ligue/compétition de la sélection (ex: "EPL", "WTA Madrid Open").
+     * Stockée pour le resolver de combinés. Optionnelle (fallback OK).
+     */
+    league?: string;
+    /**
+     * Sport de la sélection (ex: "football", "tennis").
+     * Stocké pour le resolver de combinés.
+     */
+    sport?: SupportedSport;
+    /**
+     * fixture_id api-football si dispo (foot uniquement).
+     * Permet une résolution directe sans nouvelle recherche.
+     */
+    apifootball_fixture_id?: number | null;
   }>;
   cote_totale_arjel: number | null;
   cote_totale_hors_arjel: number | null;
@@ -276,6 +302,13 @@ export type ValidatedPick = {
   effective_bookmaker: SupportedBookmaker;
   /** Source du pick (Claude only puisqu'il est seul) */
   source_model: string;
+  /**
+   * Pour les combinés : map indexée par "match string" vers la fixture enrichie.
+   * Permet de retrouver league/sport/fixture_id de chaque sous-sélection
+   * pour le persist (et plus tard le resolve combinés).
+   * Vide pour les picks simples.
+   */
+  combine_fixtures?: Map<string, EnrichedFixture>;
 };
 
 /** Stats de la génération complète, retournées par la route POST */

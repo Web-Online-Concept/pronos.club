@@ -317,14 +317,23 @@ const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> 
       bookmaker: validated.effective_bookmaker,
     };
   } else {
-    // Combiné
+    // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
+    // nécessaires à la résolution (league, sport, fixture_id si dispo).
+    // On retrouve les infos depuis la map de fixtures enrichies indexée par "match".
     base.combine_meta = {
-      selections: pick.selections.map((s) => ({
-        match: s.match,
-        selection: s.selection,
-        cote: s.cote,
-        book: s.book,
-      })),
+      selections: pick.selections.map((s) => {
+        const fixture = validated.combine_fixtures?.get(s.match);
+        return {
+          match: s.match,
+          selection: s.selection,
+          cote: s.cote,
+          book: s.book,
+          // Infos pour le resolver de combinés (ligue + sport + fixture_id)
+          league: fixture?.ligue ?? null,
+          sport: fixture?.sport ?? null,
+          apifootball_fixture_id: fixture?.apifootball_fixture_id ?? null,
+        };
+      }),
       cote_totale_arjel: pick.cote_totale_arjel,
       cote_totale_hors_arjel: pick.cote_totale_hors_arjel,
     };
@@ -386,11 +395,10 @@ export const persistTipsterPick = async (
       const fixture = fixturesByMatch.get(pick.match);
       if (fixture) {
         eventDateIso = fixture.commence_time_iso;
-        // Pour le foot, l'ID api-football est dans l'id raw
-        // Format: "soccer_epl_xyz" → on extrait pas (il faut faire findFixtureId séparément)
-        // Le fetcher v7 ne stocke pas le fixture_id directement dans EnrichedFixture
-        // → on laisse null, ça ne casse rien (apifootball_fixture_id est nullable)
-        apifootballFixtureId = null;
+        // v3.1 (02/05/2026) : on récupère le fixture_id api-football
+        // stocké lors de l'enrichissement (multi-sport-fetcher.ts).
+        // Permet la résolution directe via api-football pour les picks foot.
+        apifootballFixtureId = fixture.apifootball_fixture_id ?? null;
       } else {
         eventDateIso = new Date().toISOString();
       }
@@ -549,15 +557,33 @@ export const buildFixturesByMatchMap = (
 /**
  * Construit un ValidatedPick à partir d'un TipsterPick + ValidatorVerdict.
  * Calcule la cote effective (best of arjel + hors_arjel).
+ *
+ * @param pick Le pick Claude tipster
+ * @param verdict Le verdict GPT validator
+ * @param fixturesByMatch Map des fixtures du jour (utilisée pour enrichir
+ *                        les sous-sélections de combinés avec league/sport/id)
  */
 export const buildValidatedPick = (
   pick: TipsterPick,
-  verdict: ValidatorVerdict
+  verdict: ValidatorVerdict,
+  fixturesByMatch?: Map<string, EnrichedFixture>
 ): ValidatedPick => {
   const { odds, bookmaker } =
     pick.type === "simple"
       ? pickEffectiveOddsForSimple(pick)
       : pickEffectiveOddsForCombine(pick);
+
+  // Pour les combinés : on construit une sous-map des fixtures concernées
+  // par les sélections du combiné, pour que persistTipsterPick puisse
+  // les retrouver lors de la construction du combine_meta.
+  let combineFixtures: Map<string, EnrichedFixture> | undefined;
+  if (pick.type === "combine" && fixturesByMatch) {
+    combineFixtures = new Map();
+    for (const sel of pick.selections) {
+      const fixture = fixturesByMatch.get(sel.match);
+      if (fixture) combineFixtures.set(sel.match, fixture);
+    }
+  }
 
   return {
     pick,
@@ -565,5 +591,6 @@ export const buildValidatedPick = (
     effective_odds: odds,
     effective_bookmaker: bookmaker,
     source_model: "claude-sonnet-4-6",
+    combine_fixtures: combineFixtures,
   };
 };

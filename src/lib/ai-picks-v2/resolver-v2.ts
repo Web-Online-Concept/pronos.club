@@ -62,6 +62,65 @@ const isMatchFinished = (fixture: Fixture): boolean => {
   return finishedShorts.includes(fixture.fixture.status.short);
 };
 
+// ============================================================================
+// v5 (02/05/2026) — Matching selection par tokens
+// ============================================================================
+// Le tipster Claude v3 sort des selections type "Victoire FC Schalke 04" alors
+// qu'api-football peut écrire l'équipe différemment ("Schalke 04", "Schalke",
+// "FC Schalke", etc.). Le matching simple par includes() ne suffit pas
+// dans tous les cas, surtout quand il y a un préfixe (FC, AC, Real, etc.)
+// d'un côté et pas de l'autre.
+//
+// On utilise donc un matching par tokens significatifs : si AU MOINS UN
+// token significatif (≥4 chars) de la sélection apparaît dans le nom
+// d'équipe, c'est un match.
+
+const SELECTION_STOPWORDS = new Set([
+  "fc", "cf", "sc", "ac", "sv", "sd", "cd", "rc", "sk", "fk", "club", "team",
+  "cp", "real", "the", "city", "united", "town", "rovers",
+  "victoire", "victory", "win", "winner", "vainqueur",
+  "draw", "match", "nul", "1n2", "selection",
+]);
+
+const normalizeForMatching = (s: string): string => {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const tokenizeTeamName = (s: string): string[] => {
+  return normalizeForMatching(s)
+    .split(" ")
+    .filter((t) => t.length >= 3 && !SELECTION_STOPWORDS.has(t));
+};
+
+/**
+ * Vérifie si la sélection cible une équipe (en utilisant tokens).
+ * Retourne true si :
+ *   - normalisation exacte
+ *   - containment direct
+ *   - au moins 1 token significatif (≥4 chars) en commun
+ */
+const selectionMatchesTeam = (selection: string, teamName: string): boolean => {
+  const normSel = normalizeForMatching(selection);
+  const normTeam = normalizeForMatching(teamName);
+  if (normSel === normTeam) return true;
+  if (normSel.includes(normTeam) || normTeam.includes(normSel)) return true;
+
+  const tokensSel = tokenizeTeamName(selection);
+  const tokensTeam = tokenizeTeamName(teamName);
+  if (tokensSel.length === 0 || tokensTeam.length === 0) return false;
+
+  const setSel = new Set(tokensSel);
+  const intersection = tokensTeam.filter((t) => setSel.has(t));
+  // Au moins 1 token significatif (≥4 chars) en commun
+  return intersection.some((t) => t.length >= 4);
+};
+
 const resolveClassicPick1N2 = (
   fixture: Fixture,
   selection: string
@@ -70,24 +129,29 @@ const resolveClassicPick1N2 = (
   const awayGoals = fixture.goals.away;
   if (homeGoals === null || awayGoals === null) return "void";
 
-  const homeName = fixture.teams.home.name.toLowerCase();
-  const awayName = fixture.teams.away.name.toLowerCase();
+  const homeName = fixture.teams.home.name;
+  const awayName = fixture.teams.away.name;
   const sel = selection.toLowerCase().trim();
 
+  // Pari sur le nul
   if (sel.includes("nul") || sel === "draw" || sel === "n") {
     return homeGoals === awayGoals ? "won" : "lost";
   }
 
-  const isOnHome =
-    sel.includes(homeName) ||
-    homeName.includes(sel) ||
-    sel === "1" ||
-    sel === "home";
-  const isOnAway =
-    sel.includes(awayName) ||
-    awayName.includes(sel) ||
-    sel === "2" ||
-    sel === "away";
+  // Codes courts
+  if (sel === "1" || sel === "home") {
+    return homeGoals > awayGoals ? "won" : "lost";
+  }
+  if (sel === "2" || sel === "away") {
+    return awayGoals > homeGoals ? "won" : "lost";
+  }
+
+  // Matching par tokens (gère "Victoire FC Schalke 04" vs "Schalke 04")
+  const isOnHome = selectionMatchesTeam(selection, homeName);
+  const isOnAway = selectionMatchesTeam(selection, awayName);
+
+  // Si match sur les 2 (ambigu), on void plutôt que de mal résoudre
+  if (isOnHome && isOnAway) return "void";
 
   if (isOnHome) return homeGoals > awayGoals ? "won" : "lost";
   if (isOnAway) return awayGoals > homeGoals ? "won" : "lost";
@@ -257,6 +321,12 @@ type CombineSelection = {
   selection: string;
   cote: number;
   book: string;
+  /** v3.1 : league de la sous-sélection (stockée au moment de persist) */
+  league?: string | null;
+  /** v3.1 : sport de la sous-sélection */
+  sport?: string | null;
+  /** v3.1 : fixture_id api-football si la sous-sélection est foot */
+  apifootball_fixture_id?: number | null;
 };
 
 type CombineMeta = {
@@ -278,17 +348,53 @@ const extractCombineMeta = (pick: AiPickV2Row): CombineMeta | null => {
 };
 
 /**
- * Résout une sélection individuelle d'un combiné via ESPN.
+ * Résout une sélection individuelle d'un combiné.
+ *
+ * v3.1 (02/05/2026) : utilise les infos league/sport/fixture_id stockées
+ * dans combine_meta.selections pour router intelligemment vers api-football
+ * ou ESPN selon le sport.
+ *
+ * Stratégie :
+ *   - Si fixture_id api-football dispo → route api-football (foot)
+ *   - Sinon → route ESPN avec sport/league corrects
  */
 const resolveSingleCombineSelection = async (
   selection: CombineSelection,
   parentPick: AiPickV2Row
 ): Promise<"won" | "lost" | "void" | "still_pending"> => {
+  // BRANCHE A : foot avec fixture_id api-football connu
+  if (selection.apifootball_fixture_id) {
+    const subPick: AiPickV2Row = {
+      ...parentPick,
+      id: `${parentPick.id}-sub`,
+      pick_type: "classic",
+      sport: "football",
+      league: selection.league ?? parentPick.league,
+      event_name: selection.match,
+      selection: selection.selection,
+      market: "1N2", // par défaut pour les sélections combinées
+      apifootball_fixture_id: selection.apifootball_fixture_id,
+    };
+    try {
+      const result = await resolvePickFromApiFootball(subPick);
+      return result.status as "won" | "lost" | "void" | "still_pending";
+    } catch (err) {
+      console.warn(
+        `[resolver-v2] combine sub api-football failed for "${selection.match}":`,
+        err instanceof Error ? err.message : err
+      );
+      return "still_pending";
+    }
+  }
+
+  // BRANCHE B : ESPN (autres sports + foot sans fixture_id)
   const espnPick: EspnPick = {
     id: `${parentPick.id}-sub`,
     pick_type: "classic",
-    sport: parentPick.sport === "multi" ? "soccer" : parentPick.sport,
-    league: parentPick.league,
+    // Si on a stocké le sport, on l'utilise. Sinon fallback sur "soccer"
+    // (la majorité des combinés seront foot+foot ou foot+autre).
+    sport: selection.sport ?? "soccer",
+    league: selection.league ?? parentPick.league,
     event_name: selection.match,
     event_date: parentPick.event_date,
     selection: selection.selection,
@@ -301,7 +407,7 @@ const resolveSingleCombineSelection = async (
     return result.status as "won" | "lost" | "void" | "still_pending";
   } catch (err) {
     console.warn(
-      `[ai-picks-resolve-v2] combine sub-selection resolution failed for "${selection.match}":`,
+      `[resolver-v2] combine sub ESPN failed for "${selection.match}":`,
       err instanceof Error ? err.message : err
     );
     return "still_pending";

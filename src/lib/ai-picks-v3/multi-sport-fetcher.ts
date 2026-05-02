@@ -691,6 +691,7 @@ const enrichFootball = async (
   if (!resolved) {
     return {
       ...match,
+      apifootball_fixture_id: null,
       forme_5_derniers: "donnée non disponible (ligue non résolue)",
       h2h_5_derniers: "donnée non disponible",
       blessures: "donnée non disponible",
@@ -717,6 +718,7 @@ const enrichFootball = async (
   if (!fi) {
     return {
       ...match,
+      apifootball_fixture_id: null,
       forme_5_derniers: `donnée non disponible (fixture introuvable league=${leagueId})`,
       h2h_5_derniers: "donnée non disponible",
       blessures: "donnée non disponible",
@@ -738,6 +740,7 @@ const enrichFootball = async (
 
   return {
     ...match,
+    apifootball_fixture_id: fi.fixture_id,
     forme_5_derniers: {
       [match.home_team]: hf ?? "donnée non disponible",
       [match.away_team]: af ?? "donnée non disponible",

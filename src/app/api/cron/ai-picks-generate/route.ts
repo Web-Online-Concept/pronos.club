@@ -48,6 +48,10 @@ import {
   buildFixturesByMatchMap,
   buildValidatedPick,
 } from "@/lib/ai-picks-v3/persist-tipster-pick";
+import {
+  persistDossier,
+  updatePickDossierStatus,
+} from "@/lib/ai-picks-v2/persist-picks";
 import type {
   GenerationStats,
   TipsterPick,
@@ -245,6 +249,9 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
 
   console.log(`[validator] ${picksToKeep.length}/${tipsterPicks.length} picks conservés`);
 
+  // Construit la map de fixtures pour le persist + buildValidatedPick (combinés)
+  const fixturesByMatch = buildFixturesByMatchMap(fetchOutput.matchs);
+
   // ─── ÉTAPE 4 : Persistance BDD
   if (dryRun) {
     logSection("STEP 4 - DRY RUN (skip persist)");
@@ -259,7 +266,7 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
       validator_verdicts: validatorResult.verdicts,
       picks_to_persist: picksToKeep.map((p) => {
         const verdict = verdictsByPickId.get(p.id)!;
-        const validated = buildValidatedPick(p, verdict);
+        const validated = buildValidatedPick(p, verdict, fixturesByMatch);
         return {
           pick_id: p.id,
           decision: verdict.decision,
@@ -287,7 +294,6 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
   }
 
   logSection("STEP 4 - Persistance BDD ai_picks");
-  const fixturesByMatch = buildFixturesByMatchMap(fetchOutput.matchs);
   const generationBatch = `tipster-v3-${targetDate}`;
 
   const persistedSuccess: Array<{ pick_id: number; db_id: string; slug: string }> = [];
@@ -295,7 +301,7 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
 
   for (const pick of picksToKeep) {
     const verdict = verdictsByPickId.get(pick.id)!;
-    const validated = buildValidatedPick(pick, verdict);
+    const validated = buildValidatedPick(pick, verdict, fixturesByMatch);
 
     const result = await persistTipsterPick({
       validated,
@@ -310,6 +316,45 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
         slug: result.slug,
       });
       console.log(`  ✓ Pick #${pick.id} persisté (BDD id=${result.pickId}, slug=${result.slug})`);
+
+      // ─── Dossier minimal : on stocke le narrative_text complet comme dossier
+      // Tous les picks du jour partagent le même narrative_text (analyse globale).
+      // C'est suffisant pour la v3.0 ; améliorer plus tard avec un dossier par pick.
+      if (tipsterResult.narrative_text) {
+        try {
+          const dossierResult = await persistDossier(
+            result.pickId,
+            tipsterResult.narrative_text,
+            null, // pas de sections pre-découpées
+            null, // pas de snapshot api-football pour v3
+            tipsterResult.meta.model,
+            tipsterResult.meta.tokens_input,
+            tipsterResult.meta.tokens_output,
+            tipsterResult.meta.tokens_cached,
+            tipsterResult.meta.cost_usd,
+            "fr"
+          );
+          if (!dossierResult.success) {
+            console.warn(
+              `  ⚠ Dossier non persisté pour pick #${pick.id}: ${dossierResult.error}`
+            );
+          }
+        } catch (err) {
+          console.warn(
+            `  ⚠ Dossier exception pour pick #${pick.id}:`,
+            err instanceof Error ? err.message : err
+          );
+          // On marque le dossier comme failed mais on ne bloque pas le pick
+          try {
+            await updatePickDossierStatus(result.pickId, "failed");
+          } catch {}
+        }
+      } else {
+        // Pas de narrative_text → dossier ready mais vide
+        try {
+          await updatePickDossierStatus(result.pickId, "ready", new Date());
+        } catch {}
+      }
     } else {
       persistedErrors.push({
         pick_id: pick.id,
