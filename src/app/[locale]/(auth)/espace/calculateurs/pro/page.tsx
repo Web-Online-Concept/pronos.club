@@ -413,7 +413,7 @@ export default function CalculatorProPage() {
   const [fbValue, setFbValue] = useState("10");
   const [fbOddBack, setFbOddBack] = useState("5.000");
   const [fbOddLay, setFbOddLay] = useState("5.100");
-  const [fbCommission, setFbCommission] = useState("5");
+  const [fbCommission, setFbCommission] = useState("3");
 
   const [legs, setLegs] = useState<Leg[]>(() => {
     const initialLabels = getFormulas(2)[0].legLabels;
@@ -486,7 +486,7 @@ export default function CalculatorProPage() {
           distribute: true,
           locked: false,
           lockedStake: "",
-          commission: i === 1 ? "5" : "0",
+          commission: i === 1 ? "3" : "0",
           layStakeMode: "backer",
           label: i === 0 ? "Back bookmaker" : i === 1 ? "Lay exchange" : l.label,
         }))
@@ -592,7 +592,7 @@ export default function CalculatorProPage() {
         fresh.map((l, i) => ({
           ...l,
           side: i === 0 ? "back" : i === 1 ? "lay" : "back",
-          commission: i === 1 ? "5" : "0",
+          commission: i === 1 ? "3" : "0",
           label: i === 0 ? "Back bookmaker" : i === 1 ? "Lay exchange" : `Issue ${i + 1}`,
         }))
       );

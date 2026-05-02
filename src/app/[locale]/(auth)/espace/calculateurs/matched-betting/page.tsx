@@ -198,7 +198,7 @@ export default function MatchedBettingPage() {
   const [coteBack, setCoteBack] = useState("");
   const [commissionBack, setCommissionBack] = useState("0");
   const [coteLay, setCoteLay] = useState("");
-  const [commissionLay, setCommissionLay] = useState("5");
+  const [commissionLay, setCommissionLay] = useState("3");
 
   function resetAll() {
     setBetType("qualifying");
@@ -206,7 +206,7 @@ export default function MatchedBettingPage() {
     setCoteBack("");
     setCommissionBack("0");
     setCoteLay("");
-    setCommissionLay("5");
+    setCommissionLay("3");
   }
 
   const result = useMemo((): MatchedResult | null => {
@@ -388,7 +388,7 @@ export default function MatchedBettingPage() {
 
             {/* Helper */}
             <p className="mt-3 text-center text-[11px] italic text-white/30">
-              💡 Commissions exchange : Betfair 5% • Smarkets 2% • Matchbook 1.5%
+              💡 Commissions exchange : OrbitX 3% • Smarkets 2% • Matchbook 1.5% • Betfair 5%
             </p>
 
             {/* Reset button */}
@@ -698,7 +698,7 @@ export default function MatchedBettingPage() {
                 <div className="rounded-xl bg-purple-50 p-3">
                   <p className="font-extrabold text-purple-900">💎 Exemple chiffré — Freebet SNR</p>
                   <p className="mt-0.5 text-purple-800">
-                    Freebet 50€ • cote Back 4.00 • cote Lay 4.20 • commission Lay 5%
+                    Freebet 50€ • cote Back 4.00 • cote Lay 4.20 • commission Lay 3%
                     <br />→ miseLay = (3 × 50) / 4.15 = <strong>36.14€</strong>
                     <br />→ liability = 36.14 × 3.20 = <strong>115.66€</strong>
                     <br />→ profit garanti ≈ <strong className="text-emerald-700">34.33€</strong> (68.7% du freebet)
@@ -732,7 +732,7 @@ export default function MatchedBettingPage() {
                 <div className="rounded-xl bg-neutral-50 p-3">
                   <p className="font-extrabold text-neutral-900">🏦 Choix de l&apos;exchange</p>
                   <p className="mt-0.5">
-                    Moins de commission = plus de profit. <strong>Smarkets</strong> (2%) et <strong>Matchbook</strong> (1.5%) battent Betfair (5%) — différence de 2-3€ sur un freebet 50€.
+                    Moins de commission = plus de profit. <strong>OrbitX</strong> (3%), <strong>Smarkets</strong> (2%) et <strong>Matchbook</strong> (1.5%) battent Betfair (5%) — différence de 1-3€ sur un freebet 50€.
                   </p>
                 </div>
                 <div className="rounded-xl bg-amber-50 p-3">
