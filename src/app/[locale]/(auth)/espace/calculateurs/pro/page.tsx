@@ -410,9 +410,9 @@ export default function CalculatorProPage() {
   const [showRates, setShowRates] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const [fbValue, setFbValue] = useState("10");
-  const [fbOddBack, setFbOddBack] = useState("5.000");
-  const [fbOddLay, setFbOddLay] = useState("5.100");
+  const [fbValue, setFbValue] = useState("");
+  const [fbOddBack, setFbOddBack] = useState("");
+  const [fbOddLay, setFbOddLay] = useState("");
   const [fbCommission, setFbCommission] = useState("3");
 
   const [legs, setLegs] = useState<Leg[]>(() => {
