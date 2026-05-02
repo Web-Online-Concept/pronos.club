@@ -63,6 +63,7 @@ export default async function AdminAIPicksPage({
       `id, pick_type, sport, league, event_name, event_date, selection,
        market, odds, odds_bookmaker, odds_comparison, reasoning,
        ai_confidence, consensus_tier, status, final_score,
+       audit_reason, audit_category,
        generation_version, model_used, dossier_status,
        generation_batch, created_at, slug, classic_number`,
       { count: "exact" }
