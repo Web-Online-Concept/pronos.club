@@ -1,5 +1,5 @@
 // src/app/sitemap.xml/route.ts
-// Sitemap dynamique — pages statiques + blog + bilans + NEWS AUTO
+// Sitemap dynamique — pages statiques + blog + bilans + NEWS AUTO + PRONOS IA dossiers
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -68,6 +68,17 @@ export async function GET() {
     .select("slug, updated_at")
     .eq("status", "published")
     .order("published_at", { ascending: false });
+
+  // Pronos IA — dossiers pick individuels (1 page SEO par pick)
+  const { data: aiPicksDossiers } = await supabaseAdmin
+    .from("ai_picks")
+    .select("slug, event_date, updated_at")
+    .not("slug", "is", null)
+    .is("deleted_at", null)
+    .in("status", ["pending", "won", "lost", "void"])
+    .not("dossier_status", "eq", "failed")
+    .order("event_date", { ascending: false })
+    .limit(500); // cap à 500 pour ne pas exploser le sitemap
 
   const locales = ["fr", "en", "es"];
   const now = new Date().toISOString().split("T")[0];
@@ -154,6 +165,45 @@ ${alternates}
     <lastmod>${news.updated_at ? news.updated_at.split("T")[0] : now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
+${alternates}
+  </url>`);
+      }
+    }
+  }
+
+  // Pronos IA — 1 URL par pick dossier, pour chaque locale
+  // Priority 0.8 si récent (< 30 jours), 0.6 sinon
+  // changefreq "daily" tant que le match n'est pas résolu, "weekly" après
+  if (aiPicksDossiers) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    for (const pick of aiPicksDossiers) {
+      if (!pick.slug) continue;
+
+      const pickDate = pick.event_date ? new Date(pick.event_date) : null;
+      const isRecent = pickDate && pickDate > thirtyDaysAgo;
+      const priority = isRecent ? "0.8" : "0.6";
+      const changefreq = isRecent ? "daily" : "weekly";
+      const lastmod = pick.updated_at
+        ? pick.updated_at.split("T")[0]
+        : pick.event_date
+          ? pick.event_date.split("T")[0]
+          : now;
+
+      for (const locale of locales) {
+        const alternates = locales
+          .map(
+            (alt) =>
+              `    <xhtml:link rel="alternate" hreflang="${alt}" href="${BASE_URL}/${alt}/pronos-ia/match/${pick.slug}" />`
+          )
+          .join("\n");
+
+        urls.push(`  <url>
+    <loc>${BASE_URL}/${locale}/pronos-ia/match/${pick.slug}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
 ${alternates}
   </url>`);
       }
