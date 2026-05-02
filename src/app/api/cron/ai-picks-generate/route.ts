@@ -1,588 +1,367 @@
+/**
+ * PRONOS.CLUB — Cron route /api/cron/ai-picks-generate (v3)
+ *
+ * Pipeline tipster IA — version refondée le 02/05/2026.
+ *
+ * ARCHITECTURE :
+ *   1. multi-sport-fetcher    → enrichit ~160 matchs (foot + tennis + basket + ...)
+ *   2. claude-tipster         → 1 appel Claude Sonnet 4.6 → 1-10 picks JSON
+ *   3. gpt-validator          → GPT-4o avocat du diable indulgent → veto/warning/approve
+ *   4. persist-tipster-pick   → INSERT en BDD ai_picks pour chaque pick non-vetoé
+ *
+ * COÛTS ESTIMÉS / RUN :
+ *   - api-football : ~5000 calls (gratuit, dans la fenêtre 7500 quota jour)
+ *   - the-odds-api : ~50 calls (largement dans le quota)
+ *   - matchstat    : ~100 calls (largement dans 10000/mois)
+ *   - claude       : ~0.10€ par appel (input ~80k tokens, output ~5k tokens)
+ *   - gpt-4o       : ~0.02€ par appel (input ~10k tokens, output ~1k tokens)
+ *   - TOTAL        : ~0.12€ / jour soit ~3.60€ / mois
+ *
+ * DURÉE :
+ *   - 5-15 minutes selon throttling api-football
+ *   - Largement dans le timeout Vercel Pro (300s = 5min) → ⚠ peut nécessiter un upgrade
+ *
+ * ⚠ ATTENTION TIMEOUT VERCEL :
+ *   - Vercel Pro = max 300s par cron
+ *   - Si le run dépasse 5 min, il faudra :
+ *     a) Soit splitter le fetch en 2 crons (fetch + génération)
+ *     b) Soit passer à Vercel Enterprise (max 900s)
+ *     c) Soit déporter le fetch sur un service externe (Render, Railway...)
+ *   - Pour la v3, on accepte le risque et on monitore. Si dépassement → split.
+ *
+ * AUTHENTIFICATION :
+ *   - Header `Authorization: Bearer ${CRON_SECRET}` requis (sécurité Vercel cron)
+ *   - Sauf en dry_run=true (pour tests manuels)
+ *
+ * MODES :
+ *   - GET / POST sans paramètre  → run normal, persiste en BDD
+ *   - GET / POST ?dry_run=true   → run complet mais SANS insertion BDD (test)
+ *   - GET / POST ?date=YYYY-MM-DD → run pour une date spécifique (replay)
+ */
+
 import { NextRequest, NextResponse } from "next/server";
-import { buildEnrichedFixturesData } from "@/lib/ai-picks-v2/fixtures-enrichment";
-import { findValueBets } from "@/lib/ai-picks-v2/value-bet-engine";
+import { fetchMultiSportFixturesForDate } from "@/lib/ai-picks-v3/multi-sport-fetcher";
+import { runClaudeTipster } from "@/lib/ai-picks-v3/claude-tipster";
+import { runGptValidator } from "@/lib/ai-picks-v3/gpt-validator";
 import {
-  persistValueBet,
-  persistConsensusCandidate,
-  persistDossier,
-  updatePickDossierStatus,
-} from "@/lib/ai-picks-v2/persist-picks";
-import { generateDossier } from "@/lib/ai-picks-v2/dossier-generator";
-import { aggregateMatchData } from "@/lib/ai-picks-v2/match-aggregator";
-import { runConsensus } from "@/lib/ai-picks-v2/consensus";
-import {
-  GENERATOR_SYSTEM_PROMPT,
-  buildGeneratorUserPrompt,
-} from "@/lib/ai-picks-v2/prompts";
-import { resolveOdds } from "@/lib/ai-picks-v2/odds-resolver";
-import type { ValueBet } from "@/lib/ai-picks-v2/value-bet-engine";
-import type { ConsensusCandidate } from "@/types/ai-picks-v2";
-import type { AggregatedMatchData } from "@/types/apifootball";
-import type { SimplifiedFixture } from "@/lib/ai-picks-v2/odds-api-client";
+  persistTipsterPick,
+  buildFixturesByMatchMap,
+  buildValidatedPick,
+} from "@/lib/ai-picks-v3/persist-tipster-pick";
+import type {
+  GenerationStats,
+  TipsterPick,
+  ValidatorVerdict,
+} from "@/lib/ai-picks-v3/tipster-types";
 
-export const maxDuration = 300;
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 
-// Quotas Couche A (LLM-driven editorial picks)
-const MAX_LLM_FOOTBALL = 3;
-const MAX_LLM_OTHER_PER_SPORT = 2;
-const MAX_LLM_TOTAL = 5;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 minutes (max Vercel Pro)
 
-// Quota Couche B (value bet picks, complement)
-const MAX_VALUEBET_PICKS = 2;
+const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
-// Plafond global jamais depasse
-const MAX_TOTAL_PICKS = 7;
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-/**
- * Marge minimale entre maintenant et le coup d'envoi du match.
- * En dessous, on rejette : les abonnes n'ont plus le temps de parier
- * et les bookmakers freezent souvent les cotes en derniere minute.
- *
- * IMPORTANT : doit rester coherent avec MIN_MINUTES_BEFORE_KICKOFF
- * dans value-bet-engine.ts. Si on change la valeur ici, la changer
- * aussi la-bas.
- */
-const MIN_MINUTES_BEFORE_KICKOFF = 30;
-
-
-const isAuthorized = (req: NextRequest): boolean => {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const secretHeader = req.headers.get("x-admin-secret");
-  if (secretHeader === process.env.CRON_SECRET) return true;
-  const adminEmail = req.headers.get("x-admin-email");
-  if (
-    adminEmail &&
-    ["flotoulouse7@gmail.com", "jbrulard@yahoo.fr"].includes(
-      adminEmail.toLowerCase()
-    )
-  ) {
-    return true;
-  }
-  return false;
+const getTodayParisDate = (): string => {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
 };
 
-
-const generateDossierForPick = async (
-  pickId: string,
-  candidate: ConsensusCandidate
-): Promise<void> => {
-  await updatePickDossierStatus(pickId, "generating");
-
-  let matchData: AggregatedMatchData | null = null;
-  if (/^\d+$/.test(candidate.fixtureRef)) {
-    try {
-      matchData = await aggregateMatchData(Number(candidate.fixtureRef), {
-        pickId,
-      });
-    } catch (err) {
-      console.warn(
-        `[ai-picks-generate] aggregateMatchData failed for ${candidate.fixtureRef}:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
-
-  const dossierResult = await generateDossier({
-    pick: candidate,
-    matchData,
-    pickId,
-  });
-
-  if (dossierResult.error || !dossierResult.fullText) {
-    await updatePickDossierStatus(pickId, "failed");
-    return;
-  }
-
-  const apiFootballSnapshot = matchData
-    ? {
-        completeness: matchData.dataCompleteness,
-        fixture_id: matchData.fixtureId,
-        league: matchData.fixture.league,
-        teams: matchData.fixture.teams,
-        home_form: matchData.homeStats?.form ?? null,
-        away_form: matchData.awayStats?.form ?? null,
-        h2h_count: matchData.h2h?.length ?? 0,
-        injuries_count: matchData.injuries?.length ?? 0,
-        lineups_count: matchData.lineups?.length ?? 0,
-        has_predictions: !!matchData.predictions,
-      }
-    : null;
-
-  await persistDossier(
-    pickId,
-    dossierResult.fullText,
-    dossierResult.sections,
-    apiFootballSnapshot,
-    dossierResult.meta.model,
-    dossierResult.meta.tokensInput,
-    dossierResult.meta.tokensOutput,
-    dossierResult.meta.tokensCached,
-    dossierResult.meta.costUsd
-  );
+const isAuthorized = (request: NextRequest): boolean => {
+  if (!CRON_SECRET) return true; // dev local sans secret
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader) return false;
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  return token === CRON_SECRET;
 };
 
-
-/**
- * Adapter ValueBet -> ConsensusCandidate pour reutiliser
- * generateDossier() qui attend ce format.
- */
-const valueBetToConsensusCandidate = (vb: ValueBet): ConsensusCandidate => {
-  return {
-    key: vb.uniqueKey,
-    type: "classic",
-    fixtureRef: vb.fixtureId,
-    market: vb.marketCode,
-    selection: vb.selection,
-    league: vb.league,
-    eventName: vb.eventName,
-    eventDateIso: vb.commenceTime,
-    homeTeam: vb.homeTeam,
-    awayTeam: vb.awayTeam,
-    odds: vb.bestSoftOdds,
-    bookmaker: vb.bestSoftBookName,
-    source: "both",
-    confidenceClaude: Math.round(vb.fairProbability * 100),
-    confidenceGpt: Math.round(vb.fairProbability * 100),
-    confidenceApiFootball: null,
-    reasoningClaude: `Value bet detectee : edge +${vb.edgePct.toFixed(2)}% par rapport aux fair odds Pinnacle (${vb.fairOdds.toFixed(3)}). Cote ${vb.bestSoftBookName} a ${vb.bestSoftOdds.toFixed(3)}.`,
-    reasoningGpt: null,
-    consensusScore: Math.min(100, Math.max(0, Math.round(vb.edgePct * 10))),
-    consensusTier:
-      vb.edgePct >= 7
-        ? "total_agreement"
-        : vb.edgePct >= 5
-        ? "partial"
-        : "isolated_high",
-  };
+const logSection = (title: string): void => {
+  console.log(`\n${"=".repeat(60)}\n[ai-picks-generate v3] ${title}\n${"=".repeat(60)}`);
 };
 
+// ============================================================================
+// HANDLER PRINCIPAL
+// ============================================================================
 
-/**
- * Resolution de la categorie sport (foot regroupe, autres = sportKey/league brut)
- * Pour appliquer les quotas Couche A.
- */
-const getSportCategory = (candidate: ConsensusCandidate): string => {
-  const leagueLower = candidate.league.toLowerCase();
-  // Foot : detection par mots cles dans la ligue (les LLM mettent league = "Champions League", "La Liga", "Premier League"...)
-  if (
-    leagueLower.includes("champions") ||
-    leagueLower.includes("europa") ||
-    leagueLower.includes("conference") ||
-    leagueLower.includes("liga") ||
-    leagueLower.includes("ligue") ||
-    leagueLower.includes("premier") ||
-    leagueLower.includes("bundesliga") ||
-    leagueLower.includes("serie a") ||
-    leagueLower.includes("eredivisie") ||
-    leagueLower.includes("primeira") ||
-    leagueLower.includes("super lig") ||
-    leagueLower.includes("mls") ||
-    leagueLower.includes("copa") ||
-    leagueLower.includes("coupe") ||
-    leagueLower.includes("monde") ||
-    leagueLower.includes("world cup") ||
-    leagueLower.includes("euro")
-  ) {
-    return "football";
-  }
-  // Autres sports : on retourne la ligue (NBA != Euroleague != ACB)
-  return candidate.league;
-};
+const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
+  const startedAt = Date.now();
 
+  // ─── Auth (sauf si dry_run)
+  const url = new URL(request.url);
+  const dryRun = url.searchParams.get("dry_run") === "true";
+  const overrideDate = url.searchParams.get("date");
+  const targetDate = overrideDate ?? getTodayParisDate();
 
-/**
- * Resoudre les cotes pour les candidats Couche A et appliquer les quotas par sport.
- * Retourne uniquement les picks resolus avec cotes valides.
- *
- * IMPORTANT : applique aussi le filtre temporel MIN_MINUTES_BEFORE_KICKOFF
- * pour rejeter les matchs trop proches du coup d'envoi (coherent avec
- * value-bet-engine.ts).
- */
-type ResolvedLLMPick = {
-  candidate: ConsensusCandidate;
-  resolvedOdds: number;
-  resolvedBookmakerKey: string;
-  resolvedBookmakerName: string;
-  books: { key: string; name: string; odds: number | null }[];
-  pinnacleRawOdds: number | null;
-};
-
-type LayerAStats = {
-  llm_candidates_total: number;
-  resolved_success: number;
-  rejected_too_late: number;
-  rejected_no_home_away: number;
-  rejected_fixture_not_found: number;
-  rejected_market_not_supported: number;
-  rejected_selection_not_found: number;
-  rejected_no_soft_book_odds: number;
-  rejected_odds_out_of_range: number;
-  rejected_quota_exceeded: number;
-  selected_after_quotas: number;
-  sport_distribution: Record<string, number>;
-};
-
-const resolveAndQuotaLayerA = (
-  candidates: ConsensusCandidate[],
-  fixtures: SimplifiedFixture[]
-): { resolved: ResolvedLLMPick[]; stats: LayerAStats } => {
-  const stats: LayerAStats = {
-    llm_candidates_total: candidates.length,
-    resolved_success: 0,
-    rejected_too_late: 0,
-    rejected_no_home_away: 0,
-    rejected_fixture_not_found: 0,
-    rejected_market_not_supported: 0,
-    rejected_selection_not_found: 0,
-    rejected_no_soft_book_odds: 0,
-    rejected_odds_out_of_range: 0,
-    rejected_quota_exceeded: 0,
-    selected_after_quotas: 0,
-    sport_distribution: {},
-  };
-
-  // Tri par consensus score desc — qualite avant tout
-  const sorted = [...candidates].sort(
-    (a, b) => b.consensusScore - a.consensusScore
-  );
-
-  const resolved: ResolvedLLMPick[] = [];
-  const sportCounts = new Map<string, number>();
-  const now = Date.now();
-
-  for (const cand of sorted) {
-    if (resolved.length >= MAX_LLM_TOTAL) break;
-
-    // ─── Filtre temporel ─────────────────────────
-    // Le match doit commencer dans plus de MIN_MINUTES_BEFORE_KICKOFF.
-    // Sinon les abonnes n'ont pas le temps de parier et les books
-    // freezent souvent les cotes en derniere minute.
-    const kickoffTime = new Date(cand.eventDateIso).getTime();
-    const minutesUntilKickoff = (kickoffTime - now) / (1000 * 60);
-    if (minutesUntilKickoff < MIN_MINUTES_BEFORE_KICKOFF) {
-      stats.rejected_too_late += 1;
-      continue;
-    }
-
-    // Sans home_team / away_team le resolver ne peut pas matcher h2h
-    if (!cand.homeTeam || !cand.awayTeam) {
-      stats.rejected_no_home_away += 1;
-      continue;
-    }
-
-    // Resoudre la cote depuis OddsAPI
-    const result = resolveOdds({
-      fixtures,
-      fixtureId: cand.fixtureRef,
-      market: cand.market ?? "1N2",
-      selection: cand.selection,
-      homeTeam: cand.homeTeam,
-      awayTeam: cand.awayTeam,
-    });
-
-    if (!result.resolved) {
-      switch (result.reason) {
-        case "fixture_not_found":
-          stats.rejected_fixture_not_found += 1;
-          break;
-        case "market_not_supported":
-          stats.rejected_market_not_supported += 1;
-          break;
-        case "selection_not_found":
-          stats.rejected_selection_not_found += 1;
-          break;
-        case "no_soft_book_odds":
-          stats.rejected_no_soft_book_odds += 1;
-          break;
-        case "odds_out_of_range":
-          stats.rejected_odds_out_of_range += 1;
-          break;
-      }
-      continue;
-    }
-
-    // Application des quotas par sport
-    const category = getSportCategory(cand);
-    const currentCount = sportCounts.get(category) ?? 0;
-    const maxForCategory =
-      category === "football" ? MAX_LLM_FOOTBALL : MAX_LLM_OTHER_PER_SPORT;
-
-    if (currentCount >= maxForCategory) {
-      stats.rejected_quota_exceeded += 1;
-      continue;
-    }
-
-    resolved.push({
-      candidate: cand,
-      resolvedOdds: result.odds,
-      resolvedBookmakerKey: result.bookmakerKey,
-      resolvedBookmakerName: result.bookmakerName,
-      books: result.books,
-      pinnacleRawOdds: result.pinnacleRawOdds,
-    });
-    sportCounts.set(category, currentCount + 1);
-    stats.resolved_success += 1;
-  }
-
-  stats.selected_after_quotas = resolved.length;
-  stats.sport_distribution = Object.fromEntries(sportCounts.entries());
-
-  return { resolved, stats };
-};
-
-
-/**
- * Apres Couche A, on filtre les value bets de la Couche B pour eviter les
- * doublons fixture, et on plafonne a MAX_VALUEBET_PICKS et MAX_TOTAL_PICKS.
- */
-const applyLayerBQuotas = (
-  valueBets: ValueBet[],
-  layerAFixturesUsed: Set<string>,
-  totalAlreadySelected: number
-): ValueBet[] => {
-  const remaining = MAX_TOTAL_PICKS - totalAlreadySelected;
-  const limit = Math.min(MAX_VALUEBET_PICKS, remaining);
-  if (limit <= 0) return [];
-
-  const selected: ValueBet[] = [];
-  for (const vb of valueBets) {
-    if (selected.length >= limit) break;
-    if (layerAFixturesUsed.has(vb.fixtureId)) continue;
-    selected.push(vb);
-  }
-  return selected;
-};
-
-
-export async function GET(req: NextRequest) {
-  return runGeneration(req);
-}
-
-export async function POST(req: NextRequest) {
-  return runGeneration(req);
-}
-
-
-const runGeneration = async (req: NextRequest): Promise<NextResponse> => {
-  if (!isAuthorized(req)) {
+  if (!dryRun && !isAuthorized(request)) {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized" },
+      { error: "Unauthorized" },
       { status: 401 }
     );
   }
 
-  const startedAt = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
+  logSection(`Start - date=${targetDate} dry_run=${dryRun}`);
 
+  // ─── ÉTAPE 1 : Fetch + enrichissement multi-sports
+  logSection("STEP 1 - Multi-sport fetch + enrichment");
+  let fetchOutput;
   try {
-    // ─── ETAPE 1 : Fetch fixtures (1 fois, partage entre Couche A et B) ───
-    const enriched = await buildEnrichedFixturesData(today);
-    const { apiFootballFixtures, oddsApiAllFixtures, promptUserText } = enriched;
-
-    if (oddsApiAllFixtures.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        date: today,
-        skipped: true,
-        reason: "No OddsAPI fixtures available for today",
-      });
-    }
-
-    // ─── ETAPE 2 : COUCHE A — Consensus LLM (Claude + GPT) ───
-    const consensus = await runConsensus({
-      systemPrompt: GENERATOR_SYSTEM_PROMPT,
-      userPrompt: promptUserText,
-    });
-
-    // ─── ETAPE 3 : COUCHE A — Resolution des cotes + filtre temporel + quotas par sport ───
-    const layerA = resolveAndQuotaLayerA(
-      consensus.selectedClassic,
-      oddsApiAllFixtures
+    fetchOutput = await fetchMultiSportFixturesForDate(targetDate);
+    console.log(
+      `[fetch] ${fetchOutput.matchs.length} matchs au total. Stats: ${JSON.stringify(fetchOutput.stats.matchs_par_sport)}`
     );
-
-    // ─── ETAPE 4 : COUCHE B — Value bet engine (complement, max 2) ───
-    const engineResult = findValueBets(oddsApiAllFixtures);
-
-    // Filtrer les value bets pour eviter les doublons avec Couche A
-    const layerAFixturesUsed = new Set<string>();
-    for (const r of layerA.resolved) {
-      layerAFixturesUsed.add(r.candidate.fixtureRef);
+    if (fetchOutput.stats.unresolved_leagues.length > 0) {
+      console.warn(
+        `[fetch] ${fetchOutput.stats.unresolved_leagues.length} ligue(s) NON résolue(s):`,
+        fetchOutput.stats.unresolved_leagues
+      );
     }
-
-    const layerBSelected = applyLayerBQuotas(
-      engineResult.selected,
-      layerAFixturesUsed,
-      layerA.resolved.length
-    );
-
-    // ─── ETAPE 5 : Persistance Couche A ───
-    const persistedLayerA: Array<{
-      pickId: string;
-      slug: string;
-      candidate: ConsensusCandidate;
-    }> = [];
-    const persistErrorsLayerA: Array<{ candidate: string; error: string }> = [];
-
-    for (const item of layerA.resolved) {
-      // Enrichir le candidate avec les infos resolues avant persist
-      const enrichedCandidate: ConsensusCandidate = {
-        ...item.candidate,
-        odds: item.resolvedOdds,
-        bookmaker: item.resolvedBookmakerName,
-      };
-
-      const persistResult = await persistConsensusCandidate({
-        candidate: enrichedCandidate,
-        generationBatch: today,
-      });
-
-      if (persistResult.success && persistResult.pickId && persistResult.slug) {
-        persistedLayerA.push({
-          pickId: persistResult.pickId,
-          slug: persistResult.slug,
-          candidate: enrichedCandidate,
-        });
-      } else {
-        persistErrorsLayerA.push({
-          candidate: `${enrichedCandidate.eventName} - ${enrichedCandidate.selection}`,
-          error: persistResult.error ?? "unknown",
-        });
-      }
-    }
-
-    // ─── ETAPE 6 : Persistance Couche B ───
-    const persistedLayerB: Array<{
-      pickId: string;
-      slug: string;
-      valueBet: ValueBet;
-    }> = [];
-    const persistErrorsLayerB: Array<{ candidate: string; error: string }> = [];
-
-    for (const valueBet of layerBSelected) {
-      const result = await persistValueBet({
-        valueBet,
-        generationBatch: today,
-      });
-      if (result.success && result.pickId && result.slug) {
-        persistedLayerB.push({
-          pickId: result.pickId,
-          slug: result.slug,
-          valueBet,
-        });
-      } else {
-        persistErrorsLayerB.push({
-          candidate: `${valueBet.eventName} ${valueBet.selection}`,
-          error: result.error ?? "unknown",
-        });
-      }
-    }
-
-    const persistDurationMs = Date.now() - startedAt;
-
-    // ─── ETAPE 7 : Generation des dossiers en arriere-plan (async, fire-and-forget) ───
-    void (async () => {
-      // Couche A : dossiers via consensus candidate direct
-      for (const { pickId, candidate } of persistedLayerA) {
-        try {
-          await generateDossierForPick(pickId, candidate);
-        } catch (err) {
-          console.error(
-            `[ai-picks-generate] Dossier failed for pick ${pickId}:`,
-            err instanceof Error ? err.message : err
-          );
-          await updatePickDossierStatus(pickId, "failed");
-        }
-      }
-      // Couche B : adapter ValueBet -> ConsensusCandidate
-      for (const { pickId, valueBet } of persistedLayerB) {
-        try {
-          const candidate = valueBetToConsensusCandidate(valueBet);
-          await generateDossierForPick(pickId, candidate);
-        } catch (err) {
-          console.error(
-            `[ai-picks-generate] Dossier failed for value-bet pick ${pickId}:`,
-            err instanceof Error ? err.message : err
-          );
-          await updatePickDossierStatus(pickId, "failed");
-        }
-      }
-    })();
-
-    return NextResponse.json({
-      ok: true,
-      date: today,
-      durationMs: persistDurationMs,
-      strategy: "hybrid_v3",
-      apiFootballFixtures: apiFootballFixtures.length,
-      oddsApiFixtures: oddsApiAllFixtures.length,
-
-      // ─── Couche A : LLM-driven editorial picks ───
-      layerA: {
-        consensus: {
-          claudeCandidates: consensus.rawOutputs.claude?.candidates_classic.length ?? 0,
-          gptCandidates: consensus.rawOutputs.gpt?.candidates_classic.length ?? 0,
-          afterDedup: consensus.passes.candidatesAfterDedup,
-          selectedAfterPasses: consensus.selectedClassic.length,
-          claudeError: consensus.errors.claude ?? null,
-          gptError: consensus.errors.gpt ?? null,
-          costUsd: consensus.meta.totalCostUsd,
-        },
-        resolution: layerA.stats,
-        selected_picks: layerA.resolved.map((r) => ({
-          event: r.candidate.eventName,
-          sport: r.candidate.league,
-          selection: r.candidate.selection,
-          market: r.candidate.market,
-          odds: r.resolvedOdds,
-          bookmaker: r.resolvedBookmakerName,
-          consensus_score: r.candidate.consensusScore,
-          consensus_tier: r.candidate.consensusTier,
-        })),
-      },
-
-      // ─── Couche B : Value bet engine (complement) ───
-      layerB: {
-        engine: engineResult.stats,
-        selected_picks: layerBSelected.map((vb) => ({
-          event: vb.eventName,
-          sport: vb.sportTitle,
-          selection: vb.selection,
-          market: vb.marketCode,
-          odds: vb.bestSoftOdds,
-          bookmaker: vb.bestSoftBookName,
-          fair_odds: parseFloat(vb.fairOdds.toFixed(3)),
-          edge_pct: parseFloat(vb.edgePct.toFixed(2)),
-        })),
-      },
-
-      // ─── Persistance ───
-      persisted: {
-        layerA: {
-          success: persistedLayerA.length,
-          errors: persistErrorsLayerA,
-        },
-        layerB: {
-          success: persistedLayerB.length,
-          errors: persistErrorsLayerB,
-        },
-        totalSuccess: persistedLayerA.length + persistedLayerB.length,
-      },
-
-      dossiers_status: "queued_async",
-      pickIds: [
-        ...persistedLayerA.map((p) => p.pickId),
-        ...persistedLayerB.map((p) => p.pickId),
-      ],
-    });
   } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.error("[fetch] FATAL ERROR:", error);
     return NextResponse.json(
       {
-        ok: false,
-        date: today,
-        error: err instanceof Error ? err.message : "Unknown error",
+        success: false,
+        stage: "fetch",
+        error,
+        duration_ms: Date.now() - startedAt,
       },
       { status: 500 }
     );
   }
+
+  if (fetchOutput.matchs.length === 0) {
+    console.warn("[fetch] Aucun match aujourd'hui. Arrêt.");
+    return NextResponse.json({
+      success: true,
+      message: "Aucun match aujourd'hui",
+      stats: {
+        date: targetDate,
+        duration_ms: Date.now() - startedAt,
+        fetch: fetchOutput.stats,
+        tipster: { picks_generated: 0, cost_usd: 0, error: null },
+        validator: { approved: 0, warnings: 0, vetoed: 0, cost_usd: 0, error: null },
+        persisted: { success: 0, errors: [] },
+      } as GenerationStats,
+    });
+  }
+
+  // ─── ÉTAPE 2 : Claude tipster
+  logSection("STEP 2 - Claude tipster (Sonnet 4.6 + prompt v2.2)");
+  const tipsterResult = await runClaudeTipster(fetchOutput);
+  console.log(
+    `[tipster] model=${tipsterResult.meta.model} tokens_in=${tipsterResult.meta.tokens_input} tokens_out=${tipsterResult.meta.tokens_output} cost=${tipsterResult.meta.cost_usd}$`
+  );
+
+  if (tipsterResult.error || !tipsterResult.output) {
+    console.error("[tipster] FATAL ERROR:", tipsterResult.error);
+    return NextResponse.json(
+      {
+        success: false,
+        stage: "tipster",
+        error: tipsterResult.error,
+        meta: tipsterResult.meta,
+        narrative_text: tipsterResult.narrative_text,
+        duration_ms: Date.now() - startedAt,
+      },
+      { status: 500 }
+    );
+  }
+
+  const tipsterPicks = tipsterResult.output.pronostics;
+  console.log(`[tipster] ${tipsterPicks.length} picks générés`);
+  for (const pick of tipsterPicks) {
+    if (pick.type === "simple") {
+      console.log(
+        `  - #${pick.id} ${pick.sport} ${pick.match} → "${pick.selection}" @ ${pick.cote_arjel ?? "?"} (confiance ${pick.confiance})`
+      );
+    } else {
+      console.log(
+        `  - #${pick.id} COMBINÉ ${pick.selections.length} sélections (cote totale ${pick.cote_totale_arjel ?? "?"}, confiance ${pick.confiance})`
+      );
+    }
+  }
+
+  if (tipsterPicks.length === 0) {
+    console.log("[tipster] 0 pick — journée trop incertaine. Arrêt sain.");
+    return NextResponse.json({
+      success: true,
+      message: "Aucun pick généré (journée trop incertaine)",
+      narrative_text: tipsterResult.narrative_text,
+      stats: {
+        date: targetDate,
+        duration_ms: Date.now() - startedAt,
+        fetch: fetchOutput.stats,
+        tipster: {
+          picks_generated: 0,
+          cost_usd: tipsterResult.meta.cost_usd,
+          error: null,
+        },
+        validator: { approved: 0, warnings: 0, vetoed: 0, cost_usd: 0, error: null },
+        persisted: { success: 0, errors: [] },
+      } as GenerationStats,
+    });
+  }
+
+  // ─── ÉTAPE 3 : GPT validator
+  logSection("STEP 3 - GPT validator (avocat du diable indulgent)");
+  const validatorResult = await runGptValidator(fetchOutput, tipsterPicks);
+  console.log(
+    `[validator] model=${validatorResult.meta.model} tokens_in=${validatorResult.meta.tokens_input} cost=${validatorResult.meta.cost_usd}$`
+  );
+
+  // Stats verdicts
+  const verdictCounts = { approved: 0, warnings: 0, vetoed: 0 };
+  for (const v of validatorResult.verdicts) {
+    if (v.decision === "approve") verdictCounts.approved++;
+    else if (v.decision === "warning") verdictCounts.warnings++;
+    else if (v.decision === "veto") verdictCounts.vetoed++;
+  }
+  console.log(
+    `[validator] approve=${verdictCounts.approved} warning=${verdictCounts.warnings} veto=${verdictCounts.vetoed}`
+  );
+
+  // Logger les vetos pour traçabilité
+  for (const v of validatorResult.verdicts) {
+    if (v.decision === "veto") {
+      console.warn(`[validator] VETO sur pick #${v.pick_id}: ${v.reason}`);
+    } else if (v.decision === "warning") {
+      console.warn(`[validator] WARNING sur pick #${v.pick_id}: ${v.reason}`);
+    }
+  }
+
+  // ─── Filtrage des picks vetoés (on garde les approve + warning)
+  const verdictsByPickId = new Map<number, ValidatorVerdict>(
+    validatorResult.verdicts.map((v) => [v.pick_id, v])
+  );
+  const picksToKeep: TipsterPick[] = tipsterPicks.filter((p) => {
+    const v = verdictsByPickId.get(p.id);
+    return v && v.decision !== "veto";
+  });
+
+  console.log(`[validator] ${picksToKeep.length}/${tipsterPicks.length} picks conservés`);
+
+  // ─── ÉTAPE 4 : Persistance BDD
+  if (dryRun) {
+    logSection("STEP 4 - DRY RUN (skip persist)");
+    console.log("[persist] dry_run=true → aucune insertion BDD");
+
+    return NextResponse.json({
+      success: true,
+      mode: "dry_run",
+      message: `Dry run réussi : ${picksToKeep.length} picks auraient été persistés`,
+      narrative_text: tipsterResult.narrative_text,
+      tipster_output: tipsterResult.output,
+      validator_verdicts: validatorResult.verdicts,
+      picks_to_persist: picksToKeep.map((p) => {
+        const verdict = verdictsByPickId.get(p.id)!;
+        const validated = buildValidatedPick(p, verdict);
+        return {
+          pick_id: p.id,
+          decision: verdict.decision,
+          effective_odds: validated.effective_odds,
+          effective_bookmaker: validated.effective_bookmaker,
+        };
+      }),
+      stats: {
+        date: targetDate,
+        duration_ms: Date.now() - startedAt,
+        fetch: fetchOutput.stats,
+        tipster: {
+          picks_generated: tipsterPicks.length,
+          cost_usd: tipsterResult.meta.cost_usd,
+          error: tipsterResult.error ?? null,
+        },
+        validator: {
+          ...verdictCounts,
+          cost_usd: validatorResult.meta.cost_usd,
+          error: validatorResult.error ?? null,
+        },
+        persisted: { success: 0, errors: [] },
+      } as GenerationStats,
+    });
+  }
+
+  logSection("STEP 4 - Persistance BDD ai_picks");
+  const fixturesByMatch = buildFixturesByMatchMap(fetchOutput.matchs);
+  const generationBatch = `tipster-v3-${targetDate}`;
+
+  const persistedSuccess: Array<{ pick_id: number; db_id: string; slug: string }> = [];
+  const persistedErrors: Array<{ pick_id: number; error: string }> = [];
+
+  for (const pick of picksToKeep) {
+    const verdict = verdictsByPickId.get(pick.id)!;
+    const validated = buildValidatedPick(pick, verdict);
+
+    const result = await persistTipsterPick({
+      validated,
+      generationBatch,
+      fixturesByMatch,
+    });
+
+    if (result.success && result.pickId && result.slug) {
+      persistedSuccess.push({
+        pick_id: pick.id,
+        db_id: result.pickId,
+        slug: result.slug,
+      });
+      console.log(`  ✓ Pick #${pick.id} persisté (BDD id=${result.pickId}, slug=${result.slug})`);
+    } else {
+      persistedErrors.push({
+        pick_id: pick.id,
+        error: result.error ?? "Unknown error",
+      });
+      const reason = result.skipReason ? ` (${result.skipReason})` : "";
+      console.warn(
+        `  ✗ Pick #${pick.id} non persisté${reason}: ${result.error}`
+      );
+    }
+  }
+
+  // ─── Résultat final
+  const stats: GenerationStats = {
+    date: targetDate,
+    duration_ms: Date.now() - startedAt,
+    fetch: fetchOutput.stats,
+    tipster: {
+      picks_generated: tipsterPicks.length,
+      cost_usd: tipsterResult.meta.cost_usd,
+      error: tipsterResult.error ?? null,
+    },
+    validator: {
+      ...verdictCounts,
+      cost_usd: validatorResult.meta.cost_usd,
+      error: validatorResult.error ?? null,
+    },
+    persisted: {
+      success: persistedSuccess.length,
+      errors: persistedErrors,
+    },
+  };
+
+  logSection(`Done in ${(stats.duration_ms / 1000).toFixed(1)}s`);
+  console.log(JSON.stringify(stats, null, 2));
+
+  return NextResponse.json({
+    success: true,
+    mode: "live",
+    persisted: persistedSuccess,
+    stats,
+  });
 };
+
+// ============================================================================
+// EXPORTS NEXT.JS
+// ============================================================================
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  return handleGenerate(request);
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  return handleGenerate(request);
+}
