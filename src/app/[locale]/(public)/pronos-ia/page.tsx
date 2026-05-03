@@ -53,8 +53,8 @@ const getCurrentPicks = async (): Promise<AIPickRow[]> => {
     .eq("pick_type", "classic")
     .is("deleted_at", null)
     .gt("event_date", nowISO)
-    .order("consensus_score", { ascending: false, nullsFirst: false })
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .order("consensus_score", { ascending: false, nullsFirst: false });
 
   if (error) {
     console.error("[pronos-ia] Erreur fetch picks:", error);

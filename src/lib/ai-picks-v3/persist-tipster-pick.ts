@@ -348,9 +348,17 @@ const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> 
       return { key, name, odds };
     });
 
+    // best = book avec la cote la plus haute (PS3838 ou ARJEL)
+    const arjelOdds    = pick.cote_arjel ?? 0;
+    const horsArjelOdds = pick.cote_hors_arjel ?? 0;
+    const bestBookName = horsArjelOdds > arjelOdds
+      ? (horsArjelBook ?? null)
+      : (arjelOdds > 0 ? (arjelBook ?? null) : (horsArjelBook ?? null));
+    const bestOddsVal  = Math.max(arjelOdds, horsArjelOdds) || null;
+
     base.bookmakers_snapshot = { books: booksSnapshot };
-    base.best_soft_book_name = arjelBook ?? null;
-    base.best_soft_odds      = pick.cote_arjel ?? null;
+    base.best_soft_book_name = bestBookName;
+    base.best_soft_odds      = bestOddsVal;
   } else {
     // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
     // nécessaires à la résolution (league, sport, fixture_id si dispo).
