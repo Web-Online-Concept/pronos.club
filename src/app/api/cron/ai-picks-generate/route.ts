@@ -362,7 +362,7 @@ const handleGenerate = async (request: NextRequest): Promise<NextResponse> => {
 
   // ─── ÉTAPE 4 + 5 : Persist + Dossier par pick
   logSection("STEP 4+5 - Persist BDD + Dossier par pick");
-  const generationBatch = `tipster-v3-${targetDate}`;
+  const generationBatch = targetDate; // format YYYY-MM-DD attendu par la colonne date en BDD
 
   const persistedSuccess: Array<{ pick_id: number; db_id: string; slug: string }> = [];
   const persistedErrors: Array<{ pick_id: number; error: string }> = [];
