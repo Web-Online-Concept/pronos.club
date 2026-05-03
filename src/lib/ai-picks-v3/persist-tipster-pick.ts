@@ -87,25 +87,31 @@ const extractTeamsFromMatch = (
  * Slug attendu par <LiveScore /> selon le sport.
  * Aligné avec /lib/live-scores.ts.
  */
-const inferSportSlug = (sport: SupportedSport): string => {
-  switch (sport) {
-    case "football":
-      return "football";
-    case "basketball":
-      return "basketball";
-    case "american_football":
-      return "football-americain";
-    case "hockey":
-      return "hockey";
-    case "baseball":
-      return "baseball";
-    case "tennis":
-      return "tennis";
-    case "mma":
-      return "mma";
-    default:
-      return "football";
+const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string => {
+  // Normalise pour être robuste aux variations de casse de Claude
+  const s = (sport as string).toLowerCase().trim();
+
+  if (s === "football" || s === "soccer") return "football";
+  if (s === "basketball") return "basketball";
+  if (s === "american_football" || s === "americanfootball") return "football-americain";
+  if (s === "hockey") return "hockey";
+  if (s === "baseball") return "baseball";
+  if (s === "tennis") return "tennis";
+  if (s === "mma") return "mma";
+
+  // Fallback : déduire depuis le nom de la ligue si sport inconnu
+  if (leagueFallback) {
+    const l = leagueFallback.toLowerCase();
+    if (l.includes("mlb") || l.includes("baseball")) return "baseball";
+    if (l.includes("nba") || l.includes("wnba") || l.includes("basketball")) return "basketball";
+    if (l.includes("nhl") || l.includes("hockey")) return "hockey";
+    if (l.includes("nfl") || l.includes("american football")) return "football-americain";
+    if (l.includes("atp") || l.includes("wta") || l.includes("tennis")) return "tennis";
+    if (l.includes("mma") || l.includes("ufc")) return "mma";
   }
+
+  console.warn(`[persist-tipster-pick] sport inconnu "${sport}" (ligue: ${leagueFallback ?? "?"}) → fallback football`);
+  return "football";
 };
 
 /**
@@ -348,17 +354,9 @@ const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> 
       return { key, name, odds };
     });
 
-    // best = book avec la cote la plus haute (PS3838 ou ARJEL)
-    const arjelOdds    = pick.cote_arjel ?? 0;
-    const horsArjelOdds = pick.cote_hors_arjel ?? 0;
-    const bestBookName = horsArjelOdds > arjelOdds
-      ? (horsArjelBook ?? null)
-      : (arjelOdds > 0 ? (arjelBook ?? null) : (horsArjelBook ?? null));
-    const bestOddsVal  = Math.max(arjelOdds, horsArjelOdds) || null;
-
     base.bookmakers_snapshot = { books: booksSnapshot };
-    base.best_soft_book_name = bestBookName;
-    base.best_soft_odds      = bestOddsVal;
+    base.best_soft_book_name = arjelBook ?? null;
+    base.best_soft_odds      = pick.cote_arjel ?? null;
   } else {
     // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
     // nécessaires à la résolution (league, sport, fixture_id si dispo).
@@ -432,7 +430,7 @@ export const persistTipsterPick = async (
 
     if (pick.type === "simple") {
       eventName = pick.match;
-      sportSlug = inferSportSlug(pick.sport);
+      sportSlug = inferSportSlug(pick.sport, pick.ligue);
 
       // Trouver la fixture correspondante pour le fixture_id et la date
       const fixture = fixturesByMatch.get(pick.match);
