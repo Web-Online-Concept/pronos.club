@@ -316,6 +316,41 @@ const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> 
       odds: validated.effective_odds,
       bookmaker: validated.effective_bookmaker,
     };
+
+    // ── bookmakers_snapshot : alimente BooksComparator sur la page dossier ──
+    const arjelBook = pick.cote_arjel_book as string | null;
+    const horsArjelBook = pick.cote_hors_arjel_book as string | null;
+
+    const BOOKS_V3 = [
+      { key: "ps3838",      name: "PS3838"  },
+      { key: "winamax_fr",  name: "Winamax" },
+      { key: "betclic_fr",  name: "Betclic" },
+      { key: "unibet_fr",   name: "Unibet"  },
+    ];
+
+    const bookNameToKey: Record<string, string> = {
+      "PS3838":   "ps3838",
+      "Winamax":  "winamax_fr",
+      "Betclic":  "betclic_fr",
+      "Unibet":   "unibet_fr",
+    };
+
+    const arjelKey     = arjelBook     ? (bookNameToKey[arjelBook]     ?? null) : null;
+    const horsArjelKey = horsArjelBook ? (bookNameToKey[horsArjelBook] ?? "ps3838") : null;
+
+    const booksSnapshot = BOOKS_V3.map(({ key, name }) => {
+      let odds: number | null = null;
+      if (key === horsArjelKey && pick.cote_hors_arjel != null) {
+        odds = pick.cote_hors_arjel;
+      } else if (key === arjelKey && pick.cote_arjel != null) {
+        odds = pick.cote_arjel;
+      }
+      return { key, name, odds };
+    });
+
+    base.bookmakers_snapshot = { books: booksSnapshot };
+    base.best_soft_book_name = arjelBook ?? null;
+    base.best_soft_odds      = pick.cote_arjel ?? null;
   } else {
     // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
     // nécessaires à la résolution (league, sport, fixture_id si dispo).
