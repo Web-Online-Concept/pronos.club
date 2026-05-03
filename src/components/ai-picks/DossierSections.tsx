@@ -872,30 +872,30 @@ export function DisclaimerSection() {
 
 // ─── Football — Stats équipe (buts, BTTS%, Over25%, série) ────────
 
-export function FootballStatsSection({
-  data,
-}: {
-  data: DossierPickData;
-}) {
+export function FootballStatsSection({ data }: { data: DossierPickData }) {
   const stats = data.footballStats;
   if (!stats) return null;
 
-  const home = stats.home as Record<string, unknown>;
-  const away = stats.away as Record<string, unknown>;
+  // Extraction typée pour éviter les erreurs "unknown not assignable to ReactNode"
+  const home = stats.home ?? {};
+  const away = stats.away ?? {};
 
-  const fmt = (v: unknown, suffix = "") =>
-    v != null ? `${v}${suffix}` : "—";
+  const str = (v: unknown): string => (v != null ? String(v) : "—");
+  const pct = (v: unknown): string => (v != null ? `${v}%` : "—");
 
-  const rows = [
-    { label: "Buts marqués / match", h: fmt(home.buts_marques_par_match), a: fmt(away.buts_marques_par_match) },
-    { label: "Buts encaissés / match", h: fmt(home.buts_encaisses_par_match), a: fmt(away.buts_encaisses_par_match) },
-    { label: "Clean sheets", h: fmt(home.clean_sheets_total), a: fmt(away.clean_sheets_total) },
-    { label: "BTTS %", h: fmt(home.btts_pct, "%"), a: fmt(away.btts_pct, "%") },
-    { label: "Over 2.5 %", h: fmt(home.over_25_pct, "%"), a: fmt(away.over_25_pct, "%") },
-    { label: "Matchs joués", h: fmt(home.matchs_joues), a: fmt(away.matchs_joues) },
+  const rows: { label: string; h: string; a: string }[] = [
+    { label: "Buts marqués / match",  h: str(home.buts_marques_par_match),  a: str(away.buts_marques_par_match) },
+    { label: "Buts encaissés / match",h: str(home.buts_encaisses_par_match),a: str(away.buts_encaisses_par_match) },
+    { label: "Clean sheets",          h: str(home.clean_sheets_total),       a: str(away.clean_sheets_total) },
+    { label: "BTTS %",                h: pct(home.btts_pct),                 a: pct(away.btts_pct) },
+    { label: "Over 2.5 %",            h: pct(home.over_25_pct),              a: pct(away.over_25_pct) },
+    { label: "Matchs joués",          h: str(home.matchs_joues),             a: str(away.matchs_joues) },
   ].filter((r) => r.h !== "—" || r.a !== "—");
 
   if (rows.length === 0) return null;
+
+  const homeSerie: string | null = home.serie_en_cours != null ? String(home.serie_en_cours) : null;
+  const awaySerie: string | null = away.serie_en_cours != null ? String(away.serie_en_cours) : null;
 
   return (
     <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
@@ -907,19 +907,18 @@ export function FootballStatsSection({
         </div>
       </div>
 
-      {/* Série en cours */}
-      {(home.serie_en_cours || away.serie_en_cours) && (
+      {(homeSerie || awaySerie) && (
         <div className="flex gap-3 mb-5">
-          {home.serie_en_cours != null && (
+          {homeSerie && (
             <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
               <div className="text-xs text-emerald-300 font-bold">{data.homeTeam}</div>
-              <div className="text-xs text-white/70 mt-0.5">{String(home.serie_en_cours as string)}</div>
+              <div className="text-xs text-white/70 mt-0.5">{homeSerie}</div>
             </div>
           )}
-          {away.serie_en_cours != null && (
+          {awaySerie && (
             <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
               <div className="text-xs text-emerald-300 font-bold">{data.awayTeam}</div>
-              <div className="text-xs text-white/70 mt-0.5">{String(away.serie_en_cours as string)}</div>
+              <div className="text-xs text-white/70 mt-0.5">{awaySerie}</div>
             </div>
           )}
         </div>
@@ -959,11 +958,16 @@ export function FootballPredictionSection({
 }) {
   const pred = data.footballPrediction;
   if (!pred) return null;
-  if (!pred.winner && !pred.percent_home) return null;
+
+  const winner    = pred.winner    != null ? String(pred.winner)    : null;
+  const advice    = pred.advice    != null ? String(pred.advice)    : null;
+  const underOver = pred.under_over != null ? String(pred.under_over) : null;
 
   const home_pct = parseInt(String(pred.percent_home ?? "0").replace("%", "")) || 0;
-  const draw_pct = parseInt(String(pred.percent_draw ?? "0").replace("%", "")) || 0;
-  const away_pct = parseInt(String(pred.percent_away ?? "0").replace("%", "")) || 0;
+  const draw_pct = parseInt(String(pred.percent_draw  ?? "0").replace("%", "")) || 0;
+  const away_pct = parseInt(String(pred.percent_away  ?? "0").replace("%", "")) || 0;
+
+  if (!winner && !home_pct) return null;
 
   return (
     <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
@@ -1000,22 +1004,22 @@ export function FootballPredictionSection({
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        {pred.winner && (
+        {winner && (
           <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3">
             <div className="text-xs text-white/50 mb-1">Gagnant prédit</div>
-            <div className="text-sm font-bold text-white">{String(pred.winner)}</div>
+            <div className="text-sm font-bold text-white">{winner}</div>
           </div>
         )}
-        {pred.advice && (
+        {advice && (
           <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3">
             <div className="text-xs text-white/50 mb-1">Conseil API</div>
-            <div className="text-sm font-bold text-white">{String(pred.advice)}</div>
+            <div className="text-sm font-bold text-white">{advice}</div>
           </div>
         )}
-        {pred.under_over && (
+        {underOver && (
           <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3 col-span-2">
             <div className="text-xs text-white/50 mb-1">Prédiction buts</div>
-            <div className="text-sm font-bold text-white">{String(pred.under_over)}</div>
+            <div className="text-sm font-bold text-white">{underOver}</div>
           </div>
         )}
       </div>
@@ -1026,16 +1030,12 @@ export function FootballPredictionSection({
 
 // ─── Classement (Basket / Hockey / Baseball) ─────────────────────
 
-export function ClassementSection({
-  data,
-}: {
-  data: DossierPickData;
-}) {
+export function ClassementSection({ data }: { data: DossierPickData }) {
   const cl = data.classement;
   if (!cl) return null;
 
-  const home = cl.home as Record<string, unknown>;
-  const away = cl.away as Record<string, unknown>;
+  const home = cl.home ?? {};
+  const away = cl.away ?? {};
 
   const sportIcon = data.sport === "basketball" ? "🏀"
     : data.sport === "hockey" ? "🏒"
@@ -1050,15 +1050,15 @@ export function ClassementSection({
     : data.sport === "baseball" ? "Runs encaissés/match"
     : "Buts encaissés/match";
 
-  const fmt = (v: unknown, suffix = "") =>
-    v != null ? `${v}${suffix}` : "—";
+  const s = (v: unknown): string => (v != null ? String(v) : "—");
+  const p = (v: unknown): string => (v != null ? `${v}%` : "—");
 
-  const rows = [
-    { label: "Position", h: fmt(home.position), a: fmt(away.position) },
-    { label: "Bilan", h: `${fmt(home.victoires)}V-${fmt(home.defaites)}D`, a: `${fmt(away.victoires)}V-${fmt(away.defaites)}D` },
-    { label: "% Victoires", h: fmt(home.win_pct, "%"), a: fmt(away.win_pct, "%") },
-    { label: pointsLabel, h: fmt(home.marques_par_match), a: fmt(away.marques_par_match) },
-    { label: encaissesLabel, h: fmt(home.encaisses_par_match), a: fmt(away.encaisses_par_match) },
+  const rows: { label: string; h: string; a: string }[] = [
+    { label: "Position",     h: s(home.position),            a: s(away.position) },
+    { label: "Bilan",        h: `${s(home.victoires)}V-${s(home.defaites)}D`, a: `${s(away.victoires)}V-${s(away.defaites)}D` },
+    { label: "% Victoires",  h: p(home.win_pct),             a: p(away.win_pct) },
+    { label: pointsLabel,    h: s(home.marques_par_match),   a: s(away.marques_par_match) },
+    { label: encaissesLabel, h: s(home.encaisses_par_match), a: s(away.encaisses_par_match) },
   ].filter((r) => r.h !== "—" || r.a !== "—");
 
   if (rows.length === 0) return null;
@@ -1068,11 +1068,10 @@ export function ClassementSection({
       <div className="flex items-center gap-3 mb-5">
         <div className="text-3xl">{sportIcon}</div>
         <div>
-          <h2 className="text-xl font-bold text-white">Classement & moyennes</h2>
+          <h2 className="text-xl font-bold text-white">Classement &amp; moyennes</h2>
           <p className="text-xs text-white/50 mt-0.5">Saison en cours</p>
         </div>
       </div>
-
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -1097,8 +1096,6 @@ export function ClassementSection({
   );
 }
 
-
-// ─── H2H réel (Basket / Hockey) ──────────────────────────────────
 
 export function H2HReelSection({
   data,
@@ -1241,7 +1238,7 @@ export function MMARecordsSection({
             {ko_pct != null && (
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-red-400 font-semibold">KO/TKO ({r.ko_tko ?? 0})</span>
+                  <span className="text-red-400 font-semibold">KO/TKO ({r.ko_tko != null ? String(r.ko_tko) : "0"})</span>
                   <span className="text-white font-bold">{ko_pct}%</span>
                 </div>
                 <div className="h-1.5 bg-zinc-800 rounded-full">
@@ -1252,7 +1249,7 @@ export function MMARecordsSection({
             {sub_pct != null && (
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-blue-400 font-semibold">Soumission ({r.submissions ?? 0})</span>
+                  <span className="text-blue-400 font-semibold">Soumission ({r.submissions != null ? String(r.submissions) : "0"})</span>
                   <span className="text-white font-bold">{sub_pct}%</span>
                 </div>
                 <div className="h-1.5 bg-zinc-800 rounded-full">
@@ -1263,7 +1260,7 @@ export function MMARecordsSection({
             {dec_pct != null && (
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-amber-400 font-semibold">Décision ({r.decisions ?? 0})</span>
+                  <span className="text-amber-400 font-semibold">Décision ({r.decisions != null ? String(r.decisions) : "0"})</span>
                   <span className="text-white font-bold">{dec_pct}%</span>
                 </div>
                 <div className="h-1.5 bg-zinc-800 rounded-full">
