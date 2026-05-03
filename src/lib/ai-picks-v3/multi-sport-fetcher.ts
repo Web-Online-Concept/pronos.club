@@ -759,6 +759,7 @@ const enrichFootball = async (
 
 type ApiSportsGenericGame = {
   id: number;
+  date?: string; // ISO 8601 — heure réelle du match (vs commence_time OddsAPI = heure de publication)
   teams: { home: { id: number; name: string }; away: { id: number; name: string } };
   league?: { id: number; season: number };
   scores?: {
@@ -822,8 +823,11 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
       computeForm(game.teams.away.id),
     ]);
 
+    const realCommenceTimeBk = game.date ?? match.commence_time_iso;
     return {
       ...match,
+      commence_time_iso: realCommenceTimeBk,
+      date_heure: formatTimeParis(realCommenceTimeBk),
       forme_5_derniers: {
         [match.home_team]: hf ?? "donnée non disponible",
         [match.away_team]: af ?? "donnée non disponible",
@@ -970,8 +974,14 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       computeForm(game.teams.away.id),
     ]);
 
+    // Utilise game.date (api-sports.io) si disponible — plus fiable que
+    // commence_time OddsAPI qui représente l'heure de publication des cotes
+    const realCommenceTime = game.date ?? match.commence_time_iso;
+
     return {
       ...match,
+      commence_time_iso: realCommenceTime,
+      date_heure: formatTimeParis(realCommenceTime),
       forme_5_derniers: {
         [match.home_team]: hf ?? "donnée non disponible",
         [match.away_team]: af ?? "donnée non disponible",
