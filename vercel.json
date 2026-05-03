@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/over-05-buts-equipes-detect",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-dossier",
+      "schedule": "15 7 * * *"
     }
   ]
 }
