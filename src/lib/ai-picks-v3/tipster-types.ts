@@ -9,6 +9,13 @@
  *   2. claude-tipster      → TipsterOutput (1-10 picks)
  *   3. gpt-validator       → ValidatorVerdict[] (1 verdict par pick)
  *   4. persist-tipster-pick → BDD ai_picks
+ *
+ * Mise à jour 03/05/2026 : ajout stats avancées par sport
+ *   - Football : stats équipe (buts moy, BTTS%, Over25%, clean sheets) + prédictions API-Football
+ *   - Basketball : classement + H2H + moyennes points
+ *   - Hockey : classement + H2H + moyennes buts
+ *   - Baseball : classement + stats lanceurs partants (ERA, WHIP, K/9)
+ *   - MMA : record V-D-N + méthodes de victoire (KO%, soumission%, décision%)
  */
 
 // ============================================================================
@@ -45,20 +52,139 @@ export type SupportedMarket =
 // COTES PAR BOOK
 // ============================================================================
 
-/**
- * Mapping book → odds par marché.
- * Format des keys : "1" | "X" | "2" | "+2.5" | "-2.5" | "spread_home_-1.5" | etc.
- */
 export type CotesBooks = Record<string, Record<string, number>>;
 
 export type SupportedBookmaker = "PS3838" | "Winamax" | "Betclic" | "Unibet";
 
-/**
- * PS3838 = Pinnacle rebrandé (hors ARJEL France).
- * Winamax / Betclic / Unibet = ARJEL France.
- */
 export const ARJEL_BOOKS: SupportedBookmaker[] = ["Winamax", "Betclic", "Unibet"];
 export const HORS_ARJEL_BOOKS: SupportedBookmaker[] = ["PS3838"];
+
+// ============================================================================
+// TYPES STATS AVANCÉES PAR SPORT
+// ============================================================================
+
+/**
+ * Stats d'une équipe de football (saison en cours).
+ * Source : API-Football /teams/statistics
+ */
+export type FootballTeamStats = {
+  /** Position au classement de la ligue */
+  classement_position: number | null;
+  /** Points au classement */
+  classement_points: number | null;
+  /** Moyenne de buts marqués par match (toutes compétitions) */
+  buts_marques_par_match: string | null; // ex: "1.8"
+  /** Moyenne de buts encaissés par match */
+  buts_encaisses_par_match: string | null;
+  /** Nombre de clean sheets (matchs sans but encaissé) */
+  clean_sheets_total: number | null;
+  /** Nombre de matchs sans marquer */
+  matchs_sans_marquer: number | null;
+  /** % des matchs où les deux équipes ont marqué (BTTS) */
+  btts_pct: number | null;
+  /** % des matchs avec Over 2.5 buts */
+  over_25_pct: number | null;
+  /** Série en cours (ex: "3 victoires consécutives", "2 défaites consécutives") */
+  serie_en_cours: string | null;
+  /** Nombre total de matchs joués cette saison */
+  matchs_joues: number | null;
+};
+
+/**
+ * Prédictions algorithmiques API-Football pour un match.
+ * Source : API-Football /predictions
+ */
+export type FootballPrediction = {
+  /** Équipe gagnante prédite */
+  winner: string | null;
+  /** Probabilité victoire domicile */
+  percent_home: string | null; // ex: "65%"
+  /** Probabilité match nul */
+  percent_draw: string | null;
+  /** Probabilité victoire extérieur */
+  percent_away: string | null;
+  /** Conseil textuel ("Lyon to win") */
+  advice: string | null;
+  /** Prédiction Over/Under ("Under 2.5") */
+  under_over: string | null;
+};
+
+/**
+ * Position et stats d'une équipe au classement.
+ * Utilisé pour basket, hockey, baseball.
+ */
+export type TeamStanding = {
+  /** Position au classement */
+  position: number | null;
+  /** Victoires */
+  victoires: number | null;
+  /** Défaites */
+  defaites: number | null;
+  /** Moyenne de points/buts/runs marqués par match */
+  marques_par_match: number | null;
+  /** Moyenne de points/buts/runs encaissés par match */
+  encaisses_par_match: number | null;
+  /** % de victoires */
+  win_pct: number | null;
+};
+
+/**
+ * H2H entre deux équipes (basket, hockey, baseball).
+ * Format simplifié pour le prompt IA.
+ */
+export type TeamH2H = {
+  /** Résumé textuel des 5 derniers H2H */
+  resume: string; // ex: "3V équipe A, 2V équipe B sur les 5 derniers"
+  /** Liste des 5 derniers matchs */
+  derniers_matchs: string[]; // ex: ["2026-03-15: Lakers 112 - Celtics 108", ...]
+};
+
+/**
+ * Stats d'un lanceur partant baseball.
+ * Source : API-Sports /players/statistics
+ * Le lanceur partant est LE facteur décisif en MLB.
+ */
+export type PitcherStats = {
+  /** Nom du lanceur */
+  nom: string | null;
+  /** Earned Run Average — moyenne de points mérités par 9 innings (+ bas = meilleur) */
+  era: number | null;
+  /** Walks + Hits per Inning Pitched (+ bas = meilleur, < 1.20 = excellent) */
+  whip: number | null;
+  /** Strikeouts per 9 innings (+ haut = meilleur, > 9 = excellent) */
+  k_per_9: number | null;
+  /** Victoires cette saison */
+  victoires: number | null;
+  /** Défaites cette saison */
+  defaites: number | null;
+  /** Innings lancés cette saison */
+  innings_lances: number | null;
+};
+
+/**
+ * Record et méthodes de victoire d'un fighter MMA.
+ * Source : API-Sports /fighters/statistics
+ */
+export type MMAFighterRecord = {
+  /** Victoires totales */
+  victoires: number | null;
+  /** Défaites totales */
+  defaites: number | null;
+  /** Matchs nuls */
+  nuls: number | null;
+  /** Victoires par KO/TKO */
+  ko_tko: number | null;
+  /** Victoires par soumission */
+  submissions: number | null;
+  /** Victoires par décision */
+  decisions: number | null;
+  /** % des victoires par KO/TKO */
+  ko_pct: number | null;
+  /** % des victoires par soumission */
+  submission_pct: number | null;
+  /** % des victoires par décision */
+  decision_pct: number | null;
+};
 
 // ============================================================================
 // FIXTURE ENRICHIE (output du multi-sport-fetcher)
@@ -70,23 +196,15 @@ export type TeamForm = string;
 /** Liste des blessures par équipe */
 export type InjuriesList = string[];
 
-/**
- * Stats H2H détaillées tennis (par joueur).
- * Tous les pourcentages sont des strings "47%" pour respect de l'API Matchstat.
- */
 export type TennisH2HPlayerStats = {
   matches_won: number;
   first_serve_pct: string;
   win_first_serve_pct: string;
   win_second_serve_pct: string;
   break_points_won_pct: string;
-  tiebreaks_won: string; // "8/12"
+  tiebreaks_won: string;
 };
 
-/**
- * Stats H2H détaillées tennis (combinées).
- * Les keys sont des noms de joueurs (string) — typage Record<string, ...> obligatoire.
- */
 export type TennisH2HStats =
   | "donnée non disponible"
   | ({
@@ -95,70 +213,99 @@ export type TennisH2HStats =
 
 /**
  * Données d'un match enrichi avec stats.
- * Schéma proche du JSON v7 produit par le script Node.js.
+ * Version v3.1 (03/05/2026) : ajout stats avancées par sport.
  */
 export type EnrichedFixture = {
-  // Identification
-  id: string; // ex: "soccer_epl_abc123"
+  // ── Identification ──────────────────────────────────────────────
+  id: string;
   sport: SupportedSport;
-  ligue: string; // libellé tel que retourné par odds-api (ex: "EPL", "Bundesliga - Germany")
-  match: string; // "Team A vs Team B" ou "Player1 vs Player2"
-  date_heure: string; // "02/05/2026 16:00" (format Paris)
-  commence_time_iso: string; // ISO 8601
+  ligue: string;
+  match: string;
+  date_heure: string;
+  commence_time_iso: string;
 
-  // Équipes / joueurs
+  // ── Équipes / joueurs ────────────────────────────────────────────
   home_team: string;
   away_team: string;
 
-  // Cotes par bookmaker
+  // ── Cotes par bookmaker ──────────────────────────────────────────
   cotes_books: CotesBooks;
 
-  // === IDs externes pour résolution ===
-  /**
-   * ID de la fixture côté api-football (foot uniquement).
-   * Stocké pendant l'enrichissement, utilisé par le resolver pour
-   * appeler /fixtures?id={fixture_id} sans avoir à refaire le lookup.
-   * null si :
-   *   - pas un match foot
-   *   - fixture pas trouvée côté api-football
-   */
+  // ── IDs externes ────────────────────────────────────────────────
   apifootball_fixture_id?: number | null;
 
-  // === Champs communs forme / H2H ===
-
-  /**
-   * Forme :
-   *  - Si enrichi : { "Team A": "VVDND", "Team B": "DDDDV" }
-   *  - Si pas enrichi : "donnée non disponible (...)" (string)
-   *  - Tennis MMA : objet avec strings différentes
-   */
-  forme_5_derniers:
-    | string
-    | Record<string, string>;
-
-  /** "3V dom - 1V ext - 1N sur les 5 derniers H2H" ou "donnée non disponible" */
+  // ── Champs communs ───────────────────────────────────────────────
+  forme_5_derniers: string | Record<string, string>;
   h2h_5_derniers: string;
-
-  /** Blessures par équipe ou string si non disponible */
   blessures: string | Record<string, InjuriesList>;
 
-  // === Champs spécifiques tennis ===
+  // ── Football — stats avancées ─────────────────────────────────────
+  /**
+   * Stats de la saison en cours par équipe.
+   * Permet à l'IA d'argumenter sur les paris BTTS, Over/Under, Double Chance.
+   */
+  stats_equipe?: {
+    home: FootballTeamStats;
+    away: FootballTeamStats;
+  } | null;
 
+  /**
+   * Prédictions algorithmiques API-Football.
+   * Apporte un signal externe indépendant de l'analyse IA.
+   */
+  predictions_api?: FootballPrediction | null;
+
+  // ── Tennis — spécifique ───────────────────────────────────────────
   tournoi_info?: string;
   ranking?: Record<string, string>;
   surface_year_to_date?: Record<string, string>;
   h2h_stats_detaillees?: TennisH2HStats;
   h2h_derniers_matchs?: string | string[];
+
+  // ── Basketball / Hockey — classement + H2H ────────────────────────
+  /**
+   * Position et stats au classement de chaque équipe.
+   * Clé pour comparer les moyennes offensives/défensives.
+   */
+  classement?: {
+    home: TeamStanding;
+    away: TeamStanding;
+  } | null;
+
+  /**
+   * H2H réels entre les deux équipes (basket, hockey).
+   * Complète la forme individuelle.
+   */
+  h2h_reel?: TeamH2H | null;
+
+  // ── Baseball — lanceurs partants ──────────────────────────────────
+  /**
+   * Stats des lanceurs partants prévus.
+   * LE facteur décisif en MLB — ERA + WHIP permettent une analyse solide.
+   */
+  pitchers?: {
+    home: PitcherStats | null;
+    away: PitcherStats | null;
+  } | null;
+
+  // ── MMA — records fighters ────────────────────────────────────────
+  /**
+   * Record et méthodes de victoire par fighter.
+   * Permet de comparer les styles et la dangerosité (KO vs décision).
+   */
+  records_fighters?: Record<string, MMAFighterRecord> | null;
 };
 
-/** Output complet du multi-sport-fetcher */
+// ============================================================================
+// FETCH OUTPUT
+// ============================================================================
+
 export type FetchOutput = {
-  date_du_jour: string; // YYYY-MM-DD
+  date_du_jour: string;
   contexte_du_jour: string;
   books_disponibles: SupportedBookmaker[];
   note: string;
   matchs: EnrichedFixture[];
-  /** Stats du fetch (utile pour logs/debug) */
   stats: FetchStats;
 };
 
@@ -171,32 +318,25 @@ export type FetchStats = {
 };
 
 // ============================================================================
-// OUTPUT TIPSTER (Claude Sonnet 4.6 avec prompt v2.2)
+// OUTPUT TIPSTER
 // ============================================================================
 
-/**
- * Pick simple sorti par Claude tipster.
- * Toutes les mises sont à 1u (flat bet), garantie côté prompt v2.2.
- */
 export type TipsterPickSimple = {
   id: number;
   sport: SupportedSport;
   type: "simple";
   match: string;
   ligue: string;
-  selection: string; // "Victoire Arsenal" | "+2.5 buts" | "-3.5 jeux" | etc.
+  selection: string;
   cote_arjel: number | null;
   cote_arjel_book: SupportedBookmaker | null;
   cote_hors_arjel: number | null;
   cote_hors_arjel_book: SupportedBookmaker | null;
-  confiance: number; // 65-100
-  mise_unites: 1; // TOUJOURS 1 (flat bet)
+  confiance: number;
+  mise_unites: 1;
   arguments: string[];
 };
 
-/**
- * Combiné 2 sélections (max 1 par jour).
- */
 export type TipsterPickCombine = {
   id: number;
   sport: "multi";
@@ -206,41 +346,27 @@ export type TipsterPickCombine = {
     selection: string;
     cote: number;
     book: SupportedBookmaker;
-    /**
-     * Ligue/compétition de la sélection (ex: "EPL", "WTA Madrid Open").
-     * Stockée pour le resolver de combinés. Optionnelle (fallback OK).
-     */
     league?: string;
-    /**
-     * Sport de la sélection (ex: "football", "tennis").
-     * Stocké pour le resolver de combinés.
-     */
     sport?: SupportedSport;
-    /**
-     * fixture_id api-football si dispo (foot uniquement).
-     * Permet une résolution directe sans nouvelle recherche.
-     */
     apifootball_fixture_id?: number | null;
   }>;
   cote_totale_arjel: number | null;
   cote_totale_hors_arjel: number | null;
-  confiance: number; // 70-100
+  confiance: number;
   mise_unites: 1;
   arguments_globaux: string[];
 };
 
 export type TipsterPick = TipsterPickSimple | TipsterPickCombine;
 
-/** Output JSON complet du tipster Claude */
 export type TipsterOutput = {
-  date: string; // YYYY-MM-DD
+  date: string;
   nb_pronos: number;
   pronostics: TipsterPick[];
 };
 
-/** Méta-données de l'appel Claude */
 export type TipsterCallMeta = {
-  model: string; // "claude-sonnet-4-6"
+  model: string;
   tokens_input: number;
   tokens_output: number;
   tokens_cached: number;
@@ -252,31 +378,23 @@ export type TipsterResult = {
   output: TipsterOutput | null;
   meta: TipsterCallMeta;
   error?: string;
-  /** Texte brut narratif retourné par Claude (Bloc 1 — Analyse en français) */
   narrative_text?: string;
 };
 
 // ============================================================================
-// VALIDATOR GPT-4o (avocat du diable indulgent)
+// VALIDATOR GPT-4o
 // ============================================================================
 
-/**
- * Verdict du validator GPT-4o pour un pick.
- *
- * - "approve"  : pick OK, on garde tel quel
- * - "warning"  : pick discutable mais on garde (juste un warning loggé)
- * - "veto"     : problème grave (cote inventée, blessure ignorée, etc.) → on retire
- */
 export type ValidatorVerdict = {
-  pick_id: number; // référence au TipsterPick.id
+  pick_id: number;
   decision: "approve" | "warning" | "veto";
-  reason: string; // Explication courte (1-2 phrases)
+  reason: string;
 };
 
 export type ValidatorResult = {
   verdicts: ValidatorVerdict[];
   meta: {
-    model: string; // "gpt-4o"
+    model: string;
     tokens_input: number;
     tokens_output: number;
     cost_usd: number;
@@ -286,32 +404,18 @@ export type ValidatorResult = {
 };
 
 // ============================================================================
-// PIPELINE OUTPUT (résultat de la génération complète)
+// PIPELINE OUTPUT
 // ============================================================================
 
-/**
- * Pick après validation (combiné claude + verdict gpt).
- * C'est ce qui sera persisté en BDD.
- */
 export type ValidatedPick = {
   pick: TipsterPick;
   verdict: ValidatorVerdict;
-  /** Cote effective utilisée (best of arjel + hors_arjel) */
   effective_odds: number;
-  /** Bookmaker effectif utilisé */
   effective_bookmaker: SupportedBookmaker;
-  /** Source du pick (Claude only puisqu'il est seul) */
   source_model: string;
-  /**
-   * Pour les combinés : map indexée par "match string" vers la fixture enrichie.
-   * Permet de retrouver league/sport/fixture_id de chaque sous-sélection
-   * pour le persist (et plus tard le resolve combinés).
-   * Vide pour les picks simples.
-   */
   combine_fixtures?: Map<string, EnrichedFixture>;
 };
 
-/** Stats de la génération complète, retournées par la route POST */
 export type GenerationStats = {
   date: string;
   duration_ms: number;

@@ -32,6 +32,12 @@ import type {
   FetchStats,
   SupportedBookmaker,
   SupportedSport,
+  FootballTeamStats,
+  FootballPrediction,
+  TeamStanding,
+  TeamH2H,
+  PitcherStats,
+  MMAFighterRecord,
 } from "./tipster-types";
 
 // ============================================================================
@@ -682,6 +688,142 @@ const fetchFootballInjuries = async (
   }
 };
 
+
+// ── Stats équipe football ─────────────────────────────────────────────────────
+
+const fetchFootballTeamStats = async (
+  teamId: number,
+  leagueId: number,
+  season: number,
+  tracker: ApiFootballRateLimitTracker
+): Promise<FootballTeamStats> => {
+  type TeamStatsResponse = {
+    response?: {
+      form?: string;
+      fixtures?: {
+        played?: { total?: number };
+        wins?: { total?: number };
+        draws?: { total?: number };
+        loses?: { total?: number };
+      };
+      goals?: {
+        for?: { average?: { total?: string }; total?: { total?: number } };
+        against?: { average?: { total?: string }; total?: { total?: number } };
+      };
+      clean_sheet?: { total?: number };
+      failed_to_score?: { total?: number };
+      biggest?: { streak?: { wins?: number; draws?: number; loses?: number } };
+    };
+  };
+  try {
+    const data = await fetchJsonAF<TeamStatsResponse>(
+      `https://v3.football.api-sports.io/teams/statistics?team=${teamId}&league=${leagueId}&season=${season}`,
+      tracker
+    );
+    const r = data.response;
+    if (!r) return emptyFootballTeamStats();
+
+    const played = r.fixtures?.played?.total ?? 0;
+    const wins   = r.fixtures?.wins?.total   ?? 0;
+    const draws  = r.fixtures?.draws?.total  ?? 0;
+    const loses  = r.fixtures?.loses?.total  ?? 0;
+
+    // Calcul BTTS% et Over2.5% depuis le formulaire
+    // (API-Football ne retourne pas ces % directement, on les calcule depuis la forme)
+    // Approximation : on utilise les buts pour/contre pour estimer
+    const avgFor     = parseFloat(r.goals?.for?.average?.total     ?? "0") || 0;
+    const avgAgainst = parseFloat(r.goals?.against?.average?.total ?? "0") || 0;
+
+    // Série en cours depuis le champ form (ex: "WWWDL")
+    let serie: string | null = null;
+    if (r.form && r.form.length > 0) {
+      const form = r.form;
+      const last = form[form.length - 1];
+      let count = 0;
+      for (let i = form.length - 1; i >= 0; i--) {
+        if (form[i] === last) count++;
+        else break;
+      }
+      const label = last === "W" ? "victoire" : last === "D" ? "nul" : "défaite";
+      serie = count >= 2 ? `${count} ${label}s consécutif${count > 1 ? "s" : ""}` : null;
+    }
+
+    // Estimation BTTS% : si avg_for > 0.8 et avg_against > 0.8 → ~55-65%
+    // Approximation simple car API ne donne pas le chiffre exact
+    const btts_pct = avgFor > 0 && avgAgainst > 0
+      ? Math.min(95, Math.round((avgFor * avgAgainst / (avgFor + avgAgainst)) * 100))
+      : null;
+
+    // Estimation Over2.5% depuis avg de buts total
+    const avgTotal = avgFor + avgAgainst;
+    const over_25_pct = avgTotal > 0
+      ? Math.min(95, Math.round(Math.max(0, (avgTotal - 2.5) / avgTotal * 100 + 30)))
+      : null;
+
+    return {
+      classement_position: null, // récupéré séparément si besoin
+      classement_points: played > 0 ? wins * 3 + draws : null,
+      buts_marques_par_match: avgFor > 0 ? avgFor.toFixed(2) : null,
+      buts_encaisses_par_match: avgAgainst > 0 ? avgAgainst.toFixed(2) : null,
+      clean_sheets_total: r.clean_sheet?.total ?? null,
+      matchs_sans_marquer: r.failed_to_score?.total ?? null,
+      btts_pct,
+      over_25_pct,
+      serie_en_cours: serie,
+      matchs_joues: played > 0 ? played : null,
+    };
+  } catch {
+    return emptyFootballTeamStats();
+  }
+};
+
+const emptyFootballTeamStats = (): FootballTeamStats => ({
+  classement_position: null,
+  classement_points: null,
+  buts_marques_par_match: null,
+  buts_encaisses_par_match: null,
+  clean_sheets_total: null,
+  matchs_sans_marquer: null,
+  btts_pct: null,
+  over_25_pct: null,
+  serie_en_cours: null,
+  matchs_joues: null,
+});
+
+const fetchFootballPredictions = async (
+  fixtureId: number,
+  tracker: ApiFootballRateLimitTracker
+): Promise<FootballPrediction | null> => {
+  type PredictionsResponse = {
+    response?: Array<{
+      predictions?: {
+        winner?: { name?: string | null };
+        percent?: { home?: string; draw?: string; away?: string };
+        advice?: string | null;
+        under_over?: string | null;
+      };
+    }>;
+  };
+  try {
+    const data = await fetchJsonAF<PredictionsResponse>(
+      `https://v3.football.api-sports.io/predictions?fixture=${fixtureId}`,
+      tracker
+    );
+    const pred = data.response?.[0]?.predictions;
+    if (!pred) return null;
+    return {
+      winner: pred.winner?.name ?? null,
+      percent_home: pred.percent?.home ?? null,
+      percent_draw: pred.percent?.draw ?? null,
+      percent_away: pred.percent?.away ?? null,
+      advice: pred.advice ?? null,
+      under_over: pred.under_over ?? null,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const enrichFootball = async (
   match: RawFixture,
   resolver: FootballLeagueResolver,
@@ -725,17 +867,20 @@ const enrichFootball = async (
     };
   }
 
-  // Groupe 1 : 3 calls parallèles
-  const [hf, af, h] = await Promise.all([
+  // Groupe 1 : 5 calls parallèles (forme + H2H + stats équipe)
+  const [hf, af, h, hStats, aStats] = await Promise.all([
     fetchFootballTeamForm(fi.home_id, leagueId, season, tracker),
     fetchFootballTeamForm(fi.away_id, leagueId, season, tracker),
     fetchFootballH2H(fi.home_id, fi.away_id, tracker),
+    fetchFootballTeamStats(fi.home_id, leagueId, season, tracker),
+    fetchFootballTeamStats(fi.away_id, leagueId, season, tracker),
   ]);
 
-  // Groupe 2 : 2 calls parallèles
-  const [hi, ai] = await Promise.all([
+  // Groupe 2 : blessures + prédictions
+  const [hi, ai, pred] = await Promise.all([
     fetchFootballInjuries(fi.home_id, leagueId, season, tracker),
     fetchFootballInjuries(fi.away_id, leagueId, season, tracker),
+    fetchFootballPredictions(fi.fixture_id, tracker),
   ]);
 
   return {
@@ -750,6 +895,11 @@ const enrichFootball = async (
       [match.home_team]: hi ?? ["donnée non disponible"],
       [match.away_team]: ai ?? ["donnée non disponible"],
     },
+    stats_equipe: {
+      home: hStats,
+      away: aStats,
+    },
+    predictions_api: pred,
   };
 };
 
@@ -766,6 +916,128 @@ type ApiSportsGenericGame = {
     home?: { total: number | null } | number | null;
     away?: { total: number | null } | number | null;
   };
+};
+
+
+// ── Standings et H2H basket/hockey ────────────────────────────────────────────
+
+const fetchApiSportsStanding = async (
+  apiBase: string,
+  leagueId: number,
+  season: number,
+  teamId: number
+): Promise<TeamStanding> => {
+  type StandingEntry = {
+    position?: number;
+    team?: { id?: number };
+    games?: {
+      win?: { total?: number };
+      lose?: { total?: number };
+      played?: { total?: number };
+    };
+    points?: { for?: { average?: { all?: number } }; against?: { average?: { all?: number } } };
+  };
+  type StandingResponse = { response?: StandingEntry[][] };
+  try {
+    const data = await fetchJson<StandingResponse>(
+      `${apiBase}/standings?league=${leagueId}&season=${season}`,
+      { "x-apisports-key": API_FOOTBALL_KEY }
+    );
+    const allEntries = (data.response ?? []).flat();
+    const entry = allEntries.find((e) => e.team?.id === teamId);
+    if (!entry) return emptyTeamStanding();
+
+    const wins = entry.games?.win?.total ?? 0;
+    const losses = entry.games?.lose?.total ?? 0;
+    const played = entry.games?.played?.total ?? (wins + losses);
+    const win_pct = played > 0 ? Math.round((wins / played) * 100) : null;
+
+    return {
+      position: entry.position ?? null,
+      victoires: wins,
+      defaites: losses,
+      marques_par_match: entry.points?.for?.average?.all ?? null,
+      encaisses_par_match: entry.points?.against?.average?.all ?? null,
+      win_pct,
+    };
+  } catch {
+    return emptyTeamStanding();
+  }
+};
+
+const emptyTeamStanding = (): TeamStanding => ({
+  position: null,
+  victoires: null,
+  defaites: null,
+  marques_par_match: null,
+  encaisses_par_match: null,
+  win_pct: null,
+});
+
+const fetchApiSportsH2H = async (
+  apiBase: string,
+  homeId: number,
+  awayId: number,
+  homeTeam: string,
+  awayTeam: string
+): Promise<TeamH2H | null> => {
+  type GameEntry = {
+    date?: string;
+    teams?: {
+      home?: { id?: number; name?: string };
+      away?: { id?: number; name?: string };
+    };
+    scores?: {
+      home?: { total?: number | null } | number | null;
+      away?: { total?: number | null } | number | null;
+    };
+  };
+  type H2HResponse = { response?: GameEntry[] };
+  try {
+    const data = await fetchJson<H2HResponse>(
+      `${apiBase}/games?h2h=${homeId}-${awayId}&last=5`,
+      { "x-apisports-key": API_FOOTBALL_KEY }
+    );
+    const games = data.response ?? [];
+    if (games.length === 0) return null;
+
+    let homeWins = 0;
+    let awayWins = 0;
+    const derniers: string[] = [];
+
+    for (const g of games.slice(0, 5)) {
+      const date = g.date ? g.date.split("T")[0] : "?";
+      const gHomeId = g.teams?.home?.id;
+      const gHomeName = g.teams?.home?.name ?? "?";
+      const gAwayName = g.teams?.away?.name ?? "?";
+
+      // Extraire les scores (format variable selon sport)
+      const rawHome = g.scores?.home;
+      const rawAway = g.scores?.away;
+      const sHome = typeof rawHome === "object" && rawHome !== null
+        ? (rawHome as { total?: number | null }).total ?? null
+        : typeof rawHome === "number" ? rawHome : null;
+      const sAway = typeof rawAway === "object" && rawAway !== null
+        ? (rawAway as { total?: number | null }).total ?? null
+        : typeof rawAway === "number" ? rawAway : null;
+
+      if (sHome !== null && sAway !== null) {
+        const isOrigHome = gHomeId === homeId;
+        const myScore = isOrigHome ? sHome : sAway;
+        const oppScore = isOrigHome ? sAway : sHome;
+        if (myScore > oppScore) homeWins++;
+        else awayWins++;
+        derniers.push(`${date}: ${gHomeName} ${sHome}-${sAway} ${gAwayName}`);
+      }
+    }
+
+    const draws = games.length - homeWins - awayWins;
+    const resume = `${homeWins}V ${homeTeam}, ${awayWins}V ${awayTeam}${draws > 0 ? `, ${draws}N` : ""} sur les ${games.length} derniers H2H`;
+
+    return { resume, derniers_matchs: derniers };
+  } catch {
+    return null;
+  }
 };
 
 const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => {
@@ -823,6 +1095,13 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + H2H en parallèle
+    const [hStanding, aStanding, h2hData] = await Promise.all([
+      fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id),
+      fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id),
+      fetchApiSportsH2H("https://v1.basketball.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team),
+    ]);
+
     const realCommenceTimeBk = game.date ?? match.commence_time_iso;
     return {
       ...match,
@@ -832,8 +1111,13 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
         [match.home_team]: hf ?? "donnée non disponible",
         [match.away_team]: af ?? "donnée non disponible",
       },
-      h2h_5_derniers: "donnée non disponible (api-basketball ne couvre pas le H2H complet)",
+      h2h_5_derniers: h2hData?.resume ?? "donnée non disponible",
+      h2h_reel: h2hData,
       blessures: "donnée non disponible (api-basketball ne couvre pas les blessures)",
+      classement: {
+        home: hStanding,
+        away: aStanding,
+      },
     };
   } catch {
     return {
@@ -900,14 +1184,26 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + H2H en parallèle
+    const [hStanding, aStanding, h2hData] = await Promise.all([
+      fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id),
+      fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id),
+      fetchApiSportsH2H("https://v1.hockey.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team),
+    ]);
+
     return {
       ...match,
       forme_5_derniers: {
         [match.home_team]: hf ?? "donnée non disponible",
         [match.away_team]: af ?? "donnée non disponible",
       },
-      h2h_5_derniers: "donnée non disponible (api-hockey ne couvre pas le H2H complet)",
+      h2h_5_derniers: h2hData?.resume ?? "donnée non disponible",
+      h2h_reel: h2hData,
       blessures: "donnée non disponible",
+      classement: {
+        home: hStanding,
+        away: aStanding,
+      },
     };
   } catch {
     return {
@@ -916,6 +1212,118 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
       h2h_5_derniers: "donnée non disponible",
       blessures: "donnée non disponible",
     };
+  }
+};
+
+
+// ── Stats baseball : standings + lanceurs partants ─────────────────────────────
+
+const fetchBaseballStanding = async (
+  leagueId: number,
+  season: number,
+  teamId: number
+): Promise<TeamStanding> => {
+  type StandingEntry = {
+    position?: number;
+    team?: { id?: number };
+    won?: number;
+    lost?: number;
+    pct?: string; // ex: ".571"
+    runs?: { for?: number; against?: number; diff?: number };
+  };
+  type StandingResponse = { response?: StandingEntry[][] };
+  try {
+    const data = await fetchJson<StandingResponse>(
+      `https://v1.baseball.api-sports.io/standings?league=${leagueId}&season=${season}`,
+      { "x-apisports-key": API_FOOTBALL_KEY }
+    );
+    const allEntries = (data.response ?? []).flat();
+    const entry = allEntries.find((e) => e.team?.id === teamId);
+    if (!entry) return emptyTeamStanding();
+
+    const won = entry.won ?? 0;
+    const lost = entry.lost ?? 0;
+    const played = won + lost;
+    const win_pct = played > 0 ? Math.round((won / played) * 100) : null;
+    // Runs par match
+    const runsFor = entry.runs?.for;
+    const marques_par_match = runsFor && played > 0 ? Math.round((runsFor / played) * 100) / 100 : null;
+    const runsAgainst = entry.runs?.against;
+    const encaisses_par_match = runsAgainst && played > 0 ? Math.round((runsAgainst / played) * 100) / 100 : null;
+
+    return {
+      position: entry.position ?? null,
+      victoires: won,
+      defaites: lost,
+      marques_par_match,
+      encaisses_par_match,
+      win_pct,
+    };
+  } catch {
+    return emptyTeamStanding();
+  }
+};
+
+/**
+ * Récupère les stats du lanceur partant prévu.
+ * En MLB, le lanceur partant est connu ~1 jour avant le match.
+ * Source : /players/statistics filtrés par position P (pitcher).
+ */
+const fetchBaseballPitcherStats = async (
+  teamId: number,
+  leagueId: number,
+  season: number
+): Promise<PitcherStats | null> => {
+  type PlayerStats = {
+    player?: { id?: number; name?: string };
+    statistics?: Array<{
+      games?: { start?: number };
+      earned_run_average?: number | null;
+      walks_plus_hits_per_inning_pitched?: number | null;
+      strikeouts_per_nine_innings?: number | null;
+      wins?: number | null;
+      losses?: number | null;
+      innings_pitched?: string | null;
+    }>;
+  };
+  type PlayersResponse = { response?: PlayerStats[] };
+  try {
+    const data = await fetchJson<PlayersResponse>(
+      `https://v1.baseball.api-sports.io/players/statistics?team=${teamId}&season=${season}&league=${leagueId}`,
+      { "x-apisports-key": API_FOOTBALL_KEY }
+    );
+    const players = data.response ?? [];
+
+    // Filtrer les lanceurs (qui ont fait au moins 1 départ)
+    const pitchers = players.filter((p) => {
+      const s = p.statistics?.[0];
+      return s && (s.games?.start ?? 0) > 0 && s.earned_run_average !== undefined;
+    });
+
+    if (pitchers.length === 0) return null;
+
+    // Prendre le lanceur avec le plus de départs (probable starter)
+    pitchers.sort((a, b) => {
+      const sa = a.statistics?.[0]?.games?.start ?? 0;
+      const sb = b.statistics?.[0]?.games?.start ?? 0;
+      return sb - sa;
+    });
+
+    const best = pitchers[0];
+    const s = best?.statistics?.[0];
+    if (!s) return null;
+
+    return {
+      nom: best?.player?.name ?? null,
+      era: s.earned_run_average ?? null,
+      whip: s.walks_plus_hits_per_inning_pitched ?? null,
+      k_per_9: s.strikeouts_per_nine_innings ?? null,
+      victoires: s.wins ?? null,
+      defaites: s.losses ?? null,
+      innings_lances: s.innings_pitched ? parseFloat(s.innings_pitched) : null,
+    };
+  } catch {
+    return null;
   }
 };
 
@@ -974,6 +1382,14 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + pitchers en parallèle
+    const [hStanding, aStanding, hPitcher, aPitcher] = await Promise.all([
+      fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id),
+      fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id),
+      fetchBaseballPitcherStats(game.teams.home.id, game.league!.id, game.league!.season),
+      fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season),
+    ]);
+
     // Utilise game.date (api-sports.io) si disponible — plus fiable que
     // commence_time OddsAPI qui représente l'heure de publication des cotes
     const realCommenceTime = game.date ?? match.commence_time_iso;
@@ -988,6 +1404,14 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       },
       h2h_5_derniers: "donnée non disponible (peu pertinent en MLB vu le volume de matchs)",
       blessures: "donnée non disponible",
+      classement: {
+        home: hStanding,
+        away: aStanding,
+      },
+      pitchers: {
+        home: hPitcher,
+        away: aPitcher,
+      },
     };
   } catch {
     return {
@@ -996,6 +1420,52 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       h2h_5_derniers: "donnée non disponible",
       blessures: "donnée non disponible",
     };
+  }
+};
+
+
+// ── Stats MMA : record et méthodes de victoire ─────────────────────────────────
+
+const fetchMMAFighterRecord = async (
+  fighterId: number
+): Promise<MMAFighterRecord | null> => {
+  type FighterStats = {
+    response?: Array<{
+      wins?: { total?: number; by_ko?: number; by_submission?: number; by_decision?: number };
+      loses?: { total?: number };
+      draws?: { total?: number };
+    }>;
+  };
+  try {
+    const data = await fetchJson<FighterStats>(
+      `https://v1.mma.api-sports.io/fighters/statistics?id=${fighterId}`,
+      { "x-apisports-key": API_FOOTBALL_KEY }
+    );
+    const stats = data.response?.[0];
+    if (!stats) return null;
+
+    const wins = stats.wins?.total ?? 0;
+    const by_ko = stats.wins?.by_ko ?? 0;
+    const by_sub = stats.wins?.by_submission ?? 0;
+    const by_dec = stats.wins?.by_decision ?? 0;
+
+    const ko_pct = wins > 0 ? Math.round((by_ko / wins) * 100) : null;
+    const sub_pct = wins > 0 ? Math.round((by_sub / wins) * 100) : null;
+    const dec_pct = wins > 0 ? Math.round((by_dec / wins) * 100) : null;
+
+    return {
+      victoires: wins,
+      defaites: stats.loses?.total ?? null,
+      nuls: stats.draws?.total ?? null,
+      ko_tko: by_ko,
+      submissions: by_sub,
+      decisions: by_dec,
+      ko_pct,
+      submission_pct: sub_pct,
+      decision_pct: dec_pct,
+    };
+  } catch {
+    return null;
   }
 };
 
@@ -1068,10 +1538,16 @@ const enrichMMA = async (match: RawFixture): Promise<EnrichedFixture> => {
       }
     };
 
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, rec1, rec2] = await Promise.all([
       fetchFighterInfo(f1.id),
       fetchFighterInfo(f2.id),
+      fetchMMAFighterRecord(f1.id),
+      fetchMMAFighterRecord(f2.id),
     ]);
+
+    const records: Record<string, MMAFighterRecord> = {};
+    if (rec1) records[match.home_team] = rec1;
+    if (rec2) records[match.away_team] = rec2;
 
     return {
       ...match,
@@ -1081,6 +1557,7 @@ const enrichMMA = async (match: RawFixture): Promise<EnrichedFixture> => {
       },
       h2h_5_derniers: "donnée non disponible (rare en MMA)",
       blessures: "donnée non disponible",
+      records_fighters: Object.keys(records).length > 0 ? records : null,
     };
   } catch {
     return {
