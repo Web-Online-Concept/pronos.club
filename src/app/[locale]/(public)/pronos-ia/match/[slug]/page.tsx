@@ -4,12 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════
  *
  * Page dossier d'un pick IA.
- *
- * Server Component : recupere toutes les data en 1 fetch agregé puis
- * assemble les sections visuelles. SEO friendly grace au rendu
- * server-side de tout le contenu.
- *
- * Background blanc, sections internes restent sombres (rendu pro).
+ * Mise à jour v3 (03/05/2026) : ajout sections stats avancées par sport.
  *
  * Path :
  * src/app/[locale]/(public)/pronos-ia/match/[slug]/page.tsx
@@ -31,6 +26,12 @@ import {
   HeadToHeadSection,
   IAReasoningSection,
   DisclaimerSection,
+  FootballStatsSection,
+  FootballPredictionSection,
+  ClassementSection,
+  H2HReelSection,
+  PitchersSection,
+  MMARecordsSection,
 } from "@/components/ai-picks/DossierSections";
 
 
@@ -86,6 +87,13 @@ export default async function DossierPage(props: PageProps) {
     notFound();
   }
 
+  const isFootball = data.sport === "football" || data.sport === "soccer";
+  const isBasketball = data.sport === "basketball";
+  const isHockey = data.sport === "hockey";
+  const isBaseball = data.sport === "baseball";
+  const isMMA = data.sport === "mma";
+  const isTeamSport = isBasketball || isHockey || isBaseball;
+
   return (
     <div className="min-h-screen bg-white text-zinc-900">
       <div className="container mx-auto max-w-5xl px-4 py-8 md:py-12">
@@ -109,7 +117,7 @@ export default async function DossierPage(props: PageProps) {
           </span>
         </div>
 
-        {/* Sections en colonne — chaque section garde son fond sombre interne */}
+        {/* Sections en colonne */}
         <div className="space-y-6">
           {/* 1. Hero verdict */}
           <HeroPick data={data} />
@@ -117,15 +125,33 @@ export default async function DossierPage(props: PageProps) {
           {/* 2. Math du value bet */}
           <EdgeMathSection data={data} />
 
-          {/* 3. Comparateur 6 books */}
+          {/* 3. Comparateur books */}
           <BooksComparator data={data} />
 
-          {/* 4. Bilan saison (foot ou ESPN) */}
+          {/* 4. Stats équipe football (v3) */}
+          {isFootball && <FootballStatsSection data={data} />}
+
+          {/* 5. Prédiction algorithmique football (v3) */}
+          {isFootball && <FootballPredictionSection data={data} />}
+
+          {/* 6. Classement basket / hockey / baseball (v3) */}
+          {isTeamSport && <ClassementSection data={data} />}
+
+          {/* 7. H2H réel basket / hockey (v3) */}
+          {(isBasketball || isHockey) && <H2HReelSection data={data} />}
+
+          {/* 8. Lanceurs partants baseball (v3) */}
+          {isBaseball && <PitchersSection data={data} />}
+
+          {/* 9. Records MMA (v3) */}
+          {isMMA && <MMARecordsSection data={data} />}
+
+          {/* 10. Bilan saison (ESPN) */}
           {data.espnContext?.eventSummary && (
             <RecordsSection summary={data.espnContext.eventSummary} />
           )}
 
-          {/* 5. Forme equipes */}
+          {/* 11. Forme equipes (ESPN) */}
           {data.espnContext &&
             (data.espnContext.homeForm || data.espnContext.awayForm) && (
               <TeamFormSection
@@ -136,12 +162,12 @@ export default async function DossierPage(props: PageProps) {
               />
             )}
 
-          {/* 6. Stats avancees ESPN (boxscore) */}
+          {/* 12. Stats avancees ESPN (boxscore) */}
           {data.espnContext?.eventSummary && (
             <BoxscoreSection summary={data.espnContext.eventSummary} />
           )}
 
-          {/* 7. H2H (foot uniquement, via API-Football) */}
+          {/* 13. H2H foot (API-Football) */}
           {data.apiFootballContext &&
             data.apiFootballContext.h2h &&
             data.apiFootballContext.h2h.length > 0 && (
@@ -150,17 +176,17 @@ export default async function DossierPage(props: PageProps) {
               />
             )}
 
-          {/* 8. Lineups + blessures (foot uniquement) */}
+          {/* 14. Lineups + blessures foot (API-Football) */}
           {data.apiFootballContext && (
             <LineupsAndInjuries
               apiFootballContext={data.apiFootballContext}
             />
           )}
 
-          {/* 9. Analyse IA */}
+          {/* 15. Analyse IA */}
           <IAReasoningSection data={data} />
 
-          {/* 10. Disclaimer bankroll */}
+          {/* 16. Disclaimer */}
           <DisclaimerSection />
 
           {/* CTA retour */}

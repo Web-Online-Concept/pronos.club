@@ -84,6 +84,26 @@ export type DossierPickData = {
   // Sport context — null si non dispo
   espnContext: EspnPickContext | null;
   apiFootballContext: AggregatedMatchData | null;
+
+  // Nouvelles stats v3 (depuis odds_comparison.fixture_*)
+  footballStats: {
+    home: Record<string, unknown>;
+    away: Record<string, unknown>;
+  } | null;
+  footballPrediction: Record<string, unknown> | null;
+  classement: {
+    home: Record<string, unknown>;
+    away: Record<string, unknown>;
+  } | null;
+  h2hReel: {
+    resume: string;
+    derniers_matchs: string[];
+  } | null;
+  pitchers: {
+    home: Record<string, unknown> | null;
+    away: Record<string, unknown> | null;
+  } | null;
+  recordsFighters: Record<string, Record<string, unknown>> | null;
 };
 
 
@@ -306,6 +326,31 @@ export const buildDossierData = async (
     odds: typeof b.odds === "number" ? b.odds : null,
   }));
 
+  // Extraction des stats fixture stockées dans odds_comparison
+  const footballStats = (oc.fixture_stats_equipe as {
+    home: Record<string, unknown>;
+    away: Record<string, unknown>;
+  } | null) ?? null;
+
+  const footballPrediction = (oc.fixture_predictions as Record<string, unknown> | null) ?? null;
+
+  const classement = (oc.fixture_classement as {
+    home: Record<string, unknown>;
+    away: Record<string, unknown>;
+  } | null) ?? null;
+
+  const h2hReel = (oc.fixture_h2h_reel as {
+    resume: string;
+    derniers_matchs: string[];
+  } | null) ?? null;
+
+  const pitchers = (oc.fixture_pitchers as {
+    home: Record<string, unknown> | null;
+    away: Record<string, unknown> | null;
+  } | null) ?? null;
+
+  const recordsFighters = (oc.fixture_records_fighters as Record<string, Record<string, unknown>> | null) ?? null;
+
   return {
     pickId: pick.id,
     slug: pick.slug ?? slug,
@@ -339,5 +384,11 @@ export const buildDossierData = async (
     consensusScore: pick.consensus_score,
     espnContext,
     apiFootballContext,
+    footballStats,
+    footballPrediction,
+    classement,
+    h2hReel,
+    pitchers,
+    recordsFighters,
   };
 };

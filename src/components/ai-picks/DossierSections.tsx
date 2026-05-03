@@ -865,3 +865,435 @@ export function DisclaimerSection() {
     </section>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// NOUVELLES SECTIONS v3 — Stats avancées par sport
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Football — Stats équipe (buts, BTTS%, Over25%, série) ────────
+
+export function FootballStatsSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const stats = data.footballStats;
+  if (!stats) return null;
+
+  const home = stats.home as Record<string, unknown>;
+  const away = stats.away as Record<string, unknown>;
+
+  const fmt = (v: unknown, suffix = "") =>
+    v != null ? `${v}${suffix}` : "—";
+
+  const rows = [
+    { label: "Buts marqués / match", h: fmt(home.buts_marques_par_match), a: fmt(away.buts_marques_par_match) },
+    { label: "Buts encaissés / match", h: fmt(home.buts_encaisses_par_match), a: fmt(away.buts_encaisses_par_match) },
+    { label: "Clean sheets", h: fmt(home.clean_sheets_total), a: fmt(away.clean_sheets_total) },
+    { label: "BTTS %", h: fmt(home.btts_pct, "%"), a: fmt(away.btts_pct, "%") },
+    { label: "Over 2.5 %", h: fmt(home.over_25_pct, "%"), a: fmt(away.over_25_pct, "%") },
+    { label: "Matchs joués", h: fmt(home.matchs_joues), a: fmt(away.matchs_joues) },
+  ].filter((r) => r.h !== "—" || r.a !== "—");
+
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">📊</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Stats de la saison</h2>
+          <p className="text-xs text-white/50 mt-0.5">Moyennes et pourcentages saison en cours</p>
+        </div>
+      </div>
+
+      {/* Série en cours */}
+      {(home.serie_en_cours || away.serie_en_cours) && (
+        <div className="flex gap-3 mb-5">
+          {home.serie_en_cours && (
+            <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
+              <div className="text-xs text-emerald-300 font-bold">{data.homeTeam}</div>
+              <div className="text-xs text-white/70 mt-0.5">{String(home.serie_en_cours)}</div>
+            </div>
+          )}
+          {away.serie_en_cours && (
+            <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
+              <div className="text-xs text-emerald-300 font-bold">{data.awayTeam}</div>
+              <div className="text-xs text-white/70 mt-0.5">{String(away.serie_en_cours)}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-white/50 uppercase tracking-wider border-b border-zinc-800">
+              <th className="pb-3 text-right pr-4 font-medium">{data.homeTeam.split(" ").pop()}</th>
+              <th className="pb-3 text-center font-medium">Statistique</th>
+              <th className="pb-3 text-left pl-4 font-medium">{data.awayTeam.split(" ").pop()}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b border-zinc-900">
+                <td className="py-2.5 text-right pr-4 text-emerald-300 font-bold font-mono">{r.h}</td>
+                <td className="py-2.5 text-center text-white/50 text-xs">{r.label}</td>
+                <td className="py-2.5 text-left pl-4 text-violet-300 font-bold font-mono">{r.a}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+
+// ─── Football — Prédiction API-Football ──────────────────────────
+
+export function FootballPredictionSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const pred = data.footballPrediction;
+  if (!pred) return null;
+  if (!pred.winner && !pred.percent_home) return null;
+
+  const home_pct = parseInt(String(pred.percent_home ?? "0").replace("%", "")) || 0;
+  const draw_pct = parseInt(String(pred.percent_draw ?? "0").replace("%", "")) || 0;
+  const away_pct = parseInt(String(pred.percent_away ?? "0").replace("%", "")) || 0;
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">🔮</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Prédiction algorithmique</h2>
+          <p className="text-xs text-white/50 mt-0.5">Analyse API-Football indépendante</p>
+        </div>
+      </div>
+
+      {/* Barres de probabilité */}
+      {home_pct + draw_pct + away_pct > 0 && (
+        <div className="space-y-3 mb-5">
+          {[
+            { label: data.homeTeam, pct: home_pct, color: "bg-emerald-500" },
+            { label: "Match nul", pct: draw_pct, color: "bg-amber-500" },
+            { label: data.awayTeam, pct: away_pct, color: "bg-violet-500" },
+          ].filter(r => r.pct > 0).map((r, i) => (
+            <div key={i}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-white/70">{r.label}</span>
+                <span className="text-white font-bold">{r.pct}%</span>
+              </div>
+              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${r.color} rounded-full transition-all`}
+                  style={{ width: `${r.pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        {pred.winner && (
+          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3">
+            <div className="text-xs text-white/50 mb-1">Gagnant prédit</div>
+            <div className="text-sm font-bold text-white">{String(pred.winner)}</div>
+          </div>
+        )}
+        {pred.advice && (
+          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3">
+            <div className="text-xs text-white/50 mb-1">Conseil API</div>
+            <div className="text-sm font-bold text-white">{String(pred.advice)}</div>
+          </div>
+        )}
+        {pred.under_over && (
+          <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-3 col-span-2">
+            <div className="text-xs text-white/50 mb-1">Prédiction buts</div>
+            <div className="text-sm font-bold text-white">{String(pred.under_over)}</div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+
+// ─── Classement (Basket / Hockey / Baseball) ─────────────────────
+
+export function ClassementSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const cl = data.classement;
+  if (!cl) return null;
+
+  const home = cl.home as Record<string, unknown>;
+  const away = cl.away as Record<string, unknown>;
+
+  const sportIcon = data.sport === "basketball" ? "🏀"
+    : data.sport === "hockey" ? "🏒"
+    : data.sport === "baseball" ? "⚾"
+    : "📊";
+
+  const pointsLabel = data.sport === "basketball" ? "Pts marqués/match"
+    : data.sport === "baseball" ? "Runs marqués/match"
+    : "Buts marqués/match";
+
+  const encaissesLabel = data.sport === "basketball" ? "Pts encaissés/match"
+    : data.sport === "baseball" ? "Runs encaissés/match"
+    : "Buts encaissés/match";
+
+  const fmt = (v: unknown, suffix = "") =>
+    v != null ? `${v}${suffix}` : "—";
+
+  const rows = [
+    { label: "Position", h: fmt(home.position), a: fmt(away.position) },
+    { label: "Bilan", h: `${fmt(home.victoires)}V-${fmt(home.defaites)}D`, a: `${fmt(away.victoires)}V-${fmt(away.defaites)}D` },
+    { label: "% Victoires", h: fmt(home.win_pct, "%"), a: fmt(away.win_pct, "%") },
+    { label: pointsLabel, h: fmt(home.marques_par_match), a: fmt(away.marques_par_match) },
+    { label: encaissesLabel, h: fmt(home.encaisses_par_match), a: fmt(away.encaisses_par_match) },
+  ].filter((r) => r.h !== "—" || r.a !== "—");
+
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">{sportIcon}</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Classement & moyennes</h2>
+          <p className="text-xs text-white/50 mt-0.5">Saison en cours</p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-white/50 uppercase tracking-wider border-b border-zinc-800">
+              <th className="pb-3 text-right pr-4 font-medium">{data.homeTeam.split(" ").slice(-1)[0]}</th>
+              <th className="pb-3 text-center font-medium">Stat</th>
+              <th className="pb-3 text-left pl-4 font-medium">{data.awayTeam.split(" ").slice(-1)[0]}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b border-zinc-900">
+                <td className="py-2.5 text-right pr-4 text-emerald-300 font-bold font-mono">{r.h}</td>
+                <td className="py-2.5 text-center text-white/50 text-xs">{r.label}</td>
+                <td className="py-2.5 text-left pl-4 text-violet-300 font-bold font-mono">{r.a}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+
+// ─── H2H réel (Basket / Hockey) ──────────────────────────────────
+
+export function H2HReelSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const h2h = data.h2hReel;
+  if (!h2h || !h2h.derniers_matchs || h2h.derniers_matchs.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">⚔️</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Confrontations directes</h2>
+          <p className="text-xs text-white/50 mt-0.5">{h2h.resume}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {h2h.derniers_matchs.map((m, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-sm"
+          >
+            <span className="text-white/40 text-xs font-mono w-5 text-center">{i + 1}</span>
+            <span className="text-white/80">{m}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+// ─── Lanceurs partants baseball ───────────────────────────────────
+
+export function PitchersSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const pitchers = data.pitchers;
+  if (!pitchers) return null;
+  if (!pitchers.home && !pitchers.away) return null;
+
+  const fmt = (v: unknown, suffix = "", decimals = 2) => {
+    if (v == null) return "—";
+    const n = typeof v === "number" ? v : parseFloat(String(v));
+    return isNaN(n) ? String(v) : `${n.toFixed(decimals)}${suffix}`;
+  };
+
+  const renderPitcher = (p: Record<string, unknown> | null, team: string, side: "home" | "away") => {
+    if (!p) return (
+      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-4 text-center">
+        <div className={`text-xs font-bold mb-1 ${side === "home" ? "text-emerald-300" : "text-violet-300"}`}>{team}</div>
+        <div className="text-xs text-white/40">Lanceur non confirmé</div>
+      </div>
+    );
+
+    const era = typeof p.era === "number" ? p.era : null;
+    const eraColor = era === null ? "text-white" : era < 3.0 ? "text-emerald-300" : era > 5.0 ? "text-red-400" : "text-amber-300";
+
+    return (
+      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-4">
+        <div className={`text-xs font-bold mb-1 ${side === "home" ? "text-emerald-300" : "text-violet-300"}`}>{team}</div>
+        <div className="text-base font-bold text-white mb-3">{String(p.nom ?? "?")}</div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className={`text-xl font-black font-mono ${eraColor}`}>{fmt(p.era)}</div>
+            <div className="text-[10px] text-white/40 uppercase mt-0.5">ERA</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-black font-mono text-white">{fmt(p.whip)}</div>
+            <div className="text-[10px] text-white/40 uppercase mt-0.5">WHIP</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-black font-mono text-white">{fmt(p.k_per_9, "", 1)}</div>
+            <div className="text-[10px] text-white/40 uppercase mt-0.5">K/9</div>
+          </div>
+        </div>
+        {(p.victoires != null || p.defaites != null) && (
+          <div className="mt-3 text-center text-xs text-white/50">
+            Bilan : {fmt(p.victoires, "V", 0)} – {fmt(p.defaites, "D", 0)}
+            {p.innings_lances != null && ` · ${fmt(p.innings_lances, " IP", 1)}`}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">⚾</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Lanceurs partants</h2>
+          <p className="text-xs text-white/50 mt-0.5">ERA &lt; 3.00 = excellent · WHIP &lt; 1.20 = excellent · K/9 &gt; 9 = dominant</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {renderPitcher(pitchers.home as Record<string, unknown> | null, data.homeTeam, "home")}
+        {renderPitcher(pitchers.away as Record<string, unknown> | null, data.awayTeam, "away")}
+      </div>
+    </section>
+  );
+}
+
+
+// ─── Records MMA fighters ─────────────────────────────────────────
+
+export function MMARecordsSection({
+  data,
+}: {
+  data: DossierPickData;
+}) {
+  const records = data.recordsFighters;
+  if (!records || Object.keys(records).length === 0) return null;
+
+  const renderFighter = (name: string, r: Record<string, unknown>, side: "home" | "away") => {
+    const wins = r.victoires as number | null;
+    const losses = r.defaites as number | null;
+    const draws = r.nuls as number | null;
+    const ko_pct = r.ko_pct as number | null;
+    const sub_pct = r.submission_pct as number | null;
+    const dec_pct = r.decision_pct as number | null;
+
+    return (
+      <div className="rounded-xl bg-zinc-900 border border-zinc-800 p-4">
+        <div className={`text-xs font-bold mb-1 ${side === "home" ? "text-emerald-300" : "text-violet-300"}`}>
+          {side === "home" ? "🏠" : "✈️"} {name}
+        </div>
+        <div className="text-2xl font-black text-white font-mono mb-3">
+          {wins ?? "?"}V – {losses ?? "?"}D{draws ? ` – ${draws}N` : ""}
+        </div>
+
+        {(ko_pct != null || sub_pct != null || dec_pct != null) && (
+          <div className="space-y-2">
+            {ko_pct != null && (
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-red-400 font-semibold">KO/TKO ({r.ko_tko ?? 0})</span>
+                  <span className="text-white font-bold">{ko_pct}%</span>
+                </div>
+                <div className="h-1.5 bg-zinc-800 rounded-full">
+                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${ko_pct}%` }} />
+                </div>
+              </div>
+            )}
+            {sub_pct != null && (
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-blue-400 font-semibold">Soumission ({r.submissions ?? 0})</span>
+                  <span className="text-white font-bold">{sub_pct}%</span>
+                </div>
+                <div className="h-1.5 bg-zinc-800 rounded-full">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${sub_pct}%` }} />
+                </div>
+              </div>
+            )}
+            {dec_pct != null && (
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-amber-400 font-semibold">Décision ({r.decisions ?? 0})</span>
+                  <span className="text-white font-bold">{dec_pct}%</span>
+                </div>
+                <div className="h-1.5 bg-zinc-800 rounded-full">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${dec_pct}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const fighters = Object.entries(records);
+
+  return (
+    <section className="rounded-2xl bg-zinc-950 border border-zinc-800 p-6">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-3xl">🥊</div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Records & méthodes de victoire</h2>
+          <p className="text-xs text-white/50 mt-0.5">Carrière professionnelle complète</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {fighters.map(([name, record], i) => (
+          renderFighter(name, record, i === 0 ? "home" : "away")
+        ))}
+      </div>
+    </section>
+  );
+}

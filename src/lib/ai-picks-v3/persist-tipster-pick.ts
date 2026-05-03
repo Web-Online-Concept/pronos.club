@@ -294,7 +294,10 @@ const inferMarket = (pick: TipsterPick): string => {
  *   - validator_verdict (decision + reason GPT)
  *   - combine_meta (uniquement pour les combinés)
  */
-const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> => {
+const buildOddsComparison = (
+  validated: ValidatedPick,
+  fixture: EnrichedFixture | null
+): Record<string, unknown> => {
   const { pick, verdict } = validated;
 
   const base: Record<string, unknown> = {
@@ -355,8 +358,27 @@ const buildOddsComparison = (validated: ValidatedPick): Record<string, unknown> 
     });
 
     base.bookmakers_snapshot = { books: booksSnapshot };
-    base.best_soft_book_name = arjelBook ?? null;
-    base.best_soft_odds      = pick.cote_arjel ?? null;
+    // best = book avec la cote la plus haute (PS3838 ou ARJEL)
+    const arjelOdds    = pick.cote_arjel ?? 0;
+    const horsArjelOdds = pick.cote_hors_arjel ?? 0;
+    const bestBookName = horsArjelOdds > arjelOdds
+      ? (horsArjelBook ?? null)
+      : (arjelOdds > 0 ? (arjelBook ?? null) : (horsArjelBook ?? null));
+    const bestOddsVal  = Math.max(arjelOdds, horsArjelOdds) || null;
+    base.best_soft_book_name = bestBookName;
+    base.best_soft_odds      = bestOddsVal;
+
+    // ── Stats fixture pour la page détail ─────────────────────────────────────
+    // On stocke les stats de la fixture enrichie dans odds_comparison pour
+    // pouvoir les afficher sur la page dossier sans re-fetcher les APIs.
+    if (fixture) {
+      if (fixture.stats_equipe)     base.fixture_stats_equipe   = fixture.stats_equipe;
+      if (fixture.predictions_api)  base.fixture_predictions     = fixture.predictions_api;
+      if (fixture.classement)       base.fixture_classement      = fixture.classement;
+      if (fixture.h2h_reel)         base.fixture_h2h_reel        = fixture.h2h_reel;
+      if (fixture.pitchers)         base.fixture_pitchers        = fixture.pitchers;
+      if (fixture.records_fighters) base.fixture_records_fighters = fixture.records_fighters;
+    }
   } else {
     // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
     // nécessaires à la résolution (league, sport, fixture_id si dispo).
@@ -505,7 +527,10 @@ export const persistTipsterPick = async (
     const classicNumber = await getNextClassicNumber();
 
     // ─── Construction insertData
-    const oddsComparison = buildOddsComparison(validated);
+    const fixtureForOdds = pick.type === "simple"
+      ? (fixturesByMatch.get((pick as TipsterPickSimple).match) ?? null)
+      : null;
+    const oddsComparison = buildOddsComparison(validated, fixtureForOdds);
     const consensusTier = buildConsensusTier(verdict);
     const reasoning = buildReasoningString(pick);
     const market = inferMarket(pick);
