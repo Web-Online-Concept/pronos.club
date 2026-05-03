@@ -910,16 +910,16 @@ export function FootballStatsSection({
       {/* Série en cours */}
       {(home.serie_en_cours || away.serie_en_cours) && (
         <div className="flex gap-3 mb-5">
-          {home.serie_en_cours && (
+          {home.serie_en_cours != null && (
             <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
               <div className="text-xs text-emerald-300 font-bold">{data.homeTeam}</div>
-              <div className="text-xs text-white/70 mt-0.5">{String(home.serie_en_cours)}</div>
+              <div className="text-xs text-white/70 mt-0.5">{String(home.serie_en_cours as string)}</div>
             </div>
           )}
-          {away.serie_en_cours && (
+          {away.serie_en_cours != null && (
             <div className="flex-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-center">
               <div className="text-xs text-emerald-300 font-bold">{data.awayTeam}</div>
-              <div className="text-xs text-white/70 mt-0.5">{String(away.serie_en_cours)}</div>
+              <div className="text-xs text-white/70 mt-0.5">{String(away.serie_en_cours as string)}</div>
             </div>
           )}
         </div>
