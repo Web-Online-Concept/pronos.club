@@ -689,6 +689,15 @@ const fetchFootballInjuries = async (
 };
 
 
+
+// ── Timeout wrapper pour les calls API secondaires ────────────────────────────
+// Les nouvelles stats (standings, pitchers, etc.) sont optionnelles.
+// Si l'API met plus de 5s → fallback, on continue sans bloquer le pipeline.
+const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
+  return Promise.race([promise, timeout]);
+};
+
 // ── Stats équipe football ─────────────────────────────────────────────────────
 
 const fetchFootballTeamStats = async (
@@ -872,15 +881,15 @@ const enrichFootball = async (
     fetchFootballTeamForm(fi.home_id, leagueId, season, tracker),
     fetchFootballTeamForm(fi.away_id, leagueId, season, tracker),
     fetchFootballH2H(fi.home_id, fi.away_id, tracker),
-    fetchFootballTeamStats(fi.home_id, leagueId, season, tracker),
-    fetchFootballTeamStats(fi.away_id, leagueId, season, tracker),
+    withTimeout(fetchFootballTeamStats(fi.home_id, leagueId, season, tracker), 5000, emptyFootballTeamStats()),
+    withTimeout(fetchFootballTeamStats(fi.away_id, leagueId, season, tracker), 5000, emptyFootballTeamStats()),
   ]);
 
   // Groupe 2 : blessures + prédictions
   const [hi, ai, pred] = await Promise.all([
     fetchFootballInjuries(fi.home_id, leagueId, season, tracker),
     fetchFootballInjuries(fi.away_id, leagueId, season, tracker),
-    fetchFootballPredictions(fi.fixture_id, tracker),
+    withTimeout(fetchFootballPredictions(fi.fixture_id, tracker), 5000, null),
   ]);
 
   return {
@@ -1097,9 +1106,9 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
 
     // Standings + H2H en parallèle
     const [hStanding, aStanding, h2hData] = await Promise.all([
-      fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id),
-      fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id),
-      fetchApiSportsH2H("https://v1.basketball.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team),
+      withTimeout(fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsH2H("https://v1.basketball.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
     ]);
 
     const realCommenceTimeBk = game.date ?? match.commence_time_iso;
@@ -1186,9 +1195,9 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
 
     // Standings + H2H en parallèle
     const [hStanding, aStanding, h2hData] = await Promise.all([
-      fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id),
-      fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id),
-      fetchApiSportsH2H("https://v1.hockey.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team),
+      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsH2H("https://v1.hockey.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
     ]);
 
     return {
@@ -1384,10 +1393,10 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
 
     // Standings + pitchers en parallèle
     const [hStanding, aStanding, hPitcher, aPitcher] = await Promise.all([
-      fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id),
-      fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id),
-      fetchBaseballPitcherStats(game.teams.home.id, game.league!.id, game.league!.season),
-      fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season),
+      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchBaseballPitcherStats(game.teams.home.id, game.league!.id, game.league!.season), 5000, null),
+      withTimeout(fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season), 5000, null),
     ]);
 
     // Utilise game.date (api-sports.io) si disponible — plus fiable que
@@ -1541,8 +1550,8 @@ const enrichMMA = async (match: RawFixture): Promise<EnrichedFixture> => {
     const [r1, r2, rec1, rec2] = await Promise.all([
       fetchFighterInfo(f1.id),
       fetchFighterInfo(f2.id),
-      fetchMMAFighterRecord(f1.id),
-      fetchMMAFighterRecord(f2.id),
+      withTimeout(fetchMMAFighterRecord(f1.id), 5000, null),
+      withTimeout(fetchMMAFighterRecord(f2.id), 5000, null),
     ]);
 
     const records: Record<string, MMAFighterRecord> = {};
