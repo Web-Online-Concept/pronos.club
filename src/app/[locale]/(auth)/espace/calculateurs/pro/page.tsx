@@ -128,6 +128,18 @@ function convert(amount: number, from: Currency, to: Currency, rates: Record<Cur
   return (amount * rTo) / rFrom;
 }
 
+// Calcul autonome de la cote effective après commission, pour UNE ligne isolée.
+// Utilisé pour afficher en live la cote nette dès qu'une cote + commission sont saisies,
+// indépendamment du calcul global (qui exige toutes les cotes valides).
+// Retourne null si la cote est invalide ou la commission incohérente.
+function computeNetOdd(oddStr: string, commissionStr: string, side: BetSide, useCommissions: boolean): number | null {
+  const odd = parseFloat(oddStr);
+  if (!odd || odd <= 1) return null;
+  const c = useCommissions ? Math.max(0, Math.min(0.4, (parseFloat(commissionStr) || 0) / 100)) : 0;
+  if (side === "back") return 1 + (odd - 1) * (1 - c);
+  return 1 + (1 - c) / (odd - 1);
+}
+
 function calcPro(
   legs: Leg[],
   nLegs: NLegs,
@@ -1101,7 +1113,10 @@ export default function CalculatorProPage() {
                             {showEffectiveOddCol && (
                               <td className="px-1 py-1.5">
                                 <div className="w-full rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-center font-mono text-[12px] font-bold text-white/70" title="Cote après commission appliquée">
-                                  {legResult ? legResult.netOdd.toFixed(3) : "—"}
+                                  {(() => {
+                                    const net = computeNetOdd(leg.odd, leg.commission, leg.side, useCommissions);
+                                    return net !== null ? net.toFixed(3) : "—";
+                                  })()}
                                 </div>
                               </td>
                             )}
@@ -1249,12 +1264,16 @@ export default function CalculatorProPage() {
                           </div>
                         )}
 
-                        {showEffectiveOddCol && legResult && (
-                          <div className="mt-1.5 flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-2 py-1">
-                            <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Cote eff. (après comm.)</span>
-                            <span className="font-mono text-[12px] font-bold text-white/80">{legResult.netOdd.toFixed(3)}</span>
-                          </div>
-                        )}
+                        {showEffectiveOddCol && (() => {
+                          const net = computeNetOdd(leg.odd, leg.commission, leg.side, useCommissions);
+                          if (net === null) return null;
+                          return (
+                            <div className="mt-1.5 flex items-center justify-between rounded-md border border-white/10 bg-white/[0.02] px-2 py-1">
+                              <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Cote eff. (après comm.)</span>
+                              <span className="font-mono text-[12px] font-bold text-white/80">{net.toFixed(3)}</span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                           <div>
