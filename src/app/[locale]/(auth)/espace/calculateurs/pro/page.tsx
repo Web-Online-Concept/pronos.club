@@ -421,7 +421,7 @@ export default function CalculatorProPage() {
       odd: "",
       bookmaker: "",
       label: initialLabels[i] ?? `Issue ${i + 1}`,
-      commission: "0",
+      commission: "3",
       side: "back" as BetSide,
       locked: false,
       lockedStake: "",
@@ -578,7 +578,7 @@ export default function CalculatorProPage() {
 
     // Construction des legs fraiches
     const fresh: Leg[] = Array.from({ length: MAX_LEGS }, (_, i) => ({
-      odd: "", bookmaker: "", label: `Issue ${i + 1}`, commission: "0",
+      odd: "", bookmaker: "", label: `Issue ${i + 1}`, commission: "3",
       side: "back" as BetSide, locked: false, lockedStake: "",
       currency: "EUR" as Currency, distribute: true, layStakeMode: "backer" as LayStakeMode,
     }));
@@ -1094,7 +1094,7 @@ export default function CalculatorProPage() {
                             </td>
                             {showCommissionCol && (
                               <td className="px-1 py-1.5">
-                                <input type="number" step="0.1" min="0" max="40" value={leg.commission} onChange={(e) => updateLeg(i, "commission", e.target.value)} placeholder="0" inputMode="decimal"
+                                <input type="number" step="0.1" min="0" max="40" value={leg.commission} onChange={(e) => updateLeg(i, "commission", e.target.value)} placeholder="3" inputMode="decimal"
                                   className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30" />
                               </td>
                             )}
