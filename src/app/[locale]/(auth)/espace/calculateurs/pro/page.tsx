@@ -1059,7 +1059,7 @@ export default function CalculatorProPage() {
                         <th className="px-2 py-1.5 text-left">Label</th>
                         {showBLToggle && <th className="w-12 px-1 py-1.5">B/L</th>}
                         <th className="w-20 px-1 py-1.5">Cote</th>
-                        {showCommissionCol && <th className="w-16 px-1 py-1.5">% Comm</th>}
+                        {showCommissionCol && <th className="w-28 px-1 py-1.5">% Comm</th>}
                         {showEffectiveOddCol && <th className="w-20 px-1 py-1.5" title="Cote effective après commission">Cote eff.</th>}
                         {showBookmakerCol && <th className="px-2 py-1.5 text-left">Bookmaker</th>}
                         <th className="w-28 px-1 py-1.5">Mise</th>
@@ -1108,7 +1108,7 @@ export default function CalculatorProPage() {
                               <td className="px-1 py-1.5">
                                 <div className="flex items-center gap-1">
                                   <input type="number" step="0.1" min="0" max="40" value={leg.commission} onChange={(e) => updateLeg(i, "commission", e.target.value)} placeholder="0" inputMode="decimal"
-                                    className="w-full rounded-md border border-cyan-500/20 bg-cyan-500/5 px-2 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30" />
+                                    className="min-w-0 flex-1 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-1 py-1 text-center font-mono text-[12px] font-bold text-cyan-200 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30" />
                                   <button
                                     type="button"
                                     onClick={() => updateLeg(i, "commission", leg.commission === "3" ? "0" : "3")}
@@ -1118,7 +1118,7 @@ export default function CalculatorProPage() {
                                         ? "bg-orange-500/30 text-orange-200 ring-1 ring-orange-400/60"
                                         : "bg-white/5 text-white/50 ring-1 ring-white/10 hover:bg-orange-500/10 hover:text-orange-300 hover:ring-orange-400/30"
                                     }`}>
-                                    OrbitX
+                                    OrbX
                                   </button>
                                 </div>
                               </td>
@@ -1277,7 +1277,7 @@ export default function CalculatorProPage() {
                                       ? "bg-orange-500/30 text-orange-200 ring-1 ring-orange-400/60"
                                       : "bg-white/5 text-white/50 ring-1 ring-white/10"
                                   }`}>
-                                  OrbitX
+                                  OrbX
                                 </button>
                               </div>
                             )}
