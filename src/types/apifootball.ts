@@ -98,8 +98,16 @@ export const OddsSchema = z.object({
           name: z.string(),
           values: z.array(
             z.object({
-              value: z.string(),
-              odd: z.string(),
+              // API-Football retourne `value` tantôt en string ("Home", "Yes")
+              // tantôt en number (lignes Handicap 1.5/2.5, seuils Corners 9.5)
+              // selon le bookmaker et le marché. On accepte les deux et on
+              // normalise systématiquement en string pour le code consommateur.
+              value: z
+                .union([z.string(), z.number()])
+                .transform((v) => String(v)),
+              odd: z
+                .union([z.string(), z.number()])
+                .transform((v) => String(v)),
             })
           ),
         })
@@ -156,9 +164,9 @@ export const TeamStatisticsSchema = z
           total: z.number(),
         }),
         average: z.object({
-          home: z.string(),
-          away: z.string(),
-          total: z.string(),
+          home: z.union([z.string(), z.number()]).transform((v) => String(v)),
+          away: z.union([z.string(), z.number()]).transform((v) => String(v)),
+          total: z.union([z.string(), z.number()]).transform((v) => String(v)),
         }),
       }),
       against: z.object({
@@ -168,9 +176,9 @@ export const TeamStatisticsSchema = z
           total: z.number(),
         }),
         average: z.object({
-          home: z.string(),
-          away: z.string(),
-          total: z.string(),
+          home: z.union([z.string(), z.number()]).transform((v) => String(v)),
+          away: z.union([z.string(), z.number()]).transform((v) => String(v)),
+          total: z.union([z.string(), z.number()]).transform((v) => String(v)),
         }),
       }),
     }),
@@ -269,14 +277,20 @@ export const PredictionSchema = z.object({
     win_or_draw: z.boolean().nullable(),
     under_over: z.string().nullable(),
     goals: z.object({
-      home: z.string().nullable(),
-      away: z.string().nullable(),
+      home: z
+        .union([z.string(), z.number()])
+        .nullable()
+        .transform((v) => (v === null ? null : String(v))),
+      away: z
+        .union([z.string(), z.number()])
+        .nullable()
+        .transform((v) => (v === null ? null : String(v))),
     }),
     advice: z.string().nullable(),
     percent: z.object({
-      home: z.string(),
-      draw: z.string(),
-      away: z.string(),
+      home: z.union([z.string(), z.number()]).transform((v) => String(v)),
+      draw: z.union([z.string(), z.number()]).transform((v) => String(v)),
+      away: z.union([z.string(), z.number()]).transform((v) => String(v)),
     }),
   }),
   league: z.object({
