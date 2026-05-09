@@ -92,13 +92,8 @@ export default async function AdminDashboard() {
       accent: (aiPicksToResolve ?? 0) > 0 ? "#f59e0b" : "#10b981",
       desc: (aiPicksToResolve ?? 0) > 0 ? `${aiPicksToResolve} à résoudre` : "Matchs terminés",
     },
-    {
-      href: "/admin/ai-bilans",
-      label: "Bilans mensuels IA",
-      icon: "📊",
-      accent: "#a855f7",
-      desc: "Rapports mensuels IA",
-    },
+    // V3.5 Lot 11 : "Bilans mensuels IA" supprimé — désormais générés automatiquement
+    // par le cron ai-picks-bilan-mensuel le 1er du mois à 22h Paris.
   ];
 
   // Pronos Abonnés (tipsters communautaires)
