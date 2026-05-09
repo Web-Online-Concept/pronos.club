@@ -1,21 +1,26 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PAGE — /[locale]/pronos-ia/comment-ca-marche (V3.5 light theme)
+ * PAGE — /[locale]/pronos-ia/comment-ca-marche (V3.5 refonte complète)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Refonte complète en page CLAIRE (background blanc, accents violet/emerald).
+ * Refonte complète : page CLAIRE avec contenu V3.5 actualisé.
  *
- * Conserve :
- *   - Système i18n FR/EN/ES via next-intl (namespace ai_picks)
- *   - Toutes les clés de traduction existantes (howitworks_*)
- *   - JSON-LD FAQ Schema pour rich snippets Google
- *   - Composants helpers (PronosIAHero, PronosIAButton, AIDisclaimer)
- *
- * Refondu :
- *   - Sections : fond blanc avec bordure subtile + ombre douce (au lieu
- *     du gradient slate-900/indigo-900/purple-900)
- *   - FAQ : detail/summary style clair
- *   - CTA : gradient violet clair impactant mais lumineux
+ * Sections (10 + FAQ + CTAs) :
+ *   1. Hero (composant existant)
+ *   2. Alerte amber (jeu responsable)
+ *   3. S1 — IA tipster + validation 2e modèle
+ *   4. S2 — Pipeline en 7 étapes
+ *   5. S3 — Grille des 9 sports couverts
+ *   6. S4 — Système de tier (Lock / Strong / Value / CDC)
+ *   7. S5 — Edge math + CLV
+ *   8. S6 — Calendrier des drops (matin/soir)
+ *   9. S7 — Transparence totale
+ *   10. S8 — Bookmakers ARJEL/hors ARJEL
+ *   11. S9 — Pourquoi gratuit
+ *   12. S10 — Limites du système
+ *   13. FAQ 9 Q/A + JSON-LD Schema
+ *   14. CTA Pronos IA + CTA Telegram + CTA Tipster Jérôme
+ *   15. Disclaimer ANJ
  *
  * Path : src/app/[locale]/(public)/pronos-ia/comment-ca-marche/page.tsx
  * ═══════════════════════════════════════════════════════════════════
@@ -43,9 +48,7 @@ export async function generateMetadata({
 
 
 /**
- * JSON-LD FAQ Schema
- * Les 9 questions/réponses de la FAQ exposées au format structured data
- * pour permettre à Google de les afficher en rich snippets dans les résultats.
+ * JSON-LD FAQ Schema — pour rich snippets Google.
  */
 async function buildFaqJsonLd(locale: string) {
   const t = await getTranslations({ locale, namespace: "ai_picks" });
@@ -85,7 +88,7 @@ export default async function HowItWorksPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
 
-      {/* HERO FULL-WIDTH (composant existant, déjà visuellement cohérent) */}
+      {/* HERO FULL-WIDTH */}
       <PronosIAHero
         locale={locale}
         currentPage="how"
@@ -99,7 +102,7 @@ export default async function HowItWorksPage({
           {t("howitworks_page_subtitle")}
         </p>
 
-        {/* ALERTE HAUT (déjà claire dans la version originale) */}
+        {/* ALERTE HAUT */}
         <div className="mb-10 rounded-2xl border border-amber-300/60 bg-amber-50 p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/20">
@@ -119,6 +122,7 @@ export default async function HowItWorksPage({
         {/* SECTIONS */}
         <div className="space-y-8">
 
+          {/* S1 — IA tipster + validation 2e modèle */}
           <Section
             emoji="🤖"
             title={t("howitworks_s1_title")}
@@ -131,6 +135,7 @@ export default async function HowItWorksPage({
             </p>
           </Section>
 
+          {/* S2 — Pipeline en 7 étapes */}
           <Section
             emoji="📊"
             title={t("howitworks_s2_title")}
@@ -152,55 +157,112 @@ export default async function HowItWorksPage({
               <Step number={5} title={t("howitworks_s2_step5_title")}>
                 {t("howitworks_s2_step5_text")}
               </Step>
+              <Step number={6} title={t("howitworks_s2_step6_title")}>
+                {t("howitworks_s2_step6_text")}
+              </Step>
+              <Step number={7} title={t("howitworks_s2_step7_title")}>
+                {t("howitworks_s2_step7_text")}
+              </Step>
             </ul>
           </Section>
 
+          {/* S3 — 9 sports couverts (grille) */}
           <Section
-            emoji="🎯"
+            emoji="🏆"
             title={t("howitworks_s3_title")}
             intro={t("howitworks_s3_intro")}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <InfoBox
-                title={t("howitworks_s3_classics_title")}
-                items={[
-                  t("howitworks_s3_classics_1"),
-                  t("howitworks_s3_classics_2"),
-                  t("howitworks_s3_classics_3"),
-                  t("howitworks_s3_classics_4"),
-                ]}
-                accent="violet"
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+              <SportCard
+                emoji="⚽"
+                title={t("howitworks_sports_football_title")}
+                text={t("howitworks_sports_football_text")}
               />
-              <InfoBox
-                title={t("howitworks_s3_valuebet_title")}
-                items={[
-                  t("howitworks_s3_valuebet_1"),
-                  t("howitworks_s3_valuebet_2"),
-                  t("howitworks_s3_valuebet_3"),
-                  t("howitworks_s3_valuebet_4"),
-                ]}
-                accent="fuchsia"
+              <SportCard
+                emoji="🎾"
+                title={t("howitworks_sports_tennis_title")}
+                text={t("howitworks_sports_tennis_text")}
+              />
+              <SportCard
+                emoji="🏀"
+                title={t("howitworks_sports_basketball_title")}
+                text={t("howitworks_sports_basketball_text")}
+              />
+              <SportCard
+                emoji="🏒"
+                title={t("howitworks_sports_hockey_title")}
+                text={t("howitworks_sports_hockey_text")}
+              />
+              <SportCard
+                emoji="⚾"
+                title={t("howitworks_sports_baseball_title")}
+                text={t("howitworks_sports_baseball_text")}
+              />
+              <SportCard
+                emoji="🥊"
+                title={t("howitworks_sports_mma_title")}
+                text={t("howitworks_sports_mma_text")}
+              />
+              <SportCard
+                emoji="🏈"
+                title={t("howitworks_sports_nfl_title")}
+                text={t("howitworks_sports_nfl_text")}
+              />
+              <SportCard
+                emoji="🏉"
+                title={t("howitworks_sports_rugby_title")}
+                text={t("howitworks_sports_rugby_text")}
+              />
+              <SportCard
+                emoji="🤾"
+                title={t("howitworks_sports_handball_title")}
+                text={t("howitworks_sports_handball_text")}
+              />
+              <SportCard
+                emoji="🏎️"
+                title={t("howitworks_sports_f1_title")}
+                text={t("howitworks_sports_f1_text")}
               />
             </div>
           </Section>
 
+          {/* S4 — Système de tier */}
           <Section
-            emoji="📈"
+            emoji="🎯"
             title={t("howitworks_s4_title")}
             intro={t("howitworks_s4_intro")}
           >
-            <p className="leading-relaxed">{t("howitworks_s4_p1")}</p>
-            <ul className="my-4 ml-5 list-disc space-y-2 text-zinc-700">
-              <li>{t("howitworks_s4_item1")}</li>
-              <li>{t("howitworks_s4_item2")}</li>
-              <li>{t("howitworks_s4_item3")}</li>
-              <li>{t("howitworks_s4_item4")}</li>
-            </ul>
-            <p className="leading-relaxed">{t("howitworks_s4_p2")}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <TierCard
+                title={t("howitworks_tier_lock_title")}
+                criteria={t("howitworks_tier_lock_criteria")}
+                text={t("howitworks_tier_lock_text")}
+                accent="emerald"
+              />
+              <TierCard
+                title={t("howitworks_tier_strong_title")}
+                criteria={t("howitworks_tier_strong_criteria")}
+                text={t("howitworks_tier_strong_text")}
+                accent="blue"
+              />
+              <TierCard
+                title={t("howitworks_tier_value_title")}
+                criteria={t("howitworks_tier_value_criteria")}
+                text={t("howitworks_tier_value_text")}
+                accent="violet"
+              />
+              <TierCard
+                title={t("howitworks_tier_cdc_title")}
+                criteria={t("howitworks_tier_cdc_criteria")}
+                text={t("howitworks_tier_cdc_text")}
+                accent="pink"
+              />
+            </div>
           </Section>
 
+          {/* S5 — Edge math + CLV */}
           <Section
-            emoji="💶"
+            emoji="📈"
             title={t("howitworks_s5_title")}
             intro={t("howitworks_s5_intro")}
           >
@@ -211,18 +273,80 @@ export default async function HowItWorksPage({
             </p>
           </Section>
 
+          {/* S6 — Calendrier des drops */}
           <Section
-            emoji="⚡"
+            emoji="🕐"
             title={t("howitworks_s6_title")}
             intro={t("howitworks_s6_intro")}
           >
+            <div className="grid gap-4 md:grid-cols-2">
+              <DropCard
+                time={t("howitworks_drop_morning_time")}
+                label={t("howitworks_drop_morning_label")}
+                text={t("howitworks_drop_morning_text")}
+                emoji="🌅"
+              />
+              <DropCard
+                time={t("howitworks_drop_evening_time")}
+                label={t("howitworks_drop_evening_label")}
+                text={t("howitworks_drop_evening_text")}
+                emoji="🌙"
+              />
+            </div>
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              ⚠️ {t("howitworks_drop_combine_text")}
+            </p>
+          </Section>
+
+          {/* S7 — Transparence */}
+          <Section
+            emoji="🔍"
+            title={t("howitworks_s7_title")}
+            intro={t("howitworks_s7_intro")}
+          >
+            <p className="leading-relaxed">{t("howitworks_s7_p1")}</p>
+            <p className="leading-relaxed">{t("howitworks_s7_p2")}</p>
+            <p className="leading-relaxed font-semibold text-emerald-700">
+              ✓ {t("howitworks_s7_highlight")}
+            </p>
+          </Section>
+
+          {/* S8 — Bookmakers ARJEL/hors ARJEL */}
+          <Section
+            emoji="💶"
+            title={t("howitworks_s8_title")}
+            intro={t("howitworks_s8_intro")}
+          >
+            <p className="leading-relaxed">{t("howitworks_s8_p1")}</p>
+            <p className="leading-relaxed">{t("howitworks_s8_p2")}</p>
+            <p className="leading-relaxed font-semibold text-violet-700">
+              {t("howitworks_s8_highlight")}
+            </p>
+          </Section>
+
+          {/* S9 — Pourquoi gratuit */}
+          <Section
+            emoji="🎁"
+            title={t("howitworks_s9_title")}
+            intro={t("howitworks_s9_intro")}
+          >
+            <p className="leading-relaxed">{t("howitworks_s9_p1")}</p>
+            <p className="leading-relaxed">{t("howitworks_s9_p2")}</p>
+          </Section>
+
+          {/* S10 — Limites */}
+          <Section
+            emoji="⚡"
+            title={t("howitworks_s10_title")}
+            intro={t("howitworks_s10_intro")}
+          >
             <ul className="space-y-3">
-              <LimitItem>{t("howitworks_s6_limit1")}</LimitItem>
-              <LimitItem>{t("howitworks_s6_limit2")}</LimitItem>
-              <LimitItem>{t("howitworks_s6_limit3")}</LimitItem>
-              <LimitItem>{t("howitworks_s6_limit4")}</LimitItem>
-              <LimitItem>{t("howitworks_s6_limit5")}</LimitItem>
-              <LimitItem>{t("howitworks_s6_limit6")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit1")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit2")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit3")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit4")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit5")}</LimitItem>
+              <LimitItem>{t("howitworks_s10_limit6")}</LimitItem>
             </ul>
           </Section>
 
@@ -262,7 +386,7 @@ export default async function HowItWorksPage({
             </div>
           </section>
 
-          {/* CTA FINAL — clair lumineux */}
+          {/* CTA PRINCIPAL — Voir Pronos IA */}
           <div className="relative overflow-hidden rounded-2xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-violet-100 p-8 text-center shadow-md">
             <div
               aria-hidden
@@ -302,6 +426,47 @@ export default async function HowItWorksPage({
             </div>
           </div>
 
+          {/* CTA secondaires — Telegram + Tipster Jérôme */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Telegram */}
+            <a
+              href="https://t.me/pronos_club_ia"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group rounded-2xl border-2 border-blue-200 bg-blue-50 p-6 transition hover:border-blue-400 hover:bg-blue-100 hover:shadow-md"
+            >
+              <div className="mb-3 text-4xl">📱</div>
+              <h3 className="mb-2 text-lg font-bold text-blue-900">
+                {t("howitworks_cta_telegram_title")}
+              </h3>
+              <p className="text-sm text-blue-800">
+                {t("howitworks_cta_telegram_text")}
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-700 group-hover:gap-3 transition-all">
+                <span>{t("howitworks_cta_telegram_button")}</span>
+                <span>→</span>
+              </div>
+            </a>
+
+            {/* Tipster Jérôme */}
+            <a
+              href={`/${locale}`}
+              className="group rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-6 transition hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md"
+            >
+              <div className="mb-3 text-4xl">🎯</div>
+              <h3 className="mb-2 text-lg font-bold text-emerald-900">
+                {t("howitworks_cta_tipster_title")}
+              </h3>
+              <p className="text-sm text-emerald-800">
+                {t("howitworks_cta_tipster_text")}
+              </p>
+              <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-emerald-700 group-hover:gap-3 transition-all">
+                <span>{t("howitworks_cta_tipster_button")}</span>
+                <span>→</span>
+              </div>
+            </a>
+          </div>
+
         </div>
 
         {/* DISCLAIMER BAS */}
@@ -316,7 +481,7 @@ export default async function HowItWorksPage({
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SOUS-COMPOSANTS (refonte light theme)
+// SOUS-COMPOSANTS (light theme V3.5)
 // ═══════════════════════════════════════════════════════════════════
 
 function Section({
@@ -332,7 +497,6 @@ function Section({
 }) {
   return (
     <section className="relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-white p-6 shadow-sm sm:p-8 transition hover:border-violet-300 hover:shadow-md">
-      {/* Top accent line subtile */}
       <div
         aria-hidden
         className="absolute left-0 top-0 h-1 w-full"
@@ -383,34 +547,102 @@ function Step({
   );
 }
 
-function InfoBox({
+function SportCard({
+  emoji,
   title,
-  items,
+  text,
+}: {
+  emoji: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-zinc-200 bg-white p-4 transition hover:border-violet-300 hover:shadow-sm">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-2xl">{emoji}</span>
+        <h3 className="font-bold text-zinc-900">{title}</h3>
+      </div>
+      <p className="text-xs leading-relaxed text-zinc-600">{text}</p>
+    </div>
+  );
+}
+
+function TierCard({
+  title,
+  criteria,
+  text,
   accent,
 }: {
   title: string;
-  items: string[];
-  accent: "violet" | "fuchsia";
+  criteria: string;
+  text: string;
+  accent: "emerald" | "blue" | "violet" | "pink";
 }) {
-  const styles =
-    accent === "violet"
-      ? "border-violet-300 bg-violet-50"
-      : "border-fuchsia-300 bg-fuchsia-50";
+  const styles = {
+    emerald: {
+      border: "border-emerald-300",
+      bg: "bg-emerald-50",
+      titleColor: "text-emerald-900",
+      criteriaColor: "text-emerald-700",
+    },
+    blue: {
+      border: "border-blue-300",
+      bg: "bg-blue-50",
+      titleColor: "text-blue-900",
+      criteriaColor: "text-blue-700",
+    },
+    violet: {
+      border: "border-violet-300",
+      bg: "bg-violet-50",
+      titleColor: "text-violet-900",
+      criteriaColor: "text-violet-700",
+    },
+    pink: {
+      border: "border-pink-300",
+      bg: "bg-pink-50",
+      titleColor: "text-pink-900",
+      criteriaColor: "text-pink-700",
+    },
+  };
 
-  const checkColor =
-    accent === "violet" ? "text-violet-600" : "text-fuchsia-600";
+  const s = styles[accent];
 
   return (
-    <div className={`rounded-xl border-2 p-5 ${styles}`}>
-      <h3 className="mb-3 font-semibold text-zinc-900">{title}</h3>
-      <ul className="space-y-2 text-sm text-zinc-700">
-        {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2">
-            <span className={`mt-0.5 flex-shrink-0 font-bold ${checkColor}`}>✓</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
+    <div className={`rounded-xl border-2 p-5 ${s.border} ${s.bg}`}>
+      <h3 className={`mb-2 text-lg font-extrabold ${s.titleColor}`}>{title}</h3>
+      <div className={`mb-3 inline-block rounded-md bg-white/60 px-2.5 py-1 text-xs font-mono font-bold ${s.criteriaColor}`}>
+        {criteria}
+      </div>
+      <p className="text-sm leading-relaxed text-zinc-700">{text}</p>
+    </div>
+  );
+}
+
+function DropCard({
+  time,
+  label,
+  text,
+  emoji,
+}: {
+  time: string;
+  label: string;
+  text: string;
+  emoji: string;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-violet-200 bg-violet-50 p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="text-3xl">{emoji}</span>
+        <div>
+          <div className="font-mono text-2xl font-extrabold text-violet-900">
+            {time}
+          </div>
+          <div className="text-xs font-bold uppercase tracking-wider text-violet-700">
+            {label}
+          </div>
+        </div>
+      </div>
+      <p className="text-sm leading-relaxed text-zinc-700">{text}</p>
     </div>
   );
 }
@@ -418,7 +650,7 @@ function InfoBox({
 function LimitItem({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
-      <span className="mt-0.5 flex-shrink-0 text-amber-600 font-bold">•</span>
+      <span className="mt-0.5 flex-shrink-0 font-bold text-amber-600">•</span>
       <span className="text-sm text-zinc-700">{children}</span>
     </li>
   );
