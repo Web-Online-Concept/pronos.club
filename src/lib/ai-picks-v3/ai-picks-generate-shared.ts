@@ -14,6 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { fetchMultiSportFixturesForDate } from "@/lib/ai-picks-v3/multi-sport-fetcher";
 import { runClaudeTipster } from "@/lib/ai-picks-v3/claude-tipster";
 import { runGptValidator } from "@/lib/ai-picks-v3/gpt-validator";
@@ -66,6 +67,58 @@ const isAuthorized = (request: NextRequest): boolean => {
 const logSection = (dropWindow: DropWindow, title: string): void => {
   const tag = `ai-picks-generate-${dropWindow}`;
   console.log(`\n${"=".repeat(60)}\n[${tag} v3.5] ${title}\n${"=".repeat(60)}`);
+};
+
+/**
+ * V3.5 patch (Option A) — Vérifie si un combiné a déjà été pris aujourd'hui.
+ *
+ * Utilisé par le drop soir pour appliquer le verrou métier "1 combiné max/jour".
+ * Si un combiné existe déjà pour cette date, on indique au tipster qu'il ne
+ * doit générer QUE des simples au drop soir.
+ *
+ * Détection : un pick combiné est stocké avec `odds_comparison.combine_meta`
+ * non null (cf persist-tipster-pick.ts buildOddsComparison branche `else`).
+ *
+ * @param targetDate Date au format YYYY-MM-DD (Paris timezone)
+ * @returns true si au moins un pick combiné existe pour cette date, false sinon
+ */
+const hasCombineForDateAlready = async (
+  targetDate: string
+): Promise<boolean> => {
+  try {
+    // On récupère tous les picks v3 du jour et on filtre côté JS sur la
+    // présence de combine_meta dans odds_comparison (plus robuste qu'une
+    // requête JSON path Supabase qui peut être casse-pieds).
+    const { data, error } = await supabaseAdmin
+      .from("ai_picks")
+      .select("id, odds_comparison")
+      .eq("event_date", targetDate)
+      .eq("generation_version", "v3")
+      .is("deleted_at", null);
+
+    if (error) {
+      console.warn(
+        `[combine-check] Query error: ${error.message} — défaut: pas de combiné pris`
+      );
+      return false;
+    }
+
+    if (!data || data.length === 0) return false;
+
+    const hasCombine = data.some((row) => {
+      const oc = row.odds_comparison as Record<string, unknown> | null;
+      if (!oc) return false;
+      const combineMeta = oc.combine_meta as Record<string, unknown> | undefined;
+      return combineMeta != null;
+    });
+
+    return hasCombine;
+  } catch (err) {
+    console.warn(
+      `[combine-check] Exception: ${(err as Error).message} — défaut: pas de combiné pris`
+    );
+    return false;
+  }
 };
 
 // ============================================================================
@@ -208,8 +261,26 @@ export const handleGenerateForDropWindow = async (
   }
 
   // ─── ÉTAPE 2 : Claude tipster avec dropWindow
-  logSection(dropWindow, `STEP 2 - Claude tipster (Sonnet 4.6 + prompt v2.5, drop=${dropWindow})`);
-  const tipsterResult = await runClaudeTipster(fetchOutput, dropWindow);
+  logSection(dropWindow, `STEP 2 - Claude tipster (Sonnet 4.6 + prompt v2.6, drop=${dropWindow})`);
+
+  // V3.5 Option A : vérifier si un combiné a déjà été pris aujourd'hui
+  // (uniquement utile au drop soir, mais on check pour les deux pour les logs).
+  const combineAlreadyTakenToday = await hasCombineForDateAlready(targetDate);
+  if (combineAlreadyTakenToday) {
+    console.log(
+      `[combine-check] ✅ Un combiné a déjà été pris pour ${targetDate} — drop ${dropWindow} générera UNIQUEMENT des simples`
+    );
+  } else {
+    console.log(
+      `[combine-check] Aucun combiné pris pour ${targetDate} — drop ${dropWindow} peut générer 1 combiné max`
+    );
+  }
+
+  const tipsterResult = await runClaudeTipster(
+    fetchOutput,
+    dropWindow,
+    combineAlreadyTakenToday
+  );
   console.log(
     `[tipster] model=${tipsterResult.meta.model} tokens_in=${tipsterResult.meta.tokens_input} tokens_out=${tipsterResult.meta.tokens_output} cost=${tipsterResult.meta.cost_usd}$`
   );

@@ -1,20 +1,14 @@
 /**
- * PRONOS.CLUB — Claude Tipster (v3.5)
+ * PRONOS.CLUB — Claude Tipster (v3)
  *
- * Appelle Claude Sonnet 4.6 avec la prompt v2.5 et la data multi-sports enrichie.
+ * Appelle Claude Sonnet 4.6 avec la prompt v2.2 et la data multi-sports enrichie.
  * Parse le JSON output (Bloc 2) et conserve le narratif français (Bloc 1).
  *
  * Modèle : claude-sonnet-4-5 (alias commercial 4.6 = "claude-sonnet-4-5")
  * Coût estimé : ~5-8€/mois pour 1 appel/jour avec ~200KB de data en input.
  *
- * Évolutions V3.5 (09/05/2026) :
- *   - NOUVEAU paramètre dropWindow ("morning" | "evening") passé au prompt builder
- *   - NOUVEAU validation du champ tier obligatoire (rejet si absent ou invalide)
- *   - Plafond de picks selon drop window : 8 max matin / 4 max soir
- *   - Plafond combinés : 2 max/jour total
- *
  * Output : TipsterResult avec :
- *   - output: TipsterOutput parsé (3-12 picks au format JSON strict, avec tier)
+ *   - output: TipsterOutput parsé (1-10 picks au format JSON strict)
  *   - narrative_text: bloc 1 français (utile pour persister un dossier)
  *   - meta: tokens + coût + durée
  *   - error: string si parsing/appel a foiré
@@ -30,7 +24,6 @@ import type {
   TipsterOutput,
   TipsterResult,
   TipsterCallMeta,
-  PickTier,
   DropWindow,
 } from "./tipster-types";
 
@@ -43,6 +36,9 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 /**
  * Modèle Claude utilisé pour le tipster.
  * Sonnet 4.6 = meilleur compromis qualité / coût pour ce use case.
+ *
+ * Pour switcher temporairement en Opus (test qualité), passer la variable d'env :
+ *   CLAUDE_TIPSTER_MODEL="claude-opus-4-5"
  */
 const CLAUDE_MODEL =
   process.env.CLAUDE_TIPSTER_MODEL ?? "claude-sonnet-4-5";
@@ -50,13 +46,14 @@ const CLAUDE_MODEL =
 /**
  * Limite de tokens output. Une réponse complète (analyse + JSON) tourne autour
  * de 4000-6000 tokens. On met large pour ne jamais tronquer.
- *
- * V3.5 : potentiellement plus de picks (12 max vs 10), donc on monte à 10000.
  */
-const MAX_TOKENS = 10000;
+const MAX_TOKENS = 8000;
 
 /**
  * Tarifs API Anthropic (USD / 1M tokens) — Claude Sonnet 4.6.
+ * Source : https://docs.claude.com/en/docs/build-with-claude/pricing
+ *
+ * À mettre à jour si Anthropic révise sa grille tarifaire.
  */
 const PRICING_INPUT_PER_MTOK = 3.0;
 const PRICING_OUTPUT_PER_MTOK = 15.0;
@@ -79,15 +76,9 @@ const MAX_COTE_TOTALE_COMBINE = 4.00;
 /**
  * Écart maximum toléré entre cote_arjel et cote_hors_arjel (en ratio).
  * Au-delà de 30%, on considère qu'il y a une hallucination Claude.
+ * Ex : 1.14 vs 2.36 = écart 107% → rejet.
  */
 const MAX_ECART_ARJEL_HORS_ARJEL = 0.30;
-
-/** V3.5 : Plafonds de picks par drop window (strict) */
-const MAX_PICKS_MORNING = 8;
-const MAX_PICKS_EVENING = 4;
-
-/** V3.5 : Tiers valides */
-const VALID_TIERS: PickTier[] = ["lock", "strong", "value", "coup_de_coeur"];
 
 // ============================================================================
 // CLIENT ANTHROPIC (lazy init)
@@ -109,6 +100,16 @@ const getAnthropicClient = (): Anthropic => {
 // PARSING DU JSON OUTPUT
 // ============================================================================
 
+/**
+ * Extrait le JSON output du texte renvoyé par Claude.
+ *
+ * Stratégie de parsing :
+ *   1. Cherche un bloc ```json...``` (format markdown attendu)
+ *   2. Sinon, cherche le dernier objet JSON `{` ... `}` dans le texte
+ *   3. Parse et valide la structure
+ *
+ * Lance une erreur si parsing impossible ou structure invalide.
+ */
 const extractJsonOutput = (text: string): TipsterOutput => {
   // Tentative 1 : bloc ```json...```
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
@@ -118,11 +119,14 @@ const extractJsonOutput = (text: string): TipsterOutput => {
     jsonStr = jsonBlockMatch[1].trim();
   } else {
     // Tentative 2 : dernier objet JSON dans le texte
+    // On cherche le DERNIER `{` puis on tente de parser jusqu'à la fin équilibrée
     const lastOpenBrace = text.lastIndexOf('"date"');
     if (lastOpenBrace !== -1) {
+      // Reculer jusqu'au { qui contient ce "date"
       const before = text.substring(0, lastOpenBrace);
       const lastBrace = before.lastIndexOf("{");
       if (lastBrace !== -1) {
+        // Trouver le } correspondant en comptant les niveaux
         let depth = 0;
         let endIdx = -1;
         for (let i = lastBrace; i < text.length; i++) {
@@ -176,37 +180,14 @@ const extractJsonOutput = (text: string): TipsterOutput => {
   return parsed as TipsterOutput;
 };
 
+/**
+ * Extrait le narratif français (Bloc 1) en retirant le bloc JSON final.
+ * Utile pour persister un texte pré-rédigé pour les abonnés ou pour les dossiers.
+ */
 const extractNarrativeText = (text: string): string => {
+  // Retire le bloc ```json...```
   const cleaned = text.replace(/```json\s*[\s\S]*?\s*```/g, "").trim();
   return cleaned;
-};
-
-// ============================================================================
-// V3.5 — VALIDATION DU TIER
-// ============================================================================
-
-/**
- * V3.5 : valide le champ tier d'un pick.
- * - Si tier absent ou invalide → retourne null (pick rejeté côté validateAndFixPicks)
- * - Sinon → retourne le tier validé (cohérent avec confiance ou non, le validator GPT
- *   et persist-tipster-pick s'occupent du downgrade éventuel)
- */
-const validatePickTier = (rawTier: unknown): PickTier | null => {
-  if (typeof rawTier !== "string") return null;
-  if (!VALID_TIERS.includes(rawTier as PickTier)) return null;
-  return rawTier as PickTier;
-};
-
-/**
- * V3.5 : si tier absent, on essaie de le déduire de la confiance.
- * Filet de sécurité : Claude DEVRAIT toujours fournir un tier (le prompt l'exige),
- * mais si jamais il oublie, on auto-classe selon la confiance.
- */
-const inferTierFromConfiance = (confiance: number): PickTier => {
-  if (confiance >= 80) return "lock";
-  if (confiance >= 75) return "strong";
-  if (confiance >= 70) return "value";
-  return "coup_de_coeur";
 };
 
 // ============================================================================
@@ -216,20 +197,25 @@ const inferTierFromConfiance = (confiance: number): PickTier => {
 /**
  * Valide la structure de chaque pick ET applique les règles métier strictes.
  *
- * V3.5 (09/05/2026) :
- *   - NOUVEAU : validation du champ tier (auto-inféré si absent, rejet si invalide)
- *   - NOUVEAU : enforcement du plafond drop window (MAX_PICKS_MORNING / EVENING)
- *   - NOUVEAU : enforcement du plafond combinés/jour (2 max)
+ * ═══════════════════════════════════════════════════════════════
+ * FIXES A1 + B1 (session 02/05/2026) :
  *
- * Filtres existants V3 maintenus :
- *   - Cote min/max simples et combinés
- *   - Écart ARJEL/hors_ARJEL ≤ 30%
- *   - Mise flat 1U
+ * A1 — Filtres cotes minimum/maximum (rejet automatique) :
+ *   - Simple : meilleure cote (max arjel/hors_arjel) doit être ≥ 1.50 et ≤ 3.50
+ *   - Combiné par sélection : chaque cote doit être ≥ 1.30
+ *   - Combiné total : meilleure cote totale doit être ≥ 1.50 et ≤ 4.00
+ *
+ * B1 — Filtre cohérence ARJEL/hors_ARJEL (rejet si hallucination probable) :
+ *   - Si écart entre cote_arjel et cote_hors_arjel > 30%, pick rejeté
+ *   - Un écart de 107% (ex: 1.14 vs 2.36) est physiquement impossible
+ *   - S'applique aux simples (arjel/hors_arjel) et aux combinés (cote_totale_*)
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * Auto-fix : si mise_unites != 1, forcée à 1 (flat bet obligatoire).
+ *
+ * Logs warnings pour traçabilité, ne lance pas d'erreur.
  */
-const validateAndFixPicks = (
-  output: TipsterOutput,
-  dropWindow: DropWindow
-): TipsterOutput => {
+const validateAndFixPicks = (output: TipsterOutput): TipsterOutput => {
   const validPicks = output.pronostics.filter((pick, idx) => {
     if (typeof pick.id !== "number") {
       console.warn(`[claude-tipster] Pick #${idx} sans id numérique, ignoré`);
@@ -239,18 +225,6 @@ const validateAndFixPicks = (
     if (typeof pick.confiance !== "number") {
       console.warn(`[claude-tipster] Pick #${pick.id} sans confiance numérique, ignoré`);
       return false;
-    }
-
-    // V3.5 : validation tier (auto-inférence si absent)
-    const validatedTier = validatePickTier((pick as { tier?: unknown }).tier);
-    if (validatedTier === null) {
-      const inferred = inferTierFromConfiance(pick.confiance);
-      console.warn(
-        `[claude-tipster] Pick #${pick.id} sans tier valide, auto-inféré "${inferred}" (confiance ${pick.confiance})`
-      );
-      pick.tier = inferred;
-    } else {
-      pick.tier = validatedTier;
     }
 
     // ── PICK SIMPLE ──────────────────────────────────────────────────────────
@@ -398,7 +372,7 @@ const validateAndFixPicks = (
       return false;
     }
 
-    // Auto-fix : si mise_unites != 1
+    // Auto-fix : si mise_unites != 1 (Claude pourrait avoir loupé la règle)
     if (pick.mise_unites !== 1) {
       console.warn(
         `[claude-tipster] Pick #${pick.id} mise_unites=${pick.mise_unites} forcée à 1 (flat bet)`
@@ -412,48 +386,14 @@ const validateAndFixPicks = (
   const rejectedCount = output.pronostics.length - validPicks.length;
   if (rejectedCount > 0) {
     console.log(
-      `[claude-tipster] validateAndFixPicks : ${rejectedCount} pick(s) rejeté(s) sur ${output.pronostics.length} (cotes/cohérence/tier invalides)`
+      `[claude-tipster] validateAndFixPicks : ${rejectedCount} pick(s) rejeté(s) sur ${output.pronostics.length} (cotes/cohérence invalides)`
     );
-  }
-
-  // V3.5 : enforcement plafond drop window
-  const maxPicks = dropWindow === "morning" ? MAX_PICKS_MORNING : MAX_PICKS_EVENING;
-  let finalPicks = validPicks;
-
-  if (validPicks.length > maxPicks) {
-    console.warn(
-      `[claude-tipster] V3.5 : ${validPicks.length} picks générés > plafond ${maxPicks} pour drop ${dropWindow}, troncage`
-    );
-    // On garde les picks avec la meilleure confiance en priorité
-    const sorted = [...validPicks].sort((a, b) => b.confiance - a.confiance);
-    finalPicks = sorted.slice(0, maxPicks);
-  }
-
-  // V3.5 : enforcement plafond combinés (max 2/jour total)
-  // Note : ce filter ne peut s'appliquer que par drop. Si Claude génère 2 combinés
-  // dans le drop matin, le drop soir devra de toute façon en générer 0.
-  // Le route handler peut faire le check cross-drop via la BDD si besoin.
-  const combinesInThisRun = finalPicks.filter((p) => p.type === "combine").length;
-  if (combinesInThisRun > 2) {
-    console.warn(
-      `[claude-tipster] V3.5 : ${combinesInThisRun} combinés dans ce drop > 2 max, troncage`
-    );
-    let combinesKept = 0;
-    finalPicks = finalPicks.filter((p) => {
-      if (p.type !== "combine") return true;
-      if (combinesKept < 2) {
-        combinesKept++;
-        return true;
-      }
-      return false;
-    });
   }
 
   return {
     ...output,
-    nb_pronos: finalPicks.length,
-    pronostics: finalPicks,
-    drop_window: dropWindow, // V3.5 : on force la valeur correcte (Claude pourrait se tromper)
+    nb_pronos: validPicks.length,
+    pronostics: validPicks,
   };
 };
 
@@ -480,8 +420,8 @@ const computeCostUsd = (
 /**
  * Appelle Claude tipster avec la data enrichie et retourne le résultat parsé.
  *
- * V3.5 : ajout du paramètre dropWindow obligatoire (passé au prompt builder
- * et utilisé pour enforcement des plafonds par drop).
+ * V3.5 : ajout des paramètres dropWindow + combineAlreadyTakenToday pour
+ * informer le tipster du drop courant et du verrou métier "1 combiné max/jour".
  *
  * Cas d'erreur :
  *   - Si l'appel API échoue (network, rate limit, etc.) → retourne TipsterResult avec error défini, output=null
@@ -490,14 +430,20 @@ const computeCostUsd = (
  */
 export const runClaudeTipster = async (
   fetchOutput: FetchOutput,
-  dropWindow: DropWindow = "morning"
+  dropWindow: DropWindow = "morning",
+  combineAlreadyTakenToday: boolean = false
 ): Promise<TipsterResult> => {
   const startedAt = Date.now();
   const todayIsoDate = fetchOutput.date_du_jour;
 
-  // V3.5 : construction du prompt user avec dropWindow
+  // Construction du prompt user
   const fetchOutputJson = JSON.stringify(fetchOutput, null, 2);
-  const userPrompt = buildTipsterUserPrompt(fetchOutputJson, todayIsoDate, dropWindow);
+  const userPrompt = buildTipsterUserPrompt(
+    fetchOutputJson,
+    todayIsoDate,
+    dropWindow,
+    combineAlreadyTakenToday
+  );
 
   let client: Anthropic;
   try {
@@ -557,7 +503,7 @@ export const runClaudeTipster = async (
     duration_ms: Date.now() - startedAt,
   };
 
-  // Extraction du texte
+  // Extraction du texte (les content blocks Claude peuvent être text ou tool_use)
   const textBlocks = response.content.filter(
     (block): block is Anthropic.Messages.TextBlock => block.type === "text"
   );
@@ -583,8 +529,8 @@ export const runClaudeTipster = async (
     };
   }
 
-  // V3.5 : Validation + auto-fix avec dropWindow
-  const validated = validateAndFixPicks(parsedOutput, dropWindow);
+  // Validation + auto-fix des picks (règles métier + cohérence cotes)
+  const validated = validateAndFixPicks(parsedOutput);
 
   return {
     output: validated,

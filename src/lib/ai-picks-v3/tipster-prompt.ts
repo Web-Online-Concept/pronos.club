@@ -19,7 +19,7 @@
 
 import type { DropWindow } from "./tipster-types";
 
-export const TIPSTER_PROMPT_VERSION = "v2.5";
+export const TIPSTER_PROMPT_VERSION = "v2.6";
 
 export const TIPSTER_SYSTEM_PROMPT = `Tu es un tipster expert sportif francophone. Tu travailles pour PRONOS.CLUB, un service premium de pronostics sportifs basé en France. Tu es le SEUL responsable des pronostics IA quotidiens : tes abonnés (~19,90€/mois) attendent de toi des pronos rigoureux, justifiés, et de qualité homogène quel que soit le sport.
 
@@ -65,7 +65,7 @@ Le marché des tipsters francophones est saturé d'experts médiocres qui sorten
 - Chaque sélection min : **1.30 — MINIMUM ABSOLU**
 - Cote totale combinée : 1.50 à 4.00
 - Confiance min : 70/100
-- **2 combinés max par jour** (au total sur les 2 drops)
+- **1 combiné max par JOUR** (réparti soit au drop matin, soit au drop soir, jamais les deux). Le drop soir t'indiquera explicitement si un combiné a déjà été pris au matin (auquel cas tu ne génères QUE des simples au drop soir).
 - Markets autorisés en combiné : 1N2, Double Chance, **BTTS, Over/Under** (élargi V3.5)
 
 ## RÈGLE 3 — MISES : FLAT 1U OBLIGATOIRE
@@ -605,11 +605,18 @@ Si tu reçois un match avec \`forme_5_derniers: "donnée non disponible"\` ET au
  *
  * V3.5 : ajout du paramètre dropWindow pour informer le tipster du drop courant
  * et lui rappeler le plafond du drop concerné.
+ *
+ * V3.5 patch (Option A) : ajout combineAlreadyTakenToday pour le verrou
+ * "1 combiné max par JOUR" (et pas par drop). Quand ce flag est true
+ * (typiquement au drop du soir si le drop matin a déjà sorti un combiné),
+ * on indique au tipster qu'il NE DOIT PAS générer de combiné, uniquement
+ * des simples.
  */
 export const buildTipsterUserPrompt = (
   fetchOutputJson: string,
   todayIsoDate: string,
-  dropWindow: DropWindow = "morning"
+  dropWindow: DropWindow = "morning",
+  combineAlreadyTakenToday: boolean = false
 ): string => {
   const dropContext =
     dropWindow === "morning"
@@ -617,13 +624,17 @@ export const buildTipsterUserPrompt = (
 
 Tu travailles sur le **drop matin**. La data fournie ne contient QUE les matchs avec kickoff avant 20h Paris.
 - **Plafond pour ce drop : 8 picks maximum**
-- Tu peux utiliser ton 1er combiné de la journée ici (si tu en sors un, garde l'autre slot pour le drop soir si pertinent)`
+- Tu peux utiliser ton 1 combiné maximum de la journée ici si pertinent (verrou métier strict : 1 combiné max/jour)`
       : `# DROP COURANT : SOIR (17h30 Paris)
 
 Tu travailles sur le **drop soir**. La data fournie ne contient QUE les matchs avec kickoff à partir de 20h Paris (top affiches européennes, NBA/NHL/MLB soirée USA, MMA cards).
 - **Plafond pour ce drop : 4 picks maximum**
 - Les compositions probables sont en général confirmées à cette heure → tu as accès à de meilleures données qu'au drop matin
-- Tu peux utiliser ton 2ème combiné de la journée ici si pertinent`;
+${
+  combineAlreadyTakenToday
+    ? `- ⛔ **COMBINÉ INTERDIT POUR CE DROP** : un combiné a déjà été pris ce matin. Tu ne peux générer **QUE des simples** dans ce drop. Aucune exception. Le verrou métier de PRONOS.CLUB est strict : 1 combiné maximum par jour, jamais 2.`
+    : `- Tu peux utiliser ton 1 combiné maximum de la journée ici si pertinent (aucun combiné n'a été pris au drop matin)`
+}`;
 
   return `# DATE DU JOUR
 ${todayIsoDate}
@@ -650,5 +661,9 @@ Sors entre 0 et ${dropWindow === "morning" ? "8" : "4"} pronostics au format dé
 
 **Toutes les mises sont à 1u (flat bet), sans exception.**
 **Cote minimum 1.50 pour les simples — aucune exception.**
-**Tier OBLIGATOIRE sur chaque pick : "lock", "strong", "value", ou "coup_de_coeur".**`;
+**Tier OBLIGATOIRE sur chaque pick : "lock", "strong", "value", ou "coup_de_coeur".**${
+    combineAlreadyTakenToday
+      ? `\n**⛔ COMBINÉ INTERDIT pour ce drop : 1 combiné max par jour, déjà pris ce matin. Génère uniquement des simples.**`
+      : ""
+  }`;
 };
