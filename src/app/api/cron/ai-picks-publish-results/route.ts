@@ -3,12 +3,14 @@
  *
  * Publie les résultats des picks résolus la veille :
  *   1. Finalise le clv_pct sur tous les picks résolus hier
- *   2. Agrège le bilan jour (won/lost/void, ROI, CLV moyen, par tier, etc.)
+ *   2. Agrège le bilan jour
  *   3. Publie le bilan sur Telegram public canal @pronos_club_ia
- *   4. (Étape 4 à venir) Publie thread X
+ *   4. Publie le thread bilan sur X (4 posts)
  *
- * Schedule : "30 6 * * *" (8h30 Paris été = 6h30 UTC)
- * Décalé de 30 min après ai-picks-resolve qui tourne à 8h Paris été.
+ * Schedule : "30 6 * * *" (8h30 Paris été)
+ *
+ * V3.5 (mise à jour 09/05/2026 - Étape 4) :
+ *   - Ajout publication X thread (~4 posts) du bilan jour
  *
  * AUTHENTIFICATION :
  *   - Header `Authorization: Bearer ${CRON_SECRET}` requis
@@ -25,6 +27,8 @@ import {
   aggregateBilanJour,
 } from "@/lib/clv/resolve";
 import { publishResultsBilanToPublicChannel } from "@/lib/telegram/public-channel";
+import { postThread } from "@/lib/x/post";
+import { buildBilanJourThreadForX } from "@/lib/x/format-bilan";
 
 // ============================================================================
 // CONFIGURATION NEXT.JS
@@ -32,7 +36,7 @@ import { publishResultsBilanToPublicChannel } from "@/lib/telegram/public-channe
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// CLV finalize + aggregate + 1 post Telegram = ~30s typique
+// CLV finalize + aggregate + 1 post Telegram + thread X 4 posts (~10s) = ~60s typique
 export const maxDuration = 120;
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
@@ -90,7 +94,6 @@ const handlePublishResults = async (
     const bilan = await aggregateBilanJour(targetDate);
 
     if (!bilan) {
-      // Q13 réponse A : skip silencieux si aucun pick résolu
       console.log(
         `[publish-results] Aucun pick résolu le ${targetDate}, skip silencieux (pas de post Telegram/X)`
       );
@@ -114,12 +117,15 @@ const handlePublishResults = async (
       console.log(
         "[publish-results] dry_run=true → bilan calculé, aucune publication"
       );
+      // Pour debug : on génère quand même les textes du thread X
+      const xThreadPreview = buildBilanJourThreadForX(bilan);
       return NextResponse.json({
         success: true,
         mode: "dry_run",
         date: targetDate,
         clv_finalize: clvResult,
         bilan,
+        x_thread_preview: xThreadPreview,
         total_duration_ms: Date.now() - startedAt,
       });
     }
@@ -137,7 +143,20 @@ const handlePublishResults = async (
       );
     }
 
-    // TODO Étape 4 : postBilanThreadToX(bilan)
+    // ÉTAPE 3b : X thread bilan jour
+    console.log("[publish-results] STEP 3b - Publication X thread (4 posts)");
+    const xThreadTexts = buildBilanJourThreadForX(bilan);
+    console.log(`[publish-results] X thread : ${xThreadTexts.length} posts à publier`);
+    const xThreadResult = await postThread(xThreadTexts);
+    if (xThreadResult.success) {
+      console.log(
+        `[publish-results] ✓ X thread publié : ${xThreadResult.posted_count}/${xThreadResult.total_count} posts (root tweet_id=${xThreadResult.tweet_ids[0]})`
+      );
+    } else {
+      console.warn(
+        `[publish-results] ✗ X thread échec partiel : ${xThreadResult.posted_count}/${xThreadResult.total_count} posts publiés, ${xThreadResult.errors.length} erreurs`
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -149,8 +168,12 @@ const handlePublishResults = async (
         telegram: telegramResult.success,
         telegram_message_id: telegramResult.message_id,
         telegram_error: telegramResult.error,
-        x: false,
-        x_note: "X publication non implémentée (Étape 4 Session 2)",
+        x: xThreadResult.success,
+        x_posted_count: xThreadResult.posted_count,
+        x_total_count: xThreadResult.total_count,
+        x_root_tweet_id: xThreadResult.tweet_ids[0] ?? null,
+        x_tweet_ids: xThreadResult.tweet_ids,
+        x_errors: xThreadResult.errors,
       },
       total_duration_ms: Date.now() - startedAt,
     });
