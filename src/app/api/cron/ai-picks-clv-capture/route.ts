@@ -4,7 +4,7 @@
  * Capture périodique des cotes Pinnacle pré-match pour calculer la
  * Closing Line Value (CLV) au moment de la résolution.
  *
- * Schedule : */15 * * * * (toutes les 15 min)
+ * Schedule : "toutes les 15 min" (cf. vercel.json cron schedule)
  *
  * Logique :
  *   1. SELECT picks pending V3.5 dont kickoff dans [now, now+3h]
