@@ -100,6 +100,10 @@ const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string 
   if (s === "baseball") return "baseball";
   if (s === "tennis") return "tennis";
   if (s === "mma") return "mma";
+  // V3.5 : nouveaux sports
+  if (s === "rugby") return "rugby";
+  if (s === "handball") return "handball";
+  if (s === "formula_1" || s === "formula1" || s === "f1") return "formula-1";
 
   // Fallback : déduire depuis le nom de la ligue si sport inconnu
   if (leagueFallback) {
@@ -110,6 +114,10 @@ const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string 
     if (l.includes("nfl") || l.includes("american football")) return "football-americain";
     if (l.includes("atp") || l.includes("wta") || l.includes("tennis")) return "tennis";
     if (l.includes("mma") || l.includes("ufc")) return "mma";
+    // V3.5 : fallback rugby / handball / F1 par mot-clé league
+    if (l.includes("top 14") || l.includes("six nations") || l.includes("6 nations") || l.includes("urc") || l.includes("rugby") || l.includes("champions cup")) return "rugby";
+    if (l.includes("starligue") || l.includes("ehf") || l.includes("handball")) return "handball";
+    if (l.includes("formula") || l.includes("grand prix") || l.includes("f1 ")) return "formula-1";
   }
 
   console.warn(`[persist-tipster-pick] sport inconnu "${sport}" (ligue: ${leagueFallback ?? "?"}) → fallback football`);

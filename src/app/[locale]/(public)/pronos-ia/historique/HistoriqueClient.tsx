@@ -1,5 +1,23 @@
 "use client";
 
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * HistoriqueClient.tsx (V3.5)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Composant client de la page /pronos-ia/historique.
+ *
+ * V3.5 (09/05/2026) :
+ *   - Fix bug critique : suppression du `exclude_pending` quand statusFilter="all"
+ *     → la page Historique affiche maintenant TOUS les picks (résolus + pending)
+ *   - Ajout sports V3.5 manquants : Rugby, Handball, Formule 1
+ *   - Ajout filtre Tier (Lock / Strong / Value / Coup de cœur)
+ *   - Vérif slugs cohérents avec inferSportSlug() côté persist
+ *
+ * Path : src/app/[locale]/(public)/pronos-ia/historique/HistoriqueClient.tsx
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { useState, useEffect } from "react";
 import AiPickCard from "@/components/ai-picks/AiPickCard";
 import {
@@ -15,7 +33,8 @@ function lastDayOfMonth(ym: string) {
 }
 
 
-// Liste des sports IA possibles avec icônes (aligné sur ce que stocke ai_picks.sport)
+// Liste des sports IA possibles avec icônes (alignée sur inferSportSlug() V3.5)
+// Slugs cohérents avec ce que stocke ai_picks.sport en BDD.
 const AI_SPORTS: Array<{ slug: string; icon: string; name: string }> = [
   { slug: "football", icon: "⚽", name: "Football" },
   { slug: "tennis", icon: "🎾", name: "Tennis" },
@@ -23,8 +42,20 @@ const AI_SPORTS: Array<{ slug: string; icon: string; name: string }> = [
   { slug: "hockey", icon: "🏒", name: "Hockey" },
   { slug: "baseball", icon: "⚾", name: "Baseball" },
   { slug: "football-americain", icon: "🏈", name: "Football US" },
-  { slug: "rugby", icon: "🏉", name: "Rugby" },
   { slug: "mma", icon: "🥊", name: "MMA" },
+  // V3.5 — nouveaux sports
+  { slug: "rugby", icon: "🏉", name: "Rugby" },
+  { slug: "handball", icon: "🤾", name: "Handball" },
+  { slug: "formula-1", icon: "🏎️", name: "Formule 1" },
+];
+
+
+// Filtres tier V3.5
+const AI_TIERS: Array<{ slug: string; icon: string; name: string }> = [
+  { slug: "lock", icon: "🔒", name: "Lock" },
+  { slug: "strong", icon: "💪", name: "Strong" },
+  { slug: "value", icon: "💎", name: "Value" },
+  { slug: "coup_de_coeur", icon: "❤️", name: "Coup de cœur" },
 ];
 
 
@@ -57,6 +88,8 @@ export default function HistoriqueClient({ locale }: Props) {
   const [dateTo, setDateTo] = useState("");
 
   const [sport, setSport] = useState("all");
+  // V3.5 : filtre tier
+  const [tier, setTier] = useState("all");
   // Module Buteurs supprime : on filtre toujours sur classic.
   const pickType = "classic";
 
@@ -64,7 +97,16 @@ export default function HistoriqueClient({ locale }: Props) {
     setOffset(0);
     fetchPicks(0, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, filterMode, selectedMonth, selectedYear, dateFrom, dateTo, sport]);
+  }, [
+    statusFilter,
+    filterMode,
+    selectedMonth,
+    selectedYear,
+    dateFrom,
+    dateTo,
+    sport,
+    tier,
+  ]);
 
   async function fetchPicks(fromOffset = 0, reset = false) {
     if (reset) setLoading(true);
@@ -77,11 +119,19 @@ export default function HistoriqueClient({ locale }: Props) {
 
     if (statusFilter !== "all") {
       params.set("status", statusFilter);
-    } else {
-      params.set("exclude_pending", "true");
     }
+    // ─────────────────────────────────────────────────────────────────
+    // V3.5 BUG FIX :
+    // Avant V3.5, quand statusFilter === "all", on envoyait
+    // `exclude_pending=true` qui cachait TOUS les picks pending.
+    // → Bug : les picks futurs (pending) n'apparaissaient JAMAIS dans
+    //   l'historique alors qu'ils sont visibles sur la page live.
+    // → Fix : on n'envoie plus exclude_pending. La page Historique
+    //   affiche maintenant TOUS les picks (résolus + pending).
+    // ─────────────────────────────────────────────────────────────────
 
     if (sport !== "all") params.set("sport", sport);
+    if (tier !== "all") params.set("tier", tier);
     params.set("type", pickType);
 
     if (filterMode === "month" && selectedMonth) {
@@ -115,6 +165,9 @@ export default function HistoriqueClient({ locale }: Props) {
     setOffset(newOffset);
     fetchPicks(newOffset, false);
   }
+
+  const selectClassName =
+    "max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs";
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-4">
@@ -154,7 +207,7 @@ export default function HistoriqueClient({ locale }: Props) {
                 setSelectedMonth("");
               }
             }}
-            className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            className={selectClassName}
           >
             <option value="all">{isMobile ? "Dates" : "Toutes les dates"}</option>
             <option value="custom">Dates personnalisées</option>
@@ -164,7 +217,7 @@ export default function HistoriqueClient({ locale }: Props) {
           <select
             value={sport}
             onChange={(e) => setSport(e.target.value)}
-            className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            className={selectClassName}
           >
             <option value="all">{isMobile ? "Sports" : "Tous les sports"}</option>
             {AI_SPORTS.map((s) => {
@@ -178,11 +231,25 @@ export default function HistoriqueClient({ locale }: Props) {
             })}
           </select>
 
+          {/* V3.5 : Filtre tier */}
+          <select
+            value={tier}
+            onChange={(e) => setTier(e.target.value)}
+            className={selectClassName}
+          >
+            <option value="all">{isMobile ? "Tier" : "Tous les tiers"}</option>
+            {AI_TIERS.map((t) => (
+              <option key={t.slug} value={t.slug}>
+                {t.icon} {t.name}
+              </option>
+            ))}
+          </select>
+
           {/* Filtre résultats */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="max-w-[110px] cursor-pointer truncate rounded-full border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold sm:max-w-none sm:px-4 sm:py-2 sm:text-xs"
+            className={selectClassName}
           >
             <option value="all">{isMobile ? "Résultats" : "Tous les résultats"}</option>
             <option value="awaiting">En attente</option>
@@ -230,10 +297,19 @@ export default function HistoriqueClient({ locale }: Props) {
           <p className="mt-2 text-sm text-neutral-600 font-semibold">
             Aucun résultat
           </p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Essayez de réduire vos filtres pour élargir la recherche
+          </p>
         </div>
       ) : (
         <>
-          <div className="mt-6 space-y-3">
+          {/* Compteur "X / Y picks" */}
+          <div className="mt-4 text-center text-xs text-neutral-500">
+            {picks.length} / {total}{" "}
+            {total > 1 ? "pronostics" : "pronostic"}
+          </div>
+
+          <div className="mt-3 space-y-3">
             {picks.map((aiPick) => (
               <AiPickCard
                 key={aiPick.id}

@@ -182,7 +182,11 @@ export default async function PronosIABilansPage({
       {/* TABS */}
       <div className="sticky top-0 z-20 border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-3xl px-4">
-          <nav className="flex gap-1" role="tablist" aria-label="Type de bilan">
+          <nav
+            className="flex justify-center gap-1"
+            role="tablist"
+            aria-label="Type de bilan"
+          >
             <TabLink
               href={`/${locale}/pronos-ia/bilans?tab=hebdo`}
               isActive={activeTab === "hebdo"}

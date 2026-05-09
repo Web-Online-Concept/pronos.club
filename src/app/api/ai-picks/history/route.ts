@@ -1,3 +1,18 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * /api/ai-picks/history
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Endpoint API qui alimente la page /pronos-ia/historique.
+ *
+ * V3.5 (09/05/2026) :
+ *   - Ajout `tier` dans le SELECT (pour affichage du badge dans la card)
+ *   - Ajout query param `tier` (lock | strong | value | coup_de_coeur)
+ *
+ * Path : src/app/api/ai-picks/history/route.ts
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
@@ -11,13 +26,16 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const sportSlug = searchParams.get("sport");
+  // V3.5 : filtre par tier
+  const tier = searchParams.get("tier");
 
   const isCountOnly = limit === 0;
 
   let query = supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, live_score_data, deleted_at",
+      // V3.5 : ajout de `tier` et `drop_window` dans le SELECT
+      "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, live_score_data, deleted_at, tier, drop_window",
       { count: "exact" }
     )
     .is("deleted_at", null)
@@ -44,6 +62,11 @@ export async function GET(request: Request) {
 
   if (sportSlug && sportSlug !== "all") {
     query = query.eq("sport", sportSlug);
+  }
+
+  // V3.5 : filtre tier
+  if (tier && tier !== "all") {
+    query = query.eq("tier", tier);
   }
 
   const { data, error, count } = await query;
