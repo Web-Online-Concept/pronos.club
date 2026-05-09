@@ -1,25 +1,23 @@
 /**
- * PRONOS.CLUB — Multi-sport fetcher V3.5
+ * PRONOS.CLUB — Multi-sport fetcher TS (v3)
  *
- * Pipeline V3.5 (09/05/2026) :
- *   - Foot enrichi : sidelined, recent matches stats, splits dom/ext, top scorers, xG si dispo
- *   - Tennis enrichi : past matches with odds, tournament record, career stats, finals/titles
- *     (filtré Masters 1000+ et Grand Chelem uniquement pour économiser le quota PRO 10k/mois)
- *   - 3 nouveaux sports : Rugby, Handball, F1
- *   - NBA : endpoint dédié v2.nba.api-sports.io (stats plus riches que v1.basketball)
- *   - Coupe du Monde 2026 (league=1 API-Football) prête à activer au 11 juin
- *   - Drop window : morning (kickoff < 20h Paris) / evening (kickoff >= 20h Paris)
+ * Adaptation production du script v7 validé en session.
+ * Fetch + enrichissement multi-sports (foot, tennis, basket, hockey, baseball, MMA, NFL).
  *
  * Sources :
  *   - the-odds-api  : cotes 4 books (PS3838/Pinnacle, Winamax, Betclic, Unibet)
- *   - api-sports.io : ALL-SPORTS PRO (foot, basket, NBA dédié, hockey, baseball, MMA, NFL,
- *                     rugby, handball, F1) — 7500 calls/jour PAR SPORT
- *   - Matchstat Pro : enrichissement tennis (10$/mois RapidAPI, 10k calls/mois)
+ *   - api-sports.io : enrichissement foot via api-football + 11 autres sports gratuits
+ *   - Matchstat Pro : enrichissement tennis (10$/mois RapidAPI)
+ *
+ * Stratégie :
+ *   - Cache leagues api-football (TTL 7 jours) → évite 1 call par run
+ *   - Tennis : 2 calls /fixtures/{date} au démarrage → tous les matchs récupérés
+ *   - Throttle adaptatif api-football basé sur les headers X-RateLimit-Remaining
  *
  * Performance :
  *   - ~160 matchs / jour
  *   - ~5-15 minutes selon throttling
- *   - Quota foot : pic projeté ~3000 calls/jour (40% du quota 7500)
+ *   - ~5000 calls api-football / jour (sur quota 7500)
  */
 
 import {
@@ -36,23 +34,10 @@ import type {
   SupportedSport,
   FootballTeamStats,
   FootballPrediction,
-  FootballSplitStats,
-  FootballRecentMatchStats,
-  FootballSidelinedItem,
-  FootballTopScorer,
   TeamStanding,
   TeamH2H,
   PitcherStats,
   MMAFighterRecord,
-  TennisPastMatchWithOdds,
-  TennisTournamentRecord,
-  TennisCareerStats,
-  TennisFinalsTitles,
-  RugbyTeamStats,
-  HandballTeamStats,
-  F1RaceData,
-  F1DriverStats,
-  DropWindow,
 } from "./tipster-types";
 
 // ============================================================================
@@ -71,10 +56,6 @@ const ALLOWED_GROUPS = [
   "Baseball",
   "American Football",
   "Mixed Martial Arts",
-  "Rugby Union",
-  "Rugby League",
-  "Handball",
-  "Motor Sports",
 ];
 
 const EXCLUDED_GROUPS = [
@@ -83,6 +64,8 @@ const EXCLUDED_GROUPS = [
   "Boxing",
   "Cricket",
   "Lacrosse",
+  "Rugby League",
+  "Rugby Union",
   "Golf",
   "Snooker",
 ];
@@ -103,27 +86,8 @@ const SLEEP_ODDS_API = 100;
 // Tennis : rankId Matchstat à inclure (Grand Slam + Masters 1000 + 500 + 250)
 const TENNIS_ALLOWED_RANK_IDS = [1, 2, 3, 4, 5, 6, 7];
 
-// Tennis V3.5 : enrichissements lourds (past-matches with odds, tournament-record,
-// career stats, finals/titles, h2h match stats) UNIQUEMENT sur tournois majeurs.
-// Filtre rankId : 1=Grand Slam, 2=Masters 1000/WTA 1000, 3=ATP/WTA 500
-const TENNIS_DEEP_ENRICHMENT_RANK_IDS = [1, 2, 3];
-
 // Tournament types api-football
 const TOURNAMENT_TYPES_LEAGUE = "League";
-
-// V3.5 : ID API-Football de la Coupe du Monde FIFA (active à partir du 11 juin 2026)
-const FIFA_WORLD_CUP_LEAGUE_ID = 1;
-
-// V3.5 : Drop window — filtre par heure de kickoff Paris
-const DROP_WINDOW_EVENING_THRESHOLD_HOUR = 20;
-
-// V3.5 : Cache top scorers par league (TTL 24h)
-const TOP_SCORERS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const topScorersCache = new Map<string, { data: FootballTopScorer[]; timestamp: number }>();
-
-// V3.5 : Cache recent match stats par fixture_id (TTL 48h)
-const RECENT_STATS_CACHE_TTL_MS = 48 * 60 * 60 * 1000;
-const recentStatsCache = new Map<string, { data: FootballRecentMatchStats; timestamp: number }>();
 
 // ============================================================================
 // HELPERS
@@ -147,7 +111,7 @@ const STOPWORDS = new Set([
   "fc", "cf", "sc", "ac", "sv", "sd", "cd", "rc", "sk", "fk", "club", "team", "cp",
 ]);
 
-/** Tokens significatifs (>=3 chars, hors stopwords) */
+/** Tokens significatifs (≥3 chars, hors stopwords) */
 const tokenize = (s: string): string[] => {
   return normalize(s)
     .split(" ")
@@ -155,22 +119,24 @@ const tokenize = (s: string): string[] => {
 };
 
 /**
- * Match deux noms d'equipe via :
- *   1. Egalite normalisee
+ * Match deux noms d'équipe via :
+ *   1. Égalité normalisée
  *   2. Alias bidirectionnels (TEAM_ALIASES)
  *   3. Containment direct
- *   4. Tokens significatifs en commun (>=4 chars)
- *   5. Overlap >= 50% des tokens
+ *   4. Tokens significatifs en commun (≥4 chars)
+ *   5. Overlap ≥ 50% des tokens
  */
 export const teamsMatch = (nameA: string, nameB: string): boolean => {
   const normA = normalize(nameA);
   const normB = normalize(nameB);
   if (normA === normB) return true;
 
+  // Alias bidirectionnels
   const aliasesA = TEAM_ALIASES[normA] ?? [];
   const aliasesB = TEAM_ALIASES[normB] ?? [];
   if (aliasesA.includes(normB) || aliasesB.includes(normA)) return true;
 
+  // Cross-alias (A et B partagent un alias commun)
   for (const a of aliasesA) {
     if (aliasesB.includes(a)) return true;
     if (normalize(a) === normB) return true;
@@ -180,8 +146,10 @@ export const teamsMatch = (nameA: string, nameB: string): boolean => {
     if (normalize(a) === normA) return true;
   }
 
+  // Containment
   if (normA.includes(normB) || normB.includes(normA)) return true;
 
+  // Tokens
   const tokensA = tokenize(nameA);
   const tokensB = tokenize(nameB);
   if (tokensA.length === 0 || tokensB.length === 0) return false;
@@ -218,31 +186,6 @@ const formatTimeParis = (isoDate: string): string => {
     .replace(",", "");
 };
 
-/**
- * V3.5 : retourne l'heure (0-23) Paris du match.
- * Utilisé pour le filtre drop_window (matin < 20h, soir >= 20h).
- */
-const getHourParis = (isoDate: string): number => {
-  const d = new Date(isoDate);
-  const hourStr = d.toLocaleString("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    hour12: false,
-  });
-  return parseInt(hourStr.split(":")[0] ?? "0", 10);
-};
-
-/**
- * V3.5 : retourne true si le match correspond au drop window demandé.
- * - morning : kickoff < 20h Paris
- * - evening : kickoff >= 20h Paris
- */
-const matchesDropWindow = (isoDate: string, dropWindow: DropWindow): boolean => {
-  const hour = getHourParis(isoDate);
-  if (dropWindow === "morning") return hour < DROP_WINDOW_EVENING_THRESHOLD_HOUR;
-  return hour >= DROP_WINDOW_EVENING_THRESHOLD_HOUR;
-};
-
 const detectSportFromGroup = (group: string): SupportedSport => {
   const map: Record<string, SupportedSport> = {
     Soccer: "football",
@@ -252,30 +195,12 @@ const detectSportFromGroup = (group: string): SupportedSport => {
     Baseball: "baseball",
     "American Football": "american_football",
     "Mixed Martial Arts": "mma",
-    "Rugby Union": "rugby",
-    "Rugby League": "rugby",
-    Handball: "handball",
-    "Motor Sports": "formula_1",
   };
   return (map[group] ?? "football") as SupportedSport;
 };
 
-/**
- * V3.5 : détecte si une league basket est NBA (pour router vers v2.nba.api-sports.io).
- * Heuristique sur le titre OddsAPI ou le nom de la league.
- */
-const isNBALeague = (leagueTitle: string): boolean => {
-  const norm = normalize(leagueTitle);
-  return (
-    norm.includes("nba") &&
-    !norm.includes("wnba") &&
-    !norm.includes("g league") &&
-    !norm.includes("euroleague")
-  );
-};
-
 // ============================================================================
-// API-FOOTBALL : ETAT GLOBAL DU RATE LIMIT
+// API-FOOTBALL : ÉTAT GLOBAL DU RATE LIMIT
 // ============================================================================
 
 type ApiFootballState = {
@@ -297,7 +222,7 @@ class ApiFootballRateLimitTracker {
   async throttleIfNeeded(): Promise<void> {
     if (this.state.remainingMinute === null) return;
     if (this.state.remainingMinute < 5) {
-      await sleep(60_000);
+      await sleep(60_000); // attente full reset
       this.state.remainingMinute = null;
     } else if (this.state.remainingMinute < 15) {
       await sleep(3_000);
@@ -386,12 +311,6 @@ const fetchJsonAF = async <T = unknown>(
   throw new Error("fetchJsonAF exhausted retries");
 };
 
-// Timeout wrapper pour les calls API secondaires
-const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
-  return Promise.race([promise, timeout]);
-};
-
 // ============================================================================
 // FOOTBALL — LIGUES
 // ============================================================================
@@ -446,25 +365,6 @@ class FootballLeagueResolver {
     const cached = this.resolutionCache.get(ligueOddsApi);
     if (cached !== undefined) return cached;
 
-    // V3.5 : détection explicite Coupe du Monde FIFA
-    const norm = normalize(ligueOddsApi);
-    if (
-      norm.includes("fifa world cup") ||
-      norm.includes("coupe du monde") ||
-      norm.includes("world cup 2026")
-    ) {
-      const wc = this.allLeagues.find((l) => l.id === FIFA_WORLD_CUP_LEAGUE_ID);
-      if (wc && wc.season !== null) {
-        const result: ResolvedLeague = {
-          leagueId: wc.id,
-          season: wc.season,
-          name: wc.name,
-        };
-        this.resolutionCache.set(ligueOddsApi, result);
-        return result;
-      }
-    }
-
     const mapping: LeagueMapping | undefined = LEAGUE_RESOLUTION[ligueOddsApi];
     let result: ResolvedLeague | null = null;
 
@@ -502,9 +402,9 @@ class FootballLeagueResolver {
     }
 
     if (!result) {
-      const normSearch = normalize(ligueOddsApi);
+      const norm = normalize(ligueOddsApi);
       const m = this.allLeagues.find(
-        (l) => l.type === TOURNAMENT_TYPES_LEAGUE && normalize(l.name) === normSearch
+        (l) => l.type === TOURNAMENT_TYPES_LEAGUE && normalize(l.name) === norm
       );
       if (m && m.season !== null) {
         result = { leagueId: m.id, season: m.season, name: m.name };
@@ -645,7 +545,7 @@ const fetchOddsForSport = async (
 };
 
 // ============================================================================
-// FOOTBALL — ENRICHISSEMENT (V3 existant maintenu)
+// FOOTBALL — ENRICHISSEMENT
 // ============================================================================
 
 type ApiFootballFixtureInfo = {
@@ -788,35 +688,39 @@ const fetchFootballInjuries = async (
   }
 };
 
-// ── Stats équipe football (V3 maintenu, V3.5 enrichi avec splits) ─────────────
+
+
+// ── Timeout wrapper pour les calls API secondaires ────────────────────────────
+// Les nouvelles stats (standings, pitchers, etc.) sont optionnelles.
+// Si l'API met plus de 5s → fallback, on continue sans bloquer le pipeline.
+const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
+  return Promise.race([promise, timeout]);
+};
+
+// ── Stats équipe football ─────────────────────────────────────────────────────
 
 const fetchFootballTeamStats = async (
   teamId: number,
   leagueId: number,
   season: number,
   tracker: ApiFootballRateLimitTracker
-): Promise<{ stats: FootballTeamStats; splitHome: FootballSplitStats; splitAway: FootballSplitStats }> => {
+): Promise<FootballTeamStats> => {
   type TeamStatsResponse = {
     response?: {
       form?: string;
       fixtures?: {
-        played?: { home?: number; away?: number; total?: number };
-        wins?: { home?: number; away?: number; total?: number };
-        draws?: { home?: number; away?: number; total?: number };
-        loses?: { home?: number; away?: number; total?: number };
+        played?: { total?: number };
+        wins?: { total?: number };
+        draws?: { total?: number };
+        loses?: { total?: number };
       };
       goals?: {
-        for?: {
-          average?: { home?: string; away?: string; total?: string };
-          total?: { home?: number; away?: number; total?: number };
-        };
-        against?: {
-          average?: { home?: string; away?: string; total?: string };
-          total?: { home?: number; away?: number; total?: number };
-        };
+        for?: { average?: { total?: string }; total?: { total?: number } };
+        against?: { average?: { total?: string }; total?: { total?: number } };
       };
-      clean_sheet?: { home?: number; away?: number; total?: number };
-      failed_to_score?: { home?: number; away?: number; total?: number };
+      clean_sheet?: { total?: number };
+      failed_to_score?: { total?: number };
       biggest?: { streak?: { wins?: number; draws?: number; loses?: number } };
     };
   };
@@ -826,15 +730,20 @@ const fetchFootballTeamStats = async (
       tracker
     );
     const r = data.response;
-    if (!r) return { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() };
+    if (!r) return emptyFootballTeamStats();
 
     const played = r.fixtures?.played?.total ?? 0;
     const wins   = r.fixtures?.wins?.total   ?? 0;
     const draws  = r.fixtures?.draws?.total  ?? 0;
+    const loses  = r.fixtures?.loses?.total  ?? 0;
 
+    // Calcul BTTS% et Over2.5% depuis le formulaire
+    // (API-Football ne retourne pas ces % directement, on les calcule depuis la forme)
+    // Approximation : on utilise les buts pour/contre pour estimer
     const avgFor     = parseFloat(r.goals?.for?.average?.total     ?? "0") || 0;
     const avgAgainst = parseFloat(r.goals?.against?.average?.total ?? "0") || 0;
 
+    // Série en cours depuis le champ form (ex: "WWWDL")
     let serie: string | null = null;
     if (r.form && r.form.length > 0) {
       const form = r.form;
@@ -848,17 +757,20 @@ const fetchFootballTeamStats = async (
       serie = count >= 2 ? `${count} ${label}s consécutif${count > 1 ? "s" : ""}` : null;
     }
 
+    // Estimation BTTS% : si avg_for > 0.8 et avg_against > 0.8 → ~55-65%
+    // Approximation simple car API ne donne pas le chiffre exact
     const btts_pct = avgFor > 0 && avgAgainst > 0
       ? Math.min(95, Math.round((avgFor * avgAgainst / (avgFor + avgAgainst)) * 100))
       : null;
 
+    // Estimation Over2.5% depuis avg de buts total
     const avgTotal = avgFor + avgAgainst;
     const over_25_pct = avgTotal > 0
       ? Math.min(95, Math.round(Math.max(0, (avgTotal - 2.5) / avgTotal * 100 + 30)))
       : null;
 
-    const stats: FootballTeamStats = {
-      classement_position: null,
+    return {
+      classement_position: null, // récupéré séparément si besoin
       classement_points: played > 0 ? wins * 3 + draws : null,
       buts_marques_par_match: avgFor > 0 ? avgFor.toFixed(2) : null,
       buts_encaisses_par_match: avgAgainst > 0 ? avgAgainst.toFixed(2) : null,
@@ -869,33 +781,8 @@ const fetchFootballTeamStats = async (
       serie_en_cours: serie,
       matchs_joues: played > 0 ? played : null,
     };
-
-    // V3.5 NOUVEAU : extraction splits dom/ext
-    const splitHome: FootballSplitStats = {
-      matchs_joues: r.fixtures?.played?.home ?? null,
-      victoires: r.fixtures?.wins?.home ?? null,
-      nuls: r.fixtures?.draws?.home ?? null,
-      defaites: r.fixtures?.loses?.home ?? null,
-      buts_marques: r.goals?.for?.total?.home ?? null,
-      buts_encaisses: r.goals?.against?.total?.home ?? null,
-      buts_marques_avg: r.goals?.for?.average?.home ?? null,
-      buts_encaisses_avg: r.goals?.against?.average?.home ?? null,
-    };
-
-    const splitAway: FootballSplitStats = {
-      matchs_joues: r.fixtures?.played?.away ?? null,
-      victoires: r.fixtures?.wins?.away ?? null,
-      nuls: r.fixtures?.draws?.away ?? null,
-      defaites: r.fixtures?.loses?.away ?? null,
-      buts_marques: r.goals?.for?.total?.away ?? null,
-      buts_encaisses: r.goals?.against?.total?.away ?? null,
-      buts_marques_avg: r.goals?.for?.average?.away ?? null,
-      buts_encaisses_avg: r.goals?.against?.average?.away ?? null,
-    };
-
-    return { stats, splitHome, splitAway };
   } catch {
-    return { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() };
+    return emptyFootballTeamStats();
   }
 };
 
@@ -910,17 +797,6 @@ const emptyFootballTeamStats = (): FootballTeamStats => ({
   over_25_pct: null,
   serie_en_cours: null,
   matchs_joues: null,
-});
-
-const emptySplitStats = (): FootballSplitStats => ({
-  matchs_joues: null,
-  victoires: null,
-  nuls: null,
-  defaites: null,
-  buts_marques: null,
-  buts_encaisses: null,
-  buts_marques_avg: null,
-  buts_encaisses_avg: null,
 });
 
 const fetchFootballPredictions = async (
@@ -956,234 +832,6 @@ const fetchFootballPredictions = async (
     return null;
   }
 };
-
-// ============================================================================
-// V3.5 — FOOTBALL ENRICHISSEMENTS NOUVEAUX
-// ============================================================================
-
-/**
- * V3.5 : Récupère la liste des absents/suspendus (sidelined complet).
- * Surclasse fetchFootballInjuries car inclut suspensions cartons + indisponibilités diverses.
- */
-const fetchFootballSidelined = async (
-  teamId: number,
-  tracker: ApiFootballRateLimitTracker
-): Promise<FootballSidelinedItem[] | null> => {
-  type SidelinedResponse = {
-    response?: Array<{
-      player?: { name?: string | null };
-      type?: string | null;
-      start?: string | null;
-      end?: string | null;
-    }>;
-  };
-  try {
-    const data = await fetchJsonAF<SidelinedResponse>(
-      `https://v3.football.api-sports.io/sidelined?team=${teamId}`,
-      tracker
-    );
-    const items: FootballSidelinedItem[] = (data.response ?? [])
-      .filter((s) => s.player?.name)
-      .slice(0, 10)
-      .map((s) => ({
-        player_name: s.player?.name ?? "?",
-        type: s.type ?? null,
-        start_date: s.start ?? null,
-        end_date: s.end ?? null,
-      }));
-    return items.length > 0 ? items : [];
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : Récupère les stats détaillées d'un match (possession, tirs, corners, xG).
- * Avec cache 48h sur fixture_id pour mutualiser entre matchs de la même équipe.
- */
-const fetchFootballFixtureStats = async (
-  fixtureId: number,
-  teamId: number,
-  tracker: ApiFootballRateLimitTracker
-): Promise<FootballRecentMatchStats | null> => {
-  const cacheKey = `${fixtureId}-${teamId}`;
-  const cached = recentStatsCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < RECENT_STATS_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  type FixtureStatsResponse = {
-    response?: Array<{
-      team?: { id?: number };
-      statistics?: Array<{
-        type?: string;
-        value?: number | string | null;
-      }>;
-    }>;
-  };
-
-  type FixtureInfoResponse = {
-    response?: Array<{
-      fixture?: { id?: number; date?: string };
-      teams?: {
-        home?: { id?: number; name?: string };
-        away?: { id?: number; name?: string };
-      };
-      goals?: { home?: number | null; away?: number | null };
-    }>;
-  };
-
-  try {
-    const [statsData, infoData] = await Promise.all([
-      fetchJsonAF<FixtureStatsResponse>(
-        `https://v3.football.api-sports.io/fixtures/statistics?fixture=${fixtureId}`,
-        tracker
-      ),
-      fetchJsonAF<FixtureInfoResponse>(
-        `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`,
-        tracker
-      ),
-    ]);
-
-    const teamStats = (statsData.response ?? []).find((s) => s.team?.id === teamId);
-    if (!teamStats) return null;
-
-    const stat = (key: string): number | null => {
-      const item = (teamStats.statistics ?? []).find((s) => s.type === key);
-      if (!item || item.value == null) return null;
-      const v = typeof item.value === "string" ? parseFloat(item.value.replace("%", "")) : item.value;
-      return isNaN(v) ? null : v;
-    };
-
-    const fixtureInfo = infoData.response?.[0];
-    const isHome = fixtureInfo?.teams?.home?.id === teamId;
-    const myGoals = isHome ? fixtureInfo?.goals?.home : fixtureInfo?.goals?.away;
-    const oppGoals = isHome ? fixtureInfo?.goals?.away : fixtureInfo?.goals?.home;
-    const adversaire = isHome
-      ? fixtureInfo?.teams?.away?.name ?? "?"
-      : fixtureInfo?.teams?.home?.name ?? "?";
-
-    const resultat: "V" | "N" | "D" | null =
-      myGoals == null || oppGoals == null
-        ? null
-        : myGoals > oppGoals
-          ? "V"
-          : myGoals < oppGoals
-            ? "D"
-            : "N";
-
-    const score = myGoals != null && oppGoals != null ? `${myGoals}-${oppGoals}` : null;
-
-    const result: FootballRecentMatchStats = {
-      fixture_id: fixtureId,
-      date: fixtureInfo?.fixture?.date ?? "?",
-      adversaire,
-      resultat,
-      score,
-      possession: stat("Ball Possession"),
-      tirs_total: stat("Total Shots"),
-      tirs_cadres: stat("Shots on Goal"),
-      big_chances: stat("Big Chances"),
-      corners: stat("Corner Kicks"),
-      cartons_jaunes: stat("Yellow Cards"),
-      cartons_rouges: stat("Red Cards"),
-      xg: stat("expected_goals") ?? stat("xG"),
-      xga: null,
-    };
-
-    recentStatsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : Récupère les stats des 5 derniers matchs d'une équipe.
- * Pour chaque match, fetch les stats détaillées (possession, tirs, xG si dispo).
- */
-const fetchFootballRecentMatchesStats = async (
-  teamId: number,
-  leagueId: number,
-  season: number,
-  tracker: ApiFootballRateLimitTracker
-): Promise<FootballRecentMatchStats[] | null> => {
-  type FixturesResponse = {
-    response?: Array<{
-      fixture?: { id?: number };
-    }>;
-  };
-  try {
-    const data = await fetchJsonAF<FixturesResponse>(
-      `https://v3.football.api-sports.io/fixtures?team=${teamId}&league=${leagueId}&season=${season}&last=5`,
-      tracker
-    );
-    const fixtureIds = (data.response ?? [])
-      .map((f) => f.fixture?.id)
-      .filter((id): id is number => typeof id === "number");
-
-    if (fixtureIds.length === 0) return [];
-
-    const stats = await Promise.all(
-      fixtureIds.map((fid) =>
-        withTimeout(fetchFootballFixtureStats(fid, teamId, tracker), 5000, null)
-      )
-    );
-
-    return stats.filter((s): s is FootballRecentMatchStats => s !== null);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : Récupère les top scorers d'une league (cache 24h).
- */
-const fetchFootballTopScorers = async (
-  leagueId: number,
-  season: number,
-  tracker: ApiFootballRateLimitTracker
-): Promise<FootballTopScorer[] | null> => {
-  const cacheKey = `${leagueId}-${season}`;
-  const cached = topScorersCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < TOP_SCORERS_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  type TopScorersResponse = {
-    response?: Array<{
-      player?: { name?: string };
-      statistics?: Array<{
-        team?: { name?: string };
-        games?: { appearences?: number };
-        goals?: { total?: number };
-      }>;
-    }>;
-  };
-  try {
-    const data = await fetchJsonAF<TopScorersResponse>(
-      `https://v3.football.api-sports.io/players/topscorers?league=${leagueId}&season=${season}`,
-      tracker
-    );
-    const scorers: FootballTopScorer[] = (data.response ?? [])
-      .slice(0, 10)
-      .map((s) => ({
-        player_name: s.player?.name ?? "?",
-        team_name: s.statistics?.[0]?.team?.name ?? "?",
-        buts_saison: s.statistics?.[0]?.goals?.total ?? 0,
-        apparitions: s.statistics?.[0]?.games?.appearences ?? 0,
-      }));
-
-    topScorersCache.set(cacheKey, { data: scorers, timestamp: Date.now() });
-    return scorers;
-  } catch {
-    return null;
-  }
-};
-
-// ============================================================================
-// FOOTBALL — ENRICHFOOTBALL (V3.5 enrichi)
-// ============================================================================
 
 const enrichFootball = async (
   match: RawFixture,
@@ -1228,37 +876,20 @@ const enrichFootball = async (
     };
   }
 
-  // Groupe 1 : forme + H2H + stats équipe (avec splits dom/ext)
-  const [hf, af, h, hStatsBundle, aStatsBundle] = await Promise.all([
+  // Groupe 1 : 5 calls parallèles (forme + H2H + stats équipe)
+  const [hf, af, h, hStats, aStats] = await Promise.all([
     fetchFootballTeamForm(fi.home_id, leagueId, season, tracker),
     fetchFootballTeamForm(fi.away_id, leagueId, season, tracker),
     fetchFootballH2H(fi.home_id, fi.away_id, tracker),
-    withTimeout(
-      fetchFootballTeamStats(fi.home_id, leagueId, season, tracker),
-      5000,
-      { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() }
-    ),
-    withTimeout(
-      fetchFootballTeamStats(fi.away_id, leagueId, season, tracker),
-      5000,
-      { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() }
-    ),
+    withTimeout(fetchFootballTeamStats(fi.home_id, leagueId, season, tracker), 5000, emptyFootballTeamStats()),
+    withTimeout(fetchFootballTeamStats(fi.away_id, leagueId, season, tracker), 5000, emptyFootballTeamStats()),
   ]);
 
-  // Groupe 2 : blessures + prédictions + sidelined V3.5
-  const [hi, ai, pred, hSidelined, aSidelined] = await Promise.all([
+  // Groupe 2 : blessures + prédictions
+  const [hi, ai, pred] = await Promise.all([
     fetchFootballInjuries(fi.home_id, leagueId, season, tracker),
     fetchFootballInjuries(fi.away_id, leagueId, season, tracker),
     withTimeout(fetchFootballPredictions(fi.fixture_id, tracker), 5000, null),
-    withTimeout(fetchFootballSidelined(fi.home_id, tracker), 5000, null),
-    withTimeout(fetchFootballSidelined(fi.away_id, tracker), 5000, null),
-  ]);
-
-  // Groupe 3 : stats récentes 5 derniers matchs + top scorers V3.5
-  const [hRecent, aRecent, topScorers] = await Promise.all([
-    withTimeout(fetchFootballRecentMatchesStats(fi.home_id, leagueId, season, tracker), 10000, null),
-    withTimeout(fetchFootballRecentMatchesStats(fi.away_id, leagueId, season, tracker), 10000, null),
-    withTimeout(fetchFootballTopScorers(leagueId, season, tracker), 5000, null),
   ]);
 
   return {
@@ -1274,34 +905,20 @@ const enrichFootball = async (
       [match.away_team]: ai ?? ["donnée non disponible"],
     },
     stats_equipe: {
-      home: hStatsBundle.stats,
-      away: aStatsBundle.stats,
+      home: hStats,
+      away: aStats,
     },
     predictions_api: pred,
-    // V3.5 NOUVEAUX champs
-    splits_dom_ext: {
-      home_team_at_home: hStatsBundle.splitHome,
-      away_team_at_away: aStatsBundle.splitAway,
-    },
-    recent_matches_stats: {
-      home: hRecent ?? [],
-      away: aRecent ?? [],
-    },
-    sidelined: {
-      home: hSidelined ?? [],
-      away: aSidelined ?? [],
-    },
-    top_scorers_league: topScorers,
   };
 };
 
 // ============================================================================
-// BASKETBALL — ENRICHISSEMENT (V3.5 : routing NBA vers v2.nba dédié)
+// AUTRES SPORTS — ENRICHISSEMENT (basket, hockey, baseball, MMA)
 // ============================================================================
 
 type ApiSportsGenericGame = {
   id: number;
-  date?: string;
+  date?: string; // ISO 8601 — heure réelle du match (vs commence_time OddsAPI = heure de publication)
   teams: { home: { id: number; name: string }; away: { id: number; name: string } };
   league?: { id: number; season: number };
   scores?: {
@@ -1310,7 +927,8 @@ type ApiSportsGenericGame = {
   };
 };
 
-// ── Standings et H2H basket/hockey (existant maintenu) ─────────────────────────
+
+// ── Standings et H2H basket/hockey ────────────────────────────────────────────
 
 const fetchApiSportsStanding = async (
   apiBase: string,
@@ -1402,6 +1020,7 @@ const fetchApiSportsH2H = async (
       const gHomeName = g.teams?.home?.name ?? "?";
       const gAwayName = g.teams?.away?.name ?? "?";
 
+      // Extraire les scores (format variable selon sport)
       const rawHome = g.scores?.home;
       const rawAway = g.scores?.away;
       const sHome = typeof rawHome === "object" && rawHome !== null
@@ -1430,21 +1049,11 @@ const fetchApiSportsH2H = async (
   }
 };
 
-/**
- * V3.5 : enrichissement basket avec routing intelligent NBA vs autres leagues.
- * - NBA → endpoint dédié v2.nba.api-sports.io (stats plus riches)
- * - Autres (Euroleague, ACB, ProA, etc.) → v1.basketball.api-sports.io
- */
 const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => {
-  const useNBAEndpoint = isNBALeague(match.ligue);
-  const apiBase = useNBAEndpoint
-    ? "https://v2.nba.api-sports.io"
-    : "https://v1.basketball.api-sports.io";
-
   type GamesResponse = { response?: ApiSportsGenericGame[] };
   try {
     const data = await fetchJson<GamesResponse>(
-      `${apiBase}/games?date=${match.commence_time_iso.split("T")[0]}`,
+      `https://v1.basketball.api-sports.io/games?date=${match.commence_time_iso.split("T")[0]}`,
       { "x-apisports-key": API_FOOTBALL_KEY }
     );
     const game = (data.response ?? []).find(
@@ -1464,7 +1073,7 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
     const computeForm = async (teamId: number): Promise<string | null> => {
       try {
         const fd = await fetchJson<GamesResponse>(
-          `${apiBase}/games?team=${teamId}&league=${game.league!.id}&season=${game.league!.season}&last=5`,
+          `https://v1.basketball.api-sports.io/games?team=${teamId}&league=${game.league!.id}&season=${game.league!.season}&last=5`,
           { "x-apisports-key": API_FOOTBALL_KEY }
         );
         return (fd.response ?? [])
@@ -1495,10 +1104,11 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + H2H en parallèle
     const [hStanding, aStanding, h2hData] = await Promise.all([
-      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsH2H(apiBase, game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
+      withTimeout(fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsStanding("https://v1.basketball.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsH2H("https://v1.basketball.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
     ]);
 
     const realCommenceTimeBk = game.date ?? match.commence_time_iso;
@@ -1512,9 +1122,7 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
       },
       h2h_5_derniers: h2hData?.resume ?? "donnée non disponible",
       h2h_reel: h2hData,
-      blessures: useNBAEndpoint
-        ? "donnée non disponible (api-nba ne couvre pas les blessures détaillées)"
-        : "donnée non disponible (api-basketball ne couvre pas les blessures)",
+      blessures: "donnée non disponible (api-basketball ne couvre pas les blessures)",
       classement: {
         home: hStanding,
         away: aStanding,
@@ -1585,6 +1193,7 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + H2H en parallèle
     const [hStanding, aStanding, h2hData] = await Promise.all([
       withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
       withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
@@ -1615,7 +1224,8 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
   }
 };
 
-// ── Stats baseball : standings + lanceurs partants (existant maintenu) ─────────
+
+// ── Stats baseball : standings + lanceurs partants ─────────────────────────────
 
 const fetchBaseballStanding = async (
   leagueId: number,
@@ -1627,7 +1237,7 @@ const fetchBaseballStanding = async (
     team?: { id?: number };
     won?: number;
     lost?: number;
-    pct?: string;
+    pct?: string; // ex: ".571"
     runs?: { for?: number; against?: number; diff?: number };
   };
   type StandingResponse = { response?: StandingEntry[][] };
@@ -1644,6 +1254,7 @@ const fetchBaseballStanding = async (
     const lost = entry.lost ?? 0;
     const played = won + lost;
     const win_pct = played > 0 ? Math.round((won / played) * 100) : null;
+    // Runs par match
     const runsFor = entry.runs?.for;
     const marques_par_match = runsFor && played > 0 ? Math.round((runsFor / played) * 100) / 100 : null;
     const runsAgainst = entry.runs?.against;
@@ -1662,6 +1273,11 @@ const fetchBaseballStanding = async (
   }
 };
 
+/**
+ * Récupère les stats du lanceur partant prévu.
+ * En MLB, le lanceur partant est connu ~1 jour avant le match.
+ * Source : /players/statistics filtrés par position P (pitcher).
+ */
 const fetchBaseballPitcherStats = async (
   teamId: number,
   leagueId: number,
@@ -1687,6 +1303,7 @@ const fetchBaseballPitcherStats = async (
     );
     const players = data.response ?? [];
 
+    // Filtrer les lanceurs (qui ont fait au moins 1 départ)
     const pitchers = players.filter((p) => {
       const s = p.statistics?.[0];
       return s && (s.games?.start ?? 0) > 0 && s.earned_run_average !== undefined;
@@ -1694,6 +1311,7 @@ const fetchBaseballPitcherStats = async (
 
     if (pitchers.length === 0) return null;
 
+    // Prendre le lanceur avec le plus de départs (probable starter)
     pitchers.sort((a, b) => {
       const sa = a.statistics?.[0]?.games?.start ?? 0;
       const sb = b.statistics?.[0]?.games?.start ?? 0;
@@ -1773,6 +1391,7 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       computeForm(game.teams.away.id),
     ]);
 
+    // Standings + pitchers en parallèle
     const [hStanding, aStanding, hPitcher, aPitcher] = await Promise.all([
       withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
       withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
@@ -1780,6 +1399,8 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
       withTimeout(fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season), 5000, null),
     ]);
 
+    // Utilise game.date (api-sports.io) si disponible — plus fiable que
+    // commence_time OddsAPI qui représente l'heure de publication des cotes
     const realCommenceTime = game.date ?? match.commence_time_iso;
 
     return {
@@ -1811,7 +1432,8 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
   }
 };
 
-// ── Stats MMA : record et méthodes de victoire (existant maintenu) ─────────────
+
+// ── Stats MMA : record et méthodes de victoire ─────────────────────────────────
 
 const fetchMMAFighterRecord = async (
   fighterId: number
@@ -1957,6 +1579,7 @@ const enrichMMA = async (match: RawFixture): Promise<EnrichedFixture> => {
 };
 
 const enrichAmericanFootball = (match: RawFixture): EnrichedFixture => {
+  // Pas de saison régulière en mai 2026 (saison NFL = sept-fév)
   return {
     ...match,
     forme_5_derniers: "donnée non disponible (NFL hors saison régulière)",
@@ -1966,7 +1589,7 @@ const enrichAmericanFootball = (match: RawFixture): EnrichedFixture => {
 };
 
 // ============================================================================
-// TENNIS — ENRICHISSEMENT VIA MATCHSTAT PRO RAPIDAPI (V3.5 enrichi)
+// TENNIS — ENRICHISSEMENT VIA MATCHSTAT PRO RAPIDAPI
 // ============================================================================
 
 const MATCHSTAT_HOST = "tennis-api-atp-wta-itf.p.rapidapi.com";
@@ -1977,11 +1600,9 @@ const MATCHSTAT_HEADERS = {
 };
 
 type MatchstatFixture = {
-  id?: number;
   player1?: { id: number; name: string };
   player2?: { id: number; name: string };
   tournament?: {
-    id?: number;
     rankId?: number;
     rank?: { id?: number; name?: string };
     court?: { name?: string };
@@ -2004,6 +1625,7 @@ class TennisFixturesIndex {
       try {
         const url = `${MATCHSTAT_BASE}/tennis/v2/${tour}/fixtures/${date}?include=round,tournament.court,tournament.rank,h2h&filter=PlayerGroup:singles&pageSize=200`;
         const data = await fetchJson<unknown>(url, MATCHSTAT_HEADERS);
+        // Format peut être array direct OU { data: [] }
         if (Array.isArray(data)) return data as MatchstatFixture[];
         const obj = data as { data?: MatchstatFixture[] };
         return obj.data ?? [];
@@ -2028,7 +1650,6 @@ class TennisFixturesIndex {
         rankName: string | null;
         courtName: string | null;
         roundName: string | null;
-        tournamentId: number | null;
         h2hPrecomputed: { player1AllWins?: number; player2AllWins?: number } | null;
       }
     | null {
@@ -2052,7 +1673,6 @@ class TennisFixturesIndex {
           rankName: found.tournament?.rank?.name ?? null,
           courtName: found.tournament?.court?.name ?? null,
           roundName: found.round?.name ?? null,
-          tournamentId: found.tournament?.id ?? null,
           h2hPrecomputed: found.h2h ?? null,
         };
       }
@@ -2064,7 +1684,7 @@ class TennisFixturesIndex {
 type MatchstatPlayerProfile = {
   currentRank?: number | null;
   points?: number | null;
-  ch?: number | null;
+  ch?: number | null; // career high
   form?: string[] | null;
 };
 
@@ -2181,210 +1801,6 @@ const fetchTennisH2HMatches = async (
   }
 };
 
-// ============================================================================
-// TENNIS V3.5 — NOUVEAUX ENDPOINTS (filtrés Masters 1000+ et Grand Chelem)
-// ============================================================================
-
-/**
- * V3.5 : past matches d'un joueur avec cotes historiques pré-match.
- * Endpoint : /player/past-matches/{id}
- *
- * Permet à l'IA de raisonner sur les patterns favori/outsider :
- * "Sinner gagne 73% en favori sous 1.50, mais 48% au-dessus de 1.80"
- */
-const fetchTennisPastMatchesWithOdds = async (
-  tour: "atp" | "wta",
-  playerId: number
-): Promise<TennisPastMatchWithOdds[] | null> => {
-  type PastMatchesResponse = {
-    data?: Array<{
-      date?: string;
-      tournament?: { name?: string; court?: { name?: string } };
-      opponent?: { name?: string };
-      result?: string;
-      score?: string;
-      odd1?: number | string | null;
-      odd2?: number | string | null;
-    }>;
-  };
-  try {
-    const d = await fetchJson<PastMatchesResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/past-matches/${playerId}?include=tournament,opponent&pageSize=20`,
-      MATCHSTAT_HEADERS
-    );
-    return (d?.data ?? []).slice(0, 20).map((m) => ({
-      date: m.date ?? "?",
-      tournament: m.tournament?.name ?? "?",
-      surface: m.tournament?.court?.name ?? null,
-      opponent: m.opponent?.name ?? "?",
-      result: m.result === "W" || m.result === "L" ? m.result : null,
-      score: m.score ?? null,
-      odd_player: typeof m.odd1 === "number"
-        ? m.odd1
-        : typeof m.odd1 === "string" ? parseFloat(m.odd1) || null : null,
-      odd_opponent: typeof m.odd2 === "number"
-        ? m.odd2
-        : typeof m.odd2 === "string" ? parseFloat(m.odd2) || null : null,
-    }));
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : record du joueur sur ce tournoi spécifique.
- * Endpoint : /player/tournament-record/{playerId}/{tournamentId}
- */
-const fetchTennisTournamentRecord = async (
-  tour: "atp" | "wta",
-  playerId: number,
-  tournamentId: number
-): Promise<TennisTournamentRecord | null> => {
-  type TournamentRecordResponse = {
-    data?: {
-      tournament?: { name?: string };
-      totalWins?: number;
-      totalLosses?: number;
-      bestRound?: string;
-      lastYear?: number;
-      yearly?: Array<{
-        year: number;
-        wins: number;
-        losses: number;
-        round?: string;
-      }>;
-    };
-  };
-  try {
-    const d = await fetchJson<TournamentRecordResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/tournament-record/${playerId}/${tournamentId}`,
-      MATCHSTAT_HEADERS
-    );
-    if (!d?.data) return null;
-    return {
-      tournament_name: d.data.tournament?.name ?? "?",
-      total_wins: d.data.totalWins ?? 0,
-      total_losses: d.data.totalLosses ?? 0,
-      best_round_reached: d.data.bestRound ?? null,
-      last_year_played: d.data.lastYear ?? null,
-      yearly_breakdown: (d.data.yearly ?? []).slice(0, 5).map((y) => ({
-        year: y.year,
-        wins: y.wins,
-        losses: y.losses,
-        round: y.round ?? null,
-      })),
-    };
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : stats serve/return de carrière du joueur.
- * Endpoint : /player/match-stats/{id}
- */
-const fetchTennisCareerStats = async (
-  tour: "atp" | "wta",
-  playerId: number
-): Promise<TennisCareerStats | null> => {
-  type CareerStatsResponse = {
-    data?: {
-      acesGm?: number;
-      doubleFaultsGm?: number;
-      firstServePercentage?: number;
-      winningOnFirstServePercentage?: number;
-      winningOnSecondServePercentage?: number;
-      breakpointsSavedPercentage?: number;
-      breakpointsConvertedPercentage?: number;
-    };
-  };
-  try {
-    const d = await fetchJson<CareerStatsResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/match-stats/${playerId}`,
-      MATCHSTAT_HEADERS
-    );
-    if (!d?.data) return null;
-    return {
-      aces_per_match: d.data.acesGm ?? null,
-      double_faults_per_match: d.data.doubleFaultsGm ?? null,
-      first_serve_in_pct: d.data.firstServePercentage ?? null,
-      first_serve_won_pct: d.data.winningOnFirstServePercentage ?? null,
-      second_serve_won_pct: d.data.winningOnSecondServePercentage ?? null,
-      break_points_saved_pct: d.data.breakpointsSavedPercentage ?? null,
-      break_points_converted_pct: d.data.breakpointsConvertedPercentage ?? null,
-    };
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : finales et titres du joueur.
- * Endpoints : /player/finals/{id} + /player/titles/{id}
- *
- * Activé uniquement si le match est en demi (SF) ou finale (Final).
- */
-const fetchTennisFinalsTitles = async (
-  tour: "atp" | "wta",
-  playerId: number
-): Promise<TennisFinalsTitles | null> => {
-  type FinalsResponse = {
-    data?: {
-      total?: number;
-      won?: number;
-      lost?: number;
-    };
-  };
-  type TitlesResponse = {
-    data?: {
-      total?: number;
-      grandSlam?: number;
-    };
-  };
-  try {
-    const [finalsD, titlesD] = await Promise.all([
-      fetchJson<FinalsResponse>(
-        `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/finals/${playerId}`,
-        MATCHSTAT_HEADERS
-      ).catch(() => null),
-      fetchJson<TitlesResponse>(
-        `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/titles/${playerId}`,
-        MATCHSTAT_HEADERS
-      ).catch(() => null),
-    ]);
-    const total_finals = finalsD?.data?.total ?? 0;
-    const finals_won = finalsD?.data?.won ?? 0;
-    const finals_win_pct = total_finals > 0
-      ? Math.round((finals_won / total_finals) * 100)
-      : null;
-    return {
-      total_finals,
-      finals_won,
-      finals_lost: finalsD?.data?.lost ?? 0,
-      finals_win_pct,
-      total_titles: titlesD?.data?.total ?? 0,
-      grand_slam_titles: titlesD?.data?.grandSlam ?? 0,
-    };
-  } catch {
-    return null;
-  }
-};
-
-/**
- * V3.5 : détecte si le match est en demi-finale ou finale (utile pour activer
- * fetchTennisFinalsTitles uniquement quand pertinent).
- */
-const isLateRoundTennis = (roundName: string | null): boolean => {
-  if (!roundName) return false;
-  const norm = roundName.toLowerCase();
-  return (
-    norm.includes("final") ||
-    norm.includes("semi") ||
-    norm.includes("sf") ||
-    norm === "f"
-  );
-};
-
 const enrichTennis = async (
   match: RawFixture,
   tennisIndex: TennisFixturesIndex
@@ -2410,8 +1826,6 @@ const enrichTennis = async (
   }
 
   const { tour, player1, player2 } = fixture;
-
-  // Groupe 1 : enrichissement basique (existant V3) — toujours actif
   const [pr1, pr2, sf1, sf2, hi, hs, hm] = await Promise.all([
     fetchTennisPlayerProfile(tour, player1.id),
     fetchTennisPlayerProfile(tour, player2.id),
@@ -2421,53 +1835,6 @@ const enrichTennis = async (
     fetchTennisH2HStats(tour, player1.id, player2.id),
     fetchTennisH2HMatches(tour, player1.id, player2.id),
   ]);
-
-  // V3.5 : enrichissements lourds (past matches, tournament record, career, finals)
-  // UNIQUEMENT sur Grand Slam / Masters 1000 / 500 (rankId 1-3)
-  const isDeepEnrichmentTournament =
-    fixture.rankId !== null && TENNIS_DEEP_ENRICHMENT_RANK_IDS.includes(fixture.rankId);
-
-  const isLateRound = isLateRoundTennis(fixture.roundName);
-
-  let pastMatchesP1: TennisPastMatchWithOdds[] | null = null;
-  let pastMatchesP2: TennisPastMatchWithOdds[] | null = null;
-  let tournamentRecordP1: TennisTournamentRecord | null = null;
-  let tournamentRecordP2: TennisTournamentRecord | null = null;
-  let careerStatsP1: TennisCareerStats | null = null;
-  let careerStatsP2: TennisCareerStats | null = null;
-  let finalsTitlesP1: TennisFinalsTitles | null = null;
-  let finalsTitlesP2: TennisFinalsTitles | null = null;
-
-  if (isDeepEnrichmentTournament) {
-    const [pm1, pm2, cs1, cs2] = await Promise.all([
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 5000, null),
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 5000, null),
-      withTimeout(fetchTennisCareerStats(tour, player1.id), 5000, null),
-      withTimeout(fetchTennisCareerStats(tour, player2.id), 5000, null),
-    ]);
-    pastMatchesP1 = pm1;
-    pastMatchesP2 = pm2;
-    careerStatsP1 = cs1;
-    careerStatsP2 = cs2;
-
-    if (fixture.tournamentId !== null) {
-      const [tr1, tr2] = await Promise.all([
-        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 5000, null),
-        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 5000, null),
-      ]);
-      tournamentRecordP1 = tr1;
-      tournamentRecordP2 = tr2;
-    }
-
-    if (isLateRound) {
-      const [ft1, ft2] = await Promise.all([
-        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 5000, null),
-        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 5000, null),
-      ]);
-      finalsTitlesP1 = ft1;
-      finalsTitlesP2 = ft2;
-    }
-  }
 
   const formatForm = (p: MatchstatPlayerProfile | null): string => {
     if (!p?.form) return "donnée non disponible";
@@ -2549,498 +1916,35 @@ const enrichTennis = async (
     h2h_stats_detaillees: h2hStatsFmt,
     h2h_derniers_matchs: h2hRecentFmt,
     blessures: "donnée non disponible (pas de tracking blessures en tennis)",
-    // V3.5 NOUVEAUX champs (null si tournoi mineur)
-    tennis_past_matches: isDeepEnrichmentTournament
-      ? { player1: pastMatchesP1 ?? [], player2: pastMatchesP2 ?? [] }
-      : null,
-    tennis_tournament_record: isDeepEnrichmentTournament
-      ? { player1: tournamentRecordP1, player2: tournamentRecordP2 }
-      : null,
-    tennis_career_stats: isDeepEnrichmentTournament
-      ? { player1: careerStatsP1, player2: careerStatsP2 }
-      : null,
-    tennis_finals_titles: isDeepEnrichmentTournament && isLateRound
-      ? { player1: finalsTitlesP1, player2: finalsTitlesP2 }
-      : null,
   };
 };
 
 // ============================================================================
-// V3.5 — RUGBY (NOUVEAU sport)
-// ============================================================================
-
-type ApiRugbyGame = {
-  id: number;
-  date?: string;
-  teams: { home: { id: number; name: string }; away: { id: number; name: string } };
-  league?: { id: number; season: number };
-  scores?: { home: number | null; away: number | null };
-};
-
-const fetchRugbyStanding = async (
-  leagueId: number,
-  season: number,
-  teamId: number
-): Promise<RugbyTeamStats> => {
-  type StandingEntry = {
-    position?: number;
-    team?: { id?: number };
-    games?: {
-      win?: { total?: number; home?: number; away?: number };
-      lose?: { total?: number; home?: number; away?: number };
-      draw?: { total?: number; home?: number; away?: number };
-      played?: { total?: number };
-    };
-    points?: { for?: number; against?: number };
-  };
-  type StandingResponse = { response?: StandingEntry[][] };
-  try {
-    const data = await fetchJson<StandingResponse>(
-      `https://v1.rugby.api-sports.io/standings?league=${leagueId}&season=${season}`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const allEntries = (data.response ?? []).flat();
-    const entry = allEntries.find((e) => e.team?.id === teamId);
-    if (!entry) return emptyRugbyStats();
-
-    const wins = entry.games?.win?.total ?? 0;
-    const losses = entry.games?.lose?.total ?? 0;
-    const draws = entry.games?.draw?.total ?? 0;
-    const played = entry.games?.played?.total ?? (wins + losses + draws);
-    const ptsFor = entry.points?.for ?? 0;
-    const ptsAgainst = entry.points?.against ?? 0;
-
-    return {
-      classement_position: entry.position ?? null,
-      victoires: wins,
-      defaites: losses,
-      nuls: draws,
-      points_marques: ptsFor,
-      points_encaisses: ptsAgainst,
-      points_marques_avg: played > 0 ? Math.round((ptsFor / played) * 10) / 10 : null,
-      points_encaisses_avg: played > 0 ? Math.round((ptsAgainst / played) * 10) / 10 : null,
-      essais_marques_avg: null, // pas dans l'endpoint standings
-      forme_5_derniers: null,
-      domicile_record:
-        entry.games?.win?.home !== undefined
-          ? `${entry.games.win.home}V-${entry.games?.draw?.home ?? 0}N-${entry.games?.lose?.home ?? 0}D`
-          : null,
-      exterieur_record:
-        entry.games?.win?.away !== undefined
-          ? `${entry.games.win.away}V-${entry.games?.draw?.away ?? 0}N-${entry.games?.lose?.away ?? 0}D`
-          : null,
-    };
-  } catch {
-    return emptyRugbyStats();
-  }
-};
-
-const emptyRugbyStats = (): RugbyTeamStats => ({
-  classement_position: null,
-  victoires: null,
-  defaites: null,
-  nuls: null,
-  points_marques: null,
-  points_encaisses: null,
-  points_marques_avg: null,
-  points_encaisses_avg: null,
-  essais_marques_avg: null,
-  forme_5_derniers: null,
-  domicile_record: null,
-  exterieur_record: null,
-});
-
-const enrichRugby = async (match: RawFixture): Promise<EnrichedFixture> => {
-  type GamesResponse = { response?: ApiRugbyGame[] };
-  try {
-    const data = await fetchJson<GamesResponse>(
-      `https://v1.rugby.api-sports.io/games?date=${match.commence_time_iso.split("T")[0]}`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const game = (data.response ?? []).find(
-      (g) =>
-        teamsMatch(match.home_team, g.teams.home.name) &&
-        teamsMatch(match.away_team, g.teams.away.name)
-    );
-    if (!game || !game.league) {
-      return {
-        ...match,
-        forme_5_derniers: "donnée non disponible",
-        h2h_5_derniers: "donnée non disponible",
-        blessures: "donnée non disponible",
-      };
-    }
-
-    const computeForm = async (teamId: number): Promise<string | null> => {
-      try {
-        const fd = await fetchJson<GamesResponse>(
-          `https://v1.rugby.api-sports.io/games?team=${teamId}&league=${game.league!.id}&season=${game.league!.season}&last=5`,
-          { "x-apisports-key": API_FOOTBALL_KEY }
-        );
-        return (fd.response ?? [])
-          .filter((g) => g.scores?.home != null)
-          .slice(0, 5)
-          .map((g) => {
-            const isHome = g.teams.home.id === teamId;
-            const my = isHome ? g.scores!.home : g.scores!.away;
-            const opp = isHome ? g.scores!.away : g.scores!.home;
-            if (my == null || opp == null) return "?";
-            return my > opp ? "V" : my < opp ? "D" : "N";
-          })
-          .join("");
-      } catch {
-        return null;
-      }
-    };
-
-    const [hf, af, hStats, aStats] = await Promise.all([
-      computeForm(game.teams.home.id),
-      computeForm(game.teams.away.id),
-      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.home.id), 5000, emptyRugbyStats()),
-      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.away.id), 5000, emptyRugbyStats()),
-    ]);
-
-    const realCommenceTime = game.date ?? match.commence_time_iso;
-
-    return {
-      ...match,
-      commence_time_iso: realCommenceTime,
-      date_heure: formatTimeParis(realCommenceTime),
-      forme_5_derniers: {
-        [match.home_team]: hf ?? "donnée non disponible",
-        [match.away_team]: af ?? "donnée non disponible",
-      },
-      h2h_5_derniers: "donnée non disponible (pas d'endpoint H2H rugby)",
-      blessures: "donnée non disponible (pas d'endpoint blessures rugby)",
-      rugby_stats: {
-        home: { ...hStats, forme_5_derniers: hf ?? null },
-        away: { ...aStats, forme_5_derniers: af ?? null },
-      },
-    };
-  } catch {
-    return {
-      ...match,
-      forme_5_derniers: "donnée non disponible",
-      h2h_5_derniers: "donnée non disponible",
-      blessures: "donnée non disponible",
-    };
-  }
-};
-
-// ============================================================================
-// V3.5 — HANDBALL (NOUVEAU sport)
-// ============================================================================
-
-type ApiHandballGame = {
-  id: number;
-  date?: string;
-  teams: { home: { id: number; name: string }; away: { id: number; name: string } };
-  league?: { id: number; season: number };
-  scores?: { home: number | null; away: number | null };
-};
-
-const fetchHandballStanding = async (
-  leagueId: number,
-  season: number,
-  teamId: number
-): Promise<HandballTeamStats> => {
-  type StandingEntry = {
-    position?: number;
-    team?: { id?: number };
-    games?: {
-      win?: { total?: number };
-      lose?: { total?: number };
-      draw?: { total?: number };
-      played?: { total?: number };
-    };
-    goals?: { for?: number; against?: number };
-  };
-  type StandingResponse = { response?: StandingEntry[][] };
-  try {
-    const data = await fetchJson<StandingResponse>(
-      `https://v1.handball.api-sports.io/standings?league=${leagueId}&season=${season}`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const allEntries = (data.response ?? []).flat();
-    const entry = allEntries.find((e) => e.team?.id === teamId);
-    if (!entry) return emptyHandballStats();
-
-    const wins = entry.games?.win?.total ?? 0;
-    const losses = entry.games?.lose?.total ?? 0;
-    const draws = entry.games?.draw?.total ?? 0;
-    const played = entry.games?.played?.total ?? (wins + losses + draws);
-    const goalsFor = entry.goals?.for ?? 0;
-    const goalsAgainst = entry.goals?.against ?? 0;
-
-    return {
-      classement_position: entry.position ?? null,
-      victoires: wins,
-      defaites: losses,
-      nuls: draws,
-      buts_marques: goalsFor,
-      buts_encaisses: goalsAgainst,
-      buts_marques_avg: played > 0 ? Math.round((goalsFor / played) * 10) / 10 : null,
-      buts_encaisses_avg: played > 0 ? Math.round((goalsAgainst / played) * 10) / 10 : null,
-      diff_buts_avg: played > 0 ? Math.round(((goalsFor - goalsAgainst) / played) * 10) / 10 : null,
-      forme_5_derniers: null,
-      top_scorer: null,
-    };
-  } catch {
-    return emptyHandballStats();
-  }
-};
-
-const emptyHandballStats = (): HandballTeamStats => ({
-  classement_position: null,
-  victoires: null,
-  defaites: null,
-  nuls: null,
-  buts_marques: null,
-  buts_encaisses: null,
-  buts_marques_avg: null,
-  buts_encaisses_avg: null,
-  diff_buts_avg: null,
-  forme_5_derniers: null,
-  top_scorer: null,
-});
-
-const enrichHandball = async (match: RawFixture): Promise<EnrichedFixture> => {
-  type GamesResponse = { response?: ApiHandballGame[] };
-  try {
-    const data = await fetchJson<GamesResponse>(
-      `https://v1.handball.api-sports.io/games?date=${match.commence_time_iso.split("T")[0]}`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const game = (data.response ?? []).find(
-      (g) =>
-        teamsMatch(match.home_team, g.teams.home.name) &&
-        teamsMatch(match.away_team, g.teams.away.name)
-    );
-    if (!game || !game.league) {
-      return {
-        ...match,
-        forme_5_derniers: "donnée non disponible",
-        h2h_5_derniers: "donnée non disponible",
-        blessures: "donnée non disponible",
-      };
-    }
-
-    const computeForm = async (teamId: number): Promise<string | null> => {
-      try {
-        const fd = await fetchJson<GamesResponse>(
-          `https://v1.handball.api-sports.io/games?team=${teamId}&league=${game.league!.id}&season=${game.league!.season}&last=5`,
-          { "x-apisports-key": API_FOOTBALL_KEY }
-        );
-        return (fd.response ?? [])
-          .filter((g) => g.scores?.home != null)
-          .slice(0, 5)
-          .map((g) => {
-            const isHome = g.teams.home.id === teamId;
-            const my = isHome ? g.scores!.home : g.scores!.away;
-            const opp = isHome ? g.scores!.away : g.scores!.home;
-            if (my == null || opp == null) return "?";
-            return my > opp ? "V" : my < opp ? "D" : "N";
-          })
-          .join("");
-      } catch {
-        return null;
-      }
-    };
-
-    const [hf, af, hStats, aStats] = await Promise.all([
-      computeForm(game.teams.home.id),
-      computeForm(game.teams.away.id),
-      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.home.id), 5000, emptyHandballStats()),
-      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.away.id), 5000, emptyHandballStats()),
-    ]);
-
-    const realCommenceTime = game.date ?? match.commence_time_iso;
-
-    return {
-      ...match,
-      commence_time_iso: realCommenceTime,
-      date_heure: formatTimeParis(realCommenceTime),
-      forme_5_derniers: {
-        [match.home_team]: hf ?? "donnée non disponible",
-        [match.away_team]: af ?? "donnée non disponible",
-      },
-      h2h_5_derniers: "donnée non disponible (pas d'endpoint H2H handball)",
-      blessures: "donnée non disponible (pas d'endpoint blessures handball)",
-      handball_stats: {
-        home: { ...hStats, forme_5_derniers: hf ?? null },
-        away: { ...aStats, forme_5_derniers: af ?? null },
-      },
-    };
-  } catch {
-    return {
-      ...match,
-      forme_5_derniers: "donnée non disponible",
-      h2h_5_derniers: "donnée non disponible",
-      blessures: "donnée non disponible",
-    };
-  }
-};
-
-// ============================================================================
-// V3.5 — F1 (NOUVEAU sport, structure différente : course pas match)
-// ============================================================================
-
-type F1Race = {
-  id: number;
-  competition?: { id: number; name: string };
-  circuit?: { id: number; name: string; image?: string };
-  season?: number;
-  type?: string;
-  laps?: { total?: number; current?: number };
-  date?: string;
-  status?: { long?: string; short?: string };
-  weather?: string;
-};
-
-type F1Driver = {
-  driver?: { id: number; name: string };
-  team?: { id: number; name: string };
-  position?: number;
-  points?: number;
-  wins?: number;
-  podiums?: number;
-  poles?: number;
-};
-
-const fetchF1RaceData = async (
-  competitionId: number,
-  season: number,
-  raceDate: string
-): Promise<F1RaceData | null> => {
-  type RacesResponse = { response?: F1Race[] };
-  try {
-    const data = await fetchJson<RacesResponse>(
-      `https://v1.formula-1.api-sports.io/races?competition=${competitionId}&season=${season}&type=Race`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const race = (data.response ?? []).find(
-      (r) => r.date && r.date.split("T")[0] === raceDate.split("T")[0]
-    );
-    if (!race) return null;
-
-    return {
-      race_name: race.competition?.name ?? "?",
-      circuit: race.circuit?.name ?? "?",
-      race_date: race.date ?? raceDate,
-      qualifying_date: null, // peut être enrichi avec un autre call si besoin
-      round: 0, // pas dans la réponse de base
-      laps_total: race.laps?.total ?? null,
-      weather: race.weather ?? null,
-      recent_winners: [], // nécessiterait un call séparé /races?circuit=X&season=...
-    };
-  } catch {
-    return null;
-  }
-};
-
-const fetchF1DriversStandings = async (
-  competitionId: number,
-  season: number
-): Promise<F1DriverStats[] | null> => {
-  type RankingsResponse = { response?: F1Driver[] };
-  try {
-    const data = await fetchJson<RankingsResponse>(
-      `https://v1.formula-1.api-sports.io/rankings/drivers?competition=${competitionId}&season=${season}`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    return (data.response ?? []).slice(0, 20).map((d) => ({
-      driver_name: d.driver?.name ?? "?",
-      constructor: d.team?.name ?? "?",
-      championship_position: d.position ?? null,
-      championship_points: d.points ?? null,
-      wins_season: d.wins ?? null,
-      podiums_season: d.podiums ?? null,
-      poles_season: d.poles ?? null,
-      last_3_races_positions: [],
-      qualifying_position: null,
-      best_result_at_circuit: null,
-    }));
-  } catch {
-    return null;
-  }
-};
-
-const enrichF1 = async (match: RawFixture): Promise<EnrichedFixture> => {
-  // Pour F1, le "match" OddsAPI représente souvent un GP entier (pour markets vainqueur)
-  // ou un matchup entre 2 pilotes (markets driver matchup)
-  // On essaie de trouver la course du jour
-  type RacesResponse = { response?: F1Race[] };
-  try {
-    const data = await fetchJson<RacesResponse>(
-      `https://v1.formula-1.api-sports.io/races?date=${match.commence_time_iso.split("T")[0]}&type=Race`,
-      { "x-apisports-key": API_FOOTBALL_KEY }
-    );
-    const race = (data.response ?? [])[0];
-    if (!race || !race.competition) {
-      return {
-        ...match,
-        forme_5_derniers: "donnée non disponible (course F1 introuvable)",
-        h2h_5_derniers: "donnée non disponible",
-        blessures: "donnée non disponible",
-      };
-    }
-
-    const season = race.season ?? new Date().getFullYear();
-    const competitionId = race.competition.id;
-
-    const [raceData, drivers] = await Promise.all([
-      withTimeout(fetchF1RaceData(competitionId, season, match.commence_time_iso), 5000, null),
-      withTimeout(fetchF1DriversStandings(competitionId, season), 5000, null),
-    ]);
-
-    const realCommenceTime = race.date ?? match.commence_time_iso;
-
-    return {
-      ...match,
-      commence_time_iso: realCommenceTime,
-      date_heure: formatTimeParis(realCommenceTime),
-      forme_5_derniers: "voir données pilotes ci-dessous",
-      h2h_5_derniers: "voir historique circuit ci-dessous",
-      blessures: "donnée non disponible (rare en F1)",
-      f1_race: raceData,
-      f1_drivers: drivers,
-    };
-  } catch {
-    return {
-      ...match,
-      forme_5_derniers: "donnée non disponible",
-      h2h_5_derniers: "donnée non disponible",
-      blessures: "donnée non disponible",
-    };
-  }
-};
-
-// ============================================================================
-// MAIN — fetchMultiSportFixturesForDate (V3.5 avec dropWindow)
+// MAIN — fetchMultiSportFixturesForDate
 // ============================================================================
 
 /**
- * Point d'entrée du multi-sport-fetcher V3.5.
+ * Point d'entrée du multi-sport-fetcher.
  *
  * @param targetDate Format YYYY-MM-DD
- * @param dropWindow "morning" (matchs < 20h Paris) | "evening" (matchs >= 20h Paris)
- * @returns FetchOutput avec la liste des matchs enrichis filtrés par drop window
+ * @returns FetchOutput avec la liste des matchs enrichis + stats
  */
 export const fetchMultiSportFixturesForDate = async (
-  targetDate: string,
-  dropWindow: DropWindow = "morning"
+  targetDate: string
 ): Promise<FetchOutput> => {
+  // Validation des clés API
   if (!ODDS_API_KEY || !API_FOOTBALL_KEY || !RAPIDAPI_KEY) {
     throw new Error(
       "Missing API keys: check ODDS_API_KEY, API_FOOTBALL_KEY, RAPIDAPI_KEY env vars"
     );
   }
 
+  // Initialisation
   const tracker = new ApiFootballRateLimitTracker();
   const leagueResolver = new FootballLeagueResolver();
   const tennisIndex = new TennisFixturesIndex();
 
-  // STEP 0 : Chargement références
+  // STEP 0 : Chargement références (cache leagues + tennis fixtures)
   await Promise.all([
     leagueResolver.load(tracker),
     tennisIndex.load(targetDate),
@@ -3055,15 +1959,10 @@ export const fetchMultiSportFixturesForDate = async (
     await sleep(SLEEP_ODDS_API);
   }
 
-  // V3.5 : Filtre par drop window AVANT enrichissement (économie de calls API)
-  const matchesInWindow = allMatches.filter((m) =>
-    matchesDropWindow(m.commence_time_iso, dropWindow)
-  );
-
-  if (matchesInWindow.length === 0) {
+  if (allMatches.length === 0) {
     return {
       date_du_jour: targetDate,
-      contexte_du_jour: `Aucun match dans la fenêtre ${dropWindow} le ${targetDate}.`,
+      contexte_du_jour: `Aucun match disponible le ${targetDate}.`,
       books_disponibles: ["PS3838", "Winamax", "Betclic", "Unibet"],
       note: "PS3838 = Pinnacle (rebrandé). Hors ARJEL. Winamax/Betclic/Unibet = ARJEL.",
       matchs: [],
@@ -3074,22 +1973,21 @@ export const fetchMultiSportFixturesForDate = async (
         api_football_quota_limit: tracker.state.limitDay,
         unresolved_leagues: [],
       },
-      drop_window: dropWindow,
     };
   }
 
   // STEP 2 : Vérification des ligues foot non résolues
   const unresolvedLeagues = new Set<string>();
-  for (const m of matchesInWindow) {
+  for (const m of allMatches) {
     if (m.sport === "football") {
       const r = leagueResolver.resolve(m.ligue);
       if (!r) unresolvedLeagues.add(m.ligue);
     }
   }
 
-  // STEP 3 : Enrichissement (V3.5 : 9 sports)
+  // STEP 3 : Enrichissement
   const enriched: EnrichedFixture[] = [];
-  for (const m of matchesInWindow) {
+  for (const m of allMatches) {
     let e: EnrichedFixture;
     try {
       switch (m.sport) {
@@ -3119,18 +2017,6 @@ export const fetchMultiSportFixturesForDate = async (
         case "tennis":
           e = await enrichTennis(m, tennisIndex);
           await sleep(SLEEP_MATCHSTAT);
-          break;
-        case "rugby":
-          e = await enrichRugby(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
-        case "handball":
-          e = await enrichHandball(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
-        case "formula_1":
-          e = await enrichF1(m);
-          await sleep(SLEEP_API_SPORTS);
           break;
         default:
           e = {
@@ -3175,11 +2061,10 @@ export const fetchMultiSportFixturesForDate = async (
 
   return {
     date_du_jour: targetDate,
-    contexte_du_jour: `Données réelles fetchées le ${new Date().toISOString()} (drop ${dropWindow}).`,
+    contexte_du_jour: `Données réelles fetchées le ${new Date().toISOString()}.`,
     books_disponibles: ["PS3838", "Winamax", "Betclic", "Unibet"],
     note: "PS3838 = Pinnacle (rebrandé). Hors ARJEL. Winamax/Betclic/Unibet = ARJEL.",
     matchs: enriched,
     stats,
-    drop_window: dropWindow,
   };
 };

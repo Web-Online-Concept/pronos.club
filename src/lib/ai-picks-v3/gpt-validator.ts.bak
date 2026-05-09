@@ -1,5 +1,5 @@
 /**
- * PRONOS.CLUB — GPT Validator (v3.5)
+ * PRONOS.CLUB — GPT Validator (v3)
  *
  * Rôle : avocat du diable INDULGENT pour les picks Claude tipster.
  *
@@ -9,31 +9,24 @@
  *   - Décision par défaut : "approve". Le veto doit être rare.
  *   - 3 verdicts possibles : approve | warning | veto.
  *
- * Évolutions V3.5 (09/05/2026) :
- *   - NOUVEAU : validation cohérence du tier déclaré par Claude
- *   - NOUVEAU : champ `suggested_tier` dans le verdict si Claude a mal classé
- *   - Si tier=lock mais confiance < 80 → suggested_tier = "strong"
- *   - Si tier=strong mais confiance < 75 → suggested_tier = "value"
- *   - Si tier=value mais confiance < 70 → suggested_tier = "coup_de_coeur"
- *   - Le validator NE VETO PAS pour un tier incohérent (downgrade auto possible)
- *
  * FIX A3 + C1 (session 02/05/2026) :
  *   - VALIDATOR_SYSTEM_PROMPT enrichi avec les règles métier tipster
- *   - GPT veto les violations techniques (cotes, écarts)
+ *   - GPT doit maintenant vetoer les violations techniques (cotes, écarts)
+ *   - Auparavant GPT ne vérifiait que la cohérence factuelle → laissait passer des cotes < 1.50
  *
- * Cas de veto :
- *   VIOLATIONS TECHNIQUES (priorité absolue) :
+ * Cas de veto (mise à jour) :
+ *   VIOLATIONS TECHNIQUES (nouvelles — priorité absolue) :
  *     - Cote simple < 1.50 ou > 3.50 (règle publique PRONOS.CLUB)
  *     - Cote par sélection combiné < 1.30
  *     - Cote totale combiné < 1.50 ou > 4.00
  *     - Écart > 30% entre cote_arjel et cote_hors_arjel (hallucination)
- *   VIOLATIONS FACTUELLES :
+ *   VIOLATIONS FACTUELLES (existantes) :
  *     - Stat citée qui N'EXISTE PAS dans la data fournie
  *     - Argument cite la mauvaise surface en tennis
- *     - Pick contre l'évidence absolue
+ *     - Pick contre l'évidence absolue (favori 4+ indicateurs, outsider pris sans justification)
  *     - Cote citée incohérente avec ce que la data fournit
  *
- * Coût estimé : ~0,01-0,02$ / appel (max 12 picks à valider en V3.5).
+ * Coût estimé : ~0,01-0,02$ / appel (max 10 picks à valider).
  */
 
 import OpenAI from "openai";
@@ -42,7 +35,6 @@ import type {
   TipsterPick,
   ValidatorResult,
   ValidatorVerdict,
-  PickTier,
 } from "./tipster-types";
 
 // ============================================================================
@@ -53,7 +45,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
 
 const GPT_MODEL = process.env.GPT_VALIDATOR_MODEL ?? "gpt-4o";
 
-const MAX_TOKENS = 2500;
+const MAX_TOKENS = 2000;
 
 // Tarifs GPT-4o (USD / 1M tokens) — à mettre à jour si OpenAI révise
 const PRICING_INPUT_PER_MTOK = 2.5;
@@ -76,16 +68,25 @@ const getOpenAIClient = (): OpenAI => {
 };
 
 // ============================================================================
-// PROMPTS (V3.5 enrichi avec validation tier)
+// PROMPTS
 // ============================================================================
 
+/**
+ * FIX C1 — VALIDATOR_SYSTEM_PROMPT enrichi avec les règles métier tipster.
+ *
+ * Avant ce fix, GPT ne connaissait que les règles factuelles et laissait passer
+ * des picks avec cote 1.08, 1.20, 1.23 — en violation des règles publiques du service.
+ *
+ * Maintenant GPT vérifie EN PREMIER les règles techniques (cotes min/max, écarts),
+ * et veto immédiatement sans avoir besoin d'analyser la data pour ces cas.
+ */
 const VALIDATOR_SYSTEM_PROMPT = `Tu es un validator INDULGENT pour des pronostics sportifs générés par un autre IA tipster.
 
 Ton rôle : vérifier qu'il n'y a PAS d'erreur grossière, mais accepter par défaut.
 
 Tu reçois :
 1. La DATA brute du jour (matchs avec stats : forme, H2H, blessures, ranking, surface, etc.)
-2. Une LISTE DE PICKS proposés par le tipster Claude (avec tier déclaré : lock / strong / value / coup_de_coeur)
+2. Une LISTE DE PICKS proposés par le tipster Claude
 
 Pour chaque pick, tu dois rendre un verdict parmi 3 :
 
@@ -94,8 +95,6 @@ Pour chaque pick, tu dois rendre un verdict parmi 3 :
 - **"warning"** : Le pick a une faiblesse (argument moyen, choix surprenant) mais reste défendable. Le pick est conservé, juste flagué.
 
 - **"veto"** : Le pick a un problème GRAVE et doit être retiré.
-
-Tu peux AUSSI suggérer un correctif de tier (NOUVEAU V3.5) — voir Catégorie C ci-dessous.
 
 ═══════════════════════════════════════════════════
 RÈGLES DE VETO — PRIORITÉ ABSOLUE
@@ -135,33 +134,11 @@ Ces règles sont des contraintes PUBLIQUES de PRONOS.CLUB. Un pick qui les viole
 9. **Cote inventée** : La cote citée ne correspond à aucune des cotes présentes dans la data pour ce match.
 
 ═══════════════════════════════════════════════════
-CATÉGORIE C — VALIDATION DU TIER (V3.5 NOUVEAU)
-═══════════════════════════════════════════════════
-
-Chaque pick a un champ \`tier\` déclaré par Claude :
-- **lock** : confiance ≥ 80 attendue (top picks du jour, 0-2 par jour)
-- **strong** : confiance 75-79
-- **value** : confiance 70-74
-- **coup_de_coeur** : confiance 65-69
-
-Vérifie la cohérence entre le tier déclaré et la confiance :
-
-10. **Si tier=lock mais confiance < 80** → suggested_tier = "strong"
-11. **Si tier=strong mais confiance < 75** → suggested_tier = "value"
-12. **Si tier=value mais confiance < 70** → suggested_tier = "coup_de_coeur"
-13. **Si tier=coup_de_coeur mais confiance ≥ 80** → suggested_tier = "lock" (Claude a sous-évalué)
-
-⚠️ Le tier incohérent N'ENTRAÎNE PAS un veto. Le pick reste valide, on suggère juste un correctif de classification dans le champ \`suggested_tier\`.
-
-Si le tier est cohérent : NE METS PAS \`suggested_tier\` dans le verdict (champ omis).
-
-═══════════════════════════════════════════════════
 
 PHILOSOPHIE : Tu n'es PAS un second tipster. Tu n'as PAS à dire "j'aurais préféré l'autre côté".
 
 Pour la Catégorie A : vérifie les champs JSON du pick directement (pas besoin de la data).
 Pour la Catégorie B : compare les arguments du pick à la data fournie.
-Pour la Catégorie C : compare juste le tier au champ confiance.
 
 Si le pick est défendable même si tu n'es pas 100% d'accord → APPROUVES.
 Si le pick a une petite faiblesse mais reste défendable → WARNING.
@@ -175,8 +152,7 @@ OUTPUT FORMAT (JSON strict, RIEN d'autre) :
     {
       "pick_id": 1,
       "decision": "approve" | "warning" | "veto",
-      "reason": "string courte (1-2 phrases) en français",
-      "suggested_tier": "lock" | "strong" | "value" | "coup_de_coeur"
+      "reason": "string courte (1-2 phrases) en français"
     }
   ]
 }
@@ -187,8 +163,7 @@ Règles de format :
 - pick_id doit correspondre à l'id du pick analysé
 - reason en français, factuelle, sans hype
 - Si decision = "approve", reason peut être courte ("Arguments cohérents avec la data.")
-- Si decision = "warning" ou "veto", reason DOIT pointer le problème précis (catégorie + détail chiffré si possible)
-- **suggested_tier UNIQUEMENT si le tier déclaré est incohérent avec la confiance** — sinon omettre ce champ`;
+- Si decision = "warning" ou "veto", reason DOIT pointer le problème précis (catégorie + détail chiffré si possible)`;
 
 const buildValidatorUserPrompt = (
   fetchOutput: FetchOutput,
@@ -213,14 +188,13 @@ ${JSON.stringify(picks, null, 2)}
 
 Pour CHAQUE pick ci-dessus, rends un verdict (approve / warning / veto) en JSON selon le format défini dans le system prompt.
 
-Commence par vérifier les règles de Catégorie A (violations techniques — directement dans les champs JSON du pick), puis les règles de Catégorie B (violations factuelles — en comparant les arguments à la data), enfin la Catégorie C (validation tier).
+Commence par vérifier les règles de Catégorie A (violations techniques — directement dans les champs JSON du pick), puis les règles de Catégorie B (violations factuelles — en comparant les arguments à la data).
 
 Rappel :
 - VETO immédiat si cote simple < 1.50 ou > 3.50
 - VETO immédiat si sélection combiné < 1.30
 - VETO immédiat si écart ARJEL/hors_ARJEL > 30%
-- Pour le reste : sois INDULGENT. Veto seulement si erreur factuelle grave.
-- Suggested_tier UNIQUEMENT si le tier déclaré est incohérent avec la confiance.`;
+- Pour le reste : sois INDULGENT. Veto seulement si erreur factuelle grave.`;
 };
 
 /**
@@ -231,6 +205,7 @@ const extractRelevantFixtures = (
   fetchOutput: FetchOutput,
   picks: TipsterPick[]
 ): { date_du_jour: string; matchs: typeof fetchOutput.matchs } => {
+  // Liste des "match" (string) concernés par les picks
   const matchNames = new Set<string>();
   for (const pick of picks) {
     if (pick.type === "simple") {
@@ -255,8 +230,6 @@ const extractRelevantFixtures = (
 // ============================================================================
 // PARSING DU JSON OUTPUT
 // ============================================================================
-
-const VALID_TIERS: PickTier[] = ["lock", "strong", "value", "coup_de_coeur"];
 
 const extractValidatorJson = (text: string): { verdicts: ValidatorVerdict[] } => {
   // Tentative 1 : bloc ```json...```
@@ -300,7 +273,7 @@ const extractValidatorJson = (text: string): { verdicts: ValidatorVerdict[] } =>
     throw new Error("verdicts n'est pas un array");
   }
 
-  // Validation des verdicts (V3.5 : avec gestion suggested_tier)
+  // Validation des verdicts
   const validVerdicts: ValidatorVerdict[] = [];
   for (const v of obj.verdicts) {
     if (
@@ -317,26 +290,7 @@ const extractValidatorJson = (text: string): { verdicts: ValidatorVerdict[] } =>
       );
       continue;
     }
-
-    const verdict = v as Partial<ValidatorVerdict> & {
-      pick_id: number;
-      decision: ValidatorVerdict["decision"];
-      reason: string;
-    };
-
-    // V3.5 : extraction et validation du suggested_tier
-    let suggestedTier: PickTier | null = null;
-    const rawSuggested = (v as { suggested_tier?: unknown }).suggested_tier;
-    if (typeof rawSuggested === "string" && VALID_TIERS.includes(rawSuggested as PickTier)) {
-      suggestedTier = rawSuggested as PickTier;
-    }
-
-    validVerdicts.push({
-      pick_id: verdict.pick_id,
-      decision: verdict.decision,
-      reason: verdict.reason,
-      suggested_tier: suggestedTier,
-    });
+    validVerdicts.push(v as ValidatorVerdict);
   }
 
   return { verdicts: validVerdicts };
@@ -363,31 +317,16 @@ const computeCostUsd = (
  * Si le validator GPT échoue (API down, parsing impossible, etc.), on n'arrête
  * PAS la pipeline : on auto-approuve tous les picks Claude par défaut.
  *
- * V3.5 : également filet de sécurité tier (downgrade local si tier=lock + conf<80).
- *
  * Logique métier : claude-tipster.ts filtre déjà les violations techniques
  * (cotes min/max, écarts ARJEL/hors_ARJEL) AVANT d'envoyer à GPT.
  * Donc si GPT est down, les picks reçus par le fallback sont déjà propres.
  */
 const autoApproveAll = (picks: TipsterPick[]): ValidatorVerdict[] => {
-  return picks.map((pick) => {
-    // V3.5 : filet de sécurité local pour le tier
-    let suggestedTier: PickTier | null = null;
-    if (pick.tier === "lock" && pick.confiance < 80) {
-      suggestedTier = "strong";
-    } else if (pick.tier === "strong" && pick.confiance < 75) {
-      suggestedTier = "value";
-    } else if (pick.tier === "value" && pick.confiance < 70) {
-      suggestedTier = "coup_de_coeur";
-    }
-
-    return {
-      pick_id: pick.id,
-      decision: "approve" as const,
-      reason: "Auto-approved (validator GPT indisponible).",
-      suggested_tier: suggestedTier,
-    };
-  });
+  return picks.map((pick) => ({
+    pick_id: pick.id,
+    decision: "approve" as const,
+    reason: "Auto-approved (validator GPT indisponible).",
+  }));
 };
 
 // ============================================================================
@@ -404,7 +343,7 @@ const autoApproveAll = (picks: TipsterPick[]): ValidatorVerdict[] => {
  *
  * Note : les picks reçus par cette fonction ont déjà passé validateAndFixPicks()
  * dans claude-tipster.ts. Les violations techniques (cotes) ont déjà été filtrées.
- * GPT intervient ici comme 2e couche (factuelle + technique en double-check + tier V3.5).
+ * GPT intervient ici comme 2e couche (factuelle + technique en double-check).
  */
 export const runGptValidator = async (
   fetchOutput: FetchOutput,
@@ -514,21 +453,10 @@ export const runGptValidator = async (
       console.warn(
         `[gpt-validator] Verdict manquant pour pick #${pick.id}, auto-approve`
       );
-      // V3.5 : filet de sécurité tier sur les verdicts manquants
-      let suggestedTier: PickTier | null = null;
-      if (pick.tier === "lock" && pick.confiance < 80) {
-        suggestedTier = "strong";
-      } else if (pick.tier === "strong" && pick.confiance < 75) {
-        suggestedTier = "value";
-      } else if (pick.tier === "value" && pick.confiance < 70) {
-        suggestedTier = "coup_de_coeur";
-      }
-
       completed.push({
         pick_id: pick.id,
         decision: "approve",
         reason: "Auto-approved (verdict GPT manquant).",
-        suggested_tier: suggestedTier,
       });
     }
   }
