@@ -29,6 +29,14 @@
       "schedule": "30 15 * * *"
     },
     {
+      "path": "/api/cron/ai-picks-publish-morning",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-publish-evening",
+      "schedule": "15 16 * * *"
+    },
+    {
       "path": "/api/cron/ai-picks-resolve",
       "schedule": "0 6 * * *"
     },

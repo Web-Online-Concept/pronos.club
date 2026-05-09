@@ -4,11 +4,11 @@
  * Publie les résultats des picks résolus la veille :
  *   1. Finalise le clv_pct sur tous les picks résolus hier
  *   2. Agrège le bilan jour (won/lost/void, ROI, CLV moyen, par tier, etc.)
- *   3. (Étapes 3+4 à venir) Publie sur Telegram + X
+ *   3. Publie le bilan sur Telegram public canal @pronos_club_ia
+ *   4. (Étape 4 à venir) Publie thread X
  *
- * Schedule : "0 6 * * *" (8h Paris été = 6h UTC)
- * Décalé de 30 min après ai-picks-resolve (qui tourne à 6h UTC) pour laisser
- * le temps au resolver de finir.
+ * Schedule : "30 6 * * *" (8h30 Paris été = 6h30 UTC)
+ * Décalé de 30 min après ai-picks-resolve qui tourne à 8h Paris été.
  *
  * AUTHENTIFICATION :
  *   - Header `Authorization: Bearer ${CRON_SECRET}` requis
@@ -24,6 +24,7 @@ import {
   finalizeCLVForResolvedPicks,
   aggregateBilanJour,
 } from "@/lib/clv/resolve";
+import { publishResultsBilanToPublicChannel } from "@/lib/telegram/public-channel";
 
 // ============================================================================
 // CONFIGURATION NEXT.JS
@@ -31,8 +32,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Phase 1 : juste calcul CLV + agrégat. Phase 2 ajoutera Telegram/X.
-// 120s suffit largement.
+// CLV finalize + aggregate + 1 post Telegram = ~30s typique
 export const maxDuration = 120;
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
@@ -100,6 +100,7 @@ const handlePublishResults = async (
         message: "Aucun pick résolu, skip silencieux",
         clv_finalize: clvResult,
         bilan: null,
+        published: { telegram: false, x: false, reason: "no_picks_resolved" },
         total_duration_ms: Date.now() - startedAt,
       });
     }
@@ -108,9 +109,7 @@ const handlePublishResults = async (
       `[publish-results] Bilan ${bilan.date} : ${bilan.total_picks} picks (${bilan.picks_won}V / ${bilan.picks_lost}D / ${bilan.picks_void}N), ROI ${bilan.roi_pct.toFixed(2)}%, CLV moy ${bilan.clv_avg_pct ?? "n/a"}%`
     );
 
-    // ─── ÉTAPE 3 : Publication Telegram + X
-    // À implémenter dans les Étapes 3 et 4 de la Session 2.
-    // Pour l'instant, on retourne juste le bilan calculé.
+    // ─── ÉTAPE 3 : Publication
     if (dryRun) {
       console.log(
         "[publish-results] dry_run=true → bilan calculé, aucune publication"
@@ -125,12 +124,20 @@ const handlePublishResults = async (
       });
     }
 
-    // TODO Étape 3 : publishResultsBilanToPublicChannel(bilan)
-    // TODO Étape 4 : postBilanThreadToX(bilan)
+    // ÉTAPE 3a : Telegram bilan jour
+    console.log("[publish-results] STEP 3a - Publication Telegram public");
+    const telegramResult = await publishResultsBilanToPublicChannel(bilan);
+    if (telegramResult.success) {
+      console.log(
+        `[publish-results] ✓ Telegram bilan publié, message_id=${telegramResult.message_id}`
+      );
+    } else {
+      console.warn(
+        `[publish-results] ✗ Telegram bilan échec: ${telegramResult.error}`
+      );
+    }
 
-    console.log(
-      `[publish-results] ✓ Bilan calculé, publication Telegram/X à implémenter (Étapes 3+4)`
-    );
+    // TODO Étape 4 : postBilanThreadToX(bilan)
 
     return NextResponse.json({
       success: true,
@@ -139,9 +146,11 @@ const handlePublishResults = async (
       clv_finalize: clvResult,
       bilan,
       published: {
-        telegram: false,
+        telegram: telegramResult.success,
+        telegram_message_id: telegramResult.message_id,
+        telegram_error: telegramResult.error,
         x: false,
-        note: "Modules diffusion à implémenter en Étapes 3+4 Session 2",
+        x_note: "X publication non implémentée (Étape 4 Session 2)",
       },
       total_duration_ms: Date.now() - startedAt,
     });
