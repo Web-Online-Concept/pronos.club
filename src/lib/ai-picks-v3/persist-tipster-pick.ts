@@ -560,10 +560,7 @@ export const persistTipsterPick = async (
     }
     const slug = await generateUniqueSlug(baseSlug);
 
-    // ─── Numérotation séquence classic
-    const classicNumber = await getNextClassicNumber();
-
-    // ─── Construction insertData
+    // ─── Construction insertData (sans classic_number, qui sera tiré à chaque tentative)
     const fixtureForOdds = pick.type === "simple"
       ? (fixturesByMatch.get((pick as TipsterPickSimple).match) ?? null)
       : null;
@@ -575,7 +572,7 @@ export const persistTipsterPick = async (
 
     const ligue = pick.type === "simple" ? pick.ligue : "Multi";
 
-    const insertData: Record<string, unknown> = {
+    const insertDataBase: Record<string, unknown> = {
       pick_type: "classic",
       sport: sportSlug,
       league: ligue,
@@ -608,27 +605,175 @@ export const persistTipsterPick = async (
       resolved_by: null,
       resolved_at: null,
       deleted_at: null,
-      classic_number: classicNumber,
       scorer_number: null,
     };
 
-    // ─── INSERT
-    const { data, error } = await supabaseAdmin
-      .from("ai_picks")
-      .insert(insertData)
-      .select("id")
-      .single();
+    // ─── V3.5 LOT 9 — INSERT avec RETRY + LOGGING + TRACKING ────────────────
+    //
+    // Ancien code : 1 seule tentative. Si l'INSERT échoue, le numéro tiré
+    // de la séquence Postgres était perdu (= trou dans classic_number).
+    //
+    // Nouveau : retry jusqu'à 3 tentatives. Chaque échec est loggé dans
+    // ai_picks_failed avec le numéro perdu pour audit. Si tous les retries
+    // échouent, on retourne un échec final tracé.
+    //
+    // ⚠️ Une séquence Postgres ne peut PAS restituer un numéro tiré, même
+    // sur ROLLBACK. Donc chaque tentative consomme un numéro frais. C'est
+    // accepté : mieux vaut 3 trous tracés qu'un échec silencieux non-tracé.
+    //
+    const MAX_ATTEMPTS = 3;
+    const RETRY_DELAY_MS = 200;
 
-    if (error || !data) {
+    const failedAttempts: Array<{
+      attempt: number;
+      classic_number: number | null;
+      error: string;
+      error_code: string | null;
+      pg_code: string | null;
+      pg_details: string | null;
+      pg_hint: string | null;
+    }> = [];
+
+    let finalPickId: string | null = null;
+    let finalClassicNumber: number | null = null;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      // Tirer un numéro frais à chaque tentative
+      let classicNumber: number;
+      try {
+        classicNumber = await getNextClassicNumber();
+      } catch (seqErr) {
+        const msg = seqErr instanceof Error ? seqErr.message : String(seqErr);
+        console.error(
+          `[persistTipsterPick] Tentative ${attempt}/${MAX_ATTEMPTS} : getNextClassicNumber() a échoué pour ${eventName}: ${msg}`
+        );
+        failedAttempts.push({
+          attempt,
+          classic_number: null,
+          error: msg,
+          error_code: "SEQ_FETCH_FAILED",
+          pg_code: null,
+          pg_details: null,
+          pg_hint: null,
+        });
+        if (attempt < MAX_ATTEMPTS) {
+          await sleep(RETRY_DELAY_MS * attempt);
+          continue;
+        }
+        break;
+      }
+
+      // Tenter l'INSERT
+      const insertData = { ...insertDataBase, classic_number: classicNumber };
+
+      const { data, error } = await supabaseAdmin
+        .from("ai_picks")
+        .insert(insertData)
+        .select("id")
+        .single();
+
+      if (!error && data) {
+        // Succès
+        finalPickId = data.id;
+        finalClassicNumber = classicNumber;
+        if (attempt > 1) {
+          console.log(
+            `[persistTipsterPick] ✅ INSERT réussi tentative ${attempt}/${MAX_ATTEMPTS} pour ${eventName} (numéro=${classicNumber}, ${attempt - 1} numéro(s) perdu(s) avant succès)`
+          );
+        }
+        break;
+      }
+
+      // Échec : logger localement + on continue le retry
+      const errMsg = error?.message ?? "INSERT returned no data";
+      const errCode = error?.code ?? null;
+      const pgDetails = (error as { details?: string } | null)?.details ?? null;
+      const pgHint = (error as { hint?: string } | null)?.hint ?? null;
+
+      console.error(
+        `[persistTipsterPick] ❌ Tentative ${attempt}/${MAX_ATTEMPTS} échec INSERT pour ${eventName} (numéro=${classicNumber} perdu): ${errMsg}`,
+        { code: errCode, details: pgDetails, hint: pgHint }
+      );
+
+      failedAttempts.push({
+        attempt,
+        classic_number: classicNumber,
+        error: errMsg,
+        error_code: errCode,
+        pg_code: errCode,
+        pg_details: pgDetails,
+        pg_hint: pgHint,
+      });
+
+      if (attempt < MAX_ATTEMPTS) {
+        await sleep(RETRY_DELAY_MS * attempt);
+      }
+    }
+
+    // ─── Logging dans ai_picks_failed pour TOUTES les tentatives échouées ───
+    // (Même si le pick a fini par passer au 2e ou 3e essai, on garde
+    // une trace des échecs précédents pour audit.)
+    if (failedAttempts.length > 0) {
+      try {
+        const isFinalFailure = finalPickId === null;
+        const rowsToInsert = failedAttempts.map((fa) => ({
+          classic_number: fa.classic_number,
+          event_name: eventName,
+          event_date: eventDateIso,
+          sport: sportSlug,
+          league: ligue,
+          selection,
+          pick_data: {
+            pick,
+            verdict: { decision: verdict.decision, reason: verdict.reason },
+            slug,
+            attempt_index: fa.attempt,
+            total_attempts: MAX_ATTEMPTS,
+          },
+          error_message: fa.error,
+          error_code: fa.error_code,
+          postgres_code: fa.pg_code,
+          postgres_details: fa.pg_details,
+          postgres_hint: fa.pg_hint,
+          attempt_number: fa.attempt,
+          is_final_failure: isFinalFailure && fa.attempt === failedAttempts.length,
+          retried_successfully: !isFinalFailure,
+          final_pick_id: finalPickId,
+          final_classic_number: finalClassicNumber,
+          resolved_at: !isFinalFailure ? new Date().toISOString() : null,
+        }));
+
+        await supabaseAdmin.from("ai_picks_failed").insert(rowsToInsert);
+      } catch (logErr) {
+        // Si le logging foire on continue quand même — c'est juste de l'audit
+        console.error(
+          `[persistTipsterPick] ⚠️ Échec du logging ai_picks_failed pour ${eventName}: ${logErr instanceof Error ? logErr.message : String(logErr)}`
+        );
+      }
+    }
+
+    // ─── Retour final ────────────────────────────────────────────────────
+    if (finalPickId === null) {
+      const lastError =
+        failedAttempts[failedAttempts.length - 1]?.error ??
+        "Unknown insert error";
+      const lostNumbers = failedAttempts
+        .map((fa) => fa.classic_number)
+        .filter((n): n is number => n !== null);
+
+      console.error(
+        `[persistTipsterPick] 🚨 ÉCHEC FINAL après ${MAX_ATTEMPTS} tentatives pour ${eventName}. Numéros perdus : ${lostNumbers.join(", ")}. Dernière erreur : ${lastError}`
+      );
+
       return {
         success: false,
-        error: error?.message ?? "Insert returned no data",
+        error: `INSERT failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}. Lost classic_numbers: ${lostNumbers.join(", ")}`,
       };
     }
 
     return {
       success: true,
-      pickId: data.id,
+      pickId: finalPickId,
       slug,
     };
   } catch (err) {
@@ -638,6 +783,13 @@ export const persistTipsterPick = async (
     };
   }
 };
+
+// ============================================================================
+// HELPER : Sleep utility pour le retry backoff
+// ============================================================================
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 // ============================================================================
 // HELPERS POUR LE CRON ROUTE
