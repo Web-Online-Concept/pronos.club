@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * dossier-builder.ts
+ * dossier-builder.ts (V3.5)
  * ═══════════════════════════════════════════════════════════════════
  *
  * Agrege toutes les donnees pour la page dossier d'un pick IA.
@@ -10,6 +10,12 @@
  * - Stats foot (forme, H2H, line-ups, blessures, predictions) -> API-Football
  * - Stats multi-sports (NHL, NBA, MLB, soccer, tennis...) -> ESPN gratuit
  * - Analyse Claude + GPT (200 mots) -> ai_picks_analysis
+ *
+ * MAJ V3.5 (09/05/2026) :
+ *   + Champs V3.5 exposés : tier, drop_window, clv_pct_final
+ *   + Foot enrichi : splits_dom_ext, recent_matches_stats, sidelined, top_scorers_league
+ *   + Tennis enrichi : past_matches, tournament_record, career_stats, finals_titles
+ *   + Nouveaux sports : rugby_stats, handball_stats, f1_race, f1_drivers
  *
  * Le dossier resultant alimente la page /pronos-ia/match/[slug]
  * ═══════════════════════════════════════════════════════════════════
@@ -22,6 +28,22 @@ import {
   type EspnPickContext,
 } from "./espn-client";
 import type { AggregatedMatchData } from "@/types/apifootball";
+import type {
+  FootballSplitStats,
+  FootballRecentMatchStats,
+  FootballSidelinedItem,
+  FootballTopScorer,
+  TennisPastMatchWithOdds,
+  TennisTournamentRecord,
+  TennisCareerStats,
+  TennisFinalsTitles,
+  RugbyTeamStats,
+  HandballTeamStats,
+  F1RaceData,
+  F1DriverStats,
+  PickTier,
+  DropWindow,
+} from "@/lib/ai-picks-v3/tipster-types";
 
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -57,6 +79,21 @@ export type DossierPickData = {
   bookmaker: string;
   status: string;
 
+  // ═══ V3.5 NOUVEAUX CHAMPS ═══════════════════════════════════════
+  /** Tier de classification (lock/strong/value/coup_de_coeur) */
+  tier: PickTier | null;
+  /** Drop window (morning/evening) */
+  dropWindow: DropWindow | null;
+  /** CLV final calculé après résolution (en %, ex: +5.2 = +5.2% edge marché) */
+  clvPctFinal: number | null;
+  /** CLV history capturé pré-match (pour graphique évolution cote) */
+  clvHistory: Array<{
+    timestamp: string;
+    pinnacle_odds: number;
+    pinnacle_no_vig_odds: number | null;
+    is_final_closing: boolean;
+  }> | null;
+
   // Edge mathematique
   edgePct: number | null;
   fairOdds: number | null;
@@ -85,7 +122,7 @@ export type DossierPickData = {
   espnContext: EspnPickContext | null;
   apiFootballContext: AggregatedMatchData | null;
 
-  // Nouvelles stats v3 (depuis odds_comparison.fixture_*)
+  // ═══ V3 (existant) — stats fixture stockées dans odds_comparison ═══
   footballStats: {
     home: Record<string, unknown>;
     away: Record<string, unknown>;
@@ -104,6 +141,62 @@ export type DossierPickData = {
     away: Record<string, unknown> | null;
   } | null;
   recordsFighters: Record<string, Record<string, unknown>> | null;
+
+  // ═══ V3.5 — FOOTBALL enrichi ═══════════════════════════════════
+  /** Splits domicile/extérieur des 2 équipes */
+  footballSplits: {
+    home_team_at_home: FootballSplitStats;
+    away_team_at_away: FootballSplitStats;
+  } | null;
+  /** Stats des 5 derniers matchs avec détails (xG, possession, tirs, etc.) */
+  footballRecentMatches: {
+    home: FootballRecentMatchStats[];
+    away: FootballRecentMatchStats[];
+  } | null;
+  /** Liste des absents/suspendus (sidelined complet) */
+  footballSidelined: {
+    home: FootballSidelinedItem[];
+    away: FootballSidelinedItem[];
+  } | null;
+  /** Top scorers de la league (cache 24h) */
+  footballTopScorers: FootballTopScorer[] | null;
+
+  // ═══ V3.5 — TENNIS enrichi ═════════════════════════════════════
+  /** Past matches avec cotes pré-match (filtré M1000+/GC) */
+  tennisPastMatches: {
+    player1: TennisPastMatchWithOdds[];
+    player2: TennisPastMatchWithOdds[];
+  } | null;
+  /** Record sur ce tournoi spécifique */
+  tennisTournamentRecord: {
+    player1: TennisTournamentRecord | null;
+    player2: TennisTournamentRecord | null;
+  } | null;
+  /** Stats serve/return de carrière des 2 joueurs */
+  tennisCareerStats: {
+    player1: TennisCareerStats | null;
+    player2: TennisCareerStats | null;
+  } | null;
+  /** Finales et titres (uniquement si SF/Final) */
+  tennisFinalsTitles: {
+    player1: TennisFinalsTitles | null;
+    player2: TennisFinalsTitles | null;
+  } | null;
+
+  // ═══ V3.5 — NOUVEAUX SPORTS ═════════════════════════════════════
+  /** Stats rugby des 2 équipes (Top 14, 6 Nations, Coupe d'Europe) */
+  rugbyStats: {
+    home: RugbyTeamStats;
+    away: RugbyTeamStats;
+  } | null;
+  /** Stats handball des 2 équipes (Starligue, EHF) */
+  handballStats: {
+    home: HandballTeamStats;
+    away: HandballTeamStats;
+  } | null;
+  /** Données du Grand Prix F1 + pilotes engagés */
+  f1Race: F1RaceData | null;
+  f1Drivers: F1DriverStats[] | null;
 };
 
 
@@ -133,6 +226,9 @@ type AiPickRow = {
   apifootball_fixture_id: number | null;
   status: string;
   deleted_at: string | null;
+  /** V3.5 colonnes dédiées */
+  tier: string | null;
+  drop_window: string | null;
 };
 
 
@@ -168,7 +264,7 @@ const fetchPickBySlug = async (slug: string): Promise<AiPickRow | null> => {
   const { data, error } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, slug, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, reasoning_claude, reasoning_gpt, ai_confidence, consensus_score, apifootball_fixture_id, status, deleted_at"
+      "id, slug, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, odds_comparison, reasoning, reasoning_claude, reasoning_gpt, ai_confidence, consensus_score, apifootball_fixture_id, status, deleted_at, tier, drop_window"
     )
     .eq("slug", slug)
     .is("deleted_at", null)
@@ -200,18 +296,8 @@ const fetchAiAnalysis = async (
 // ─── Mapping sportKey OddsAPI a partir de notre data ──────────────
 
 
-/**
- * Trouve le sportKey OddsAPI utilise pour ce pick. On le retrouve dans
- * odds_comparison.bookmakers_snapshot ou via le sport stocke en DB.
- *
- * Si le pick vient du value-bet engine, on a stocke `oddsapi_sport_key`
- * dans odds_comparison (a ajouter au persister).
- *
- * Fallback : on devine a partir de sport + league.
- */
 const inferOddsApiSportKey = (pick: AiPickRow): string | null => {
   const oc = pick.odds_comparison ?? {};
-  // Cle directe si on l'a stockee
   if (typeof oc.oddsapi_sport_key === "string") {
     return oc.oddsapi_sport_key;
   }
@@ -219,10 +305,9 @@ const inferOddsApiSportKey = (pick: AiPickRow): string | null => {
   const sport = pick.sport.toLowerCase();
   const league = (pick.league ?? "").toLowerCase();
 
-  // Heuristiques basiques
   if (sport === "hockey") {
     if (league.includes("nhl")) return "icehockey_nhl";
-    return "icehockey_nhl"; // fallback
+    return "icehockey_nhl";
   }
   if (sport === "basketball") {
     if (league.includes("nba")) return "basketball_nba";
@@ -244,11 +329,41 @@ const inferOddsApiSportKey = (pick: AiPickRow): string | null => {
     if (league.includes("serie a")) return "soccer_italy_serie_a";
     if (league.includes("champions")) return "soccer_uefa_champs_league";
     if (league.includes("europa")) return "soccer_uefa_europa_league";
-    return null; // foot mais ligue inconnue : ESPN essaiera quand meme
+    return null;
   }
-  if (sport === "tennis") return "tennis_atp"; // fallback ATP
+  if (sport === "tennis") return "tennis_atp";
   if (sport === "mma") return "mma_mixed_martial_arts";
   return null;
+};
+
+
+// ─── Helpers d'extraction typée des champs JSONB ───────────────────
+
+/**
+ * Extraction safe d'un champ générique de odds_comparison.
+ * Cast minimal — on retourne null si l'objet n'a pas la forme attendue.
+ */
+const extractOcField = <T>(
+  oc: Record<string, unknown>,
+  key: string
+): T | null => {
+  const v = oc[key];
+  if (v === undefined || v === null) return null;
+  return v as T;
+};
+
+const extractClvPctFinal = (oc: Record<string, unknown>): number | null => {
+  const v = oc.clv_pct_final;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  return null;
+};
+
+const extractClvHistory = (
+  oc: Record<string, unknown>
+): DossierPickData["clvHistory"] => {
+  const v = oc.closing_pinnacle_odds_history;
+  if (!Array.isArray(v) || v.length === 0) return null;
+  return v as DossierPickData["clvHistory"];
 };
 
 
@@ -326,30 +441,54 @@ export const buildDossierData = async (
     odds: typeof b.odds === "number" ? b.odds : null,
   }));
 
-  // Extraction des stats fixture stockées dans odds_comparison
-  const footballStats = (oc.fixture_stats_equipe as {
+  // Extraction des stats fixture stockées dans odds_comparison (V3 existant)
+  const footballStats = extractOcField<{
     home: Record<string, unknown>;
     away: Record<string, unknown>;
-  } | null) ?? null;
+  }>(oc, "fixture_stats_equipe");
 
-  const footballPrediction = (oc.fixture_predictions as Record<string, unknown> | null) ?? null;
+  const footballPrediction = extractOcField<Record<string, unknown>>(oc, "fixture_predictions");
 
-  const classement = (oc.fixture_classement as {
+  const classement = extractOcField<{
     home: Record<string, unknown>;
     away: Record<string, unknown>;
-  } | null) ?? null;
+  }>(oc, "fixture_classement");
 
-  const h2hReel = (oc.fixture_h2h_reel as {
+  const h2hReel = extractOcField<{
     resume: string;
     derniers_matchs: string[];
-  } | null) ?? null;
+  }>(oc, "fixture_h2h_reel");
 
-  const pitchers = (oc.fixture_pitchers as {
+  const pitchers = extractOcField<{
     home: Record<string, unknown> | null;
     away: Record<string, unknown> | null;
-  } | null) ?? null;
+  }>(oc, "fixture_pitchers");
 
-  const recordsFighters = (oc.fixture_records_fighters as Record<string, Record<string, unknown>> | null) ?? null;
+  const recordsFighters = extractOcField<Record<string, Record<string, unknown>>>(oc, "fixture_records_fighters");
+
+  // ═══ V3.5 — Extraction des nouveaux champs ═══
+  const footballSplits = extractOcField<DossierPickData["footballSplits"]>(oc, "fixture_splits_dom_ext");
+  const footballRecentMatches = extractOcField<DossierPickData["footballRecentMatches"]>(oc, "fixture_recent_matches_stats");
+  const footballSidelined = extractOcField<DossierPickData["footballSidelined"]>(oc, "fixture_sidelined");
+  const footballTopScorers = extractOcField<DossierPickData["footballTopScorers"]>(oc, "fixture_top_scorers_league");
+
+  const tennisPastMatches = extractOcField<DossierPickData["tennisPastMatches"]>(oc, "fixture_tennis_past_matches");
+  const tennisTournamentRecord = extractOcField<DossierPickData["tennisTournamentRecord"]>(oc, "fixture_tennis_tournament_record");
+  const tennisCareerStats = extractOcField<DossierPickData["tennisCareerStats"]>(oc, "fixture_tennis_career_stats");
+  const tennisFinalsTitles = extractOcField<DossierPickData["tennisFinalsTitles"]>(oc, "fixture_tennis_finals_titles");
+
+  const rugbyStats = extractOcField<DossierPickData["rugbyStats"]>(oc, "fixture_rugby_stats");
+  const handballStats = extractOcField<DossierPickData["handballStats"]>(oc, "fixture_handball_stats");
+  const f1Race = extractOcField<F1RaceData>(oc, "fixture_f1_race");
+  const f1Drivers = extractOcField<F1DriverStats[]>(oc, "fixture_f1_drivers");
+
+  // V3.5 — CLV (calculé après résolution dans publish-results)
+  const clvPctFinal = extractClvPctFinal(oc);
+  const clvHistory = extractClvHistory(oc);
+
+  // V3.5 — Tier + drop window (colonnes dédiées dans ai_picks)
+  const tier = (pick.tier ?? null) as PickTier | null;
+  const dropWindow = (pick.drop_window ?? null) as DropWindow | null;
 
   return {
     pickId: pick.id,
@@ -368,6 +507,13 @@ export const buildDossierData = async (
     odds: pick.odds,
     bookmaker: pick.odds_bookmaker ?? "",
     status: pick.status,
+
+    // V3.5
+    tier,
+    dropWindow,
+    clvPctFinal,
+    clvHistory,
+
     edgePct,
     fairOdds,
     fairProbability,
@@ -384,11 +530,31 @@ export const buildDossierData = async (
     consensusScore: pick.consensus_score,
     espnContext,
     apiFootballContext,
+
+    // V3 existant
     footballStats,
     footballPrediction,
     classement,
     h2hReel,
     pitchers,
     recordsFighters,
+
+    // V3.5 — Football enrichi
+    footballSplits,
+    footballRecentMatches,
+    footballSidelined,
+    footballTopScorers,
+
+    // V3.5 — Tennis enrichi
+    tennisPastMatches,
+    tennisTournamentRecord,
+    tennisCareerStats,
+    tennisFinalsTitles,
+
+    // V3.5 — Nouveaux sports
+    rugbyStats,
+    handballStats,
+    f1Race,
+    f1Drivers,
   };
 };

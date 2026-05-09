@@ -1,8 +1,8 @@
 /**
- * PRONOS.CLUB — Persistence Tipster Pick V3.5
+ * PRONOS.CLUB — Persistence Tipster Pick v3
  *
- * Adapte le format TipsterPick (flat 1U, simple/combiné) au schéma de la table
- * `ai_picks` pour préserver la compatibilité avec :
+ * Adapte le format TipsterPick (flat 1U, simple/combiné) au schéma existant
+ * de la table `ai_picks` pour préserver la compatibilité avec :
  *   - L'admin actuel (filtres, listes, actions)
  *   - Le composant <LiveScore /> (slugs sport)
  *   - Les séquences ai_picks_classic_seq / ai_picks_scorer_seq
@@ -16,19 +16,6 @@
  *   - consensus_tier = "tipster_v3_approved" | "tipster_v3_warning"
  *   - model_used = "claude-sonnet-4-6+gpt-4o-validator"
  *   - confidence_gpt = null (GPT n'est plus tipster, juste validator)
- *
- * Évolutions V3.5 (09/05/2026) :
- *   - NOUVEAU : colonne `tier` (lock / strong / value / coup_de_coeur)
- *   - NOUVEAU : colonne `drop_window` (morning / evening)
- *   - NOUVEAU : stockage 9 champs fixture enrichis dans odds_comparison :
- *     fixture_splits_dom_ext, fixture_recent_matches_stats, fixture_sidelined,
- *     fixture_top_scorers, fixture_tennis_past_matches, fixture_tennis_tournament_record,
- *     fixture_tennis_career_stats, fixture_tennis_finals_titles, fixture_rugby_stats,
- *     fixture_handball_stats, fixture_f1_race, fixture_f1_drivers
- *   - NOUVEAU : 3 sports ajoutés (rugby, handball, formula_1) dans inferSportSlug
- *   - NOUVEAU : nouveaux markets dans inferMarket
- *   - NOUVEAU : capture de la cote Pinnacle au moment de la génération
- *     (oc.opening_pinnacle_odds) → préparation tracking CLV futur
  *
  * Anti-doublon cross-run : si un pick "pending" existe déjà pour ce match
  * aujourd'hui, on skip pour éviter de poster 2 picks contradictoires.
@@ -101,8 +88,6 @@ const extractTeamsFromMatch = (
 /**
  * Slug attendu par <LiveScore /> selon le sport.
  * Aligné avec /lib/live-scores.ts.
- *
- * V3.5 : ajout rugby, handball, formula_1
  */
 const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string => {
   // Normalise pour être robuste aux variations de casse de Claude
@@ -115,10 +100,6 @@ const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string 
   if (s === "baseball") return "baseball";
   if (s === "tennis") return "tennis";
   if (s === "mma") return "mma";
-  // V3.5 : nouveaux sports
-  if (s === "rugby") return "rugby";
-  if (s === "handball") return "handball";
-  if (s === "formula_1" || s === "formula1" || s === "f1") return "formula-1";
 
   // Fallback : déduire depuis le nom de la ligue si sport inconnu
   if (leagueFallback) {
@@ -129,10 +110,6 @@ const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string 
     if (l.includes("nfl") || l.includes("american football")) return "football-americain";
     if (l.includes("atp") || l.includes("wta") || l.includes("tennis")) return "tennis";
     if (l.includes("mma") || l.includes("ufc")) return "mma";
-    // V3.5 : détection rugby/handball/F1 par nom de ligue
-    if (l.includes("rugby") || l.includes("top 14") || l.includes("six nations") || l.includes("urc")) return "rugby";
-    if (l.includes("handball") || l.includes("starligue") || l.includes("ehf")) return "handball";
-    if (l.includes("f1") || l.includes("formula") || l.includes("grand prix") || l.includes("gp ")) return "formula-1";
   }
 
   console.warn(`[persist-tipster-pick] sport inconnu "${sport}" (ligue: ${leagueFallback ?? "?"}) → fallback football`);
@@ -142,6 +119,7 @@ const inferSportSlug = (sport: SupportedSport, leagueFallback?: string): string 
 /**
  * Slug pour un combiné multi-matchs.
  * Format : "combo-{date}-{N}" où N = numéro de combiné du jour.
+ * On ne peut pas faire un slug par match (combiné = 2 matchs).
  */
 const buildCombineSlug = (
   combine: TipsterPickCombine,
@@ -226,6 +204,7 @@ const pickEffectiveOddsForSimple = (
   if (hoodsOdds !== null && hoodsBook) {
     return { odds: hoodsOdds, bookmaker: hoodsBook };
   }
+  // Cas extrême : ni arjel ni hors arjel — ne devrait pas arriver après validation Claude
   return { odds: 0, bookmaker: "PS3838" };
 };
 
@@ -234,6 +213,8 @@ const pickEffectiveOddsForCombine = (
 ): { odds: number; bookmaker: SupportedBookmaker } => {
   const arjel = pick.cote_totale_arjel;
   const hors = pick.cote_totale_hors_arjel;
+  // Pour un combiné le book est plus complexe (selections de books différents)
+  // On stocke "Multi" comme bookmaker effectif
   const odds = arjel !== null && hors !== null ? Math.max(arjel, hors) : (arjel ?? hors ?? 0);
   return { odds, bookmaker: "PS3838" };
 };
@@ -244,17 +225,21 @@ const pickEffectiveOddsForCombine = (
 
 /**
  * Format de la sélection à insérer (champ ai_picks.selection).
+ * Pour un simple : "Victoire Arsenal" (raw)
+ * Pour un combiné : "Combiné 2 sélections : Bayern Munich + Plus 2.5 buts (Atalanta vs Genoa)"
  */
 const buildSelectionString = (pick: TipsterPick): string => {
   if (pick.type === "simple") {
     return pick.selection;
   }
+  // Combiné
   const parts = pick.selections.map((s) => `${s.selection} (${s.match})`);
   return `Combiné : ${parts.join(" + ")}`;
 };
 
 /**
  * Reasoning concaténé (champ ai_picks.reasoning).
+ * On reprend les arguments du pick.
  */
 const buildReasoningString = (pick: TipsterPick): string => {
   if (pick.type === "simple") {
@@ -265,47 +250,12 @@ const buildReasoningString = (pick: TipsterPick): string => {
 
 /**
  * Détermine le market à insérer (champ ai_picks.market).
- * V3.5 : ajout markets rugby (TOTAL_TRIES, HANDICAP_RUGBY), handball (TOTAL_HANDBALL_GOALS,
- * HANDICAP_HANDBALL) et F1 (F1_WINNER, F1_PODIUM, F1_POINTS, F1_POLE, F1_DRIVER_MATCHUP).
+ * Inférence depuis la sélection.
  */
 const inferMarket = (pick: TipsterPick): string => {
   if (pick.type === "combine") return "COMBINE";
 
   const sel = pick.selection.toLowerCase();
-  const sport = (pick.sport as string).toLowerCase();
-
-  // V3.5 : F1 markets (à détecter en priorité)
-  if (sport === "formula_1" || sport === "formula1" || sport === "f1") {
-    if (sel.includes("podium") || sel.includes("top 3")) return "F1_PODIUM";
-    if (sel.includes("points") || sel.includes("top 10")) return "F1_POINTS";
-    if (sel.includes("pole")) return "F1_POLE";
-    if (sel.includes("vs ") || sel.includes("matchup") || sel.includes("contre")) return "F1_DRIVER_MATCHUP";
-    if (sel.includes("vainqueur") || sel.includes("winner") || sel.includes("gagne")) return "F1_WINNER";
-    return "F1_WINNER"; // fallback F1
-  }
-
-  // V3.5 : rugby markets
-  if (sport === "rugby") {
-    if (sel.includes("essai") || sel.includes("tries")) return "TOTAL_TRIES";
-    if (sel.includes("handicap")) return "HANDICAP_RUGBY";
-    if (sel.includes("plus de") || sel.includes("over") || /\+\d/.test(sel) ||
-        sel.includes("moins de") || sel.includes("under") || /-\d/.test(sel)) {
-      return "TOTAL_POINTS";
-    }
-    return "1N2";
-  }
-
-  // V3.5 : handball markets
-  if (sport === "handball") {
-    if (sel.includes("handicap")) return "HANDICAP_HANDBALL";
-    if (sel.includes("plus de") || sel.includes("over") || /\+\d/.test(sel) ||
-        sel.includes("moins de") || sel.includes("under") || /-\d/.test(sel)) {
-      return "TOTAL_HANDBALL_GOALS";
-    }
-    return "1N2";
-  }
-
-  // Markets existants (foot, tennis, basket, hockey, baseball, MMA)
   if (sel.includes("double chance") || /^(1x|x2|12)\b/.test(sel))
     return "DOUBLE_CHANCE";
   if (sel.includes("plus de") || sel.includes("over") || /\+\d/.test(sel)) {
@@ -334,23 +284,17 @@ const inferMarket = (pick: TipsterPick): string => {
 };
 
 // ============================================================================
-// odds_comparison : structure JSONB stockée pour traçabilité v3.5
+// odds_comparison : structure JSONB stockée pour traçabilité v3
 // ============================================================================
 
 /**
  * Structure JSONB enregistrée dans ai_picks.odds_comparison.
- * Contient TOUTES les méta-data spécifiques au système v3.5.
- *
- * V3.5 NOUVEAUX champs stockés :
- *   - opening_pinnacle_odds : cote Pinnacle au moment de la génération (pour CLV futur)
- *   - tier : tier classifié par Claude (lock / strong / value / coup_de_coeur)
- *   - drop_window : morning ou evening
- *   - fixture_splits_dom_ext, fixture_recent_matches_stats, fixture_sidelined,
- *     fixture_top_scorers : 4 nouveaux champs foot
- *   - fixture_tennis_past_matches, fixture_tennis_tournament_record,
- *     fixture_tennis_career_stats, fixture_tennis_finals_titles : 4 nouveaux champs tennis
- *   - fixture_rugby_stats, fixture_handball_stats : 2 nouveaux sports
- *   - fixture_f1_race, fixture_f1_drivers : F1 (structure différente)
+ * Contient TOUTES les méta-data spécifiques au système v3 :
+ *   - tipster_version (v2.2)
+ *   - mise_unites (toujours 1)
+ *   - both_odds (ARJEL + hors ARJEL pour affichage)
+ *   - validator_verdict (decision + reason GPT)
+ *   - combine_meta (uniquement pour les combinés)
  */
 const buildOddsComparison = (
   validated: ValidatedPick,
@@ -362,18 +306,10 @@ const buildOddsComparison = (
     tipster_version: TIPSTER_PROMPT_VERSION,
     mise_unites: 1,
     confiance: pick.confiance,
-    // V3.5 NOUVEAU : tier classifié par Claude
-    tier: pick.tier,
-    // V3.5 NOUVEAU : drop window (sera surchargé par le route handler si différent)
-    drop_window: validated.drop_window,
     validator_verdict: {
       decision: verdict.decision,
       reason: verdict.reason,
-      // V3.5 : suggestion de tier corrigé par GPT (peut être null)
-      suggested_tier: verdict.suggested_tier ?? null,
     },
-    // V3.5 NOUVEAU : tier final après validation
-    final_tier: validated.final_tier,
   };
 
   if (pick.type === "simple") {
@@ -391,19 +327,6 @@ const buildOddsComparison = (
       odds: validated.effective_odds,
       bookmaker: validated.effective_bookmaker,
     };
-
-    // V3.5 NOUVEAU : opening_pinnacle_odds pour préparer le tracking CLV
-    // C'est la cote PS3838 (= Pinnacle) au moment de la génération.
-    // À J+1, le cron clv-capture stockera la closing_pinnacle_odds, et resolve
-    // calculera clv_pct = (opening / closing_no_vig) - 1
-    if (pick.cote_hors_arjel !== null && pick.cote_hors_arjel_book === "PS3838") {
-      base.opening_pinnacle_odds = pick.cote_hors_arjel;
-    } else if (pick.cote_arjel !== null && pick.cote_arjel_book === "PS3838") {
-      base.opening_pinnacle_odds = pick.cote_arjel;
-    } else {
-      // Pas de cote Pinnacle → on stocke la cote ARJEL la plus haute comme fallback
-      base.opening_pinnacle_odds = null;
-    }
 
     // ── bookmakers_snapshot : alimente BooksComparator sur la page dossier ──
     const arjelBook = pick.cote_arjel_book as string | null;
@@ -437,7 +360,7 @@ const buildOddsComparison = (
     });
 
     base.bookmakers_snapshot = { books: booksSnapshot };
-
+    // best = book avec la cote la plus haute (PS3838 ou ARJEL)
     const arjelOdds    = pick.cote_arjel ?? 0;
     const horsArjelOdds = pick.cote_hors_arjel ?? 0;
     const bestBookName = horsArjelOdds > arjelOdds
@@ -447,36 +370,48 @@ const buildOddsComparison = (
     base.best_soft_book_name = bestBookName;
     base.best_soft_odds      = bestOddsVal;
 
-    // ── Stats fixture pour la page détail ─────────────────────────────────────
+    // ── Stats fixture pour la page détail (V3.5 enrichi) ──────────────────────
+    // On stocke les stats de la fixture enrichie dans odds_comparison pour
+    // pouvoir les afficher sur la page dossier sans re-fetcher les APIs.
     if (fixture) {
-      // V3 existant maintenu
-      if (fixture.stats_equipe)     base.fixture_stats_equipe   = fixture.stats_equipe;
+      // ── V3 (existant) — stats équipe foot, prédictions, classement, H2H, pitchers, MMA records
+      if (fixture.stats_equipe)     base.fixture_stats_equipe    = fixture.stats_equipe;
       if (fixture.predictions_api)  base.fixture_predictions     = fixture.predictions_api;
       if (fixture.classement)       base.fixture_classement      = fixture.classement;
       if (fixture.h2h_reel)         base.fixture_h2h_reel        = fixture.h2h_reel;
       if (fixture.pitchers)         base.fixture_pitchers        = fixture.pitchers;
       if (fixture.records_fighters) base.fixture_records_fighters = fixture.records_fighters;
 
-      // V3.5 NOUVEAUX champs foot enrichi
-      if (fixture.splits_dom_ext)         base.fixture_splits_dom_ext         = fixture.splits_dom_ext;
-      if (fixture.recent_matches_stats)   base.fixture_recent_matches_stats   = fixture.recent_matches_stats;
-      if (fixture.sidelined)              base.fixture_sidelined              = fixture.sidelined;
-      if (fixture.top_scorers_league)     base.fixture_top_scorers            = fixture.top_scorers_league;
+      // ── V3.5 — Football enrichi
+      if (fixture.splits_dom_ext)        base.fixture_splits_dom_ext        = fixture.splits_dom_ext;
+      if (fixture.recent_matches_stats)  base.fixture_recent_matches_stats  = fixture.recent_matches_stats;
+      if (fixture.sidelined)             base.fixture_sidelined             = fixture.sidelined;
+      if (fixture.top_scorers_league)    base.fixture_top_scorers_league    = fixture.top_scorers_league;
 
-      // V3.5 NOUVEAUX champs tennis enrichi (Masters 1000+/GC uniquement)
-      if (fixture.tennis_past_matches)        base.fixture_tennis_past_matches        = fixture.tennis_past_matches;
-      if (fixture.tennis_tournament_record)   base.fixture_tennis_tournament_record   = fixture.tennis_tournament_record;
-      if (fixture.tennis_career_stats)        base.fixture_tennis_career_stats        = fixture.tennis_career_stats;
-      if (fixture.tennis_finals_titles)       base.fixture_tennis_finals_titles       = fixture.tennis_finals_titles;
+      // ── V3.5 — Tennis enrichi
+      if (fixture.tennis_past_matches)      base.fixture_tennis_past_matches      = fixture.tennis_past_matches;
+      if (fixture.tennis_tournament_record) base.fixture_tennis_tournament_record = fixture.tennis_tournament_record;
+      if (fixture.tennis_career_stats)      base.fixture_tennis_career_stats      = fixture.tennis_career_stats;
+      if (fixture.tennis_finals_titles)     base.fixture_tennis_finals_titles     = fixture.tennis_finals_titles;
 
-      // V3.5 NOUVEAUX 3 sports
-      if (fixture.rugby_stats)    base.fixture_rugby_stats    = fixture.rugby_stats;
-      if (fixture.handball_stats) base.fixture_handball_stats = fixture.handball_stats;
-      if (fixture.f1_race)        base.fixture_f1_race        = fixture.f1_race;
-      if (fixture.f1_drivers)     base.fixture_f1_drivers     = fixture.f1_drivers;
+      // ── V3.5 — Rugby
+      if (fixture.rugby_stats)              base.fixture_rugby_stats              = fixture.rugby_stats;
+
+      // ── V3.5 — Handball
+      if (fixture.handball_stats)           base.fixture_handball_stats           = fixture.handball_stats;
+
+      // ── V3.5 — F1
+      if (fixture.f1_race)                  base.fixture_f1_race                  = fixture.f1_race;
+      if (fixture.f1_drivers)               base.fixture_f1_drivers               = fixture.f1_drivers;
+
+      // ── V3.5 — Métadonnées générales utiles à la page dossier
+      if (fixture.home_team) base.fixture_home_team = fixture.home_team;
+      if (fixture.away_team) base.fixture_away_team = fixture.away_team;
     }
   } else {
-    // Combiné — v3.1 : enrichissement de chaque sélection
+    // Combiné — v3.1 : enrichissement de chaque sélection avec les infos
+    // nécessaires à la résolution (league, sport, fixture_id si dispo).
+    // On retrouve les infos depuis la map de fixtures enrichies indexée par "match".
     base.combine_meta = {
       selections: pick.selections.map((s) => {
         const fixture = validated.combine_fixtures?.get(s.match);
@@ -485,6 +420,7 @@ const buildOddsComparison = (
           selection: s.selection,
           cote: s.cote,
           book: s.book,
+          // Infos pour le resolver de combinés (ligue + sport + fixture_id)
           league: fixture?.ligue ?? null,
           sport: fixture?.sport ?? null,
           apifootball_fixture_id: fixture?.apifootball_fixture_id ?? null,
@@ -509,39 +445,11 @@ const buildConsensusTier = (verdict: ValidatorVerdict): string => {
     case "warning":
       return "tipster_v3_warning";
     case "veto":
+      // Ne devrait pas arriver (les vetos sont filtrés avant persist)
       return "tipster_v3_vetoed";
     default:
       return "tipster_v3_unknown";
   }
-};
-
-// ============================================================================
-// VALIDATION DU TIER (V3.5)
-// ============================================================================
-
-/**
- * V3.5 : valide la cohérence du tier avec confiance + edge_pct.
- * Si tier=lock mais confiance < 80, downgrade automatique vers strong.
- * Cette logique est aussi appliquée dans gpt-validator (suggested_tier),
- * mais on garde un filet de sécurité ici au cas où le validator fail.
- */
-const validateTier = (
-  declaredTier: PickTier,
-  confiance: number
-): PickTier => {
-  if (declaredTier === "lock" && confiance < 80) {
-    return "strong";
-  }
-  if (declaredTier === "strong" && confiance < 75) {
-    return "value";
-  }
-  if (declaredTier === "value" && confiance < 70) {
-    return "coup_de_coeur";
-  }
-  if (declaredTier === "coup_de_coeur" && confiance >= 80) {
-    return "lock";
-  }
-  return declaredTier;
 };
 
 // ============================================================================
@@ -554,8 +462,8 @@ const validateTier = (
  * Workflow :
  *   1. Anti-doublon cross-run (skip si pick pending pour ce match aujourd'hui)
  *   2. Génération slug unique
- *   3. Inférence sport, market, fixture_id, tier validé
- *   4. Construction insertData avec mapping v3.5 → schéma existant
+ *   3. Inférence sport, market, fixture_id
+ *   4. Construction insertData avec mapping v3 → schéma existant
  *   5. Insertion + retour pickId pour génération dossier asynchrone
  */
 export const persistTipsterPick = async (
@@ -575,9 +483,13 @@ export const persistTipsterPick = async (
       eventName = pick.match;
       sportSlug = inferSportSlug(pick.sport, pick.ligue);
 
+      // Trouver la fixture correspondante pour le fixture_id et la date
       const fixture = fixturesByMatch.get(pick.match);
       if (fixture) {
         eventDateIso = fixture.commence_time_iso;
+        // v3.1 (02/05/2026) : on récupère le fixture_id api-football
+        // stocké lors de l'enrichissement (multi-sport-fetcher.ts).
+        // Permet la résolution directe via api-football pour les picks foot.
         apifootballFixtureId = fixture.apifootball_fixture_id ?? null;
       } else {
         eventDateIso = new Date().toISOString();
@@ -591,7 +503,7 @@ export const persistTipsterPick = async (
       });
       eventName = `Combiné ${pick.selections.length} sélections du ${formatted}`;
       eventDateIso = new Date(`${dateOnly}T20:00:00.000Z`).toISOString();
-      sportSlug = "multi";
+      sportSlug = "multi"; // sport custom pour combinés
     }
 
     const dateOnly = eventDateIso.slice(0, 10);
@@ -655,9 +567,6 @@ export const persistTipsterPick = async (
 
     const ligue = pick.type === "simple" ? pick.ligue : "Multi";
 
-    // V3.5 : validation finale du tier (filet de sécurité après GPT validator)
-    const validatedTier = validateTier(validated.final_tier, pick.confiance);
-
     const insertData: Record<string, unknown> = {
       pick_type: "classic",
       sport: sportSlug,
@@ -676,7 +585,7 @@ export const persistTipsterPick = async (
       reasoning_gpt: verdict.reason,
       ai_confidence: pick.confiance,
       confidence_claude: pick.confiance,
-      confidence_gpt: null,
+      confidence_gpt: null, // GPT n'est plus tipster en v3
       confidence_apifootball: null,
       consensus_score: pick.confiance,
       consensus_tier: consensusTier,
@@ -693,9 +602,6 @@ export const persistTipsterPick = async (
       deleted_at: null,
       classic_number: classicNumber,
       scorer_number: null,
-      // V3.5 NOUVELLES colonnes
-      tier: validatedTier,
-      drop_window: validated.drop_window,
     };
 
     // ─── INSERT
@@ -747,13 +653,17 @@ export const buildFixturesByMatchMap = (
  * Construit un ValidatedPick à partir d'un TipsterPick + ValidatorVerdict.
  * Calcule la cote effective (best of arjel + hors_arjel).
  *
- * V3.5 : ajout du paramètre dropWindow (obligatoire) et calcul du final_tier
- * (peut différer du tier déclaré par Claude si GPT validator suggère un correctif).
+ * V3.5 : ajout obligatoire de dropWindow (matin/soir) pour traçabilité.
  *
- * @param pick Le pick Claude tipster (avec tier obligatoire en V3.5)
- * @param verdict Le verdict GPT validator (peut contenir suggested_tier)
- * @param dropWindow Drop window de génération (morning ou evening)
- * @param fixturesByMatch Map des fixtures du jour
+ * Le final_tier est :
+ *   - Le tier suggéré par le validator GPT s'il a fait un downgrade (suggested_tier)
+ *   - Sinon le tier original du pick (pick.tier)
+ *
+ * @param pick Le pick Claude tipster
+ * @param verdict Le verdict GPT validator (peut suggérer un tier downgrade)
+ * @param dropWindow Drop window de génération ("morning" | "evening")
+ * @param fixturesByMatch Map des fixtures du jour (utilisée pour enrichir
+ *                        les sous-sélections de combinés avec league/sport/id)
  */
 export const buildValidatedPick = (
   pick: TipsterPick,
@@ -767,6 +677,8 @@ export const buildValidatedPick = (
       : pickEffectiveOddsForCombine(pick);
 
   // Pour les combinés : on construit une sous-map des fixtures concernées
+  // par les sélections du combiné, pour que persistTipsterPick puisse
+  // les retrouver lors de la construction du combine_meta.
   let combineFixtures: Map<string, EnrichedFixture> | undefined;
   if (pick.type === "combine" && fixturesByMatch) {
     combineFixtures = new Map();
@@ -776,8 +688,9 @@ export const buildValidatedPick = (
     }
   }
 
-  // V3.5 : tier final = suggested_tier si GPT en a suggéré un, sinon tier déclaré
-  const finalTier: PickTier = verdict.suggested_tier ?? pick.tier;
+  // V3.5 : final_tier = suggested_tier du GPT si downgrade, sinon tier original
+  const suggestedTier = (verdict as ValidatorVerdict & { suggested_tier?: PickTier }).suggested_tier;
+  const finalTier: PickTier = suggestedTier ?? pick.tier;
 
   return {
     pick,
