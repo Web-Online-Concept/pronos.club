@@ -209,7 +209,7 @@ export default function HistoriqueClient({ locale }: Props) {
             }}
             className={selectClassName}
           >
-            <option value="all">{isMobile ? "Dates" : "Toutes les dates"}</option>
+            <option value="all">Dates</option>
             <option value="custom">Dates personnalisées</option>
           </select>
 
@@ -219,7 +219,7 @@ export default function HistoriqueClient({ locale }: Props) {
             onChange={(e) => setSport(e.target.value)}
             className={selectClassName}
           >
-            <option value="all">{isMobile ? "Sports" : "Tous les sports"}</option>
+            <option value="all">Sports</option>
             {AI_SPORTS.map((s) => {
               const shortName =
                 isMobile && s.name.length > 10 ? s.name.slice(0, 10) + "." : s.name;
@@ -237,7 +237,7 @@ export default function HistoriqueClient({ locale }: Props) {
             onChange={(e) => setTier(e.target.value)}
             className={selectClassName}
           >
-            <option value="all">{isMobile ? "Tier" : "Tous les tiers"}</option>
+            <option value="all">Confiances</option>
             {AI_TIERS.map((t) => (
               <option key={t.slug} value={t.slug}>
                 {t.icon} {t.name}
@@ -251,7 +251,7 @@ export default function HistoriqueClient({ locale }: Props) {
             onChange={(e) => setStatusFilter(e.target.value)}
             className={selectClassName}
           >
-            <option value="all">{isMobile ? "Résultats" : "Tous les résultats"}</option>
+            <option value="all">Résultats</option>
             <option value="awaiting">En attente</option>
             <option value="won">Gagnés</option>
             <option value="lost">Perdus</option>
