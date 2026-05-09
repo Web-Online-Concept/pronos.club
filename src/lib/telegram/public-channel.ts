@@ -16,6 +16,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createPickShortLink } from "@/lib/shortlinks/create";
 import type { BilanJour } from "@/lib/clv/resolve";
 import type { BilanHebdo } from "@/lib/bilan/hebdo-generator";
+import type { BilanMensuel } from "@/lib/bilan/mensuel-generator";
 
 // ============================================================================
 // CONFIGURATION
@@ -518,6 +519,116 @@ export const publishHebdoBilanToPublicChannel = async (
   } else {
     console.warn(
       `[telegram] Bilan hebdo ${bilan.week_slug} échec publication: ${result.error}`
+    );
+  }
+
+  return result;
+};
+
+// ============================================================================
+// V3.5 LOT 11 — BILAN MENSUEL TELEGRAM
+// ============================================================================
+
+/**
+ * Formate le bilan mensuel au format HTML pour Telegram public.
+ * Réplique du pattern formatBilanHebdoMessage adapté au mensuel.
+ */
+const formatBilanMensuelMessage = (
+  bilan: BilanMensuel,
+  bilanLinkUrl: string
+): string => {
+  const roiSign = bilan.roi_pct >= 0 ? "+" : "";
+  const profitSign = bilan.total_profit_units >= 0 ? "+" : "";
+  const roiEmoji = bilan.roi_pct > 0 ? "🟢" : bilan.roi_pct < 0 ? "🔴" : "⚪";
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`📊 <b>BILAN MENSUEL — ${bilan.month_label}</b>`);
+  lines.push("");
+
+  // Stats principales
+  lines.push(`${roiEmoji} <b>ROI : ${roiSign}${bilan.roi_pct.toFixed(2)}%</b>`);
+  lines.push(`💰 Profit : ${profitSign}${bilan.total_profit_units.toFixed(2)}U sur ${bilan.total_stake_units.toFixed(0)}U misés`);
+  lines.push(
+    `🎯 <b>${bilan.total_picks} picks</b> : ${bilan.picks_won}V / ${bilan.picks_lost}D${bilan.picks_void > 0 ? ` / ${bilan.picks_void}N` : ""} (winrate ${bilan.winrate_pct.toFixed(1)}%)`
+  );
+
+  // CLV moyen
+  if (bilan.clv_avg_pct !== null && bilan.clv_picks_count > 0) {
+    const clvSign = bilan.clv_avg_pct >= 0 ? "+" : "";
+    const clvEmoji = bilan.clv_avg_pct > 0 ? "⚡" : "📉";
+    lines.push(`${clvEmoji} CLV moyen : ${clvSign}${bilan.clv_avg_pct.toFixed(2)}% (${bilan.clv_picks_count} picks)`);
+  }
+
+  // Stats par tier
+  const tiersWithPicks = (["lock", "strong", "value", "coup_de_coeur"] as const).filter(
+    (t) => bilan.picks_by_tier[t]?.count > 0
+  );
+  if (tiersWithPicks.length > 0) {
+    lines.push("");
+    lines.push("<b>📈 Par catégorie :</b>");
+    for (const t of tiersWithPicks) {
+      const stats = bilan.picks_by_tier[t];
+      const tierInfo = TIER_DISPLAY[t];
+      const sign = stats.profit >= 0 ? "+" : "";
+      const roiSign2 = stats.roi_pct >= 0 ? "+" : "";
+      lines.push(
+        `${tierInfo.emoji} ${tierInfo.label} : ${stats.won}/${stats.count} (${sign}${stats.profit.toFixed(2)}U, ROI ${roiSign2}${stats.roi_pct.toFixed(1)}%)`
+      );
+    }
+  }
+
+  // Stats top 5 sports (les plus rentables)
+  const sportsArr = Object.entries(bilan.picks_by_sport)
+    .filter(([, s]) => s.count > 0)
+    .sort((a, b) => b[1].profit - a[1].profit)
+    .slice(0, 5);
+
+  if (sportsArr.length > 0) {
+    lines.push("");
+    lines.push("<b>🏆 Par sport :</b>");
+    for (const [sport, stats] of sportsArr) {
+      const sportEmoji = SPORT_EMOJI[sport] ?? "🎯";
+      const sign = stats.profit >= 0 ? "+" : "";
+      const sportLabel = sport.charAt(0).toUpperCase() + sport.slice(1).replace("-", " ");
+      lines.push(
+        `${sportEmoji} ${sportLabel} : ${stats.won}/${stats.count} (${sign}${stats.profit.toFixed(2)}U)`
+      );
+    }
+  }
+
+  // CTA
+  lines.push("");
+  lines.push(`📊 <b>Bilan complet + graphiques :</b>`);
+  lines.push(`👉 ${bilanLinkUrl}`);
+  lines.push("");
+  lines.push(DISCLAIMER_BLOCK);
+
+  return lines.join("\n");
+};
+
+/**
+ * Publie le bilan mensuel sur le canal Telegram public.
+ *
+ * @param bilan le BilanMensuel agrégé via aggregateBilanMensuel()
+ * @returns PublishResult
+ */
+export const publishMensuelBilanToPublicChannel = async (
+  bilan: BilanMensuel
+): Promise<PublishResult> => {
+  const bilanLinkUrl = `${SITE_BASE_URL}/fr/pronos-ia/bilan-mensuel/${bilan.month_slug}?utm_source=telegram&utm_medium=channel&utm_campaign=ia_bilan_mensuel`;
+
+  const message = formatBilanMensuelMessage(bilan, bilanLinkUrl);
+  const result = await telegramSendMessage(message, "HTML", false);
+
+  if (result.success) {
+    console.log(
+      `[telegram] Bilan mensuel ${bilan.month_slug} publié, message_id=${result.message_id}`
+    );
+  } else {
+    console.warn(
+      `[telegram] Bilan mensuel ${bilan.month_slug} échec publication: ${result.error}`
     );
   }
 
