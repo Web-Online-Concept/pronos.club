@@ -56,6 +56,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
+    pathname.startsWith("/r/") ||
     pathname === "/password" ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
@@ -88,6 +89,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next|.*\\..*).*)",
+    "/((?!api|_next|r/|.*\\..*).*)",
   ],
 };
