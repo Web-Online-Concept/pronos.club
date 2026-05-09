@@ -49,6 +49,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/ai-picks-bilan-hebdo",
+      "schedule": "0 20 * * 0"
+    },
+    {
       "path": "/api/cron/tipster-concours-week",
       "schedule": "15 0 * * 1"
     },

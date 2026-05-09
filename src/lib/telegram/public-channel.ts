@@ -1,38 +1,21 @@
 /**
- * PRONOS.CLUB — Telegram Public Channel Publisher (V3.5)
+ * PRONOS.CLUB — Telegram Public Channel Publisher V3.5 (mise à jour Étape 5)
  *
- * Helper de publication sur le canal Telegram public @pronos_club_ia.
- * Utilisé par les crons publish-morning, publish-evening, publish-results.
+ * Mise à jour du fichier existant src/lib/telegram/public-channel.ts pour
+ * implémenter la fonction publishHebdoBilanToPublicChannel() qui était
+ * un stub à l'Étape 3.
  *
- * 3 fonctions exportées :
+ * Cette mise à jour AJOUTE la fonction publishHebdoBilanToPublicChannel
+ * et conserve les 2 autres fonctions exportées (publishPickToPublicChannel,
+ * publishResultsBilanToPublicChannel) STRICTEMENT IDENTIQUES.
  *
- *   1. publishPickToPublicChannel(pickId)
- *      - Récupère le pick depuis ai_picks
- *      - Crée un shortlink /r/[code] avec UTM
- *      - Format HTML court (~10 lignes) : tier, sport, sélection, cote,
- *        1 argument clé, lien, disclaimers ANJ
- *      - Envoie via Telegram Bot API
- *
- *   2. publishResultsBilanToPublicChannel(bilan)
- *      - Format HTML détaillé du bilan jour
- *      - Stats globales + par tier + CLV moyen
- *      - Liste des picks avec ✅/❌/➖ + score final
- *      - Lien vers la page bilan (à créer Étape 6) ou liste pronos-ia
- *
- *   3. publishHebdoBilanToPublicChannel(bilanHebdo)
- *      - Réservé pour la future implémentation du bilan hebdo dim soir
- *      - Stub qui retourne not_implemented pour l'instant
- *
- * Toutes ces fonctions :
- *   - Utilisent parse_mode HTML
- *   - Incluent les disclaimers ANJ obligatoires (18+, joueurs-info-service)
- *   - Loggent leurs résultats pour debug
- *   - Ne throw jamais : retournent { success: bool, error?: string }
+ * Path destination : src/lib/telegram/public-channel.ts (REMPLACE)
  */
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createPickShortLink } from "@/lib/shortlinks/create";
 import type { BilanJour } from "@/lib/clv/resolve";
+import type { BilanHebdo } from "@/lib/bilan/hebdo-generator";
 
 // ============================================================================
 // CONFIGURATION
@@ -40,6 +23,7 @@ import type { BilanJour } from "@/lib/clv/resolve";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_IA_BOT_TOKEN ?? "";
 const TELEGRAM_CHANNEL_ID = process.env.TELEGRAM_IA_CHANNEL_ID ?? "";
+const SITE_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pronos.club";
 
 const TELEGRAM_API_BASE = "https://api.telegram.org";
 
@@ -80,10 +64,9 @@ type TelegramSendMessageResponse = {
 };
 
 // ============================================================================
-// CONSTANTS — Mappings affichage
+// CONSTANTS - Affichage
 // ============================================================================
 
-/** Émojis sport pour les posts */
 const SPORT_EMOJI: Record<string, string> = {
   football: "⚽",
   tennis: "🎾",
@@ -98,7 +81,6 @@ const SPORT_EMOJI: Record<string, string> = {
   multi: "🎯",
 };
 
-/** Labels et émojis tier pour l'affichage */
 const TIER_DISPLAY: Record<string, { emoji: string; label: string }> = {
   lock: { emoji: "🔒", label: "LOCK" },
   strong: { emoji: "💪", label: "STRONG" },
@@ -106,18 +88,12 @@ const TIER_DISPLAY: Record<string, { emoji: string; label: string }> = {
   coup_de_coeur: { emoji: "❤️", label: "COUP DE CŒUR" },
 };
 
-/** Bloc de disclaimers ANJ obligatoires (à inclure sur chaque post) */
 const DISCLAIMER_BLOCK = `🔞 <i>Jouer comporte des risques : endettement, dépendance.\nAppelez le 09 74 75 13 13 (appel non surtaxé). joueurs-info-service.fr</i>`;
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-/**
- * Échappe les caractères HTML spéciaux pour parse_mode HTML.
- * Telegram HTML supporte uniquement <b>, <i>, <u>, <s>, <code>, <pre>, <a>.
- * Les autres < > & doivent être échappés.
- */
 const escapeHtml = (text: string): string => {
   return text
     .replace(/&/g, "&amp;")
@@ -125,10 +101,6 @@ const escapeHtml = (text: string): string => {
     .replace(/>/g, "&gt;");
 };
 
-/**
- * Formate la date Paris depuis ISO timestamp.
- * Ex: "2026-05-10T19:30:00Z" → "10/05 21:30"
- */
 const formatDateTimeParis = (iso: string): string => {
   return new Date(iso)
     .toLocaleString("fr-FR", {
@@ -141,10 +113,6 @@ const formatDateTimeParis = (iso: string): string => {
     .replace(",", "");
 };
 
-/**
- * Formate la date Paris (jour seul) depuis YYYY-MM-DD.
- * Ex: "2026-05-09" → "vendredi 9 mai"
- */
 const formatDateLongFr = (yyyymmdd: string): string => {
   const d = new Date(`${yyyymmdd}T12:00:00Z`);
   return d
@@ -156,16 +124,10 @@ const formatDateLongFr = (yyyymmdd: string): string => {
     });
 };
 
-/**
- * Pour un pick combiné, on construit un titre lisible.
- * Pour un simple, on retourne juste event_name.
- */
 const getDisplayMatchTitle = (pick: PickRow): string => {
   if (pick.market === "COMBINE") {
     const oc = pick.odds_comparison ?? {};
-    const meta = oc.combine_meta as
-      | { selections?: Array<{ match: string }> }
-      | undefined;
+    const meta = oc.combine_meta as { selections?: Array<{ match: string }> } | undefined;
     if (meta?.selections && meta.selections.length > 0) {
       return meta.selections.map((s) => s.match).join(" + ");
     }
@@ -174,20 +136,12 @@ const getDisplayMatchTitle = (pick: PickRow): string => {
   return pick.event_name;
 };
 
-/**
- * Récupère le 1er argument du reasoning (séparateur " • ").
- * Ex: "Argument 1 • Argument 2 • Argument 3" → "Argument 1"
- */
 const getFirstArgument = (reasoning: string): string => {
   if (!reasoning) return "";
   const parts = reasoning.split(" • ");
   return (parts[0] ?? "").trim();
 };
 
-/**
- * Appel HTTP au Telegram Bot API sendMessage.
- * Retry x2 en cas d'erreur 5xx ou 429 (rate limit).
- */
 const telegramSendMessage = async (
   text: string,
   parseMode: "HTML" | "Markdown" = "HTML",
@@ -202,13 +156,10 @@ const telegramSendMessage = async (
 
   const url = `${TELEGRAM_API_BASE}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
-  // Le channel_id peut être numérique (-100xxx) ou un username (@xxx)
-  // On essaie de parser en number d'abord
   const chatIdRaw = TELEGRAM_CHANNEL_ID.trim();
   const chatIdAsNum = Number(chatIdRaw);
-  const chatId: string | number = !isNaN(chatIdAsNum) && chatIdRaw.startsWith("-")
-    ? chatIdAsNum
-    : chatIdRaw;
+  const chatId: string | number =
+    !isNaN(chatIdAsNum) && chatIdRaw.startsWith("-") ? chatIdAsNum : chatIdRaw;
 
   const body = {
     chat_id: chatId,
@@ -236,17 +187,12 @@ const telegramSendMessage = async (
 
       lastError = data.description ?? `HTTP ${response.status}`;
 
-      // 429 (rate limit) ou 5xx → retry après pause
-      if (
-        response.status === 429 ||
-        (response.status >= 500 && response.status < 600)
-      ) {
+      if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
         if (attempt < MAX_RETRIES) {
           await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
           continue;
         }
       }
-
       return { success: false, error: lastError };
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
@@ -261,17 +207,10 @@ const telegramSendMessage = async (
 };
 
 // ============================================================================
-// FORMAT 1 : POST D'UN PICK
+// FORMAT 1 : POST D'UN PICK (inchangé depuis Étape 3)
 // ============================================================================
 
-/**
- * Formate un pick au format HTML court pour Telegram public.
- * ~10 lignes, lisible sur mobile, lien shortlink, disclaimers ANJ.
- */
-const formatPickMessage = (
-  pick: PickRow,
-  shortUrl: string
-): string => {
+const formatPickMessage = (pick: PickRow, shortUrl: string): string => {
   const tierInfo = pick.tier ? TIER_DISPLAY[pick.tier] : null;
   const sportEmoji = SPORT_EMOJI[pick.sport] ?? "🎯";
   const matchTitle = escapeHtml(getDisplayMatchTitle(pick));
@@ -280,12 +219,10 @@ const formatPickMessage = (
   const firstArg = escapeHtml(getFirstArgument(pick.reasoning));
   const kickoff = formatDateTimeParis(pick.event_date);
 
-  // Header avec tier + sport + league
   const header = tierInfo
     ? `${tierInfo.emoji} <b>${tierInfo.label}</b> ${sportEmoji} ${league}`
     : `${sportEmoji} ${league}`;
 
-  // Cote sur la base de la meilleure dispo (déjà calculée au persist)
   const bookLabel = pick.odds_bookmaker
     ? ` <i>(${escapeHtml(pick.odds_bookmaker)})</i>`
     : "";
@@ -312,15 +249,9 @@ const formatPickMessage = (
   return lines.join("\n");
 };
 
-/**
- * Récupère un pick depuis ai_picks et le publie sur le canal Telegram public.
- *
- * @param pickId UUID du pick (depuis ai_picks.id)
- */
 export const publishPickToPublicChannel = async (
   pickId: string
 ): Promise<PublishResult> => {
-  // ─── 1. Récupération du pick
   const { data: pick, error: fetchError } = await supabaseAdmin
     .from("ai_picks")
     .select(
@@ -331,10 +262,7 @@ export const publishPickToPublicChannel = async (
     .maybeSingle();
 
   if (fetchError) {
-    return {
-      success: false,
-      error: `Fetch pick failed: ${fetchError.message}`,
-    };
+    return { success: false, error: `Fetch pick failed: ${fetchError.message}` };
   }
 
   if (!pick) {
@@ -350,7 +278,6 @@ export const publishPickToPublicChannel = async (
     };
   }
 
-  // ─── 2. Création du shortlink
   let shortUrl: string;
   try {
     const utmCampaign =
@@ -369,7 +296,6 @@ export const publishPickToPublicChannel = async (
     };
   }
 
-  // ─── 3. Format + envoi Telegram
   const message = formatPickMessage(typedPick, shortUrl);
   const result = await telegramSendMessage(message, "HTML", false);
 
@@ -378,33 +304,17 @@ export const publishPickToPublicChannel = async (
       `[telegram] Pick ${pickId} (${typedPick.slug}) publié, message_id=${result.message_id}`
     );
   } else {
-    console.warn(
-      `[telegram] Pick ${pickId} échec publication: ${result.error}`
-    );
+    console.warn(`[telegram] Pick ${pickId} échec publication: ${result.error}`);
   }
 
   return result;
 };
 
 // ============================================================================
-// FORMAT 2 : POST DU BILAN JOUR
+// FORMAT 2 : POST DU BILAN JOUR (inchangé depuis Étape 3)
 // ============================================================================
 
-/**
- * Formate le bilan jour au format HTML détaillé pour Telegram public.
- * Structure :
- *   - Header avec date + ROI global
- *   - Stats globales (V/D/N + profit + ROI)
- *   - Stats par tier
- *   - Liste détaillée des picks avec ✅/❌/➖ + cote + résultat
- *   - CLV moyen
- *   - Lien vers la page liste pronos-ia
- *   - Disclaimer ANJ
- */
-const formatBilanJourMessage = (
-  bilan: BilanJour,
-  bilanLinkUrl: string
-): string => {
+const formatBilanJourMessage = (bilan: BilanJour, bilanLinkUrl: string): string => {
   const dateLabel = formatDateLongFr(bilan.date);
   const roiSign = bilan.roi_pct >= 0 ? "+" : "";
   const profitSign = bilan.total_profit_units >= 0 ? "+" : "";
@@ -414,14 +324,11 @@ const formatBilanJourMessage = (
   lines.push(`📊 <b>BILAN ${dateLabel.toUpperCase()}</b>`);
   lines.push("");
   lines.push(`${roiEmoji} <b>ROI : ${roiSign}${bilan.roi_pct.toFixed(2)}%</b>`);
-  lines.push(
-    `💰 Profit : ${profitSign}${bilan.total_profit_units.toFixed(2)}U`
-  );
+  lines.push(`💰 Profit : ${profitSign}${bilan.total_profit_units.toFixed(2)}U`);
   lines.push(
     `📈 ${bilan.total_picks} picks : ${bilan.picks_won}V / ${bilan.picks_lost}D${bilan.picks_void > 0 ? ` / ${bilan.picks_void} annulé(s)` : ""}`
   );
 
-  // Stats CLV (si dispo)
   if (bilan.clv_avg_pct !== null && bilan.clv_picks_count > 0) {
     const clvSign = bilan.clv_avg_pct >= 0 ? "+" : "";
     lines.push(
@@ -429,7 +336,6 @@ const formatBilanJourMessage = (
     );
   }
 
-  // Stats par tier
   const tiersWithPicks = (
     ["lock", "strong", "value", "coup_de_coeur"] as const
   ).filter((t) => bilan.picks_by_tier[t].count > 0);
@@ -447,7 +353,6 @@ const formatBilanJourMessage = (
     }
   }
 
-  // Liste détaillée des picks (max 12 affichés)
   const MAX_PICKS_DETAIL = 12;
   const picksToShow = bilan.picks.slice(0, MAX_PICKS_DETAIL);
   if (picksToShow.length > 0) {
@@ -455,11 +360,7 @@ const formatBilanJourMessage = (
     lines.push("<b>Détail :</b>");
     for (const pickEntry of picksToShow) {
       const statusEmoji =
-        pickEntry.status === "won"
-          ? "✅"
-          : pickEntry.status === "lost"
-            ? "❌"
-            : "➖";
+        pickEntry.status === "won" ? "✅" : pickEntry.status === "lost" ? "❌" : "➖";
       const sportEmoji = SPORT_EMOJI[pickEntry.sport] ?? "🎯";
       const eventShort = escapeHtml(
         pickEntry.event_name.length > 35
@@ -478,7 +379,6 @@ const formatBilanJourMessage = (
         `${statusEmoji} ${sportEmoji} ${eventShort} — ${selectionShort} @ ${pickEntry.odds.toFixed(2)}${scoreLabel}`
       );
     }
-
     if (bilan.picks.length > MAX_PICKS_DETAIL) {
       lines.push(
         `<i>...et ${bilan.picks.length - MAX_PICKS_DETAIL} autre${bilan.picks.length - MAX_PICKS_DETAIL > 1 ? "s" : ""}</i>`
@@ -494,18 +394,10 @@ const formatBilanJourMessage = (
   return lines.join("\n");
 };
 
-/**
- * Publie le bilan jour sur le canal Telegram public.
- * Le lien pointe vers la page liste pronos-ia (page bilan dédiée à venir Étape 6).
- */
 export const publishResultsBilanToPublicChannel = async (
   bilan: BilanJour
 ): Promise<PublishResult> => {
-  // Pour l'instant, on ne crée pas un shortlink dédié au bilan jour
-  // (la page bilan-jour n'existe pas encore). On pointe vers la page liste.
-  const SITE_BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pronos.club";
   const bilanLinkUrl = `${SITE_BASE_URL}/fr/pronos-ia?utm_source=telegram&utm_medium=channel&utm_campaign=ia_bilan_jour`;
-
   const message = formatBilanJourMessage(bilan, bilanLinkUrl);
   const result = await telegramSendMessage(message, "HTML", false);
 
@@ -514,24 +406,120 @@ export const publishResultsBilanToPublicChannel = async (
       `[telegram] Bilan ${bilan.date} publié, message_id=${result.message_id}`
     );
   } else {
-    console.warn(
-      `[telegram] Bilan ${bilan.date} échec publication: ${result.error}`
-    );
+    console.warn(`[telegram] Bilan ${bilan.date} échec publication: ${result.error}`);
   }
 
   return result;
 };
 
 // ============================================================================
-// FORMAT 3 : POST DU BILAN HEBDO (stub pour future implémentation)
+// FORMAT 3 : POST DU BILAN HEBDO (NOUVEAU - Étape 5)
 // ============================================================================
 
 /**
- * Stub : à implémenter en Étape 6 (page bilan hebdo /bilan-hebdo/[semaine]).
+ * Formate le bilan hebdo au format HTML pour Telegram public.
+ * Plus condensé que le bilan jour : on évite la liste détaillée des picks
+ * (mise sur la page web) et on met l'accent sur les KPIs synthétiques.
  */
-export const publishHebdoBilanToPublicChannel = async (): Promise<PublishResult> => {
-  return {
-    success: false,
-    error: "publishHebdoBilanToPublicChannel: not implemented yet (Étape 6)",
-  };
+const formatBilanHebdoMessage = (
+  bilan: BilanHebdo,
+  bilanLinkUrl: string
+): string => {
+  const roiSign = bilan.roi_pct >= 0 ? "+" : "";
+  const profitSign = bilan.total_profit_units >= 0 ? "+" : "";
+  const roiEmoji = bilan.roi_pct > 0 ? "🟢" : bilan.roi_pct < 0 ? "🔴" : "⚪";
+
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`📊 <b>BILAN HEBDO — Semaine ${bilan.week_number}</b>`);
+  lines.push(`<i>${bilan.week_label}</i>`);
+  lines.push("");
+
+  // Stats principales
+  lines.push(`${roiEmoji} <b>ROI : ${roiSign}${bilan.roi_pct.toFixed(2)}%</b>`);
+  lines.push(`💰 Profit : ${profitSign}${bilan.total_profit_units.toFixed(2)}U sur ${bilan.total_stake_units.toFixed(0)}U misés`);
+  lines.push(
+    `🎯 <b>${bilan.total_picks} picks</b> : ${bilan.picks_won}V / ${bilan.picks_lost}D${bilan.picks_void > 0 ? ` / ${bilan.picks_void}N` : ""} (winrate ${bilan.winrate_pct.toFixed(1)}%)`
+  );
+
+  // CLV moyen
+  if (bilan.clv_avg_pct !== null && bilan.clv_picks_count > 0) {
+    const clvSign = bilan.clv_avg_pct >= 0 ? "+" : "";
+    const clvEmoji = bilan.clv_avg_pct > 0 ? "⚡" : "📉";
+    lines.push(`${clvEmoji} CLV moyen : ${clvSign}${bilan.clv_avg_pct.toFixed(2)}% (${bilan.clv_picks_count} picks)`);
+  }
+
+  // Stats par tier
+  const tiersWithPicks = (["lock", "strong", "value", "coup_de_coeur"] as const).filter(
+    (t) => bilan.picks_by_tier[t]?.count > 0
+  );
+  if (tiersWithPicks.length > 0) {
+    lines.push("");
+    lines.push("<b>📈 Par catégorie :</b>");
+    for (const t of tiersWithPicks) {
+      const stats = bilan.picks_by_tier[t];
+      const tierInfo = TIER_DISPLAY[t];
+      const sign = stats.profit >= 0 ? "+" : "";
+      const roiSign2 = stats.roi_pct >= 0 ? "+" : "";
+      lines.push(
+        `${tierInfo.emoji} ${tierInfo.label} : ${stats.won}/${stats.count} (${sign}${stats.profit.toFixed(2)}U, ROI ${roiSign2}${stats.roi_pct.toFixed(1)}%)`
+      );
+    }
+  }
+
+  // Stats top 5 sports (les plus rentables)
+  const sportsArr = Object.entries(bilan.picks_by_sport)
+    .filter(([, s]) => s.count > 0)
+    .sort((a, b) => b[1].profit - a[1].profit)
+    .slice(0, 5);
+
+  if (sportsArr.length > 0) {
+    lines.push("");
+    lines.push("<b>🏆 Par sport :</b>");
+    for (const [sport, stats] of sportsArr) {
+      const sportEmoji = SPORT_EMOJI[sport] ?? "🎯";
+      const sign = stats.profit >= 0 ? "+" : "";
+      const sportLabel = sport.charAt(0).toUpperCase() + sport.slice(1).replace("-", " ");
+      lines.push(
+        `${sportEmoji} ${sportLabel} : ${stats.won}/${stats.count} (${sign}${stats.profit.toFixed(2)}U)`
+      );
+    }
+  }
+
+  // CTA
+  lines.push("");
+  lines.push(`📊 <b>Bilan complet + graphiques :</b>`);
+  lines.push(`👉 ${bilanLinkUrl}`);
+  lines.push("");
+  lines.push(DISCLAIMER_BLOCK);
+
+  return lines.join("\n");
+};
+
+/**
+ * Publie le bilan hebdo sur le canal Telegram public.
+ *
+ * @param bilan le BilanHebdo agrégé via aggregateBilanHebdo()
+ * @returns PublishResult
+ */
+export const publishHebdoBilanToPublicChannel = async (
+  bilan: BilanHebdo
+): Promise<PublishResult> => {
+  const bilanLinkUrl = `${SITE_BASE_URL}/fr/pronos-ia/bilan-hebdo/${bilan.week_slug}?utm_source=telegram&utm_medium=channel&utm_campaign=ia_bilan_hebdo`;
+
+  const message = formatBilanHebdoMessage(bilan, bilanLinkUrl);
+  const result = await telegramSendMessage(message, "HTML", false);
+
+  if (result.success) {
+    console.log(
+      `[telegram] Bilan hebdo ${bilan.week_slug} publié, message_id=${result.message_id}`
+    );
+  } else {
+    console.warn(
+      `[telegram] Bilan hebdo ${bilan.week_slug} échec publication: ${result.error}`
+    );
+  }
+
+  return result;
 };

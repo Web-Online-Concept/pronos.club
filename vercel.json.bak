@@ -29,6 +29,14 @@
       "schedule": "30 15 * * *"
     },
     {
+      "path": "/api/cron/ai-picks-publish-morning",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-publish-evening",
+      "schedule": "15 16 * * *"
+    },
+    {
       "path": "/api/cron/ai-picks-resolve",
       "schedule": "0 6 * * *"
     },
@@ -39,6 +47,10 @@
     {
       "path": "/api/cron/ai-picks-clv-capture",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-picks-bilan-hebdo",
+      "schedule": "0 20 * * 0"
     },
     {
       "path": "/api/cron/tipster-concours-week",
