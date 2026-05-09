@@ -1,13 +1,18 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/ai-picks/history
+ * /api/ai-picks/history (V3.5 — fix pagination)
  * ═══════════════════════════════════════════════════════════════════
  *
  * Endpoint API qui alimente la page /pronos-ia/historique.
  *
  * V3.5 (09/05/2026) :
- *   - Ajout `tier` dans le SELECT (pour affichage du badge dans la card)
+ *   - Ajout `tier` + `drop_window` dans le SELECT
  *   - Ajout query param `tier` (lock | strong | value | coup_de_coeur)
+ *   - FIX PAGINATION : on ne fait plus de filtrage post-query côté JS,
+ *     tout passe par Supabase pour que `count` soit cohérent avec les
+ *     données paginées. Avant le fix, `count` retourné = taille du
+ *     batch courant au lieu du total → bouton "Charger plus" jamais
+ *     affiché alors qu'il y avait plus de picks.
  *
  * Path : src/app/api/ai-picks/history/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -20,7 +25,6 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
-  const excludePending = searchParams.get("exclude_pending") === "true";
   const limit = parseInt(searchParams.get("limit") ?? "50");
   const offset = parseInt(searchParams.get("offset") ?? "0");
   const from = searchParams.get("from");
@@ -34,27 +38,29 @@ export async function GET(request: Request) {
   let query = supabaseAdmin
     .from("ai_picks")
     .select(
-      // V3.5 : ajout de `tier` et `drop_window` dans le SELECT
+      // V3.5 : ajout `tier` et `drop_window` pour la card et le filtre
       "id, ai_pick_number, classic_number, scorer_number, pick_type, sport, league, event_name, event_date, selection, market, odds, odds_bookmaker, reasoning, ai_confidence, status, final_score, profit, slug, consensus_tier, consensus_score, live_score_data, deleted_at, tier, drop_window",
       { count: "exact" }
     )
     .is("deleted_at", null)
     // Module Buteurs supprime : on n'expose que les picks classiques
     .eq("pick_type", "classic")
+    // Tri : created_at desc + classic_number desc en fallback (bulk insert IA)
     .order("created_at", { ascending: false })
-    // Fallback stable quand created_at est identique (bulk insert IA)
     .order("classic_number", { ascending: false, nullsFirst: false });
 
-  if (!isCountOnly) {
-    query = query.range(offset, offset + limit - 1);
-  }
-
-  if (status) {
-    if (status === "awaiting") {
-      query = query.eq("status", "pending");
-    } else {
-      query = query.eq("status", status);
-    }
+  // ─── FILTRE STATUS ──────────────────────────────────────────────
+  // Logique :
+  //   - status="awaiting" → picks pending dont event_date est PASSÉE
+  //     (= en attente de résolution malgré le coup d'envoi passé)
+  //   - status="won" / "lost" / "void" → filtrage exact
+  //   - status absent (= "all" côté client après V3.5 fix) → on retourne
+  //     TOUS les picks (résolus + pending). Pas de filtrage JS.
+  if (status === "awaiting") {
+    const nowIso = new Date().toISOString();
+    query = query.eq("status", "pending").lte("event_date", nowIso);
+  } else if (status === "won" || status === "lost" || status === "void") {
+    query = query.eq("status", status);
   }
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
@@ -69,33 +75,27 @@ export async function GET(request: Request) {
     query = query.eq("tier", tier);
   }
 
+  // ─── PAGINATION ─────────────────────────────────────────────────
+  // CRITIQUE : `range()` doit être appelé APRÈS tous les filtres pour
+  // que `count` retourne le total après filtres et pas avant.
+  if (!isCountOnly) {
+    query = query.range(offset, offset + limit - 1);
+  }
+
   const { data, error, count } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  let filtered = data ?? [];
-  const now = new Date();
-
-  if (status === "awaiting") {
-    filtered = filtered.filter(
-      (pick) => new Date(pick.event_date) <= now
-    );
-  } else if (excludePending) {
-    filtered = filtered.filter((pick) => {
-      if (pick.status !== "pending") return true;
-      return new Date(pick.event_date) <= now;
-    });
-  }
-
   if (isCountOnly) {
-    return NextResponse.json({ data: [], count: filtered.length });
+    return NextResponse.json({ data: [], count: count ?? 0 });
   }
 
-  const useFilteredCount = excludePending || status === "awaiting";
+  // V3.5 : `count` est désormais TOUJOURS le total Supabase après filtres.
+  // Plus de filtrage post-query JS qui faisait foirer le compteur.
   return NextResponse.json({
-    data: filtered,
-    count: useFilteredCount ? filtered.length : count,
+    data: data ?? [],
+    count: count ?? 0,
   });
 }
