@@ -154,10 +154,25 @@ const generateUniqueSlug = async (baseSlug: string): Promise<string> => {
 };
 
 /**
- * Récupère le prochain numéro de pick classic via la séquence Postgres.
- * Fallback : SELECT MAX si la fonction RPC nextval_ai_seq n'existe pas.
+ * @deprecated V3.5 Lot 10 — Plus utilisée. Conservée pour la traçabilité.
+ *
+ * AVANT (V3) : on appelait nextval() sur une SEQUENCE Postgres avant
+ * l'INSERT. Si l'INSERT foirait (rollback), le numéro tiré était perdu
+ * définitivement → trous dans classic_number (cf. incident #26 du
+ * 09/05/2026).
+ *
+ * APRÈS (V3.5 Lot 10) : on utilise la stored procedure `insert_ai_pick_atomic`
+ * qui calcule MAX(classic_number)+1 ET insère en une seule transaction
+ * atomique sous LOCK EXCLUSIVE. Si l'INSERT échoue → rollback complet
+ * → AUCUN numéro consommé. Garantie 0 trou par design.
+ *
+ * NE PAS UTILISER cette fonction sous peine de réintroduire le bug.
  */
 const getNextClassicNumber = async (): Promise<number> => {
+  console.warn(
+    "[persist-tipster-pick] ⚠️ getNextClassicNumber appelée — DEPRECATED depuis V3.5 Lot 10. Utiliser insert_ai_pick_atomic à la place."
+  );
+
   const { data, error } = await supabaseAdmin.rpc("nextval_ai_seq", {
     seq_name: "ai_picks_classic_seq",
   });
@@ -608,25 +623,25 @@ export const persistTipsterPick = async (
       scorer_number: null,
     };
 
-    // ─── V3.5 LOT 9 — INSERT avec RETRY + LOGGING + TRACKING ────────────────
+    // ─── V3.5 LOT 10 — INSERT ATOMIQUE via stored procedure ────────────────
     //
-    // Ancien code : 1 seule tentative. Si l'INSERT échoue, le numéro tiré
-    // de la séquence Postgres était perdu (= trou dans classic_number).
+    // Utilisation de la fonction Postgres `insert_ai_pick_atomic` qui
+    // garantit l'atomicité tirage_numero + INSERT sous LOCK EXCLUSIVE :
+    //   - Pas de SEQUENCE Postgres (qui consommait les numéros même en
+    //     cas de rollback → trous historiques)
+    //   - MAX(classic_number) + 1 calculé DANS la transaction de l'INSERT
+    //   - Si l'INSERT échoue → rollback complet → AUCUN numéro consommé
     //
-    // Nouveau : retry jusqu'à 3 tentatives. Chaque échec est loggé dans
-    // ai_picks_failed avec le numéro perdu pour audit. Si tous les retries
-    // échouent, on retourne un échec final tracé.
+    // ⚠️ Garantie 0 trou par design.
     //
-    // ⚠️ Une séquence Postgres ne peut PAS restituer un numéro tiré, même
-    // sur ROLLBACK. Donc chaque tentative consomme un numéro frais. C'est
-    // accepté : mieux vaut 3 trous tracés qu'un échec silencieux non-tracé.
+    // En cas d'échec d'appel RPC (rare : timeout réseau, fonction absente,
+    // permissions) → on log dans ai_picks_failed pour audit + retry x3.
     //
     const MAX_ATTEMPTS = 3;
     const RETRY_DELAY_MS = 200;
 
     const failedAttempts: Array<{
       attempt: number;
-      classic_number: number | null;
       error: string;
       error_code: string | null;
       pg_code: string | null;
@@ -637,67 +652,48 @@ export const persistTipsterPick = async (
     let finalPickId: string | null = null;
     let finalClassicNumber: number | null = null;
 
+    // Construire le payload JSONB pour la fonction RPC
+    // (la fonction extrait chaque champ via p_pick_data->>'champ')
+    const rpcPayload: Record<string, unknown> = { ...insertDataBase };
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      // Tirer un numéro frais à chaque tentative
-      let classicNumber: number;
-      try {
-        classicNumber = await getNextClassicNumber();
-      } catch (seqErr) {
-        const msg = seqErr instanceof Error ? seqErr.message : String(seqErr);
-        console.error(
-          `[persistTipsterPick] Tentative ${attempt}/${MAX_ATTEMPTS} : getNextClassicNumber() a échoué pour ${eventName}: ${msg}`
-        );
-        failedAttempts.push({
-          attempt,
-          classic_number: null,
-          error: msg,
-          error_code: "SEQ_FETCH_FAILED",
-          pg_code: null,
-          pg_details: null,
-          pg_hint: null,
-        });
-        if (attempt < MAX_ATTEMPTS) {
-          await sleep(RETRY_DELAY_MS * attempt);
-          continue;
-        }
-        break;
-      }
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+        "insert_ai_pick_atomic",
+        { p_pick_data: rpcPayload }
+      );
 
-      // Tenter l'INSERT
-      const insertData = { ...insertDataBase, classic_number: classicNumber };
+      // Cas succès : la fonction retourne TABLE(inserted_id UUID, assigned_classic_number INTEGER)
+      // Supabase remappe en array d'1 élément
+      if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+        const row = rpcData[0] as {
+          inserted_id: string;
+          assigned_classic_number: number;
+        };
+        finalPickId = row.inserted_id;
+        finalClassicNumber = row.assigned_classic_number;
 
-      const { data, error } = await supabaseAdmin
-        .from("ai_picks")
-        .insert(insertData)
-        .select("id")
-        .single();
-
-      if (!error && data) {
-        // Succès
-        finalPickId = data.id;
-        finalClassicNumber = classicNumber;
         if (attempt > 1) {
           console.log(
-            `[persistTipsterPick] ✅ INSERT réussi tentative ${attempt}/${MAX_ATTEMPTS} pour ${eventName} (numéro=${classicNumber}, ${attempt - 1} numéro(s) perdu(s) avant succès)`
+            `[persistTipsterPick] ✅ INSERT atomique réussi tentative ${attempt}/${MAX_ATTEMPTS} pour ${eventName} (numéro=${finalClassicNumber})`
           );
         }
         break;
       }
 
-      // Échec : logger localement + on continue le retry
-      const errMsg = error?.message ?? "INSERT returned no data";
-      const errCode = error?.code ?? null;
-      const pgDetails = (error as { details?: string } | null)?.details ?? null;
-      const pgHint = (error as { hint?: string } | null)?.hint ?? null;
+      // Échec : logger + retry
+      const errMsg = rpcError?.message ?? "RPC returned no data";
+      const errCode = rpcError?.code ?? null;
+      const pgDetails =
+        (rpcError as { details?: string } | null)?.details ?? null;
+      const pgHint = (rpcError as { hint?: string } | null)?.hint ?? null;
 
       console.error(
-        `[persistTipsterPick] ❌ Tentative ${attempt}/${MAX_ATTEMPTS} échec INSERT pour ${eventName} (numéro=${classicNumber} perdu): ${errMsg}`,
+        `[persistTipsterPick] ❌ Tentative ${attempt}/${MAX_ATTEMPTS} échec RPC insert_ai_pick_atomic pour ${eventName}: ${errMsg}`,
         { code: errCode, details: pgDetails, hint: pgHint }
       );
 
       failedAttempts.push({
         attempt,
-        classic_number: classicNumber,
         error: errMsg,
         error_code: errCode,
         pg_code: errCode,
@@ -711,13 +707,14 @@ export const persistTipsterPick = async (
     }
 
     // ─── Logging dans ai_picks_failed pour TOUTES les tentatives échouées ───
-    // (Même si le pick a fini par passer au 2e ou 3e essai, on garde
-    // une trace des échecs précédents pour audit.)
+    // ⚠️ Avec la stored procedure atomique, AUCUN numéro classic_number n'est
+    // consommé en cas d'échec. Donc classic_number = null dans ai_picks_failed
+    // (= échec d'appel RPC, pas de numéro perdu).
     if (failedAttempts.length > 0) {
       try {
         const isFinalFailure = finalPickId === null;
         const rowsToInsert = failedAttempts.map((fa) => ({
-          classic_number: fa.classic_number,
+          classic_number: null, // Aucun numéro consommé grâce à l'atomicité
           event_name: eventName,
           event_date: eventDateIso,
           sport: sportSlug,
@@ -729,6 +726,7 @@ export const persistTipsterPick = async (
             slug,
             attempt_index: fa.attempt,
             total_attempts: MAX_ATTEMPTS,
+            insert_method: "rpc_atomic",
           },
           error_message: fa.error,
           error_code: fa.error_code,
@@ -757,17 +755,14 @@ export const persistTipsterPick = async (
       const lastError =
         failedAttempts[failedAttempts.length - 1]?.error ??
         "Unknown insert error";
-      const lostNumbers = failedAttempts
-        .map((fa) => fa.classic_number)
-        .filter((n): n is number => n !== null);
 
       console.error(
-        `[persistTipsterPick] 🚨 ÉCHEC FINAL après ${MAX_ATTEMPTS} tentatives pour ${eventName}. Numéros perdus : ${lostNumbers.join(", ")}. Dernière erreur : ${lastError}`
+        `[persistTipsterPick] 🚨 ÉCHEC FINAL après ${MAX_ATTEMPTS} tentatives pour ${eventName}. Aucun numéro consommé (atomique). Dernière erreur : ${lastError}`
       );
 
       return {
         success: false,
-        error: `INSERT failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}. Lost classic_numbers: ${lostNumbers.join(", ")}`,
+        error: `INSERT atomic failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError}. No classic_number consumed.`,
       };
     }
 
