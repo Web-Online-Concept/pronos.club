@@ -27,6 +27,7 @@ import {
   type LeagueMapping,
 } from "./league-resolution";
 import { TEAM_ALIASES } from "./team-aliases";
+import { getCachedOrFetch, getCacheStats, resetCacheStats } from "./api-cache";
 import type {
   CotesBooks,
   EnrichedFixture,
@@ -350,7 +351,39 @@ const fetchJson = async <T = unknown>(
   throw new Error("fetchJson exhausted retries");
 };
 
-const fetchJsonAF = async <T = unknown>(
+// ─── Cache TTL automatique par endpoint API-Football ──────────────
+// Détermine la durée de vie du cache selon le type de donnée fetchée.
+// Les endpoints temps-réel (fixtures du jour, live scores) ne sont
+// PAS cachés (TTL = 0). Les endpoints stables (standings, H2H, top
+// scorers) sont cachés agressivement.
+//
+// V3.5 Lot 15 — réduction des appels API-Football répétés au sein
+// d'un même drop ET entre drops successifs (matin + soir le même jour).
+const getCacheTtlForApiFootballUrl = (url: string): number => {
+  // Pas de cache pour les endpoints temps-réel ou avec date dynamique
+  if (url.includes("/fixtures?") && !url.includes("headtohead")) return 0;
+  if (url.includes("/odds")) return 0;
+  if (url.includes("/players?")) return 0; // top buteurs live, on garde frais
+
+  // Endpoints très stables : 24h
+  if (url.includes("/headtohead")) return 24 * 3600;
+  if (url.includes("/topscorers")) return 24 * 3600;
+  if (url.includes("/leagues?")) return 24 * 3600;
+
+  // Endpoints stables : 6-12h
+  if (url.includes("/standings")) return 6 * 3600;
+  if (url.includes("/teams/statistics")) return 12 * 3600;
+
+  // Endpoints semi-stables : 1-6h
+  if (url.includes("/injuries")) return 1 * 3600;
+  if (url.includes("/sidelined")) return 6 * 3600;
+  if (url.includes("/predictions")) return 1 * 3600;
+
+  // Par défaut : pas de cache (sécurité)
+  return 0;
+};
+
+const fetchJsonAFRaw = async <T = unknown>(
   url: string,
   tracker: ApiFootballRateLimitTracker,
   retries = 3
@@ -383,7 +416,28 @@ const fetchJsonAF = async <T = unknown>(
       await sleep(2000);
     }
   }
-  throw new Error("fetchJsonAF exhausted retries");
+  throw new Error("fetchJsonAFRaw exhausted retries");
+};
+
+// Wrapper avec cache automatique (V3.5 Lot 15)
+const fetchJsonAF = async <T = unknown>(
+  url: string,
+  tracker: ApiFootballRateLimitTracker,
+  retries = 3
+): Promise<T> => {
+  const ttl = getCacheTtlForApiFootballUrl(url);
+
+  // Si endpoint non cachable : appel direct
+  if (ttl === 0) {
+    return fetchJsonAFRaw<T>(url, tracker, retries);
+  }
+
+  // Sinon : passer par le cache
+  // Clé = URL complète (sans la API key qui est dans le header)
+  const cacheKey = `af:${url}`;
+  return getCachedOrFetch<T>(cacheKey, ttl, () =>
+    fetchJsonAFRaw<T>(url, tracker, retries)
+  );
 };
 
 // Timeout wrapper pour les calls API secondaires
@@ -3046,14 +3100,18 @@ export const fetchMultiSportFixturesForDate = async (
     tennisIndex.load(targetDate),
   ]);
 
-  // STEP 1 : Sports actifs + cotes
+  // V3.5 Lot 15 — Reset stats cache pour ce drop
+  resetCacheStats();
+
+  // STEP 1 : Sports actifs + cotes (V3.5 Lot 15 : parallélisé)
+  console.time("[fetcher] STEP 1 (sports + cotes)");
   const activeSports = await fetchActiveSports();
-  const allMatches: RawFixture[] = [];
-  for (const sport of activeSports) {
-    const matches = await fetchOddsForSport(sport, targetDate);
-    allMatches.push(...matches);
-    await sleep(SLEEP_ODDS_API);
-  }
+  const matchesPerSport = await Promise.all(
+    activeSports.map((sport) => fetchOddsForSport(sport, targetDate))
+  );
+  const allMatches: RawFixture[] = matchesPerSport.flat();
+  console.timeEnd("[fetcher] STEP 1 (sports + cotes)");
+  console.log(`[fetcher] STEP 1 → ${allMatches.length} matchs bruts (tous sports)`);
 
   // V3.5 : Filtre par drop window AVANT enrichissement (économie de calls API)
   const matchesInWindow = allMatches.filter((m) =>
@@ -3087,53 +3145,42 @@ export const fetchMultiSportFixturesForDate = async (
     }
   }
 
-  // STEP 3 : Enrichissement (V3.5 : 9 sports)
-  const enriched: EnrichedFixture[] = [];
-  for (const m of matchesInWindow) {
-    let e: EnrichedFixture;
+  // STEP 3 : Enrichissement (V3.5 Lot 15 — parallélisé avec concurrence limitée)
+  //
+  // AVANT : 200 matchs × ~3s en série = ~600s (et timeout à 800s)
+  // APRÈS : 200 matchs / concurrence 8 × ~3s = ~75s
+  //
+  // Concurrence 8 = compromis entre vitesse et respect des rate limits
+  // API-Football (le tracker gère les 429 via sleep dans fetchJsonAF).
+  // Plus de sleeps artificiels : inutiles avec une concurrence limitée.
+  console.time("[fetcher] STEP 3 (enrichissement)");
+  const ENRICH_CONCURRENCY = 8;
+
+  const enrichOne = async (m: RawFixture): Promise<EnrichedFixture> => {
     try {
       switch (m.sport) {
         case "football":
-          e = await enrichFootball(m, leagueResolver, tracker);
-          await sleep(SLEEP_API_FOOTBALL_BASE);
-          break;
+          return await enrichFootball(m, leagueResolver, tracker);
         case "basketball":
-          e = await enrichBasketball(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichBasketball(m);
         case "hockey":
-          e = await enrichHockey(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichHockey(m);
         case "baseball":
-          e = await enrichBaseball(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichBaseball(m);
         case "mma":
-          e = await enrichMMA(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichMMA(m);
         case "american_football":
-          e = enrichAmericanFootball(m);
-          break;
+          return enrichAmericanFootball(m);
         case "tennis":
-          e = await enrichTennis(m, tennisIndex);
-          await sleep(SLEEP_MATCHSTAT);
-          break;
+          return await enrichTennis(m, tennisIndex);
         case "rugby":
-          e = await enrichRugby(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichRugby(m);
         case "handball":
-          e = await enrichHandball(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichHandball(m);
         case "formula_1":
-          e = await enrichF1(m);
-          await sleep(SLEEP_API_SPORTS);
-          break;
+          return await enrichF1(m);
         default:
-          e = {
+          return {
             ...m,
             forme_5_derniers: "donnée non disponible",
             h2h_5_derniers: "donnée non disponible",
@@ -3145,15 +3192,50 @@ export const fetchMultiSportFixturesForDate = async (
         `[multi-sport-fetcher] enrich error for ${m.match}:`,
         (err as Error).message
       );
-      e = {
+      return {
         ...m,
         forme_5_derniers: "donnée non disponible",
         h2h_5_derniers: "donnée non disponible",
         blessures: "donnée non disponible",
       };
     }
-    enriched.push(e);
-  }
+  };
+
+  // Helper p-limit interne (évite la dépendance à la lib p-limit)
+  const runWithConcurrency = async <T, R>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> => {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+    const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (true) {
+        const idx = cursor++;
+        if (idx >= items.length) return;
+        results[idx] = await worker(items[idx]!);
+      }
+    });
+    await Promise.all(runners);
+    return results;
+  };
+
+  const enriched: EnrichedFixture[] = await runWithConcurrency(
+    matchesInWindow,
+    ENRICH_CONCURRENCY,
+    enrichOne,
+  );
+
+  console.timeEnd("[fetcher] STEP 3 (enrichissement)");
+  console.log(`[fetcher] STEP 3 → ${enriched.length} matchs enrichis (concurrence ${ENRICH_CONCURRENCY})`);
+
+  // V3.5 Lot 15 — Stats cache (debug perf)
+  const cacheStats = getCacheStats();
+  const cacheTotal = cacheStats.hits + cacheStats.misses;
+  const hitRate = cacheTotal > 0 ? Math.round((cacheStats.hits / cacheTotal) * 100) : 0;
+  console.log(
+    `[fetcher] CACHE → ${cacheStats.hits} hits / ${cacheStats.misses} misses (${hitRate}%) · ${cacheStats.writes} writes · ${cacheStats.errors} errors`
+  );
 
   // STEP 4 : Stats
   const matchsParSport: Record<string, { ok: number; ko: number }> = {};
