@@ -165,6 +165,13 @@ export class ApiFootballClient {
         const json = (await response.json()) as ApiFootballEnvelope;
 
         if (hasErrors(json.errors)) {
+          // V3.5 Lot 18 — Debug : log explicite des erreurs API-Football
+          // pour identifier rapidement les causes (saison, ligue, équipe...).
+          console.warn(
+            `[apifootball] API returned errors on ${endpoint} (params=${JSON.stringify(
+              params ?? {}
+            )}, pickId=${pickId ?? "n/a"}): ${JSON.stringify(json.errors)}`
+          );
           throw new ApiFootballError(
             `API-Football returned errors`,
             endpoint,
