@@ -13,6 +13,7 @@
  *     · Football enrichi : Splits, RecentMatches, Sidelined, TopScorers
  *     · Tennis enrichi : PastMatches, TournamentRecord, CareerStats, FinalsTitles
  *     · Nouveaux sports : Rugby, Handball, F1
+ *   - V3.5 Lot 12 (10/05/2026) : openGraph.images pointe vers /api/og/pick/[slug]
  *
  * Path :
  * src/app/[locale]/(public)/pronos-ia/match/[slug]/page.tsx
@@ -99,6 +100,20 @@ export async function generateMetadata(
       title,
       description: desc,
       type: "article",
+      images: [
+        {
+          url: `/api/og/pick/${slug}`,
+          width: 1200,
+          height: 630,
+          alt: `${data.eventName} — Pronostic IA PRONOS.CLUB`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: desc,
+      images: [`/api/og/pick/${slug}`],
     },
     alternates: {
       canonical: `/${locale}/pronos-ia/match/${slug}`,

@@ -19,7 +19,9 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 const BASE_URL = "https://pronos.club";
-const OG_IMAGE = "/og-pronos-ia.jpg";
+// V3.5 Lot 12 — OG image dynamique générée par /api/og/default (route Next.js)
+// au lieu d'une image statique. Permet de versionner facilement le visuel.
+const OG_IMAGE = "/api/og/default";
 const OG_IMAGE_ALT_KEY = "meta_og_image_alt";
 
 const SUPPORTED_LOCALES = ["fr", "en", "es"] as const;
@@ -133,7 +135,7 @@ export async function buildPronosIAMetadata(
           width: 1200,
           height: 630,
           alt: imageAlt,
-          type: "image/jpeg",
+          type: "image/png",
         },
       ],
     },
