@@ -53,6 +53,10 @@
       "schedule": "0 20 * * 0"
     },
     {
+      "path": "/api/cron/ai-picks-bilan-mensuel",
+      "schedule": "0 20 1 * *"
+    },
+    {
       "path": "/api/cron/tipster-concours-week",
       "schedule": "15 0 * * 1"
     },

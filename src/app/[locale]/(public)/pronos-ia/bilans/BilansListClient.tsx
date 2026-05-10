@@ -2,56 +2,73 @@
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * BilansListClient.tsx (refonte V3.5 — light theme)
+ * BilansListClient.tsx (V3.5 Lot 11 — refonte monthly_bilans)
  * ═══════════════════════════════════════════════════════════════════
  *
- * Composant client : liste des bilans MENSUELS.
- * Lit la table ai_bilans (filtrée pick_type='classic').
+ * Composant client : liste des bilans MENSUELS automatiques.
+ * Lit la table monthly_bilans (générée par cron mensuel).
  *
- * Refondu en clair pour cohérence avec le reste de la V3.5.
+ * Réplique du pattern WeeklyBilansListClient (même design, mêmes pills).
+ * Lien vers /pronos-ia/bilan-mensuel/[mois].
  *
  * Path : src/app/[locale]/(public)/pronos-ia/bilans/BilansListClient.tsx
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import Link from "next/link";
-import type { AiBilan } from "./page";
+import type { MonthlyBilanRow } from "./page";
 
 
 interface Props {
   locale: string;
-  bilans: AiBilan[];
+  bilans: MonthlyBilanRow[];
 }
 
-const MONTH_NAMES_FR: Record<string, string> = {
-  "01": "Jan",
-  "02": "Fév",
-  "03": "Mar",
-  "04": "Avr",
-  "05": "Mai",
-  "06": "Juin",
-  "07": "Juil",
-  "08": "Août",
-  "09": "Sep",
-  "10": "Oct",
-  "11": "Nov",
-  "12": "Déc",
+const MONTH_NAMES_FR: Record<number, string> = {
+  1: "Jan",
+  2: "Fév",
+  3: "Mar",
+  4: "Avr",
+  5: "Mai",
+  6: "Juin",
+  7: "Juil",
+  8: "Août",
+  9: "Sep",
+  10: "Oct",
+  11: "Nov",
+  12: "Déc",
+};
+
+const MONTH_NAMES_FULL_FR: Record<number, string> = {
+  1: "Janvier",
+  2: "Février",
+  3: "Mars",
+  4: "Avril",
+  5: "Mai",
+  6: "Juin",
+  7: "Juillet",
+  8: "Août",
+  9: "Septembre",
+  10: "Octobre",
+  11: "Novembre",
+  12: "Décembre",
 };
 
 
 export default function BilansListClient({ locale, bilans }: Props) {
-  // Filtre déjà fait côté serveur (pick_type='classic'), mais on garde au cas où
-  const filteredBilans = bilans.filter((b) => b.pick_type === "classic");
-
-  if (filteredBilans.length === 0) {
+  if (bilans.length === 0) {
     return <EmptyState />;
   }
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 pb-16">
       <div className="space-y-3">
-        {filteredBilans.map((bilan) => (
-          <MonthlyBilanCard key={bilan.id} bilan={bilan} locale={locale} />
+        {bilans.map((bilan) => (
+          <MonthlyBilanCard
+            key={bilan.month_slug}
+            bilan={bilan}
+            locale={locale}
+          />
         ))}
       </div>
     </main>
@@ -65,20 +82,22 @@ function MonthlyBilanCard({
   bilan,
   locale,
 }: {
-  bilan: AiBilan;
+  bilan: MonthlyBilanRow;
   locale: string;
 }) {
-  const [year, monthNum] = bilan.month.split("-");
-  const monthShort = MONTH_NAMES_FR[monthNum] ?? monthNum;
+  const monthShort = MONTH_NAMES_FR[bilan.month_number] ?? String(bilan.month_number);
+  const monthFull = MONTH_NAMES_FULL_FR[bilan.month_number] ?? String(bilan.month_number);
+  const monthLabel = `${monthFull} ${bilan.month_year}`;
 
-  const isProfitable = bilan.roi > 0;
-  const isLoss = bilan.roi < 0;
-  const roiNum = Number(bilan.roi);
-  const profitNum = Number(bilan.profit);
+  const isProfitable = bilan.roi_pct > 0;
+  const isLoss = bilan.roi_pct < 0;
+
+  // Détecter si le bilan est récent (créé < 35 jours)
+  const isRecent = isWithinDays(bilan.created_at, 35);
 
   return (
     <Link
-      href={`/${locale}/pronos-ia/bilans/${bilan.slug}`}
+      href={`/${locale}/pronos-ia/bilan-mensuel/${bilan.month_slug}`}
       className={`group flex items-stretch gap-4 overflow-hidden rounded-2xl border-2 bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md sm:p-6 ${
         isProfitable
           ? "border-emerald-200 hover:border-emerald-400"
@@ -98,7 +117,7 @@ function MonthlyBilanCard({
         }`}
       >
         <p
-          className={`text-xl font-black ${
+          className={`text-2xl font-black ${
             isProfitable
               ? "text-emerald-700"
               : isLoss
@@ -117,31 +136,42 @@ function MonthlyBilanCard({
                 : "text-zinc-500"
           }`}
         >
-          {year}
+          {bilan.month_year}
         </p>
       </div>
 
       {/* Contenu central */}
       <div className="flex-1 min-w-0">
-        <h2
-          className={`text-base font-extrabold text-zinc-900 sm:text-lg mb-3 ${
-            isProfitable
-              ? "group-hover:text-emerald-700"
-              : isLoss
-                ? "group-hover:text-red-700"
-                : "group-hover:text-violet-700"
-          } transition`}
-        >
-          {bilan.title}
-        </h2>
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <h2
+            className={`text-base font-extrabold sm:text-lg ${
+              isProfitable
+                ? "text-zinc-900 group-hover:text-emerald-700"
+                : isLoss
+                  ? "text-zinc-900 group-hover:text-red-700"
+                  : "text-zinc-900 group-hover:text-violet-700"
+            } transition`}
+          >
+            {monthLabel}
+          </h2>
+          {isRecent && (
+            <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+              Récent
+            </span>
+          )}
+        </div>
 
         {/* Stats bar */}
-        <div className="flex flex-wrap items-center gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-600 font-mono">
             {bilan.total_picks} picks
           </span>
           <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-600 font-mono">
-            WR {Number(bilan.win_rate).toFixed(2)}%
+            {bilan.picks_won}V/{bilan.picks_lost}D
+            {bilan.picks_void > 0 ? `/${bilan.picks_void}N` : ""}
+          </span>
+          <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-bold text-zinc-600 font-mono">
+            WR {Number(bilan.winrate_pct).toFixed(1)}%
           </span>
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] font-bold font-mono ${
@@ -152,8 +182,8 @@ function MonthlyBilanCard({
                   : "bg-zinc-100 text-zinc-600"
             }`}
           >
-            ROI {roiNum >= 0 ? "+" : ""}
-            {roiNum.toFixed(2)}%
+            ROI {Number(bilan.roi_pct) >= 0 ? "+" : ""}
+            {Number(bilan.roi_pct).toFixed(2)}%
           </span>
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] font-bold font-mono ${
@@ -164,14 +194,23 @@ function MonthlyBilanCard({
                   : "bg-zinc-100 text-zinc-600"
             }`}
           >
-            {profitNum >= 0 ? "+" : ""}
-            {profitNum.toFixed(3)}U
+            {Number(bilan.total_profit_units) >= 0 ? "+" : ""}
+            {Number(bilan.total_profit_units).toFixed(2)}U
           </span>
+          {bilan.clv_avg_pct !== null && bilan.clv_picks_count > 0 && (
+            <span
+              className={`rounded-full px-2.5 py-1 text-[10px] font-bold font-mono ${
+                Number(bilan.clv_avg_pct) > 0
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-zinc-100 text-zinc-600"
+              }`}
+              title={`CLV calculé sur ${bilan.clv_picks_count} pick(s) avec closing capturé`}
+            >
+              CLV {Number(bilan.clv_avg_pct) >= 0 ? "+" : ""}
+              {Number(bilan.clv_avg_pct).toFixed(2)}%
+            </span>
+          )}
         </div>
-
-        {bilan.summary && (
-          <p className="text-sm text-zinc-600 line-clamp-2">{bilan.summary}</p>
-        )}
       </div>
 
       {/* Chevron à droite */}
@@ -199,13 +238,32 @@ function EmptyState() {
       <div className="rounded-2xl border-2 border-zinc-200 bg-white p-10 text-center sm:p-14">
         <div className="text-6xl mb-4">📊</div>
         <h3 className="text-xl font-extrabold text-zinc-900 mb-2">
-          Aucun bilan mensuel publié pour le moment
+          Aucun bilan mensuel pour le moment
         </h3>
-        <p className="mx-auto max-w-md text-sm text-zinc-600">
-          Les bilans mensuels sont publiés en début de chaque mois après
-          consolidation des résultats.
+        <p className="mx-auto max-w-md text-sm text-zinc-600 mb-4">
+          Les bilans mensuels sont générés automatiquement le 1er de chaque
+          mois à 22h Paris pour le mois écoulé.
         </p>
+        <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700">
+          <span>⏰</span>
+          <span>Premier bilan disponible le 1er du mois prochain à 22h</span>
+        </div>
       </div>
     </main>
   );
+}
+
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function isWithinDays(isoDate: string, days: number): boolean {
+  try {
+    const d = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= days;
+  } catch {
+    return false;
+  }
 }

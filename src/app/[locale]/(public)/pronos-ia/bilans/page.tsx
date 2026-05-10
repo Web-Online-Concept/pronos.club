@@ -52,20 +52,21 @@ export async function generateMetadata({
 
 // ─── Types ─────────────────────────────────────────────────────────
 
-export interface AiBilan {
-  id: string;
-  pick_type: "classic" | "scorer";
-  title: string;
-  slug: string;
-  month: string;
-  summary: string | null;
-  cover_image: string | null;
-  profit: number;
-  roi: number;
-  win_rate: number;
+export interface MonthlyBilanRow {
+  month_slug: string;
+  month_iso: string;
+  month_year: number;
+  month_number: number;
   total_picks: number;
-  is_published: boolean;
-  published_at: string | null;
+  picks_won: number;
+  picks_lost: number;
+  picks_void: number;
+  total_profit_units: number;
+  roi_pct: number;
+  winrate_pct: number;
+  clv_avg_pct: number | null;
+  clv_picks_count: number;
+  created_at: string;
 }
 
 export interface WeeklyBilanRow {
@@ -103,11 +104,11 @@ export default async function PronosIABilansPage({
   // ─── Fetch des 2 sources en parallèle ───
   const [{ data: bilansData }, { data: weeklyData }] = await Promise.all([
     supabaseAdmin
-      .from("ai_bilans")
-      .select("*")
-      .eq("is_published", true)
-      .eq("pick_type", "classic")
-      .order("month", { ascending: false }),
+      .from("monthly_bilans")
+      .select(
+        "month_slug, month_iso, month_year, month_number, total_picks, picks_won, picks_lost, picks_void, total_profit_units, roi_pct, winrate_pct, clv_avg_pct, clv_picks_count, created_at"
+      )
+      .order("month_iso", { ascending: false }),
     supabaseAdmin
       .from("weekly_bilans")
       .select(
@@ -116,7 +117,7 @@ export default async function PronosIABilansPage({
       .order("week_iso", { ascending: false }),
   ]);
 
-  const monthlyBilans = (bilansData ?? []) as AiBilan[];
+  const monthlyBilans = (bilansData ?? []) as MonthlyBilanRow[];
   const weeklyBilans = (weeklyData ?? []) as WeeklyBilanRow[];
 
   return (
