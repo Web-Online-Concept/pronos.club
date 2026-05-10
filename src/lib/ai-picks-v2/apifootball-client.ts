@@ -39,6 +39,14 @@ const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 15000;
 
+// V3.5 Lot 18 — Gestion rate limit (HTTP 200 + errors.rateLimit)
+// API-Football PRO : 7500 req/jour, ~450 req/min hard cap
+// Quand on dépasse 450/min, l'API renvoie HTTP 200 avec
+// errors: { rateLimit: "Too many requests..." }
+// Il faut attendre la prochaine fenêtre minute (jusqu'à 60s).
+const RATE_LIMIT_MAX_RETRIES = 5;
+const RATE_LIMIT_BASE_DELAY_MS = 10000; // 10s, 20s, 40s, 60s (cap), 60s
+
 export class ApiFootballError extends Error {
   constructor(
     message: string,
@@ -111,6 +119,16 @@ const hasErrors = (errors: unknown): boolean => {
   return false;
 };
 
+// V3.5 Lot 18 — Détecte un rate limit dans le payload errors
+// API-Football peut retourner HTTP 200 avec errors: { rateLimit: "..." }
+const isRateLimitError = (errors: unknown): boolean => {
+  if (!errors || typeof errors !== "object" || Array.isArray(errors)) {
+    return false;
+  }
+  const errObj = errors as Record<string, string>;
+  return typeof errObj.rateLimit === "string";
+};
+
 export class ApiFootballClient {
   private readonly apiKey: string;
 
@@ -131,6 +149,7 @@ export class ApiFootballClient {
     const url = buildUrl(endpoint, params);
 
     let lastError: unknown = null;
+    let rateLimitAttempts = 0;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
@@ -139,7 +158,7 @@ export class ApiFootballClient {
         if (response.status === 429) {
           const waitMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
           console.warn(
-            `[apifootball] Rate limited on ${endpoint}, waiting ${waitMs}ms`
+            `[apifootball] Rate limited (HTTP 429) on ${endpoint}, waiting ${waitMs}ms`
           );
           await sleep(waitMs);
           continue;
@@ -163,6 +182,38 @@ export class ApiFootballClient {
         }
 
         const json = (await response.json()) as ApiFootballEnvelope;
+
+        // V3.5 Lot 18 — Rate limit dans le payload (HTTP 200 + errors.rateLimit)
+        // C'est la limite par minute du plan PRO (~450 req/min).
+        // On retry avec un sleep long pour attendre la prochaine fenêtre minute.
+        if (isRateLimitError(json.errors)) {
+          if (rateLimitAttempts < RATE_LIMIT_MAX_RETRIES) {
+            const waitMs = Math.min(
+              RATE_LIMIT_BASE_DELAY_MS * Math.pow(2, rateLimitAttempts),
+              60_000
+            );
+            console.warn(
+              `[apifootball] Rate limit (payload) on ${endpoint}, retry ${
+                rateLimitAttempts + 1
+              }/${RATE_LIMIT_MAX_RETRIES} in ${waitMs}ms`
+            );
+            rateLimitAttempts++;
+            await sleep(waitMs);
+            continue;
+          }
+          // Plus de retry : on log et on throw
+          console.error(
+            `[apifootball] Rate limit (payload) exhausted retries on ${endpoint} (params=${JSON.stringify(
+              params ?? {}
+            )}, pickId=${pickId ?? "n/a"})`
+          );
+          throw new ApiFootballError(
+            `API-Football rate limit exhausted`,
+            endpoint,
+            response.status,
+            json.errors
+          );
+        }
 
         if (hasErrors(json.errors)) {
           // V3.5 Lot 18 — Debug : log explicite des erreurs API-Football

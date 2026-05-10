@@ -92,29 +92,44 @@ export const aggregateMatchData = async (
   const leagueId = fixture.league.id;
   const season = fixture.league.season;
 
+  // V3.5 Lot 18 — Sérialisation en 3 mini-vagues pour réduire la pression
+  // sur le rate limit API-Football (~450 req/min sur le plan PRO).
+  // Avant : 7 calls parallèles instantanés → pic à 7+ req simultanées
+  // Après : 3 vagues de 2-3 calls avec 200ms entre vagues = pic plus doux
+  const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // Vague 1 : Odds + Lineups + Predictions (3 calls)
   const wave1 = await Promise.allSettled([
     safeSettled(client.getOdds(fixtureId, pickId)),
     options.skipLineups
       ? Promise.resolve(null)
       : safeSettled(client.getLineups(fixtureId, pickId)),
-    options.skipInjuries
-      ? Promise.resolve(null)
-      : safeSettled(client.getInjuries(fixtureId, pickId)),
-    safeSettled(client.getH2H(homeTeamId, awayTeamId, h2hLast, pickId)),
     options.skipPredictions
       ? Promise.resolve(null)
       : safeSettled(client.getPredictions(fixtureId, pickId)),
   ]);
 
-  const [oddsResult, lineupsResult, injuriesResult, h2hResult, predictionsResult] =
-    wave1;
+  await sleepMs(200);
 
+  // Vague 2 : Injuries + H2H (2 calls)
   const wave2 = await Promise.allSettled([
+    options.skipInjuries
+      ? Promise.resolve(null)
+      : safeSettled(client.getInjuries(fixtureId, pickId)),
+    safeSettled(client.getH2H(homeTeamId, awayTeamId, h2hLast, pickId)),
+  ]);
+
+  await sleepMs(200);
+
+  // Vague 3 : Team Statistics home + away (2 calls)
+  const wave3 = await Promise.allSettled([
     safeSettled(client.getTeamStatistics(homeTeamId, leagueId, season, pickId)),
     safeSettled(client.getTeamStatistics(awayTeamId, leagueId, season, pickId)),
   ]);
 
-  const [homeStatsResult, awayStatsResult] = wave2;
+  const [oddsResult, lineupsResult, predictionsResult] = wave1;
+  const [injuriesResult, h2hResult] = wave2;
+  const [homeStatsResult, awayStatsResult] = wave3;
 
   const odds = settleToValue<Odds[]>(oddsResult);
   const lineups = settleToValue<Lineup[]>(lineupsResult);
