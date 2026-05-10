@@ -1180,7 +1180,7 @@ const fetchFootballRecentMatchesStats = async (
 
     const stats = await Promise.all(
       fixtureIds.map((fid) =>
-        withTimeout(fetchFootballFixtureStats(fid, teamId, tracker), 5000, null)
+        withTimeout(fetchFootballFixtureStats(fid, teamId, tracker), 20000, null)
       )
     );
 
@@ -1289,12 +1289,12 @@ const enrichFootball = async (
     fetchFootballH2H(fi.home_id, fi.away_id, tracker),
     withTimeout(
       fetchFootballTeamStats(fi.home_id, leagueId, season, tracker),
-      5000,
+      20000,
       { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() }
     ),
     withTimeout(
       fetchFootballTeamStats(fi.away_id, leagueId, season, tracker),
-      5000,
+      20000,
       { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() }
     ),
   ]);
@@ -1303,16 +1303,16 @@ const enrichFootball = async (
   const [hi, ai, pred, hSidelined, aSidelined] = await Promise.all([
     fetchFootballInjuries(fi.home_id, leagueId, season, tracker),
     fetchFootballInjuries(fi.away_id, leagueId, season, tracker),
-    withTimeout(fetchFootballPredictions(fi.fixture_id, tracker), 5000, null),
-    withTimeout(fetchFootballSidelined(fi.home_id, tracker), 5000, null),
-    withTimeout(fetchFootballSidelined(fi.away_id, tracker), 5000, null),
+    withTimeout(fetchFootballPredictions(fi.fixture_id, tracker), 20000, null),
+    withTimeout(fetchFootballSidelined(fi.home_id, tracker), 20000, null),
+    withTimeout(fetchFootballSidelined(fi.away_id, tracker), 20000, null),
   ]);
 
   // Groupe 3 : stats récentes 5 derniers matchs + top scorers V3.5
   const [hRecent, aRecent, topScorers] = await Promise.all([
-    withTimeout(fetchFootballRecentMatchesStats(fi.home_id, leagueId, season, tracker), 10000, null),
-    withTimeout(fetchFootballRecentMatchesStats(fi.away_id, leagueId, season, tracker), 10000, null),
-    withTimeout(fetchFootballTopScorers(leagueId, season, tracker), 5000, null),
+    withTimeout(fetchFootballRecentMatchesStats(fi.home_id, leagueId, season, tracker), 20000, null),
+    withTimeout(fetchFootballRecentMatchesStats(fi.away_id, leagueId, season, tracker), 20000, null),
+    withTimeout(fetchFootballTopScorers(leagueId, season, tracker), 20000, null),
   ]);
 
   return {
@@ -1550,9 +1550,9 @@ const enrichBasketball = async (match: RawFixture): Promise<EnrichedFixture> => 
     ]);
 
     const [hStanding, aStanding, h2hData] = await Promise.all([
-      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsH2H(apiBase, game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
+      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.home.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsStanding(apiBase, game.league!.id, game.league!.season, game.teams.away.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsH2H(apiBase, game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 20000, null),
     ]);
 
     const realCommenceTimeBk = game.date ?? match.commence_time_iso;
@@ -1640,9 +1640,9 @@ const enrichHockey = async (match: RawFixture): Promise<EnrichedFixture> => {
     ]);
 
     const [hStanding, aStanding, h2hData] = await Promise.all([
-      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchApiSportsH2H("https://v1.hockey.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 5000, null),
+      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.home.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsStanding("https://v1.hockey.api-sports.io", game.league!.id, game.league!.season, game.teams.away.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchApiSportsH2H("https://v1.hockey.api-sports.io", game.teams.home.id, game.teams.away.id, match.home_team, match.away_team), 20000, null),
     ]);
 
     return {
@@ -1828,10 +1828,10 @@ const enrichBaseball = async (match: RawFixture): Promise<EnrichedFixture> => {
     ]);
 
     const [hStanding, aStanding, hPitcher, aPitcher] = await Promise.all([
-      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id), 5000, emptyTeamStanding()),
-      withTimeout(fetchBaseballPitcherStats(game.teams.home.id, game.league!.id, game.league!.season), 5000, null),
-      withTimeout(fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season), 5000, null),
+      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.home.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchBaseballStanding(game.league!.id, game.league!.season, game.teams.away.id), 20000, emptyTeamStanding()),
+      withTimeout(fetchBaseballPitcherStats(game.teams.home.id, game.league!.id, game.league!.season), 20000, null),
+      withTimeout(fetchBaseballPitcherStats(game.teams.away.id, game.league!.id, game.league!.season), 20000, null),
     ]);
 
     const realCommenceTime = game.date ?? match.commence_time_iso;
@@ -1982,8 +1982,8 @@ const enrichMMA = async (match: RawFixture): Promise<EnrichedFixture> => {
     const [r1, r2, rec1, rec2] = await Promise.all([
       fetchFighterInfo(f1.id),
       fetchFighterInfo(f2.id),
-      withTimeout(fetchMMAFighterRecord(f1.id), 5000, null),
-      withTimeout(fetchMMAFighterRecord(f2.id), 5000, null),
+      withTimeout(fetchMMAFighterRecord(f1.id), 20000, null),
+      withTimeout(fetchMMAFighterRecord(f2.id), 20000, null),
     ]);
 
     const records: Record<string, MMAFighterRecord> = {};
@@ -2494,10 +2494,10 @@ const enrichTennis = async (
 
   if (isDeepEnrichmentTournament) {
     const [pm1, pm2, cs1, cs2] = await Promise.all([
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 5000, null),
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 5000, null),
-      withTimeout(fetchTennisCareerStats(tour, player1.id), 5000, null),
-      withTimeout(fetchTennisCareerStats(tour, player2.id), 5000, null),
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 20000, null),
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 20000, null),
+      withTimeout(fetchTennisCareerStats(tour, player1.id), 20000, null),
+      withTimeout(fetchTennisCareerStats(tour, player2.id), 20000, null),
     ]);
     pastMatchesP1 = pm1;
     pastMatchesP2 = pm2;
@@ -2506,8 +2506,8 @@ const enrichTennis = async (
 
     if (fixture.tournamentId !== null) {
       const [tr1, tr2] = await Promise.all([
-        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 5000, null),
-        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 5000, null),
+        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 20000, null),
+        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 20000, null),
       ]);
       tournamentRecordP1 = tr1;
       tournamentRecordP2 = tr2;
@@ -2515,8 +2515,8 @@ const enrichTennis = async (
 
     if (isLateRound) {
       const [ft1, ft2] = await Promise.all([
-        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 5000, null),
-        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 5000, null),
+        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 20000, null),
+        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 20000, null),
       ]);
       finalsTitlesP1 = ft1;
       finalsTitlesP2 = ft2;
@@ -2750,8 +2750,8 @@ const enrichRugby = async (match: RawFixture): Promise<EnrichedFixture> => {
     const [hf, af, hStats, aStats] = await Promise.all([
       computeForm(game.teams.home.id),
       computeForm(game.teams.away.id),
-      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.home.id), 5000, emptyRugbyStats()),
-      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.away.id), 5000, emptyRugbyStats()),
+      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.home.id), 20000, emptyRugbyStats()),
+      withTimeout(fetchRugbyStanding(game.league.id, game.league.season, game.teams.away.id), 20000, emptyRugbyStats()),
     ]);
 
     const realCommenceTime = game.date ?? match.commence_time_iso;
@@ -2904,8 +2904,8 @@ const enrichHandball = async (match: RawFixture): Promise<EnrichedFixture> => {
     const [hf, af, hStats, aStats] = await Promise.all([
       computeForm(game.teams.home.id),
       computeForm(game.teams.away.id),
-      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.home.id), 5000, emptyHandballStats()),
-      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.away.id), 5000, emptyHandballStats()),
+      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.home.id), 20000, emptyHandballStats()),
+      withTimeout(fetchHandballStanding(game.league.id, game.league.season, game.teams.away.id), 20000, emptyHandballStats()),
     ]);
 
     const realCommenceTime = game.date ?? match.commence_time_iso;
@@ -3043,8 +3043,8 @@ const enrichF1 = async (match: RawFixture): Promise<EnrichedFixture> => {
     const competitionId = race.competition.id;
 
     const [raceData, drivers] = await Promise.all([
-      withTimeout(fetchF1RaceData(competitionId, season, match.commence_time_iso), 5000, null),
-      withTimeout(fetchF1DriversStandings(competitionId, season), 5000, null),
+      withTimeout(fetchF1RaceData(competitionId, season, match.commence_time_iso), 20000, null),
+      withTimeout(fetchF1DriversStandings(competitionId, season), 20000, null),
     ]);
 
     const realCommenceTime = race.date ?? match.commence_time_iso;
