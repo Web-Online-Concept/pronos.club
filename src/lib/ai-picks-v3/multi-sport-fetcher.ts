@@ -2286,11 +2286,19 @@ const fetchTennisPastMatchesWithOdds = async (
     }>;
   };
   try {
-    const d = await fetchJson<PastMatchesResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/past-matches/${playerId}?include=tournament.court&pageSize=20`,
-      MATCHSTAT_HEADERS
-    );
-    return (d?.data ?? []).slice(0, 20).map((m) => {
+    const url = `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/past-matches/${playerId}?include=tournament.court&pageSize=20`;
+    const d = await fetchJson<PastMatchesResponse>(url, MATCHSTAT_HEADERS);
+    const entries = d?.data ?? [];
+    if (entries.length === 0) {
+      console.warn(
+        `[matchstat] past-matches ${tour.toUpperCase()} player ${playerId} returned data=[] (empty array)`
+      );
+    } else {
+      console.log(
+        `[matchstat] past-matches ${tour.toUpperCase()} player ${playerId} OK ${entries.length} entries`
+      );
+    }
+    return entries.slice(0, 20).map((m) => {
       // Identifier le joueur cible vs adversaire
       const isPlayer1 = m.player1Id === playerId;
       const opponent = isPlayer1 ? m.player2 : m.player1;
@@ -2324,7 +2332,11 @@ const fetchTennisPastMatchesWithOdds = async (
         odd_opponent: oddOpponent,
       };
     });
-  } catch {
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[matchstat] past-matches ${tour.toUpperCase()} player ${playerId} ERROR: ${errMsg.substring(0, 120)}`
+    );
     return null;
   }
 };
@@ -2354,12 +2366,18 @@ const fetchTennisTournamentRecord = async (
     }>;
   };
   try {
-    const d = await fetchJson<TournamentRecordResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/tournament-record/${playerId}/${tournamentId}`,
-      MATCHSTAT_HEADERS
-    );
+    const url = `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/tournament-record/${playerId}/${tournamentId}`;
+    const d = await fetchJson<TournamentRecordResponse>(url, MATCHSTAT_HEADERS);
     const entries = d?.data ?? [];
-    if (entries.length === 0) return null;
+    if (entries.length === 0) {
+      console.warn(
+        `[matchstat] tournament-record ${tour.toUpperCase()} player ${playerId} tournament ${tournamentId} returned data=[] (empty)`
+      );
+      return null;
+    }
+    console.log(
+      `[matchstat] tournament-record ${tour.toUpperCase()} player ${playerId} tournament ${tournamentId} OK ${entries.length} years`
+    );
 
     // Agrégation : sommer wins/losses, identifier le meilleur round (le plus bas bestRoundId)
     let totalWins = 0;
@@ -2398,7 +2416,11 @@ const fetchTennisTournamentRecord = async (
         round: e.bestRound ?? null,
       })),
     };
-  } catch {
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[matchstat] tournament-record ${tour.toUpperCase()} player ${playerId} tournament ${tournamentId} ERROR: ${errMsg.substring(0, 120)}`
+    );
     return null;
   }
 };
@@ -2442,16 +2464,28 @@ const fetchTennisCareerStats = async (
     };
   };
   try {
-    const d = await fetchJson<CareerStatsResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/match-stats/${playerId}`,
-      MATCHSTAT_HEADERS
-    );
-    if (!d?.data) return null;
+    const url = `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/match-stats/${playerId}`;
+    const d = await fetchJson<CareerStatsResponse>(url, MATCHSTAT_HEADERS);
+    if (!d?.data) {
+      console.warn(
+        `[matchstat] match-stats ${tour.toUpperCase()} player ${playerId} returned data=null/undefined`
+      );
+      return null;
+    }
 
     const ss = d.data.serviceStats;
     const bps = d.data.breakPointsServeStats;
     const bpr = d.data.breakPointsRtnStats;
-    if (!ss && !bps && !bpr) return null;
+    if (!ss && !bps && !bpr) {
+      console.warn(
+        `[matchstat] match-stats ${tour.toUpperCase()} player ${playerId} returned data with no stats blocks (serviceStats/breakPointsServeStats/breakPointsRtnStats all missing)`
+      );
+      return null;
+    }
+
+    console.log(
+      `[matchstat] match-stats ${tour.toUpperCase()} player ${playerId} OK (ss=${!!ss}, bps=${!!bps}, bpr=${!!bpr})`
+    );
 
     // Helper pour calculer un pourcentage en toute sécurité
     const safePct = (num: number | undefined, denom: number | undefined): number | null => {
@@ -2470,7 +2504,11 @@ const fetchTennisCareerStats = async (
       break_points_saved_pct: safePct(bps?.breakPointSavedGm, bps?.breakPointFacedGm),
       break_points_converted_pct: safePct(bpr?.breakPointWonGm, bpr?.breakPointChanceGm),
     };
-  } catch {
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[matchstat] match-stats ${tour.toUpperCase()} player ${playerId} ERROR: ${errMsg.substring(0, 120)}`
+    );
     return null;
   }
 };
@@ -2624,10 +2662,10 @@ const enrichTennis = async (
 
   if (isDeepEnrichmentTournament) {
     const [pm1, pm2, cs1, cs2] = await Promise.all([
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 20000, null),
-      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 20000, null),
-      withTimeout(fetchTennisCareerStats(tour, player1.id), 20000, null),
-      withTimeout(fetchTennisCareerStats(tour, player2.id), 20000, null),
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 35000, null),
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 35000, null),
+      withTimeout(fetchTennisCareerStats(tour, player1.id), 35000, null),
+      withTimeout(fetchTennisCareerStats(tour, player2.id), 35000, null),
     ]);
     pastMatchesP1 = pm1;
     pastMatchesP2 = pm2;
@@ -2636,8 +2674,8 @@ const enrichTennis = async (
 
     if (fixture.tournamentId !== null) {
       const [tr1, tr2] = await Promise.all([
-        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 20000, null),
-        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 20000, null),
+        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 35000, null),
+        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 35000, null),
       ]);
       tournamentRecordP1 = tr1;
       tournamentRecordP2 = tr2;
@@ -2645,8 +2683,8 @@ const enrichTennis = async (
 
     if (isLateRound) {
       const [ft1, ft2] = await Promise.all([
-        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 20000, null),
-        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 20000, null),
+        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 35000, null),
+        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 35000, null),
       ]);
       finalsTitlesP1 = ft1;
       finalsTitlesP2 = ft2;
