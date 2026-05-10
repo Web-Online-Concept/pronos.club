@@ -33,12 +33,61 @@ const getCachedPicks = unstable_cache(
 
 const getCachedPendingCount = unstable_cache(
   async () => {
-    const { count } = await supabaseAdmin
+    // 1. Récupérer tous les picks pending dont l'event_date est dans le futur
+    const { data: pendingPicks } = await supabaseAdmin
       .from("picks")
-      .select("id", { count: "exact", head: true })
+      .select("id, pick_type")
       .eq("status", "pending")
       .gt("event_date", new Date().toISOString());
-    return count ?? 0;
+
+    if (!pendingPicks || pendingPicks.length === 0) return 0;
+
+    // 2. Séparer simples vs combinés
+    //    - Simples : déjà bons (event_date > now() suffit)
+    //    - Combinés : il faut vérifier que TOUTES les jambes ont event_date > now()
+    //      (sinon une jambe a déjà commencé, le combiné n'est plus "en cours")
+    const simplePicks = pendingPicks.filter((p) => p.pick_type !== "combine");
+    const combinePicks = pendingPicks.filter((p) => p.pick_type === "combine");
+
+    let validCombineCount = 0;
+
+    if (combinePicks.length > 0) {
+      // Récupérer toutes les jambes des combinés pending en 1 seule query
+      const combineIds = combinePicks.map((p) => p.id);
+      const { data: legs } = await supabaseAdmin
+        .from("pick_legs")
+        .select("pick_id, event_date")
+        .in("pick_id", combineIds);
+
+      if (legs) {
+        const nowIso = new Date().toISOString();
+        // Grouper les jambes par pick_id
+        const legsByPick = new Map<string, string[]>();
+        for (const leg of legs) {
+          const arr = legsByPick.get(leg.pick_id) ?? [];
+          arr.push(leg.event_date);
+          legsByPick.set(leg.pick_id, arr);
+        }
+
+        // Un combiné est "en cours" SSI toutes ses jambes ont event_date > now()
+        for (const pick of combinePicks) {
+          const pickLegs = legsByPick.get(pick.id);
+          if (!pickLegs || pickLegs.length === 0) {
+            // Combiné sans jambe stockée : fallback sur l'event_date du pick (déjà > now)
+            // Mais c'est suspect — on log un warning
+            console.warn(
+              `[home-pending-count] Combiné ${pick.id} sans jambes en pick_legs, comptage incertain`
+            );
+            validCombineCount++;
+            continue;
+          }
+          const allFuture = pickLegs.every((d) => d > nowIso);
+          if (allFuture) validCombineCount++;
+        }
+      }
+    }
+
+    return simplePicks.length + validCombineCount;
   },
   ["home-pending-count"],
   { revalidate: 300, tags: ["home-picks"] }
