@@ -52,16 +52,11 @@ export default function TipsterNotifSection() {
       const prefsData = await prefsRes.json();
       const followsData = await followsRes.json();
 
-      // Migration auto : forcer mode="selected" pour tous les users
-      // (le sélecteur de mode a été supprimé, on ne propose plus que ce mode).
-      const currentMode = prefsData.prefs?.mode;
-      if (currentMode && currentMode !== "selected") {
-        await fetch("/api/tipster-notif-prefs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "selected" }),
-        });
-      }
+      // ⚠️ NE PAS migrer le mode automatiquement.
+      // Les users en mode 'all' DOIVENT le rester pour continuer à recevoir
+      // les notifs de tous les tipsters. Le composant gère uniquement
+      // l'affichage de la liste des tipsters suivis (utile en mode 'selected'),
+      // mais le mode reste contrôlé côté admin / non-modifiable depuis l'UI.
 
       setFollows(followsData.follows || []);
     } catch (err) {
