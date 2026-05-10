@@ -879,19 +879,29 @@ const fetchFootballTeamStats = async (
       `https://v3.football.api-sports.io/teams/statistics?team=${teamId}&league=${leagueId}&season=${season}`,
       tracker
     );
+    // V3.5 Lot 19 — API-Football peut renvoyer `response: []` (array vide) au lieu d'un objet
+    // pour les équipes sans données récentes. Ce comportement n'est pas documenté.
+    // On considère ce cas comme "pas de stats disponibles" pour éviter le crash.
     const r = data.response;
-    if (!r) return { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() };
+    if (!r || (Array.isArray(r) && r.length === 0)) {
+      return { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() };
+    }
+    // Si r est un array (cas exotique), on prend le 1er élément
+    const stats0 = Array.isArray(r) ? r[0] : r;
+    if (!stats0) {
+      return { stats: emptyFootballTeamStats(), splitHome: emptySplitStats(), splitAway: emptySplitStats() };
+    }
 
-    const played = r.fixtures?.played?.total ?? 0;
-    const wins   = r.fixtures?.wins?.total   ?? 0;
-    const draws  = r.fixtures?.draws?.total  ?? 0;
+    const played = stats0.fixtures?.played?.total ?? 0;
+    const wins   = stats0.fixtures?.wins?.total   ?? 0;
+    const draws  = stats0.fixtures?.draws?.total  ?? 0;
 
-    const avgFor     = parseFloat(r.goals?.for?.average?.total     ?? "0") || 0;
-    const avgAgainst = parseFloat(r.goals?.against?.average?.total ?? "0") || 0;
+    const avgFor     = parseFloat(stats0.goals?.for?.average?.total     ?? "0") || 0;
+    const avgAgainst = parseFloat(stats0.goals?.against?.average?.total ?? "0") || 0;
 
     let serie: string | null = null;
-    if (r.form && r.form.length > 0) {
-      const form = r.form;
+    if (stats0.form && stats0.form.length > 0) {
+      const form = stats0.form;
       const last = form[form.length - 1];
       let count = 0;
       for (let i = form.length - 1; i >= 0; i--) {
@@ -916,8 +926,8 @@ const fetchFootballTeamStats = async (
       classement_points: played > 0 ? wins * 3 + draws : null,
       buts_marques_par_match: avgFor > 0 ? avgFor.toFixed(2) : null,
       buts_encaisses_par_match: avgAgainst > 0 ? avgAgainst.toFixed(2) : null,
-      clean_sheets_total: r.clean_sheet?.total ?? null,
-      matchs_sans_marquer: r.failed_to_score?.total ?? null,
+      clean_sheets_total: stats0.clean_sheet?.total ?? null,
+      matchs_sans_marquer: stats0.failed_to_score?.total ?? null,
       btts_pct,
       over_25_pct,
       serie_en_cours: serie,
@@ -926,25 +936,25 @@ const fetchFootballTeamStats = async (
 
     // V3.5 NOUVEAU : extraction splits dom/ext
     const splitHome: FootballSplitStats = {
-      matchs_joues: r.fixtures?.played?.home ?? null,
-      victoires: r.fixtures?.wins?.home ?? null,
-      nuls: r.fixtures?.draws?.home ?? null,
-      defaites: r.fixtures?.loses?.home ?? null,
-      buts_marques: r.goals?.for?.total?.home ?? null,
-      buts_encaisses: r.goals?.against?.total?.home ?? null,
-      buts_marques_avg: r.goals?.for?.average?.home ?? null,
-      buts_encaisses_avg: r.goals?.against?.average?.home ?? null,
+      matchs_joues: stats0.fixtures?.played?.home ?? null,
+      victoires: stats0.fixtures?.wins?.home ?? null,
+      nuls: stats0.fixtures?.draws?.home ?? null,
+      defaites: stats0.fixtures?.loses?.home ?? null,
+      buts_marques: stats0.goals?.for?.total?.home ?? null,
+      buts_encaisses: stats0.goals?.against?.total?.home ?? null,
+      buts_marques_avg: stats0.goals?.for?.average?.home ?? null,
+      buts_encaisses_avg: stats0.goals?.against?.average?.home ?? null,
     };
 
     const splitAway: FootballSplitStats = {
-      matchs_joues: r.fixtures?.played?.away ?? null,
-      victoires: r.fixtures?.wins?.away ?? null,
-      nuls: r.fixtures?.draws?.away ?? null,
-      defaites: r.fixtures?.loses?.away ?? null,
-      buts_marques: r.goals?.for?.total?.away ?? null,
-      buts_encaisses: r.goals?.against?.total?.away ?? null,
-      buts_marques_avg: r.goals?.for?.average?.away ?? null,
-      buts_encaisses_avg: r.goals?.against?.average?.away ?? null,
+      matchs_joues: stats0.fixtures?.played?.away ?? null,
+      victoires: stats0.fixtures?.wins?.away ?? null,
+      nuls: stats0.fixtures?.draws?.away ?? null,
+      defaites: stats0.fixtures?.loses?.away ?? null,
+      buts_marques: stats0.goals?.for?.total?.away ?? null,
+      buts_encaisses: stats0.goals?.against?.total?.away ?? null,
+      buts_marques_avg: stats0.goals?.for?.average?.away ?? null,
+      buts_encaisses_avg: stats0.goals?.against?.average?.away ?? null,
     };
 
     return { stats, splitHome, splitAway };
