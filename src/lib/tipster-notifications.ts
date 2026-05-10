@@ -59,18 +59,16 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 }
 
 // ── Helper Push ──
-// V3.5 Lot 14 : lit users.push_subscription (JSON) et notify_abonnes_push pour
-// l'opt-in catégorie "Pronos Abonnés". Si l'utilisateur a désactivé les push
-// abonnés mais gardé les push tipster, on respecte cette préférence.
+// Lit users.push_subscription (JSON) et utilise notify_push pour opt-in global
 async function sendPushToUser(userId: string, payload: any) {
   try {
     const { data: user } = await supabaseAdmin
       .from("users")
-      .select("push_subscription, notify_abonnes_push")
+      .select("push_subscription, notify_push")
       .eq("id", userId)
       .single();
 
-    if (!user || !user.notify_abonnes_push || !user.push_subscription) return;
+    if (!user || !user.notify_push || !user.push_subscription) return;
 
     try {
       await webpush.sendNotification(
@@ -79,16 +77,11 @@ async function sendPushToUser(userId: string, payload: any) {
       );
     } catch (err: any) {
       const statusCode = err?.statusCode || 0;
-      // Subscription morte : on nettoie tous les toggles push
+      // Subscription morte : on nettoie
       if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
         await supabaseAdmin
           .from("users")
-          .update({
-            push_subscription: null,
-            notify_push: false,
-            notify_tipster_push: false,
-            notify_abonnes_push: false,
-          })
+          .update({ push_subscription: null, notify_push: false })
           .eq("id", userId);
       }
     }
@@ -249,7 +242,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       await sendTelegramMessage(n.telegramChatId, tgMsg);
     }
 
-    // Push PWA (users.push_subscription JSON + notify_abonnes_push opt-in catégorie)
+    // Push PWA (users.push_subscription JSON + users.notify_push opt-in global)
     if (n.usePush) {
       await sendPushToUser(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,

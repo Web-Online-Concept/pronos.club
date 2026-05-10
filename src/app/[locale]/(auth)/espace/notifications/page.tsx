@@ -44,8 +44,6 @@ type UserWithNotifs = {
   notify_bilan?: boolean;
   notify_tipster_push?: boolean;
   notify_tipster_email?: boolean;
-  notify_abonnes_push?: boolean;
-  notify_abonnes_email?: boolean;
   subscription_status?: string;
   telegram_user_id?: number | null;
 };
@@ -59,8 +57,6 @@ export default function NotificationsPage() {
   // États des toggles granulaires
   const [tipsterPush, setTipsterPush] = useState(u?.notify_tipster_push ?? true);
   const [tipsterEmail, setTipsterEmail] = useState(u?.notify_tipster_email ?? true);
-  const [abonnesPush, setAbonnesPush] = useState(u?.notify_abonnes_push ?? true);
-  const [abonnesEmail, setAbonnesEmail] = useState(u?.notify_abonnes_email ?? true);
   const [bilanEnabled, setBilanEnabled] = useState(u?.notify_bilan ?? true);
 
   const [saving, setSaving] = useState(false);
@@ -257,22 +253,7 @@ export default function NotificationsPage() {
             color="cyan"
           >
             <div className="space-y-3">
-              <ToggleRow
-                title="Notifs push (PC ou app mobile)"
-                subtitle={abonnesPush ? "Activées" : "Désactivées"}
-                value={abonnesPush}
-                onChange={(v) => updateNotif("notify_abonnes_push", v, setAbonnesPush)}
-                disabled={saving}
-                color="cyan"
-              />
-              <ToggleRow
-                title="Notifs par email"
-                subtitle={abonnesEmail ? "Activées" : "Désactivées"}
-                value={abonnesEmail}
-                onChange={(v) => updateNotif("notify_abonnes_email", v, setAbonnesEmail)}
-                disabled={saving}
-                color="cyan"
-              />
+              {/* Canal Telegram public */}
               <TelegramChannelRow
                 title="Notifs Telegram (canal public)"
                 subtitle="Recevez chaque pronostic Abonnés sur Telegram"
@@ -281,7 +262,9 @@ export default function NotificationsPage() {
                 color="cyan"
               />
 
-              {/* Notifs des tipsters suivis (composant existant) */}
+              {/* Notifs des tipsters suivis (composant existant qui gère
+                  email + telegram DM + push de manière granulaire via
+                  tipster_notif_prefs et tipster_follows) */}
               <div className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100/50 p-4">
                 <TipsterNotifSection />
               </div>
