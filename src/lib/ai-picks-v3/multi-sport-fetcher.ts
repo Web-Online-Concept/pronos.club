@@ -3365,6 +3365,7 @@ export const reEnrichPick = async (
         ...match,
         forme_5_derniers: `donnée non disponible (sport=${sportLower})`,
         h2h_5_derniers: "donnée non disponible",
+        blessures: "donnée non disponible",
       };
   }
 };
