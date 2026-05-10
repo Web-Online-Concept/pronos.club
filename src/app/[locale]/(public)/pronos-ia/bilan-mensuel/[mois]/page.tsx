@@ -62,6 +62,20 @@ export async function generateMetadata(
       title,
       description: desc,
       type: "article",
+      images: [
+        {
+          url: `/api/og/bilan-mensuel/${mois}`,
+          width: 1200,
+          height: 630,
+          alt: `Bilan ${bilan.month_label} — PRONOS.CLUB`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: desc,
+      images: [`/api/og/bilan-mensuel/${mois}`],
     },
     alternates: {
       canonical: `/${locale}/pronos-ia/bilan-mensuel/${mois}`,
