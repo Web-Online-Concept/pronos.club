@@ -340,7 +340,7 @@ export default function NotificationsPage() {
               />
 
               {/* Liste tipsters suivis (composant simplifié) */}
-              <div className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100/50 p-4">
+              <div className="mt-2 pt-3 border-t border-cyan-200">
                 <TipsterNotifSection />
               </div>
             </div>
@@ -482,19 +482,28 @@ function SectionContainer({
   color: SectionColor;
   children: React.ReactNode;
 }) {
-  const colorClasses: Record<SectionColor, string> = {
-    emerald: "text-emerald-700 border-emerald-200",
-    violet: "text-violet-700 border-violet-200",
-    cyan: "text-cyan-700 border-cyan-200",
-    purple: "text-purple-700 border-purple-200",
-    amber: "text-amber-700 border-amber-200",
+  // Z1 — Bloc englobant marqué : bordure épaisse + fond teinté + padding généreux.
+  // Chaque zone est ainsi clairement délimitée visuellement.
+  const containerClasses: Record<SectionColor, string> = {
+    emerald: "border-emerald-300 bg-emerald-50/60 shadow-sm shadow-emerald-100",
+    violet: "border-violet-300 bg-violet-50/60 shadow-sm shadow-violet-100",
+    cyan: "border-cyan-300 bg-cyan-50/60 shadow-sm shadow-cyan-100",
+    purple: "border-purple-300 bg-purple-50/60 shadow-sm shadow-purple-100",
+    amber: "border-amber-300 bg-amber-50/60 shadow-sm shadow-amber-100",
+  };
+  const headerColorClasses: Record<SectionColor, string> = {
+    emerald: "text-emerald-800 border-emerald-300",
+    violet: "text-violet-800 border-violet-300",
+    cyan: "text-cyan-800 border-cyan-300",
+    purple: "text-purple-800 border-purple-300",
+    amber: "text-amber-800 border-amber-300",
   };
 
   return (
-    <section>
-      <div className={`mb-3 border-b pb-2 ${colorClasses[color]}`}>
-        <h2 className="text-base font-extrabold">{title}</h2>
-        <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>
+    <section className={`rounded-2xl border-2 p-5 sm:p-6 ${containerClasses[color]}`}>
+      <div className={`mb-4 border-b-2 pb-3 ${headerColorClasses[color]}`}>
+        <h2 className="text-base font-extrabold sm:text-lg">{title}</h2>
+        <p className="mt-1 text-xs text-neutral-600 sm:text-[13px]">{subtitle}</p>
       </div>
       {children}
     </section>
