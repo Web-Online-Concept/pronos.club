@@ -68,6 +68,7 @@ type PendingPickRow = {
   drop_window: string | null;
   generation_batch: string | null;
   tier: string | null;
+  ai_pick_number: number | null;
   odds_comparison: Record<string, unknown> | null;
 };
 
@@ -130,6 +131,7 @@ const toPickForX = (pick: PendingPickRow): PickForX | null => {
     reasoning: pick.reasoning,
     tier: pick.tier,
     drop_window: pick.drop_window,
+    ai_pick_number: pick.ai_pick_number,
   };
 };
 
@@ -304,7 +306,7 @@ export const publishBatchForDropWindow = async (
   const { data: picks, error: fetchError } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, slug, sport, league, event_name, event_date, selection, market, odds, reasoning, drop_window, generation_batch, tier, odds_comparison"
+      "id, slug, sport, league, event_name, event_date, selection, market, odds, reasoning, drop_window, generation_batch, tier, ai_pick_number, odds_comparison"
     )
     .eq("generation_version", "v3")
     .eq("drop_window", dropWindow)
