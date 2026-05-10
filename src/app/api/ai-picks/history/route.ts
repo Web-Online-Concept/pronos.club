@@ -1,17 +1,28 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/ai-picks/history (V3.5 Lot 10 — tri classic_number DESC strict)
+ * /api/ai-picks/history (V3.5 Lot 13 — séparation propre cours/historique)
  * ═══════════════════════════════════════════════════════════════════
  *
  * Endpoint API qui alimente la page /pronos-ia/historique.
  *
  * V3.5 Lot 10 (09/05/2026) :
  *   - Tri principal : classic_number DESC strict (du plus récent au plus
- *     ancien numériquement). Impossible d'avoir un désordre visuel quels
- *     que soient les timestamps de création.
- *   - Plus de fallback sur created_at (qui pouvait piéger en cas de
- *     placeholder ou de re-run).
+ *     ancien numériquement). Impossible d'avoir un désordre visuel.
+ *   - Plus de fallback sur created_at.
  *   - Garde tier + drop_window dans le SELECT et filtres.
+ *
+ * V3.5 Lot 13 (10/05/2026) — fix UX historique :
+ *   - Filtre par défaut : event_date <= now
+ *     → la page Historique n'affiche QUE les picks dont le match a
+ *       commencé ou est terminé.
+ *     → les picks futurs (à venir) sont visibles UNIQUEMENT sur
+ *       /pronos-ia (page Cours).
+ *     → 0 chevauchement entre les 2 pages.
+ *
+ * Comportement par filtre status :
+ *   - "all" (défaut) → event_date <= now (en cours + résolus)
+ *   - "awaiting"     → status = pending ET event_date <= now
+ *   - "won/lost/void" → status correspondant
  *
  * Path : src/app/api/ai-picks/history/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -32,6 +43,7 @@ export async function GET(request: Request) {
   const tier = searchParams.get("tier");
 
   const isCountOnly = limit === 0;
+  const nowIso = new Date().toISOString();
 
   let query = supabaseAdmin
     .from("ai_picks")
@@ -42,17 +54,21 @@ export async function GET(request: Request) {
     .is("deleted_at", null)
     .eq("pick_type", "classic")
     // ─── TRI STRICT par classic_number DESC ──────────────────────
-    // Plus de fallback sur created_at. classic_number étant unique et
-    // séquentiel (garanti par insert_ai_pick_atomic), ce tri seul
-    // garantit l'ordre numérique strict du plus récent au plus ancien.
     .order("classic_number", { ascending: false, nullsFirst: false });
 
-  // ─── FILTRE STATUS ──────────────────────────────────────────────
+  // ─── FILTRE STATUS + EVENT_DATE ─────────────────────────────────
+  // V3.5 Lot 13 : par défaut on n'affiche QUE les picks dont le match
+  // a commencé/est terminé. Les picks futurs (event_date > now) restent
+  // exclusivement sur /pronos-ia (page Cours).
   if (status === "awaiting") {
-    const nowIso = new Date().toISOString();
+    // En attente de résolution : pending ET event_date passée
     query = query.eq("status", "pending").lte("event_date", nowIso);
   } else if (status === "won" || status === "lost" || status === "void") {
+    // Picks résolus : status correspondant
     query = query.eq("status", status);
+  } else {
+    // Filtre "all" (défaut) : tous les picks dont le match a commencé/est terminé
+    query = query.lte("event_date", nowIso);
   }
 
   if (from) query = query.gte("event_date", `${from}T00:00:00Z`);
