@@ -1,3 +1,20 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * /api/notifications/subscribe (V3.5 Lot 14)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * V3.5 Lot 14 (10/05/2026) :
+ *   - Quand l'utilisateur souscrit au push browser, on active automatiquement
+ *     les 3 toggles : notify_push (global) + notify_tipster_push +
+ *     notify_abonnes_push.
+ *   - Logique : 1 seul abonnement push physique partagé entre les catégories.
+ *     Les toggles déterminent qui reçoit quoi côté serveur.
+ *   - Quand l'utilisateur désinscrit, tous les toggles push sont remis à false.
+ *
+ * Path : src/app/api/notifications/subscribe/route.ts
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { requireAuth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
@@ -28,7 +45,10 @@ export async function POST(request: Request) {
     .from("users")
     .update({
       push_subscription: subscription,
+      // V3.5 Lot 14 — activation simultanée du global + des 2 catégories
       notify_push: true,
+      notify_tipster_push: true,
+      notify_abonnes_push: true,
     })
     .eq("id", user.id);
 
@@ -65,7 +85,10 @@ export async function DELETE() {
     .from("users")
     .update({
       push_subscription: null,
+      // V3.5 Lot 14 — désactivation simultanée du global + des 2 catégories
       notify_push: false,
+      notify_tipster_push: false,
+      notify_abonnes_push: false,
     })
     .eq("id", user.id);
 

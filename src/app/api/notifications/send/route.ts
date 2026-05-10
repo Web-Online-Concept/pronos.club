@@ -1,3 +1,20 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * /api/notifications/send (V3.5 Lot 14 — granularité par catégorie)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * V3.5 Lot 14 (10/05/2026) :
+ *   - Ajout paramètre `category` au body : "tipster" | "abonnes"
+ *   - Filtre les destinataires selon le toggle correspondant :
+ *     · category="tipster" → notify_tipster_push / notify_tipster_email
+ *     · category="abonnes" → notify_abonnes_push / notify_abonnes_email
+ *   - Rétrocompat : si category n'est pas fourni, défaut "tipster"
+ *     (comportement historique pour les anciens appels)
+ *
+ * Path : src/app/api/notifications/send/route.ts
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { requireAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { sendNewPickEmail } from "@/lib/emails";
@@ -14,6 +31,8 @@ type PushUser = {
   id: string;
   push_subscription: webpush.PushSubscription;
 };
+
+type Category = "tipster" | "abonnes";
 
 function detectPlatform(endpoint: string): { platform: string; domain: string } {
   if (endpoint.includes("push.apple.com")) return { platform: "ios", domain: "apple" };
@@ -45,12 +64,7 @@ async function sendSinglePush(
       if ("body" in err) errorMsg = String((err as { body: string }).body).slice(0, 500);
     }
 
-    // Subscription invalide definitivement : on nettoie
-    if (statusCode === 404 || statusCode === 410) {
-      shouldCleanup = true;
-    }
-    // 403 = VAPID mismatch OU subscription expirée côté Apple : on nettoie aussi
-    if (statusCode === 403) {
+    if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
       shouldCleanup = true;
     }
 
@@ -65,13 +79,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { pickId, pickNumber, sport, isPremium } = await request.json();
+  const body = await request.json();
+  const { pickId, pickNumber, sport, isPremium } = body;
 
-  // Get all users with push enabled
+  // V3.5 Lot 14 — détermine la catégorie pour le filtrage des toggles
+  // Si non fourni, défaut "tipster" (rétrocompat avec les anciens appels)
+  const category: Category = body.category === "abonnes" ? "abonnes" : "tipster";
+
+  // Détermine quels toggles vérifier selon la catégorie
+  const pushToggleColumn = category === "abonnes" ? "notify_abonnes_push" : "notify_tipster_push";
+  const emailToggleColumn = category === "abonnes" ? "notify_abonnes_email" : "notify_tipster_email";
+
+  // ═════════════════════════════════════════════════════════════
+  // PUSH : utilisateurs avec push_subscription + toggle catégorie ON
+  // ═════════════════════════════════════════════════════════════
   let pushQuery = supabaseAdmin
     .from("users")
     .select("id, push_subscription")
-    .eq("notify_push", true)
+    .eq(pushToggleColumn, true)
     .not("push_subscription", "is", null);
 
   if (isPremium) {
@@ -81,11 +106,13 @@ export async function POST(request: Request) {
   const { data: pushUsersRaw } = await pushQuery;
   const pushUsers = (pushUsersRaw || []) as PushUser[];
 
-  // Get all users with email enabled
+  // ═════════════════════════════════════════════════════════════
+  // EMAIL : utilisateurs avec toggle email catégorie ON
+  // ═════════════════════════════════════════════════════════════
   let emailQuery = supabaseAdmin
     .from("users")
     .select("id, email, locale")
-    .eq("notify_email", true);
+    .eq(emailToggleColumn, true);
 
   if (isPremium) {
     emailQuery = emailQuery.in("subscription_status", ["active", "trialing"]);
@@ -98,13 +125,23 @@ export async function POST(request: Request) {
   let pushCleaned = 0;
   let emailSent = 0;
 
+  // ═════════════════════════════════════════════════════════════
+  // PAYLOAD PUSH
+  // ═════════════════════════════════════════════════════════════
+  const titlePrefix = category === "abonnes" ? "👥" : "🔔";
+  const urlPath = category === "abonnes" ? "/fr/pronos-abonnes" : "/fr/pronostics";
+
   const payload = JSON.stringify({
-    title: pickNumber ? `🔔 #${pickNumber} Nouveau pronostic` : "🔔 Nouveau pronostic disponible",
+    title: pickNumber
+      ? `${titlePrefix} #${pickNumber} Nouveau pronostic`
+      : `${titlePrefix} Nouveau pronostic disponible`,
     body: sport ? `${sport} — Consultez-le sur PRONOS.CLUB` : "Un nouveau pick vient d'être publié",
-    url: "/fr/pronostics",
+    url: urlPath,
   });
 
-  // Send push notifications with per-user logging
+  // ═════════════════════════════════════════════════════════════
+  // ENVOI PUSH
+  // ═════════════════════════════════════════════════════════════
   const logRows: Record<string, unknown>[] = [];
   const cleanupIds: string[] = [];
 
@@ -136,11 +173,17 @@ export async function POST(request: Request) {
     })
   );
 
-  // Cleanup invalid subscriptions (in batch)
+  // Cleanup invalid subscriptions (en batch)
+  // V3.5 Lot 14 — on désactive aussi les toggles catégories
   if (cleanupIds.length > 0) {
     await supabaseAdmin
       .from("users")
-      .update({ push_subscription: null, notify_push: false })
+      .update({
+        push_subscription: null,
+        notify_push: false,
+        notify_tipster_push: false,
+        notify_abonnes_push: false,
+      })
       .in("id", cleanupIds);
   }
 
@@ -149,7 +192,9 @@ export async function POST(request: Request) {
     await supabaseAdmin.from("notification_logs").insert(logRows);
   }
 
-  // Send emails
+  // ═════════════════════════════════════════════════════════════
+  // ENVOI EMAILS
+  // ═════════════════════════════════════════════════════════════
   if (emailUsers) {
     await Promise.allSettled(
       emailUsers.map(async (user) => {
@@ -164,9 +209,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Telegram
+  // ═════════════════════════════════════════════════════════════
+  // TELEGRAM (canal public Tipster — uniquement pour category="tipster")
+  // Pour category="abonnes", c'est tipster-notifications.ts qui s'occupe
+  // de publier sur le canal public Pronos Abonnés.
+  // ═════════════════════════════════════════════════════════════
   let telegramSent = false;
-  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHANNEL_ID) {
+  if (
+    category === "tipster" &&
+    process.env.TELEGRAM_BOT_TOKEN &&
+    process.env.TELEGRAM_CHANNEL_ID
+  ) {
     try {
       const sportLabel = sport ? ` — ${sport}` : "";
       const accessLabel = isPremium ? "🔒 Premium" : "🆓 Gratuit";
@@ -201,6 +254,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
+    category,
     pushSent,
     pushFailed,
     pushCleaned,
