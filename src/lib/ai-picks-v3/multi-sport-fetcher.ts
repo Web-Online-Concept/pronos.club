@@ -116,7 +116,14 @@ const TOURNAMENT_TYPES_LEAGUE = "League";
 const FIFA_WORLD_CUP_LEAGUE_ID = 1;
 
 // V3.5 : Drop window — filtre par heure de kickoff Paris
-const DROP_WINDOW_EVENING_THRESHOLD_HOUR = 20;
+// 10/05/2026 : seuil descendu de 20h à 18h pour élargir la fenêtre du drop soir.
+// Le drop soir tourne à 17h30, le publish à 18h15. Avec un seuil à 18h, on capture :
+//   - Liga / Bundesliga / Serie A 18h30
+//   - Champions League 18h45 + 21h
+//   - Ligue 1 / Premier League 21h
+// Les matchs entre 18h et 20h sont donc analysés 2 fois (matin + soir), avec
+// data fraîche le soir (lineups confirmés, blessures dernière minute).
+const DROP_WINDOW_EVENING_THRESHOLD_HOUR = 18;
 
 // V3.5 : Cache top scorers par league (TTL 24h)
 const TOP_SCORERS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;

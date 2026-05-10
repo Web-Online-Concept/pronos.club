@@ -69,56 +69,109 @@ const logSection = (dropWindow: DropWindow, title: string): void => {
   console.log(`\n${"=".repeat(60)}\n[${tag} v3.5] ${title}\n${"=".repeat(60)}`);
 };
 
-/**
- * V3.5 patch (Option A) — Vérifie si un combiné a déjà été pris aujourd'hui.
- *
- * Utilisé par le drop soir pour appliquer le verrou métier "1 combiné max/jour".
- * Si un combiné existe déjà pour cette date, on indique au tipster qu'il ne
- * doit générer QUE des simples au drop soir.
- *
- * Détection : un pick combiné est stocké avec `odds_comparison.combine_meta`
- * non null (cf persist-tipster-pick.ts buildOddsComparison branche `else`).
- *
- * @param targetDate Date au format YYYY-MM-DD (Paris timezone)
- * @returns true si au moins un pick combiné existe pour cette date, false sinon
- */
-const hasCombineForDateAlready = async (
-  targetDate: string
-): Promise<boolean> => {
-  try {
-    // On récupère tous les picks v3 du jour et on filtre côté JS sur la
-    // présence de combine_meta dans odds_comparison (plus robuste qu'une
-    // requête JSON path Supabase qui peut être casse-pieds).
-    const { data, error } = await supabaseAdmin
-      .from("ai_picks")
-      .select("id, odds_comparison")
-      .eq("event_date", targetDate)
-      .eq("generation_version", "v3")
-      .is("deleted_at", null);
+// ============================================================================
+// LOG BDD : ai_picks_drop_log
+// ============================================================================
 
+/**
+ * Type des arguments pour logDropEvaluation.
+ * Tous les champs sont optionnels — la fonction écrit ce qui est disponible
+ * au moment de l'appel (ex: si tipster a planté, on log quand même fetch).
+ */
+type DropEvaluationLog = {
+  drop_window: DropWindow;
+  generation_batch: string; // YYYY-MM-DD
+  drop_started_at: string;  // ISO
+  drop_ended_at: string;    // ISO
+  duration_ms: number;
+  // Fetch
+  matches_raw_count?: number;
+  matches_in_window_count?: number;
+  matches_enriched_count?: number;
+  fetch_stats?: Record<string, unknown>;
+  // Tipster
+  tipster_model?: string;
+  tipster_tokens_in?: number;
+  tipster_tokens_out?: number;
+  tipster_cost_usd?: number;
+  tipster_picks_count?: number;
+  tipster_raw_response?: string;
+  tipster_error?: string | null;
+  // Sample matchs envoyés à Claude (max 50)
+  matches_sample?: unknown;
+  // Persist
+  picks_persisted_count?: number;
+  picks_persisted_ids?: string[];
+  // Notes libres
+  notes?: string;
+};
+
+/**
+ * Écrit un row dans ai_picks_drop_log.
+ * Cette fonction est best-effort : elle catche toutes les erreurs pour ne
+ * jamais faire planter le drop. Si la table n'existe pas (migration pas faite),
+ * on log un warning et on continue.
+ */
+const logDropEvaluation = async (data: DropEvaluationLog): Promise<void> => {
+  try {
+    const { error } = await supabaseAdmin
+      .from("ai_picks_drop_log")
+      .insert({
+        drop_window: data.drop_window,
+        generation_batch: data.generation_batch,
+        drop_started_at: data.drop_started_at,
+        drop_ended_at: data.drop_ended_at,
+        duration_ms: data.duration_ms,
+        matches_raw_count: data.matches_raw_count ?? null,
+        matches_in_window_count: data.matches_in_window_count ?? null,
+        matches_enriched_count: data.matches_enriched_count ?? null,
+        fetch_stats: data.fetch_stats ?? null,
+        tipster_model: data.tipster_model ?? null,
+        tipster_tokens_in: data.tipster_tokens_in ?? null,
+        tipster_tokens_out: data.tipster_tokens_out ?? null,
+        tipster_cost_usd: data.tipster_cost_usd ?? null,
+        tipster_picks_count: data.tipster_picks_count ?? null,
+        tipster_raw_response: data.tipster_raw_response ?? null,
+        tipster_error: data.tipster_error ?? null,
+        matches_sample: data.matches_sample ?? null,
+        picks_persisted_count: data.picks_persisted_count ?? 0,
+        picks_persisted_ids: data.picks_persisted_ids ?? null,
+        notes: data.notes ?? null,
+      });
     if (error) {
       console.warn(
-        `[combine-check] Query error: ${error.message} — défaut: pas de combiné pris`
+        `[drop-log] Insert failed (table missing?): ${error.message.substring(0, 100)}`
       );
-      return false;
+    } else {
+      console.log(
+        `[drop-log] ✓ Drop ${data.drop_window} ${data.generation_batch} loggé en BDD`
+      );
     }
-
-    if (!data || data.length === 0) return false;
-
-    const hasCombine = data.some((row) => {
-      const oc = row.odds_comparison as Record<string, unknown> | null;
-      if (!oc) return false;
-      const combineMeta = oc.combine_meta as Record<string, unknown> | undefined;
-      return combineMeta != null;
-    });
-
-    return hasCombine;
   } catch (err) {
     console.warn(
-      `[combine-check] Exception: ${(err as Error).message} — défaut: pas de combiné pris`
+      `[drop-log] Exception: ${err instanceof Error ? err.message.substring(0, 100) : String(err)}`
     );
-    return false;
   }
+};
+
+/**
+ * Construit l'échantillon des matchs envoyés au tipster, en gardant les
+ * informations essentielles pour le debug. Limite à 50 matchs max.
+ */
+const buildMatchesSample = (
+  matchesInWindow: EnrichedFixture[]
+): Array<Record<string, unknown>> => {
+  return matchesInWindow.slice(0, 50).map((m) => ({
+    sport: m.sport,
+    league: m.league,
+    home_team: m.home_team,
+    away_team: m.away_team,
+    commence_time: m.commence_time_iso,
+    forme: typeof m.forme_5_derniers === "string" ? m.forme_5_derniers : "OK",
+    h2h: typeof m.h2h_5_derniers === "string" ? m.h2h_5_derniers : "OK",
+    blessures: typeof m.blessures === "string" ? m.blessures : "OK",
+    has_odds: !!m.cotes_arjel || !!m.cotes_hors_arjel,
+  }));
 };
 
 // ============================================================================
@@ -244,6 +297,23 @@ export const handleGenerateForDropWindow = async (
 
   if (fetchOutput.matchs.length === 0) {
     console.warn(`[fetch] Aucun match dans le drop ${dropWindow}. Arrêt sain.`);
+
+    // Log BDD pour debug a posteriori
+    await logDropEvaluation({
+      drop_window: dropWindow,
+      generation_batch: targetDate,
+      drop_started_at: new Date(startedAt).toISOString(),
+      drop_ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt,
+      matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+      matches_in_window_count: 0,
+      matches_enriched_count: 0,
+      fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
+      tipster_picks_count: 0,
+      picks_persisted_count: 0,
+      notes: "Fetch retourné 0 match — drop window vide ou enrichment 100% KO",
+    });
+
     return NextResponse.json({
       success: true,
       message: `Aucun match dans le drop ${dropWindow}`,
@@ -261,26 +331,8 @@ export const handleGenerateForDropWindow = async (
   }
 
   // ─── ÉTAPE 2 : Claude tipster avec dropWindow
-  logSection(dropWindow, `STEP 2 - Claude tipster (Sonnet 4.6 + prompt v2.6, drop=${dropWindow})`);
-
-  // V3.5 Option A : vérifier si un combiné a déjà été pris aujourd'hui
-  // (uniquement utile au drop soir, mais on check pour les deux pour les logs).
-  const combineAlreadyTakenToday = await hasCombineForDateAlready(targetDate);
-  if (combineAlreadyTakenToday) {
-    console.log(
-      `[combine-check] ✅ Un combiné a déjà été pris pour ${targetDate} — drop ${dropWindow} générera UNIQUEMENT des simples`
-    );
-  } else {
-    console.log(
-      `[combine-check] Aucun combiné pris pour ${targetDate} — drop ${dropWindow} peut générer 1 combiné max`
-    );
-  }
-
-  const tipsterResult = await runClaudeTipster(
-    fetchOutput,
-    dropWindow,
-    combineAlreadyTakenToday
-  );
+  logSection(dropWindow, `STEP 2 - Claude tipster (Sonnet 4.6 + prompt v2.5, drop=${dropWindow})`);
+  const tipsterResult = await runClaudeTipster(fetchOutput, dropWindow);
   console.log(
     `[tipster] model=${tipsterResult.meta.model} tokens_in=${tipsterResult.meta.tokens_input} tokens_out=${tipsterResult.meta.tokens_output} cost=${tipsterResult.meta.cost_usd}$`
   );
@@ -316,6 +368,30 @@ export const handleGenerateForDropWindow = async (
 
   if (tipsterPicks.length === 0) {
     console.log("[tipster] 0 pick — journée trop incertaine pour ce drop. Arrêt sain.");
+
+    // Log BDD pour debug a posteriori
+    await logDropEvaluation({
+      drop_window: dropWindow,
+      generation_batch: targetDate,
+      drop_started_at: new Date(startedAt).toISOString(),
+      drop_ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt,
+      matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+      matches_in_window_count: fetchOutput.matchs.length,
+      matches_enriched_count: fetchOutput.matchs.length,
+      fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
+      tipster_model: tipsterResult.meta.model,
+      tipster_tokens_in: tipsterResult.meta.tokens_input,
+      tipster_tokens_out: tipsterResult.meta.tokens_output,
+      tipster_cost_usd: tipsterResult.meta.cost_usd,
+      tipster_picks_count: 0,
+      tipster_raw_response: tipsterResult.narrative_text ?? null,
+      tipster_error: null,
+      matches_sample: buildMatchesSample(fetchOutput.matchs),
+      picks_persisted_count: 0,
+      notes: "0 pick — journée trop incertaine selon Claude",
+    });
+
     return NextResponse.json({
       success: true,
       message: `Aucun pick généré pour le drop ${dropWindow} (journée trop incertaine)`,
@@ -561,6 +637,30 @@ export const handleGenerateForDropWindow = async (
 
   logSection(dropWindow, `Done in ${(stats.duration_ms / 1000).toFixed(1)}s`);
   console.log(JSON.stringify(stats, null, 2));
+
+  // Log BDD pour debug a posteriori (succès ou partial success)
+  await logDropEvaluation({
+    drop_window: dropWindow,
+    generation_batch: targetDate,
+    drop_started_at: new Date(startedAt).toISOString(),
+    drop_ended_at: new Date().toISOString(),
+    duration_ms: stats.duration_ms,
+    matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+    matches_in_window_count: fetchOutput.matchs.length,
+    matches_enriched_count: fetchOutput.matchs.length,
+    fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
+    tipster_model: tipsterResult.meta.model,
+    tipster_tokens_in: tipsterResult.meta.tokens_input,
+    tipster_tokens_out: tipsterResult.meta.tokens_output,
+    tipster_cost_usd: tipsterResult.meta.cost_usd,
+    tipster_picks_count: tipsterPicks.length,
+    tipster_raw_response: tipsterResult.narrative_text ?? null,
+    tipster_error: tipsterResult.error ?? null,
+    matches_sample: buildMatchesSample(fetchOutput.matchs),
+    picks_persisted_count: persistedSuccess.length,
+    picks_persisted_ids: persistedSuccess.map((p) => p.pickId).filter(Boolean) as string[],
+    notes: persistedErrors.length > 0 ? `${persistedErrors.length} erreur(s) de persist` : null,
+  });
 
   return NextResponse.json({
     success: true,
