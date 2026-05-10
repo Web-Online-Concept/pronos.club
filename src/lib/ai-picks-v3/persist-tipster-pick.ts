@@ -672,6 +672,39 @@ export const persistTipsterPick = async (
         finalPickId = row.inserted_id;
         finalClassicNumber = row.assigned_classic_number;
 
+        // V3.5 Lot 18 — UPDATE post-INSERT pour drop_window + tier
+        //
+        // La stored procedure `insert_ai_pick_atomic` n'écrit PAS ces 2 champs
+        // (limitation de l'implémentation Lot 10). Sans cet UPDATE, les picks
+        // sortent avec drop_window=null et tier=null en BDD, ce qui empêche :
+        //   - Le cron `ai-picks-publish-morning/evening` de filtrer par drop
+        //   - La logique X (filtre tier=lock|strong) de fonctionner
+        //
+        // On le fait dans un try/catch indépendant : si l'UPDATE plante, le
+        // pick reste inséré avec drop_window/tier=null (dégradation mineure)
+        // mais on ne fait PAS un rollback du RPC qui a réussi.
+        try {
+          const { error: updateError } = await supabaseAdmin
+            .from("ai_picks")
+            .update({
+              drop_window: validated.drop_window,
+              tier: validated.final_tier,
+            })
+            .eq("id", row.inserted_id);
+
+          if (updateError) {
+            console.warn(
+              `[persistTipsterPick] ⚠️ Pick ${row.inserted_id} inséré mais UPDATE drop_window/tier failed: ${updateError.message}`
+            );
+          }
+        } catch (updateErr) {
+          const errMsg =
+            updateErr instanceof Error ? updateErr.message : String(updateErr);
+          console.warn(
+            `[persistTipsterPick] ⚠️ Pick ${row.inserted_id} inséré mais UPDATE drop_window/tier exception: ${errMsg}`
+          );
+        }
+
         if (attempt > 1) {
           console.log(
             `[persistTipsterPick] ✅ INSERT atomique réussi tentative ${attempt}/${MAX_ATTEMPTS} pour ${eventName} (numéro=${finalClassicNumber})`
