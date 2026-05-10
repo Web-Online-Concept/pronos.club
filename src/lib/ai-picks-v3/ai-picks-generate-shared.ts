@@ -95,7 +95,7 @@ type DropEvaluationLog = {
   tipster_tokens_out?: number;
   tipster_cost_usd?: number;
   tipster_picks_count?: number;
-  tipster_raw_response?: string;
+  tipster_raw_response?: string | null;
   tipster_error?: string | null;
   // Sample matchs envoyés à Claude (max 50)
   matches_sample?: unknown;
@@ -103,7 +103,7 @@ type DropEvaluationLog = {
   picks_persisted_count?: number;
   picks_persisted_ids?: string[];
   // Notes libres
-  notes?: string;
+  notes?: string | null;
 };
 
 /**
@@ -163,14 +163,15 @@ const buildMatchesSample = (
 ): Array<Record<string, unknown>> => {
   return matchesInWindow.slice(0, 50).map((m) => ({
     sport: m.sport,
-    league: m.league,
+    ligue: m.ligue,
+    match: m.match,
     home_team: m.home_team,
     away_team: m.away_team,
     commence_time: m.commence_time_iso,
     forme: typeof m.forme_5_derniers === "string" ? m.forme_5_derniers : "OK",
     h2h: typeof m.h2h_5_derniers === "string" ? m.h2h_5_derniers : "OK",
     blessures: typeof m.blessures === "string" ? m.blessures : "OK",
-    has_odds: !!m.cotes_arjel || !!m.cotes_hors_arjel,
+    has_odds: !!m.cotes_books && Object.keys(m.cotes_books).length > 0,
   }));
 };
 
@@ -305,7 +306,7 @@ export const handleGenerateForDropWindow = async (
       drop_started_at: new Date(startedAt).toISOString(),
       drop_ended_at: new Date().toISOString(),
       duration_ms: Date.now() - startedAt,
-      matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+      matches_raw_count: fetchOutput.stats.total_matchs ?? null,
       matches_in_window_count: 0,
       matches_enriched_count: 0,
       fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
@@ -376,7 +377,7 @@ export const handleGenerateForDropWindow = async (
       drop_started_at: new Date(startedAt).toISOString(),
       drop_ended_at: new Date().toISOString(),
       duration_ms: Date.now() - startedAt,
-      matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+      matches_raw_count: fetchOutput.stats.total_matchs ?? null,
       matches_in_window_count: fetchOutput.matchs.length,
       matches_enriched_count: fetchOutput.matchs.length,
       fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
@@ -645,7 +646,7 @@ export const handleGenerateForDropWindow = async (
     drop_started_at: new Date(startedAt).toISOString(),
     drop_ended_at: new Date().toISOString(),
     duration_ms: stats.duration_ms,
-    matches_raw_count: fetchOutput.stats.matchs_bruts ?? null,
+    matches_raw_count: fetchOutput.stats.total_matchs ?? null,
     matches_in_window_count: fetchOutput.matchs.length,
     matches_enriched_count: fetchOutput.matchs.length,
     fetch_stats: fetchOutput.stats as unknown as Record<string, unknown>,
@@ -658,7 +659,7 @@ export const handleGenerateForDropWindow = async (
     tipster_error: tipsterResult.error ?? null,
     matches_sample: buildMatchesSample(fetchOutput.matchs),
     picks_persisted_count: persistedSuccess.length,
-    picks_persisted_ids: persistedSuccess.map((p) => p.pickId).filter(Boolean) as string[],
+    picks_persisted_ids: persistedSuccess.map((p) => p.db_id).filter(Boolean) as string[],
     notes: persistedErrors.length > 0 ? `${persistedErrors.length} erreur(s) de persist` : null,
   });
 
