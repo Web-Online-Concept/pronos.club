@@ -1,14 +1,18 @@
 // src/app/api/telegram/tipsters-webhook/route.ts
-// Webhook pour le bot Telegram @pronos_abonnes_club_bot
-// Répond aux commandes /start <token> pour lier un chat_id à un user
+//
+// V3.5 (10/05/2026) — DÉSACTIVÉ.
+//
+// Décision : suppression complète des notifications par DM Telegram.
+// Le bot @pronos_abonnes_club_bot ne traite plus aucune commande.
+// Les users qui font /start ou /stop reçoivent un message poli les renvoyant vers le site.
+//
+// Pour réactiver complètement : restaurer la version git précédente de ce fichier.
+//
+// Côté Telegram, il est aussi recommandé de delete le webhook côté Telegram via :
+//   curl https://api.telegram.org/bot<TIPSTERS_TELEGRAM_BOT_TOKEN>/deleteWebhook
+// Cela empêche Telegram d'envoyer des requêtes inutiles à ce endpoint.
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const BOT_TOKEN = process.env.TIPSTERS_TELEGRAM_BOT_TOKEN;
 
@@ -22,10 +26,11 @@ async function sendMessage(chatId: number, text: string) {
         chat_id: chatId,
         text,
         parse_mode: "HTML",
+        disable_web_page_preview: true,
       }),
     });
   } catch (err) {
-    console.error("[telegram-webhook] sendMessage error:", err);
+    console.error("[telegram-webhook DEPRECATED] sendMessage error:", err);
   }
 }
 
@@ -40,94 +45,25 @@ export async function POST(req: NextRequest) {
 
     if (!chatId) return NextResponse.json({ ok: true });
 
-    // Commande /start <token> : lier ce chat_id à un user
-    if (text.startsWith("/start")) {
-      const parts = text.split(" ");
-      const token = parts[1];
+    // Log pour suivre si des users essaient encore d'utiliser le bot
+    console.log(
+      `[telegram-webhook DEPRECATED] Reçu commande "${text.substring(0, 30)}" de chat_id=${chatId} — service désactivé`
+    );
 
-      if (!token) {
-        await sendMessage(
-          chatId,
-          `👋 Bienvenue sur <b>PRONOS.CLUB Pronos Abonnés</b> !\n\n` +
-          `Pour recevoir les pronostics de tes tipsters favoris, tu dois d'abord lier ton compte.\n\n` +
-          `Va sur <a href="https://pronos.club/fr/espace/notifications">Mes Notifications</a> ` +
-          `et clique sur "Lier Telegram" pour obtenir ton code.`
-        );
-        return NextResponse.json({ ok: true });
-      }
-
-      // Vérifier le token (chercher un user qui a ce token temporaire)
-      const { data: user } = await supabaseAdmin
-        .from("users")
-        .select("id, pseudo, tipsters_telegram_link_token, tipsters_telegram_link_expires")
-        .eq("tipsters_telegram_link_token", token)
-        .maybeSingle();
-
-      if (!user) {
-        await sendMessage(chatId, `❌ Code invalide. Génère un nouveau code sur PRONOS.CLUB.`);
-        return NextResponse.json({ ok: true });
-      }
-
-      // Vérifier expiration (15 min)
-      if (user.tipsters_telegram_link_expires) {
-        const expiresAt = new Date(user.tipsters_telegram_link_expires).getTime();
-        if (Date.now() > expiresAt) {
-          await sendMessage(chatId, `❌ Code expiré. Génère un nouveau code sur PRONOS.CLUB.`);
-          return NextResponse.json({ ok: true });
-        }
-      }
-
-      // Enregistrer le chat_id
-      await supabaseAdmin
-        .from("users")
-        .update({
-          tipsters_telegram_chat_id: chatId,
-          tipsters_telegram_link_token: null,
-          tipsters_telegram_link_expires: null,
-        })
-        .eq("id", user.id);
-
-      await sendMessage(
-        chatId,
-        `✅ <b>Compte lié avec succès !</b>\n\n` +
-        `Salut ${user.pseudo || ""} ! Tu recevras maintenant les pronostics des tipsters selon tes préférences.\n\n` +
-        `🔧 Gère tes préférences sur <a href="https://pronos.club/fr/espace/notifications">pronos.club/espace/notifications</a>`
-      );
-
-      return NextResponse.json({ ok: true });
-    }
-
-    // Commande /stop : délier le compte
-    if (text.startsWith("/stop")) {
-      const { data: user } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("tipsters_telegram_chat_id", chatId)
-        .maybeSingle();
-
-      if (user) {
-        await supabaseAdmin
-          .from("users")
-          .update({ tipsters_telegram_chat_id: null })
-          .eq("id", user.id);
-        await sendMessage(chatId, `✅ Compte délié. Tu ne recevras plus de notifications.`);
-      } else {
-        await sendMessage(chatId, `Aucun compte lié à ce chat.`);
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    // Autre commande : aide
+    // Réponse polie unique pour TOUTES les commandes (/start, /stop, autres)
     await sendMessage(
       chatId,
-      `🤖 Commandes disponibles :\n\n` +
-      `<b>/start CODE</b> - Lier ton compte PRONOS.CLUB\n` +
-      `<b>/stop</b> - Délier ton compte`
+      `ℹ️ <b>Notifications par message privé désactivées</b>\n\n` +
+      `Ce bot n'envoie plus de pronostics en message privé.\n\n` +
+      `Pour suivre nos pronostics :\n` +
+      `• 🌐 Site : <a href="https://pronos.club">pronos.club</a>\n` +
+      `• 📢 Canal Telegram : <a href="https://t.me/pronos_club_abonnes_notifs">@pronos_club_abonnes_notifs</a>\n\n` +
+      `Tu peux aussi recevoir les notifs par email ou push sur le site (espace personnel).`
     );
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error("[telegram-webhook] error:", err.message);
+  } catch (err) {
+    console.error("[telegram-webhook DEPRECATED] error:", err);
     return NextResponse.json({ ok: true });
   }
 }

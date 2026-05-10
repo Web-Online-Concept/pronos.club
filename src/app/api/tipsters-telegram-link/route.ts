@@ -1,92 +1,54 @@
 // src/app/api/tipsters-telegram-link/route.ts
-// Génère un token temporaire pour lier un chat_id Telegram
+//
+// V3.5 (10/05/2026) — DÉSACTIVÉ.
+//
+// Décision : suppression complète des notifications par DM Telegram.
+// Cet endpoint était utilisé par la page Notifications pour permettre aux abonnés
+// de lier leur compte Telegram au bot @pronos_abonnes_club_bot.
+//
+// Le toggle "Telegram" a été retiré de la page Notifications côté front, donc
+// cet endpoint ne devrait plus être appelé. Mais par sécurité (en cas d'ancien
+// front en cache, scripts tiers, etc.), on conserve les 3 méthodes en stubs :
+//   - GET    → retourne { linked: false } (pour ne pas casser le front qui l'appelle au mount)
+//   - POST   → retourne 410 Gone (impossible de générer un nouveau lien)
+//   - DELETE → retourne { success: true } (no-op, pour compat ascendante)
+//
+// Pour réactiver complètement : restaurer la version git précédente de ce fichier.
 
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-async function getAuthUser() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
-
-// ── POST : génère un token unique (valable 15 min) ──
-export async function POST() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  try {
-    // Token aléatoire 8 caractères
-    const token = Math.random().toString(36).slice(2, 10).toUpperCase();
-    const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    await supabaseAdmin
-      .from("users")
-      .update({
-        tipsters_telegram_link_token: token,
-        tipsters_telegram_link_expires: expires,
-      })
-      .eq("id", user.id);
-
-    const botUsername = process.env.TIPSTERS_TELEGRAM_BOT_USERNAME || "pronos_abonnes_club_bot";
-    const deepLink = `https://t.me/${botUsername}?start=${token}`;
-
-    return NextResponse.json({
-      token,
-      deep_link: deepLink,
-      expires_at: expires,
-      bot_username: botUsername,
-    });
-  } catch (err: any) {
-    console.error("[tipsters-telegram-link] POST error:", err.message);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-}
-
-// ── DELETE : délier le chat_id ──
-export async function DELETE() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  try {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        tipsters_telegram_chat_id: null,
-        tipsters_telegram_link_token: null,
-        tipsters_telegram_link_expires: null,
-      })
-      .eq("id", user.id);
-
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error("[tipsters-telegram-link] DELETE error:", err.message);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-}
-
-// ── GET : statut actuel (lié ou pas) ──
+// ── GET : statut actuel (toujours "non lié" maintenant) ──
+// Conservé en non-410 pour ne pas casser le mount de la page Notifications
+// si elle l'appelle encore en cache navigateur.
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return NextResponse.json({
+    linked: false,
+    deprecated: true,
+    message: "Telegram DM notifications have been disabled.",
+  });
+}
 
-  try {
-    const { data } = await supabaseAdmin
-      .from("users")
-      .select("tipsters_telegram_chat_id")
-      .eq("id", user.id)
-      .single();
+// ── POST : génération d'un lien désactivée ──
+export async function POST() {
+  console.log(
+    "[tipsters-telegram-link DEPRECATED] POST tentative de génération de lien — endpoint désactivé"
+  );
+  return NextResponse.json(
+    {
+      error: "Telegram DM notifications have been disabled.",
+      deprecated: true,
+    },
+    { status: 410 } // 410 Gone
+  );
+}
 
-    return NextResponse.json({
-      linked: !!data?.tipsters_telegram_chat_id,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ linked: false });
-  }
+// ── DELETE : déliaison désactivée mais retourne success ──
+// On garde ce comportement permissif au cas où le front l'appelle encore
+// pour "désactiver" sa configuration Telegram. Pas d'effet en BDD.
+export async function DELETE() {
+  return NextResponse.json({
+    success: true,
+    deprecated: true,
+    message: "Telegram DM notifications have been disabled. No-op.",
+  });
 }

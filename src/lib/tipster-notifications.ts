@@ -220,6 +220,9 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 3. ENVOI
   // ═════════════════════════════════════
+  // V3.5 (10/05/2026) : suppression des DM Telegram aux abonnés (décision Florent).
+  // Le canal public Telegram (action 1 ci-dessus) reste actif.
+  // Email + Push PWA continuent de fonctionner pour les abonnés qui les ont activés.
   for (const [, n] of toNotify) {
     // Email via Brevo (emails.ts)
     if (n.useEmail && n.email) {
@@ -229,17 +232,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
         sport: pick.sport,
         bookmaker: pick.bookmaker || "Non précisé",
       });
-    }
-
-    // Telegram DM
-    if (n.useTelegram && n.telegramChatId) {
-      const tgMsg =
-        `🎯 <b>Nouveau prono de ${tipster.pseudo}</b>\n\n` +
-        `📅 Match : ${matchDateStr}\n` +
-        `🏅 Sport : ${pick.sport}\n` +
-        (pick.bookmaker ? `🏦 Bookmaker : ${pick.bookmaker}\n` : "") +
-        `\n👉 <a href="${publicUrl}">Voir sur PRONOS.CLUB</a>`;
-      await sendTelegramMessage(n.telegramChatId, tgMsg);
     }
 
     // Push PWA (users.push_subscription JSON + users.notify_push opt-in global)
