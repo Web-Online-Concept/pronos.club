@@ -11,16 +11,16 @@
  *   1. Push global activation (1 toggle browser, partagé entre catégories)
  *   2. Groupe Telegram Premium (privé, premium uniquement)
  *   3. PRONOS TIPSTER (Jérôme Bollaert)
- *      · Push (toggle granulaire)
- *      · Email (toggle granulaire)
+ *      · Push (toggle granulaire → users.notify_tipster_push)
+ *      · Email (toggle granulaire → users.notify_tipster_email)
  *      · Telegram canal public @pronos_club_notifs
  *   4. PRONOS IA
- *      · Telegram canal public @pronos_club_ia (uniquement, pas de push/email)
+ *      · Telegram canal public @pronos_club_ia (uniquement)
  *   5. PRONOS ABONNÉS
- *      · Push (toggle granulaire)
- *      · Email (toggle granulaire)
+ *      · Push (toggle granulaire → tipster_notif_prefs.channel_push)
+ *      · Email (toggle granulaire → tipster_notif_prefs.channel_email)
  *      · Telegram canal public @pronos_abonnes_club
- *      · Notifs des tipsters suivis (TipsterNotifSection existant)
+ *      · Mes tipsters suivis (TipsterNotifSection simplifié)
  *   6. BILANS (premium)
  *      · Email récap hebdo/mensuel
  *   7. Tutos push (Android/iOS) + Telegram + Email
@@ -29,14 +29,13 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PushToggle from "@/components/notifications/PushToggle";
 import EspaceHero from "@/components/layout/EspaceHero";
 import TipsterNotifSection from "@/components/tipster/TipsterNotifSection";
 import { useTranslations } from "next-intl";
 
-// Type pour étendre le user avec les nouveaux toggles
 type UserWithNotifs = {
   id: string;
   notify_email?: boolean;
@@ -54,10 +53,15 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const u = user as UserWithNotifs | null;
 
-  // États des toggles granulaires
+  // États des toggles granulaires côté users
   const [tipsterPush, setTipsterPush] = useState(u?.notify_tipster_push ?? true);
   const [tipsterEmail, setTipsterEmail] = useState(u?.notify_tipster_email ?? true);
   const [bilanEnabled, setBilanEnabled] = useState(u?.notify_bilan ?? true);
+
+  // États des toggles Pronos Abonnés (câblés sur tipster_notif_prefs)
+  const [abonnesPush, setAbonnesPush] = useState(false);
+  const [abonnesEmail, setAbonnesEmail] = useState(true);
+  const [abonnesPrefsLoaded, setAbonnesPrefsLoaded] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [telegramLoading, setTelegramLoading] = useState(false);
@@ -68,7 +72,27 @@ export default function NotificationsPage() {
     u?.subscription_status === "active" || u?.subscription_status === "trialing";
   const isInTelegramGroup = !!u?.telegram_user_id;
 
-  async function updateNotif(field: string, newValue: boolean, setter: (v: boolean) => void) {
+  // ─── Charger les prefs Pronos Abonnés depuis tipster_notif_prefs ───
+  useEffect(() => {
+    if (!user || !isPremium) return;
+    fetch("/api/tipster-notif-prefs")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.prefs) {
+          setAbonnesPush(data.prefs.channel_push ?? false);
+          setAbonnesEmail(data.prefs.channel_email ?? true);
+        }
+        setAbonnesPrefsLoaded(true);
+      })
+      .catch(() => setAbonnesPrefsLoaded(true));
+  }, [user, isPremium]);
+
+  // ─── Update toggles users (Tipster + Bilan) ───
+  async function updateUserNotif(
+    field: string,
+    newValue: boolean,
+    setter: (v: boolean) => void,
+  ) {
     setSaving(true);
     setter(newValue);
     try {
@@ -78,7 +102,32 @@ export default function NotificationsPage() {
         body: JSON.stringify({ [field]: newValue }),
       });
     } catch {
-      // En cas d'erreur, on revert visuellement
+      setter(!newValue);
+    }
+    setSaving(false);
+  }
+
+  // ─── Update toggles Pronos Abonnés (tipster_notif_prefs) ───
+  async function updateAbonnesPref(
+    field: "channel_push" | "channel_email",
+    newValue: boolean,
+    setter: (v: boolean) => void,
+  ) {
+    setSaving(true);
+    setter(newValue);
+    try {
+      // Au premier toggle activé, on force le mode à "selected"
+      // (l'utilisateur active des notifs → on suppose qu'il veut filtrer
+      // par tipsters qu'il suit)
+      const body: Record<string, unknown> = { [field]: newValue };
+      if (newValue) body.mode = "selected";
+
+      await fetch("/api/tipster-notif-prefs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
       setter(!newValue);
     }
     setSaving(false);
@@ -114,7 +163,7 @@ export default function NotificationsPage() {
         <div className="mt-6 space-y-8">
 
           {/* ════════════════════════════════════════════════════════ */}
-          {/* SECTION 1 — Activation push globale (browser permission) */}
+          {/* SECTION 1 — Activation push globale */}
           {/* ════════════════════════════════════════════════════════ */}
           <SectionContainer
             title="Activation des notifications push"
@@ -128,7 +177,7 @@ export default function NotificationsPage() {
 
 
           {/* ════════════════════════════════════════════════════════ */}
-          {/* SECTION 2 — Groupe Telegram Premium (privé, premium only) */}
+          {/* SECTION 2 — Groupe Telegram Premium */}
           {/* ════════════════════════════════════════════════════════ */}
           {isPremium && (
             <SectionContainer
@@ -168,7 +217,7 @@ export default function NotificationsPage() {
                 {telegramLink && !isInTelegramGroup && (
                   <div className="mt-3 rounded-lg bg-purple-100 p-3 text-center">
                     <p className="text-xs text-purple-700">
-                      Lien généré ! Si la page ne s'est pas ouverte :
+                      Lien généré ! Si la page ne s&apos;est pas ouverte :
                     </p>
                     <a
                       href={telegramLink}
@@ -201,7 +250,9 @@ export default function NotificationsPage() {
                 title="Notifs push (PC ou app mobile)"
                 subtitle={tipsterPush ? "Activées" : "Désactivées"}
                 value={tipsterPush}
-                onChange={(v) => updateNotif("notify_tipster_push", v, setTipsterPush)}
+                onChange={(v) =>
+                  updateUserNotif("notify_tipster_push", v, setTipsterPush)
+                }
                 disabled={saving}
                 color="emerald"
               />
@@ -209,7 +260,9 @@ export default function NotificationsPage() {
                 title="Notifs par email"
                 subtitle={tipsterEmail ? "Activées" : "Désactivées"}
                 value={tipsterEmail}
-                onChange={(v) => updateNotif("notify_tipster_email", v, setTipsterEmail)}
+                onChange={(v) =>
+                  updateUserNotif("notify_tipster_email", v, setTipsterEmail)
+                }
                 disabled={saving}
                 color="emerald"
               />
@@ -253,6 +306,30 @@ export default function NotificationsPage() {
             color="cyan"
           >
             <div className="space-y-3">
+              {/* Toggle Push (câblé sur tipster_notif_prefs.channel_push) */}
+              <ToggleRow
+                title="Notifs push (PC ou app mobile)"
+                subtitle={abonnesPush ? "Activées" : "Désactivées"}
+                value={abonnesPush}
+                onChange={(v) =>
+                  updateAbonnesPref("channel_push", v, setAbonnesPush)
+                }
+                disabled={saving || !abonnesPrefsLoaded || !isPremium}
+                color="cyan"
+              />
+
+              {/* Toggle Email (câblé sur tipster_notif_prefs.channel_email) */}
+              <ToggleRow
+                title="Notifs par email"
+                subtitle={abonnesEmail ? "Activées" : "Désactivées"}
+                value={abonnesEmail}
+                onChange={(v) =>
+                  updateAbonnesPref("channel_email", v, setAbonnesEmail)
+                }
+                disabled={saving || !abonnesPrefsLoaded || !isPremium}
+                color="cyan"
+              />
+
               {/* Canal Telegram public */}
               <TelegramChannelRow
                 title="Notifs Telegram (canal public)"
@@ -262,9 +339,7 @@ export default function NotificationsPage() {
                 color="cyan"
               />
 
-              {/* Notifs des tipsters suivis (composant existant qui gère
-                  email + telegram DM + push de manière granulaire via
-                  tipster_notif_prefs et tipster_follows) */}
+              {/* Liste tipsters suivis (composant simplifié) */}
               <div className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100/50 p-4">
                 <TipsterNotifSection />
               </div>
@@ -307,7 +382,7 @@ export default function NotificationsPage() {
                 </div>
                 <Toggle
                   value={bilanEnabled && isPremium}
-                  onChange={(v) => updateNotif("notify_bilan", v, setBilanEnabled)}
+                  onChange={(v) => updateUserNotif("notify_bilan", v, setBilanEnabled)}
                   disabled={saving || !isPremium}
                   color="amber"
                 />
