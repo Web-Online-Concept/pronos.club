@@ -319,7 +319,7 @@ const inferMarket = (pick: TipsterPick): string => {
  *   - validator_verdict (decision + reason GPT)
  *   - combine_meta (uniquement pour les combinés)
  */
-const buildOddsComparison = (
+export const buildOddsComparison = (
   validated: ValidatedPick,
   fixture: EnrichedFixture | null
 ): Record<string, unknown> => {

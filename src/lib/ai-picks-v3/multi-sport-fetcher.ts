@@ -3265,3 +3265,106 @@ export const fetchMultiSportFixturesForDate = async (
     drop_window: dropWindow,
   };
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// V3.5 LOT 19 — Re-enrichment d'un pick existant (endpoint admin)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Permet de réenrichir un pick déjà inséré en BDD dont les stats sont vides
+// (timeout du fetcher au moment du drop). Réutilisé par /api/admin/picks/[id]/re-enrich.
+//
+// Contrairement au pipeline complet `fetchMultiSportFixturesForDate`, on ne
+// refait PAS les cotes (déjà persistées dans odds_comparison du pick). On
+// fait UNIQUEMENT l'enrichissement stats équipe/joueur via API-Football, ESPN,
+// Matchstat, etc.
+//
+// Avec les timeouts 20s du Lot 17 et le retry rate limit du Lot 18, cette
+// fonction doit retourner des données complètes même sur les pages détail
+// avec rate limit serré.
+//
+
+export type ReEnrichPickInput = {
+  sport: string; // "football", "tennis", "basketball", etc.
+  league: string;
+  home_team: string;
+  away_team: string;
+  commence_time_iso: string; // ISO datetime du match
+  apifootball_fixture_id?: number | null;
+};
+
+/**
+ * Réenrichit un pick avec ses stats équipes/joueurs.
+ * Retourne le EnrichedFixture (à mapper ensuite vers odds_comparison via buildOddsComparison).
+ *
+ * Pour les sports non couverts (NFL, F1, etc.), retourne un EnrichedFixture
+ * minimal avec champs "donnée non disponible".
+ */
+export const reEnrichPick = async (
+  input: ReEnrichPickInput
+): Promise<EnrichedFixture> => {
+  // ─── Init dépendances (selon sport)
+  const tracker = new ApiFootballRateLimitTracker();
+  const sportLower = input.sport.toLowerCase();
+  const isFootball = sportLower === "football" || sportLower === "soccer";
+  const isTennis = sportLower === "tennis";
+
+  // Construire un RawFixture minimal (cotes vides — on ne refait pas l'odds layer)
+  const match: RawFixture = {
+    id: `re-enrich-${Date.now()}`,
+    sport: sportLower as SupportedSport,
+    ligue: input.league,
+    match: `${input.home_team} vs ${input.away_team}`,
+    date_heure: new Date(input.commence_time_iso).toLocaleString("fr-FR", {
+      timeZone: "Europe/Paris",
+    }),
+    commence_time_iso: input.commence_time_iso,
+    home_team: input.home_team,
+    away_team: input.away_team,
+    cotes_books: {}, // pas utilisé par les enrichXxx (utilisé seulement pour build cotes)
+  };
+
+  // ─── Foot : besoin de resolver
+  if (isFootball) {
+    const resolver = new FootballLeagueResolver();
+    await resolver.load(tracker);
+    return await enrichFootball(match, resolver, tracker);
+  }
+
+  // ─── Tennis : besoin de tennisIndex pour la date du match
+  if (isTennis) {
+    const tennisIndex = new TennisFixturesIndex();
+    const targetDate = input.commence_time_iso.split("T")[0]; // YYYY-MM-DD
+    await tennisIndex.load(targetDate);
+    return await enrichTennis(match, tennisIndex);
+  }
+
+  // ─── Autres sports : appel direct
+  switch (sportLower) {
+    case "basketball":
+      return await enrichBasketball(match);
+    case "hockey":
+      return await enrichHockey(match);
+    case "baseball":
+      return await enrichBaseball(match);
+    case "mma":
+      return await enrichMMA(match);
+    case "rugby":
+      return await enrichRugby(match);
+    case "handball":
+      return await enrichHandball(match);
+    case "formula-1":
+    case "formula_1":
+      return await enrichF1(match);
+    case "americanfootball":
+    case "american_football":
+    case "nfl":
+      return enrichAmericanFootball(match);
+    default:
+      // Sport non couvert : retour minimal
+      return {
+        ...match,
+        forme_5_derniers: `donnée non disponible (sport=${sportLower})`,
+        h2h_5_derniers: "donnée non disponible",
+      };
+  }
+};
