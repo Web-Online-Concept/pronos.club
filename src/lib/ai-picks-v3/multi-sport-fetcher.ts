@@ -2260,36 +2260,70 @@ const fetchTennisPastMatchesWithOdds = async (
   tour: "atp" | "wta",
   playerId: number
 ): Promise<TennisPastMatchWithOdds[] | null> => {
+  // V3.5 Lot 19c — Structure API réelle (vérifiée doc Matchstat 10/05/2026) :
+  //   - Pas de champ `opponent` ni `score` directs
+  //   - Le joueur recherché est player1 OU player2 (player1 = winner historique)
+  //   - Pour identifier l'opponent, on compare playerId à player1.id
+  //   - Le score est dans `result` (string "6-3 6-2 6-4"), pas dans un champ score
+  //   - Pour W/L : si playerId === player1.id → "W", sinon → "L"
+  //   - Pour la surface : besoin d'inclure `tournament.court` (pas juste `tournament`)
   type PastMatchesResponse = {
     data?: Array<{
+      id?: number;
       date?: string;
-      tournament?: { name?: string; court?: { name?: string } };
-      opponent?: { name?: string };
-      result?: string;
-      score?: string;
+      result?: string; // ex: "6-3 6-2 6-4"
       odd1?: number | string | null;
       odd2?: number | string | null;
+      player1Id?: number;
+      player2Id?: number;
+      player1?: { id?: number; name?: string };
+      player2?: { id?: number; name?: string };
+      tournament?: {
+        id?: number;
+        name?: string;
+        court?: { name?: string };
+      };
     }>;
   };
   try {
     const d = await fetchJson<PastMatchesResponse>(
-      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/past-matches/${playerId}?include=tournament,opponent&pageSize=20`,
+      `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/past-matches/${playerId}?include=tournament.court&pageSize=20`,
       MATCHSTAT_HEADERS
     );
-    return (d?.data ?? []).slice(0, 20).map((m) => ({
-      date: m.date ?? "?",
-      tournament: m.tournament?.name ?? "?",
-      surface: m.tournament?.court?.name ?? null,
-      opponent: m.opponent?.name ?? "?",
-      result: m.result === "W" || m.result === "L" ? m.result : null,
-      score: m.score ?? null,
-      odd_player: typeof m.odd1 === "number"
-        ? m.odd1
-        : typeof m.odd1 === "string" ? parseFloat(m.odd1) || null : null,
-      odd_opponent: typeof m.odd2 === "number"
-        ? m.odd2
-        : typeof m.odd2 === "string" ? parseFloat(m.odd2) || null : null,
-    }));
+    return (d?.data ?? []).slice(0, 20).map((m) => {
+      // Identifier le joueur cible vs adversaire
+      const isPlayer1 = m.player1Id === playerId;
+      const opponent = isPlayer1 ? m.player2 : m.player1;
+      // player1 est toujours le winner dans l'archive historique
+      const winLoss: "W" | "L" | null =
+        isPlayer1 ? "W" : (m.player2Id === playerId ? "L" : null);
+
+      // Cotes : odd1 correspond au winner (player1), odd2 au loser (player2)
+      // Donc pour le joueur recherché :
+      //   - Si playerId === player1Id → odd_player = odd1, odd_opponent = odd2
+      //   - Si playerId === player2Id → odd_player = odd2, odd_opponent = odd1
+      const parseOdd = (v: number | string | null | undefined): number | null => {
+        if (v == null) return null;
+        if (typeof v === "number") return v;
+        const n = parseFloat(v);
+        return isNaN(n) ? null : n;
+      };
+      const odd1Num = parseOdd(m.odd1);
+      const odd2Num = parseOdd(m.odd2);
+      const oddPlayer = isPlayer1 ? odd1Num : odd2Num;
+      const oddOpponent = isPlayer1 ? odd2Num : odd1Num;
+
+      return {
+        date: m.date ?? "?",
+        tournament: m.tournament?.name ?? "?",
+        surface: m.tournament?.court?.name ?? null,
+        opponent: opponent?.name ?? "?",
+        result: winLoss,
+        score: m.result ?? null, // L'API met le score dans `result` (ambigu mais c'est leur format)
+        odd_player: oddPlayer,
+        odd_opponent: oddOpponent,
+      };
+    });
   } catch {
     return null;
   }
@@ -2304,38 +2338,64 @@ const fetchTennisTournamentRecord = async (
   playerId: number,
   tournamentId: number
 ): Promise<TennisTournamentRecord | null> => {
+  // V3.5 Lot 19c — Structure API réelle (vérifiée doc Matchstat 10/05/2026) :
+  //   - data est un ARRAY (1 entrée par année), pas un objet
+  //   - chaque entrée : { year, tournamentId, tournamentName, bestRoundId, bestRound, wins, losses }
+  //   - Pas de champ totalWins/totalLosses agrégé → on les calcule
   type TournamentRecordResponse = {
-    data?: {
-      tournament?: { name?: string };
-      totalWins?: number;
-      totalLosses?: number;
+    data?: Array<{
+      year?: number;
+      tournamentId?: number;
+      tournamentName?: string;
+      bestRoundId?: number;
       bestRound?: string;
-      lastYear?: number;
-      yearly?: Array<{
-        year: number;
-        wins: number;
-        losses: number;
-        round?: string;
-      }>;
-    };
+      wins?: number;
+      losses?: number;
+    }>;
   };
   try {
     const d = await fetchJson<TournamentRecordResponse>(
       `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/tournament-record/${playerId}/${tournamentId}`,
       MATCHSTAT_HEADERS
     );
-    if (!d?.data) return null;
+    const entries = d?.data ?? [];
+    if (entries.length === 0) return null;
+
+    // Agrégation : sommer wins/losses, identifier le meilleur round (le plus bas bestRoundId)
+    let totalWins = 0;
+    let totalLosses = 0;
+    let bestRoundReached: string | null = null;
+    let bestRoundId: number | null = null;
+    let lastYear: number | null = null;
+
+    for (const e of entries) {
+      totalWins += e.wins ?? 0;
+      totalLosses += e.losses ?? 0;
+      if (e.year != null && (lastYear === null || e.year > lastYear)) {
+        lastYear = e.year;
+      }
+      // bestRoundId : 1 = Final pour certains, 12 = Final pour d'autres selon la doc
+      // On garde celui avec la plus grande valeur (= rond le plus avancé selon doc tournament-record)
+      if (e.bestRoundId != null && (bestRoundId === null || e.bestRoundId > bestRoundId)) {
+        bestRoundId = e.bestRoundId;
+        bestRoundReached = e.bestRound ?? null;
+      }
+    }
+
+    // Nom du tournoi : prendre le 1er disponible
+    const tournamentName = entries[0]?.tournamentName ?? "?";
+
     return {
-      tournament_name: d.data.tournament?.name ?? "?",
-      total_wins: d.data.totalWins ?? 0,
-      total_losses: d.data.totalLosses ?? 0,
-      best_round_reached: d.data.bestRound ?? null,
-      last_year_played: d.data.lastYear ?? null,
-      yearly_breakdown: (d.data.yearly ?? []).slice(0, 5).map((y) => ({
-        year: y.year,
-        wins: y.wins,
-        losses: y.losses,
-        round: y.round ?? null,
+      tournament_name: tournamentName,
+      total_wins: totalWins,
+      total_losses: totalLosses,
+      best_round_reached: bestRoundReached,
+      last_year_played: lastYear,
+      yearly_breakdown: entries.slice(0, 5).map((e) => ({
+        year: e.year ?? 0,
+        wins: e.wins ?? 0,
+        losses: e.losses ?? 0,
+        round: e.bestRound ?? null,
       })),
     };
   } catch {
@@ -2351,15 +2411,34 @@ const fetchTennisCareerStats = async (
   tour: "atp" | "wta",
   playerId: number
 ): Promise<TennisCareerStats | null> => {
+  // V3.5 Lot 19c — Structure API réelle (vérifiée doc Matchstat 10/05/2026) :
+  //   - data.serviceStats : { acesGm, doubleFaultsGm, firstServeGm, firstServeOfGm,
+  //                           winningOnFirstServeGm, winningOnFirstServeOfGm,
+  //                           winningOnSecondServeGm, winningOnSecondServeOfGm }
+  //   - data.breakPointsServeStats : { breakPointFacedGm, breakPointSavedGm }
+  //   - data.breakPointsRtnStats : { breakPointChanceGm, breakPointWonGm }
+  //   - Pas de pourcentages directs — on les calcule via les ratios Gm/OfGm
+  //   - Pas de "per match" agrégé — aces_per_match et double_faults_per_match restent null
   type CareerStatsResponse = {
     data?: {
-      acesGm?: number;
-      doubleFaultsGm?: number;
-      firstServePercentage?: number;
-      winningOnFirstServePercentage?: number;
-      winningOnSecondServePercentage?: number;
-      breakpointsSavedPercentage?: number;
-      breakpointsConvertedPercentage?: number;
+      serviceStats?: {
+        acesGm?: number;
+        doubleFaultsGm?: number;
+        firstServeGm?: number;
+        firstServeOfGm?: number;
+        winningOnFirstServeGm?: number;
+        winningOnFirstServeOfGm?: number;
+        winningOnSecondServeGm?: number;
+        winningOnSecondServeOfGm?: number;
+      };
+      breakPointsServeStats?: {
+        breakPointFacedGm?: number;
+        breakPointSavedGm?: number;
+      };
+      breakPointsRtnStats?: {
+        breakPointChanceGm?: number;
+        breakPointWonGm?: number;
+      };
     };
   };
   try {
@@ -2368,14 +2447,28 @@ const fetchTennisCareerStats = async (
       MATCHSTAT_HEADERS
     );
     if (!d?.data) return null;
+
+    const ss = d.data.serviceStats;
+    const bps = d.data.breakPointsServeStats;
+    const bpr = d.data.breakPointsRtnStats;
+    if (!ss && !bps && !bpr) return null;
+
+    // Helper pour calculer un pourcentage en toute sécurité
+    const safePct = (num: number | undefined, denom: number | undefined): number | null => {
+      if (num == null || denom == null || denom === 0) return null;
+      return Math.round((num / denom) * 100);
+    };
+
     return {
-      aces_per_match: d.data.acesGm ?? null,
-      double_faults_per_match: d.data.doubleFaultsGm ?? null,
-      first_serve_in_pct: d.data.firstServePercentage ?? null,
-      first_serve_won_pct: d.data.winningOnFirstServePercentage ?? null,
-      second_serve_won_pct: d.data.winningOnSecondServePercentage ?? null,
-      break_points_saved_pct: d.data.breakpointsSavedPercentage ?? null,
-      break_points_converted_pct: d.data.breakpointsConvertedPercentage ?? null,
+      // Pas dispo directement (besoin du nb de matchs joués)
+      aces_per_match: null,
+      double_faults_per_match: null,
+      // Calculs basés sur les ratios Gm / OfGm
+      first_serve_in_pct: safePct(ss?.firstServeGm, ss?.firstServeOfGm),
+      first_serve_won_pct: safePct(ss?.winningOnFirstServeGm, ss?.winningOnFirstServeOfGm),
+      second_serve_won_pct: safePct(ss?.winningOnSecondServeGm, ss?.winningOnSecondServeOfGm),
+      break_points_saved_pct: safePct(bps?.breakPointSavedGm, bps?.breakPointFacedGm),
+      break_points_converted_pct: safePct(bpr?.breakPointWonGm, bpr?.breakPointChanceGm),
     };
   } catch {
     return null;
@@ -2392,22 +2485,28 @@ const fetchTennisFinalsTitles = async (
   tour: "atp" | "wta",
   playerId: number
 ): Promise<TennisFinalsTitles | null> => {
-  type FinalsResponse = {
-    data?: {
-      total?: number;
-      won?: number;
-      lost?: number;
-    };
+  // V3.5 Lot 19c — Structure API réelle (vérifiée doc Matchstat 10/05/2026) :
+  //   /finals/{id} → { data: [...] } array de matchs (même structure que past-matches)
+  //                  Le joueur est player1 si gagné, player2 si perdu
+  //   /titles/{id} → { data: [{tourRankId, tourRank, titlesWon, titlesLost}, ...] } par tier
+  //                  titlesWon/titlesLost sont des STRINGS, à parseInt
+  type FinalsMatchResponse = {
+    data?: Array<{
+      player1Id?: number;
+      player2Id?: number;
+    }>;
   };
   type TitlesResponse = {
-    data?: {
-      total?: number;
-      grandSlam?: number;
-    };
+    data?: Array<{
+      tourRankId?: string;
+      tourRank?: string;
+      titlesWon?: string;
+      titlesLost?: string;
+    }>;
   };
   try {
     const [finalsD, titlesD] = await Promise.all([
-      fetchJson<FinalsResponse>(
+      fetchJson<FinalsMatchResponse>(
         `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/finals/${playerId}`,
         MATCHSTAT_HEADERS
       ).catch(() => null),
@@ -2416,18 +2515,39 @@ const fetchTennisFinalsTitles = async (
         MATCHSTAT_HEADERS
       ).catch(() => null),
     ]);
-    const total_finals = finalsD?.data?.total ?? 0;
-    const finals_won = finalsD?.data?.won ?? 0;
-    const finals_win_pct = total_finals > 0
-      ? Math.round((finals_won / total_finals) * 100)
+
+    // Finals : compter les matchs où le joueur est player1 (gagné) vs player2 (perdu)
+    const finalsArr = finalsD?.data ?? [];
+    let finalsWon = 0;
+    let finalsLost = 0;
+    for (const m of finalsArr) {
+      if (m.player1Id === playerId) finalsWon++;
+      else if (m.player2Id === playerId) finalsLost++;
+    }
+    const totalFinals = finalsWon + finalsLost;
+    const finalsWinPct = totalFinals > 0
+      ? Math.round((finalsWon / totalFinals) * 100)
       : null;
+
+    // Titles : sommer titlesWon de tous les tiers + filtrer Grand Slam (tourRankId="1")
+    const titlesArr = titlesD?.data ?? [];
+    let totalTitles = 0;
+    let grandSlamTitles = 0;
+    for (const t of titlesArr) {
+      const won = parseInt(t.titlesWon ?? "0", 10) || 0;
+      totalTitles += won;
+      if (t.tourRankId === "1") {
+        grandSlamTitles += won;
+      }
+    }
+
     return {
-      total_finals,
-      finals_won,
-      finals_lost: finalsD?.data?.lost ?? 0,
-      finals_win_pct,
-      total_titles: titlesD?.data?.total ?? 0,
-      grand_slam_titles: titlesD?.data?.grandSlam ?? 0,
+      total_finals: totalFinals,
+      finals_won: finalsWon,
+      finals_lost: finalsLost,
+      finals_win_pct: finalsWinPct,
+      total_titles: totalTitles,
+      grand_slam_titles: grandSlamTitles,
     };
   } catch {
     return null;

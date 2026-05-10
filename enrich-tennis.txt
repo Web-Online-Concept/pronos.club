@@ -1,0 +1,200 @@
+﻿ *
+ * ActivÃ© uniquement si le match est en demi (SF) ou finale (Final).
+ */
+const fetchTennisFinalsTitles = async (
+  tour: "atp" | "wta",
+  playerId: number
+): Promise<TennisFinalsTitles | null> => {
+  type FinalsResponse = {
+    data?: {
+      total?: number;
+      won?: number;
+      lost?: number;
+    };
+  };
+  type TitlesResponse = {
+    data?: {
+      total?: number;
+      grandSlam?: number;
+    };
+  };
+  try {
+    const [finalsD, titlesD] = await Promise.all([
+      fetchJson<FinalsResponse>(
+        `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/finals/${playerId}`,
+        MATCHSTAT_HEADERS
+      ).catch(() => null),
+      fetchJson<TitlesResponse>(
+        `${MATCHSTAT_BASE}/tennis/v2/${tour}/player/titles/${playerId}`,
+        MATCHSTAT_HEADERS
+      ).catch(() => null),
+    ]);
+    const total_finals = finalsD?.data?.total ?? 0;
+    const finals_won = finalsD?.data?.won ?? 0;
+    const finals_win_pct = total_finals > 0
+      ? Math.round((finals_won / total_finals) * 100)
+      : null;
+    return {
+      total_finals,
+      finals_won,
+      finals_lost: finalsD?.data?.lost ?? 0,
+      finals_win_pct,
+      total_titles: titlesD?.data?.total ?? 0,
+      grand_slam_titles: titlesD?.data?.grandSlam ?? 0,
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * V3.5 : dÃ©tecte si le match est en demi-finale ou finale (utile pour activer
+ * fetchTennisFinalsTitles uniquement quand pertinent).
+ */
+const isLateRoundTennis = (roundName: string | null): boolean => {
+  if (!roundName) return false;
+  const norm = roundName.toLowerCase();
+  return (
+    norm.includes("final") ||
+    norm.includes("semi") ||
+    norm.includes("sf") ||
+    norm === "f"
+  );
+};
+
+const enrichTennis = async (
+  match: RawFixture,
+  tennisIndex: TennisFixturesIndex
+): Promise<EnrichedFixture> => {
+  const fixture = tennisIndex.find(match.home_team, match.away_team);
+  if (!fixture) {
+    return {
+      ...match,
+      forme_5_derniers: "donnÃ©e non disponible (match non trouvÃ© sur Matchstat)",
+      h2h_5_derniers: "donnÃ©e non disponible",
+      blessures: "donnÃ©e non disponible",
+    };
+  }
+
+  // Filtrage rankId 1-7 (Grand Slam, Masters 1000, ATP/WTA 500, ATP/WTA 250)
+  if (fixture.rankId && !TENNIS_ALLOWED_RANK_IDS.includes(fixture.rankId)) {
+    return {
+      ...match,
+      forme_5_derniers: `donnÃ©e non disponible (tournoi ${fixture.rankName ?? "?"} hors scope)`,
+      h2h_5_derniers: "donnÃ©e non disponible",
+      blessures: "donnÃ©e non disponible",
+    };
+  }
+
+  const { tour, player1, player2 } = fixture;
+
+  // Groupe 1 : enrichissement basique (existant V3) â€” toujours actif
+  const [pr1, pr2, sf1, sf2, hi, hs, hm] = await Promise.all([
+    fetchTennisPlayerProfile(tour, player1.id),
+    fetchTennisPlayerProfile(tour, player2.id),
+    fetchTennisSurfaceSummary(tour, player1.id),
+    fetchTennisSurfaceSummary(tour, player2.id),
+    fetchTennisH2HInfo(tour, player1.id, player2.id),
+    fetchTennisH2HStats(tour, player1.id, player2.id),
+    fetchTennisH2HMatches(tour, player1.id, player2.id),
+  ]);
+
+  // V3.5 : enrichissements lourds (past matches, tournament record, career, finals)
+  // UNIQUEMENT sur Grand Slam / Masters 1000 / 500 (rankId 1-3)
+  const isDeepEnrichmentTournament =
+    fixture.rankId !== null && TENNIS_DEEP_ENRICHMENT_RANK_IDS.includes(fixture.rankId);
+
+  const isLateRound = isLateRoundTennis(fixture.roundName);
+
+  let pastMatchesP1: TennisPastMatchWithOdds[] | null = null;
+  let pastMatchesP2: TennisPastMatchWithOdds[] | null = null;
+  let tournamentRecordP1: TennisTournamentRecord | null = null;
+  let tournamentRecordP2: TennisTournamentRecord | null = null;
+  let careerStatsP1: TennisCareerStats | null = null;
+  let careerStatsP2: TennisCareerStats | null = null;
+  let finalsTitlesP1: TennisFinalsTitles | null = null;
+  let finalsTitlesP2: TennisFinalsTitles | null = null;
+
+  if (isDeepEnrichmentTournament) {
+    const [pm1, pm2, cs1, cs2] = await Promise.all([
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player1.id), 20000, null),
+      withTimeout(fetchTennisPastMatchesWithOdds(tour, player2.id), 20000, null),
+      withTimeout(fetchTennisCareerStats(tour, player1.id), 20000, null),
+      withTimeout(fetchTennisCareerStats(tour, player2.id), 20000, null),
+    ]);
+    pastMatchesP1 = pm1;
+    pastMatchesP2 = pm2;
+    careerStatsP1 = cs1;
+    careerStatsP2 = cs2;
+
+    if (fixture.tournamentId !== null) {
+      const [tr1, tr2] = await Promise.all([
+        withTimeout(fetchTennisTournamentRecord(tour, player1.id, fixture.tournamentId), 20000, null),
+        withTimeout(fetchTennisTournamentRecord(tour, player2.id, fixture.tournamentId), 20000, null),
+      ]);
+      tournamentRecordP1 = tr1;
+      tournamentRecordP2 = tr2;
+    }
+
+    if (isLateRound) {
+      const [ft1, ft2] = await Promise.all([
+        withTimeout(fetchTennisFinalsTitles(tour, player1.id), 20000, null),
+        withTimeout(fetchTennisFinalsTitles(tour, player2.id), 20000, null),
+      ]);
+      finalsTitlesP1 = ft1;
+      finalsTitlesP2 = ft2;
+    }
+  }
+
+  const formatForm = (p: MatchstatPlayerProfile | null): string => {
+    if (!p?.form) return "donnÃ©e non disponible";
+    if (!Array.isArray(p.form)) return "donnÃ©e non disponible";
+    return p.form
+      .map((r) => (r === "w" ? "V" : r === "l" ? "D" : "?"))
+      .join("");
+  };
+
+  const formatRank = (p: MatchstatPlayerProfile | null): string => {
+    if (!p) return "donnÃ©e non disponible";
+    return `#${p.currentRank ?? "?"} (${p.points ?? 0} pts, career high #${p.ch ?? "?"})`;
+  };
+
+  const formatSurface = (s: MatchstatSurfaceItem[] | null): string => {
+    if (!s || s.length === 0) return "donnÃ©e non disponible";
+    return s.map((x) => `${x.court} ${x.courtWins}V-${x.courtLosses}D`).join(" | ");
+  };
+
+  let h2hStr = "donnÃ©e non disponible";
+  if (hi && Array.isArray(hi) && hi.length > 0) {
+    h2hStr = hi
+      .map((h) => `Sur ${h.court}: ${h.player1wins}-${h.player2wins}`)
+      .join(" | ");
+  } else if (fixture.h2hPrecomputed) {
+    const p1w = fixture.h2hPrecomputed.player1AllWins ?? 0;
+    const p2w = fixture.h2hPrecomputed.player2AllWins ?? 0;
+    h2hStr = `Total: ${p1w}-${p2w}`;
+  }
+
+  let h2hStatsFmt: EnrichedFixture["h2h_stats_detaillees"] = "donnÃ©e non disponible";
+  if (hs?.player1Stats && hs?.player2Stats && hs.matchesCount !== undefined) {
+    h2hStatsFmt = {
+      matches_count: hs.matchesCount,
+      [match.home_team]: {
+        matches_won: hs.player1Stats.matchesWon,
+        first_serve_pct: `${hs.player1Stats.firstServePercentage}%`,
+        win_first_serve_pct: `${hs.player1Stats.winningOnFirstServePercentage}%`,
+        win_second_serve_pct: `${hs.player1Stats.winningOnSecondServePercentage}%`,
+        break_points_won_pct: `${hs.player1Stats.breakpointsWonPercentage}%`,
+        tiebreaks_won: `${hs.player1Stats.tiebreakWon}/${hs.player1Stats.tiebreakCount}`,
+      },
+      [match.away_team]: {
+        matches_won: hs.player2Stats.matchesWon,
+        first_serve_pct: `${hs.player2Stats.firstServePercentage}%`,
+        win_first_serve_pct: `${hs.player2Stats.winningOnFirstServePercentage}%`,
+        win_second_serve_pct: `${hs.player2Stats.winningOnSecondServePercentage}%`,
+        break_points_won_pct: `${hs.player2Stats.breakpointsWonPercentage}%`,
+        tiebreaks_won: `${hs.player2Stats.tiebreakWon}/${hs.player2Stats.tiebreakCount}`,
+      },
+    };
+  }
+
