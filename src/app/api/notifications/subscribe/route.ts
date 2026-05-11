@@ -1,26 +1,20 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/subscribe (V3.6 multi-device — 11/05/2026)
+ * /api/notifications/subscribe (V3.8 — fix detect platform — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
+ * V3.8 (11/05/2026) — Fix label "android" sur Chrome Desktop :
+ *   - detectPlatform() croise désormais endpoint + User-Agent.
+ *   - Chrome Desktop (Windows/Mac/Linux) utilise FCM comme Chrome Android,
+ *     donc seul l'endpoint ne suffit pas → on regarde aussi l'UA.
+ *   - Résultats possibles : ios | android | windows | macos | linux |
+ *     firefox | other.
+ *
  * V3.6 (11/05/2026) — Multi-device :
- *   - POST : UPSERT dans push_subscriptions par endpoint. Permet à un user
- *     d'avoir plusieurs subs simultanées (PC + Android PWA + iOS PWA).
- *   - DELETE : supprime UNIQUEMENT la sub courante (par endpoint fourni
- *     dans le body) ou TOUTES les subs du user si pas d'endpoint fourni
- *     (cas legacy : ancien PushToggle).
- *   - Miroir users.push_subscription maintenu pour rétrocompat des envoyeurs
- *     actuels (sera supprimé après refonte des envoyeurs).
- *     · POST : stocke la dernière sub créée comme "représentative" (legacy)
- *     · DELETE : si plus aucune sub côté push_subscriptions, on coupe aussi
- *       le miroir + les flags catégories.
+ *   - POST : UPSERT dans push_subscriptions par endpoint.
+ *   - DELETE : supprime UNE sub par endpoint (ou TOUTES si pas fourni).
  *
- * V3.5 Lot 14 (10/05/2026) — historique :
- *   - 1 push global, granularité par catégorie via notify_tipster_push /
- *     notify_abonnes_push et tipster_notif_prefs.channel_push.
- *
- * Fix bugs notif (11/05/2026) — historique :
- *   - Sync tipster_notif_prefs.channel_push à la souscription/désinscription
+ * V3.5 Lot 14 — Granularité par catégorie.
  *
  * Path : src/app/api/notifications/subscribe/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -30,11 +24,36 @@ import { requireAuth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
-function detectPlatform(endpoint: string): string {
+// ─── V3.8 — Détection plateforme croisée endpoint + User-Agent ───
+function detectPlatform(endpoint: string, userAgent: string | null): string {
+  // 1. Apple → toujours iOS (Safari iOS, pas de Mac WebPush courant via apple.com)
   if (endpoint.includes("push.apple.com")) return "ios";
-  if (endpoint.includes("fcm.googleapis.com")) return "android";
+
+  // 2. Mozilla → Firefox (peu importe l'OS, on garde "firefox" comme label)
   if (endpoint.includes("mozilla.com")) return "firefox";
-  if (endpoint.includes("windows.com")) return "windows";
+
+  // 3. Windows Notification Service → Edge legacy / WNS
+  if (endpoint.includes("windows.com") || endpoint.includes("notify.windows.com")) {
+    return "windows";
+  }
+
+  // 4. FCM → Chrome (Desktop OU Android) OU Edge récent (Chromium). On regarde l'UA.
+  if (endpoint.includes("fcm.googleapis.com") || endpoint.includes("android.googleapis.com")) {
+    if (!userAgent) return "other";
+    const ua = userAgent.toLowerCase();
+
+    // Android tablet/phone (avant Windows car certains Android Phones rapportent Linux dans UA)
+    if (ua.includes("android")) return "android";
+
+    // Desktops
+    if (ua.includes("windows")) return "windows";
+    if (ua.includes("macintosh") || ua.includes("mac os x")) return "macos";
+    if (ua.includes("cros")) return "chromeos"; // Chromebook
+    if (ua.includes("linux")) return "linux";
+
+    return "other";
+  }
+
   return "other";
 }
 
@@ -48,8 +67,6 @@ function extractEndpointHostname(endpoint: string): string {
 
 // ═══════════════════════════════════════════════════════════════════
 // POST : abonner le device courant
-// Body : { endpoint, keys: { p256dh, auth }, expirationTime? }
-//        (PushSubscription.toJSON() côté browser)
 // ═══════════════════════════════════════════════════════════════════
 export async function POST(request: Request) {
   let user;
@@ -74,21 +91,14 @@ export async function POST(request: Request) {
   const endpoint: string = subscription.endpoint;
   const p256dh: string = subscription.keys.p256dh;
   const auth: string = subscription.keys.auth;
-  const platform = detectPlatform(endpoint);
   const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null;
+  const platform = detectPlatform(endpoint, userAgent); // V3.8
 
-  // expirationTime peut être un nombre (ms epoch) ou null
   let expirationTime: string | null = null;
   if (subscription.expirationTime && typeof subscription.expirationTime === "number") {
     expirationTime = new Date(subscription.expirationTime).toISOString();
   }
 
-  // ─── 1. UPSERT push_subscriptions par endpoint ───
-  // Si l'endpoint existe déjà (chez un autre user ou le même), on UPDATE :
-  // - user_id (au cas où un autre user s'est logué sur ce device)
-  // - keys (au cas où le provider les a régénérées)
-  // - last_seen_at (toujours)
-  // - consecutive_failures remis à 0 (re-abonnement = sub vivante)
   const { error: subErr } = await supabaseAdmin
     .from("push_subscriptions")
     .upsert(
@@ -111,10 +121,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: subErr.message }, { status: 500 });
   }
 
-  // ─── 2. Miroir users (rétrocompat envoyeurs actuels) ───
-  // Tant que les envoyeurs lisent users.push_subscription, on maintient
-  // ce champ avec la dernière sub créée. Sera supprimé après refonte
-  // des envoyeurs.
   const { error: userErr } = await supabaseAdmin
     .from("users")
     .update({
@@ -127,10 +133,8 @@ export async function POST(request: Request) {
 
   if (userErr) {
     console.error("[subscribe] miroir users failed", userErr);
-    // Non fatal : la sub est bien dans push_subscriptions
   }
 
-  // ─── 3. Sync tipster_notif_prefs.channel_push (fix bug #1) ───
   try {
     const { data: existing } = await supabaseAdmin
       .from("tipster_notif_prefs")
@@ -162,7 +166,6 @@ export async function POST(request: Request) {
     console.error("[subscribe] tipster_notif_prefs sync failed", e);
   }
 
-  // ─── 4. Log ───
   const endpointDomain = extractEndpointHostname(endpoint);
   await supabaseAdmin.from("notification_logs").insert({
     pick_id: null,
@@ -181,8 +184,6 @@ export async function POST(request: Request) {
 
 // ═══════════════════════════════════════════════════════════════════
 // DELETE : désabonner le device courant
-// Body optionnel : { endpoint } pour supprimer UNE sub spécifique.
-// Sans body → supprime TOUTES les subs du user (équivalent legacy).
 // ═══════════════════════════════════════════════════════════════════
 export async function DELETE(request: Request) {
   let user;
@@ -192,7 +193,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Tenter de lire l'endpoint depuis le body (optionnel)
   let endpoint: string | null = null;
   try {
     const body = await request.json();
@@ -200,34 +200,24 @@ export async function DELETE(request: Request) {
       endpoint = body.endpoint;
     }
   } catch {
-    // Pas de body : on supprime tout (comportement legacy)
+    // pas de body → on supprime tout
   }
 
-  // ─── 1. DELETE dans push_subscriptions ───
   if (endpoint) {
-    // Supprime cette sub précise (sécurité : limitée au user courant)
     const { error: subErr } = await supabaseAdmin
       .from("push_subscriptions")
       .delete()
       .eq("user_id", user.id)
       .eq("endpoint", endpoint);
-
-    if (subErr) {
-      console.error("[unsubscribe] delete by endpoint failed", subErr);
-    }
+    if (subErr) console.error("[unsubscribe] delete by endpoint failed", subErr);
   } else {
-    // Pas d'endpoint fourni : supprime TOUTES les subs du user
     const { error: subErr } = await supabaseAdmin
       .from("push_subscriptions")
       .delete()
       .eq("user_id", user.id);
-
-    if (subErr) {
-      console.error("[unsubscribe] delete all failed", subErr);
-    }
+    if (subErr) console.error("[unsubscribe] delete all failed", subErr);
   }
 
-  // ─── 2. Vérifier s'il reste des subs pour ce user ───
   const { count } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id", { count: "exact", head: true })
@@ -235,7 +225,6 @@ export async function DELETE(request: Request) {
 
   const hasRemainingSubs = (count || 0) > 0;
 
-  // ─── 3. Si plus aucune sub : couper le miroir users + flags catégories ───
   if (!hasRemainingSubs) {
     const { error: userErr } = await supabaseAdmin
       .from("users")
@@ -247,11 +236,8 @@ export async function DELETE(request: Request) {
       })
       .eq("id", user.id);
 
-    if (userErr) {
-      console.error("[unsubscribe] miroir users failed", userErr);
-    }
+    if (userErr) console.error("[unsubscribe] miroir users failed", userErr);
 
-    // Miroir tipster_notif_prefs
     try {
       await supabaseAdmin
         .from("tipster_notif_prefs")
@@ -264,9 +250,6 @@ export async function DELETE(request: Request) {
       console.error("[unsubscribe] tipster_notif_prefs sync failed", e);
     }
   } else if (endpoint) {
-    // Il reste des subs : on met à jour le miroir users.push_subscription
-    // avec une autre sub encore active (pour que les envoyeurs continuent
-    // de fonctionner pendant la transition multi-device).
     const { data: remaining } = await supabaseAdmin
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth, expiration_time")
@@ -290,7 +273,6 @@ export async function DELETE(request: Request) {
     }
   }
 
-  // ─── 4. Log ───
   await supabaseAdmin.from("notification_logs").insert({
     pick_id: null,
     user_id: user.id,

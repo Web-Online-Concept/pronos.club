@@ -5,15 +5,11 @@
  * DevicesList — Liste des appareils connectés aux push notifs
  * ═══════════════════════════════════════════════════════════════════
  *
+ * V2 (11/05/2026) — Ajout labels macos / linux / chromeos
+ *   (cohérent avec subscribe v3.8 qui croise endpoint + User-Agent).
+ *
  * S'affiche en dessous de <PushToggle /> dans Section 1 de
  * /espace/notifications.
- *
- * - Liste les push_subscriptions de l'user (1 par device).
- * - Marque le device courant avec une pastille verte ("Cet appareil").
- * - Affiche : icône plateforme, label lisible, navigateur (User-Agent),
- *   date dernière notif réussie, bouton "Déconnecter ce device".
- * - Le bouton DELETE appelle /api/notifications/subscribe avec
- *   { endpoint } (déjà supporté côté API V3.6 multi-device).
  *
  * Path : src/components/notifications/DevicesList.tsx
  * ═══════════════════════════════════════════════════════════════════
@@ -34,11 +30,14 @@ type Device = {
 };
 
 const PLATFORM_LABELS: Record<string, { label: string; icon: string }> = {
-  android: { label: "Android", icon: "📱" },
-  ios: { label: "iPhone / iPad", icon: "📱" },
-  windows: { label: "Windows", icon: "🖥️" },
-  firefox: { label: "Firefox", icon: "🦊" },
-  other: { label: "Appareil", icon: "🌐" },
+  android:  { label: "Android",       icon: "📱" },
+  ios:      { label: "iPhone / iPad", icon: "📱" },
+  windows:  { label: "Windows",       icon: "🖥️" },
+  macos:    { label: "Mac",           icon: "💻" },
+  linux:    { label: "Linux",         icon: "🐧" },
+  chromeos: { label: "Chromebook",    icon: "💻" },
+  firefox:  { label: "Firefox",       icon: "🦊" },
+  other:    { label: "Appareil",      icon: "🌐" },
 };
 
 function formatRelative(iso: string | null): string {
@@ -73,7 +72,6 @@ export default function DevicesList() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Récupère l'endpoint du navigateur courant
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -110,7 +108,13 @@ export default function DevicesList() {
   }, [fetchDevices]);
 
   async function handleDisconnect(device: Device) {
-    if (!confirm(`Déconnecter cet appareil ?\n\n${PLATFORM_LABELS[device.platform]?.label || "Appareil"}\n\nIl ne recevra plus de notifications. Tu pourras toujours te reconnecter depuis ce device en réactivant les notifications.`)) {
+    if (
+      !confirm(
+        `Déconnecter cet appareil ?\n\n${
+          PLATFORM_LABELS[device.platform]?.label || "Appareil"
+        }\n\nIl ne recevra plus de notifications. Tu pourras toujours te reconnecter depuis ce device en réactivant les notifications.`
+      )
+    ) {
       return;
     }
     setDeletingId(device.id);
@@ -122,8 +126,7 @@ export default function DevicesList() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // Si c'est le device courant, on doit aussi désabonner côté navigateur
-      // (sinon le SW garde la sub et l'API la recréera au prochain getSubscription())
+      // Si c'est le device courant, désabonner aussi côté navigateur
       if (device.endpoint === currentEndpoint) {
         try {
           const reg = await navigator.serviceWorker.ready;

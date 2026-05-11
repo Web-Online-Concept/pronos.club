@@ -1,17 +1,22 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/send (V3.7 — 11/05/2026)
+ * /api/notifications/send (V4.0 — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
- * V3.6 (11/05/2026) — Multi-device push (déjà déployé) :
- *   - Itère sur push_subscriptions.
- *   - Cleanup ciblé par endpoint.
+ * V4.0 (11/05/2026) — Lit sub.platform au lieu de redétecter :
+ *   - La fonction detectPlatformFromEndpoint() supprimée.
+ *   - On utilise directement push_subscriptions.platform (capturé au
+ *     subscribe avec endpoint + User-Agent, plus précis).
  *
  * V3.7 (11/05/2026) — Email logging :
  *   - Passage de user.id à sendNewPickEmail → traçabilité dans email_logs.
  *
- * V3.5 Lot 14 (10/05/2026) — historique :
- *   - Paramètre `category` au body : "tipster" | "abonnes"
+ * V3.6 (11/05/2026) — Multi-device push :
+ *   - Itère sur push_subscriptions.
+ *   - Cleanup ciblé par endpoint sur 410/403/404.
+ *
+ * V3.5 Lot 14 (10/05/2026) :
+ *   - Paramètre `category` au body : "tipster" | "abonnes".
  *
  * Path : src/app/api/notifications/send/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -40,16 +45,11 @@ type SubRow = {
 
 type Category = "tipster" | "abonnes";
 
-function detectPlatformFromEndpoint(endpoint: string): { platform: string; domain: string } {
+function extractEndpointHostname(endpoint: string): string {
   try {
-    const hostname = new URL(endpoint).hostname;
-    if (endpoint.includes("push.apple.com"))     return { platform: "ios",     domain: hostname };
-    if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: hostname };
-    if (endpoint.includes("mozilla.com"))        return { platform: "firefox", domain: hostname };
-    if (endpoint.includes("windows.com"))        return { platform: "windows", domain: hostname };
-    return { platform: "other", domain: hostname };
+    return new URL(endpoint).hostname;
   } catch {
-    return { platform: "other", domain: "unknown" };
+    return "unknown";
   }
 }
 
@@ -110,8 +110,18 @@ async function deleteDeadSubscription(userId: string, endpoint: string) {
 async function sendSinglePush(
   sub: SubRow,
   payload: string
-): Promise<{ status: "sent" | "failed"; statusCode: number; error: string | null; platform: string; domain: string; shouldCleanup: boolean }> {
-  const { platform, domain } = detectPlatformFromEndpoint(sub.endpoint);
+): Promise<{
+  status: "sent" | "failed";
+  statusCode: number;
+  error: string | null;
+  platform: string;
+  domain: string;
+  shouldCleanup: boolean;
+}> {
+  // V4.0 — On lit le platform déjà stocké au subscribe (croisé avec UA),
+  // plus précis que redétecter ici (où l'on n'a plus l'UA).
+  const platform = sub.platform || "other";
+  const domain = extractEndpointHostname(sub.endpoint);
 
   const webpushSub: webpush.PushSubscription = {
     endpoint: sub.endpoint,
@@ -156,13 +166,13 @@ export async function POST(request: Request) {
   const emailToggleColumn = category === "abonnes" ? "notify_abonnes_email" : "notify_tipster_email";
 
   // ═════════════════════════════════════════════════════════════
-  // V3.6 PUSH : sélection des destinataires
+  // PUSH : sélection des destinataires
   // ═════════════════════════════════════════════════════════════
   let usersQuery = supabaseAdmin
     .from("users")
     .select("id")
     .eq(pushToggleColumn, true)
-    .eq("notify_push", true); // kill switch global
+    .eq("notify_push", true);
 
   if (isPremium) {
     usersQuery = usersQuery.in("subscription_status", ["active", "trialing"]);
@@ -182,7 +192,6 @@ export async function POST(request: Request) {
 
   // ═════════════════════════════════════════════════════════════
   // EMAIL : utilisateurs avec toggle email catégorie ON
-  // V3.7 — ajout de id au SELECT pour passer userId à sendNewPickEmail
   // ═════════════════════════════════════════════════════════════
   let emailQuery = supabaseAdmin
     .from("users")
@@ -278,7 +287,7 @@ export async function POST(request: Request) {
   }
 
   // ═════════════════════════════════════════════════════════════
-  // ENVOI EMAILS (V3.7 — passe userId pour email_logs)
+  // ENVOI EMAILS
   // ═════════════════════════════════════════════════════════════
   if (emailUsers) {
     await Promise.allSettled(
@@ -288,7 +297,7 @@ export async function POST(request: Request) {
           const sent = await sendNewPickEmail(user.email, locale, sport, isPremium, pickNumber, user.id);
           if (sent) emailSent++;
         } catch {
-          // Silent fail for individual emails
+          // Silent fail
         }
       })
     );
