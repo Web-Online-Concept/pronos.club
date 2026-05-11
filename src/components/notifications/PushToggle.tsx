@@ -1,5 +1,21 @@
 "use client";
 
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * PushToggle (V3.6 multi-device — 11/05/2026)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * V3.6 (11/05/2026) — Multi-device :
+ *   - Au DELETE, on envoie l'endpoint du device courant dans le body
+ *     pour ne supprimer QUE la sub de ce device-ci. Les autres devices
+ *     du user (ex: PC + Android PWA) ne sont pas affectés.
+ *   - Le POST n'a pas changé : il upsert dans push_subscriptions par
+ *     endpoint côté serveur.
+ *
+ * Path : src/components/notifications/PushToggle.tsx
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { useState, useEffect } from "react";
 
 type Status = "idle" | "loading" | "subscribed" | "denied" | "unsupported" | "need-ios-install" | "error";
@@ -66,10 +82,25 @@ export default function PushToggle() {
       const registration = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
 
-      // Nettoyer une éventuelle ancienne souscription côté client
+      // Nettoyer une éventuelle ancienne souscription côté client AVANT de
+      // créer la nouvelle. Côté serveur, l'UPSERT par endpoint gère le cas
+      // où l'ancien endpoint reviendrait, mais on prévient un endpoint
+      // orphelin côté serveur en envoyant un DELETE ciblé.
       const existing = await registration.pushManager.getSubscription();
       if (existing) {
+        const oldEndpoint = existing.endpoint;
         await existing.unsubscribe();
+        // Best-effort : informer le serveur que l'ancien endpoint est mort
+        // (ne bloque pas si ça échoue)
+        try {
+          await fetch("/api/notifications/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: oldEndpoint }),
+          });
+        } catch {
+          // silent
+        }
       }
 
       // Créer nouvelle souscription
@@ -105,11 +136,21 @@ export default function PushToggle() {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
+
+      // V3.6 — on capture l'endpoint AVANT d'unsubscribe côté browser
+      // pour pouvoir l'envoyer au serveur et ne supprimer QUE cette sub.
+      const endpoint = subscription?.endpoint || null;
+
       if (subscription) {
         await subscription.unsubscribe();
       }
 
-      await fetch("/api/notifications/subscribe", { method: "DELETE" });
+      await fetch("/api/notifications/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(endpoint ? { endpoint } : {}),
+      });
+
       setStatus("idle");
     } catch (err: unknown) {
       console.error("Push unsubscribe failed:", err);
@@ -167,7 +208,7 @@ export default function PushToggle() {
         <div>
           <p className="text-sm font-medium">Notifications push (PC ou App Mobile)</p>
           <p className="text-xs opacity-40">
-            {isSubscribed ? "Activées" : "Désactivées"}
+            {isSubscribed ? "Activées sur ce device" : "Désactivées"}
           </p>
         </div>
         <button
