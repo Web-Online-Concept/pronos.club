@@ -1,4 +1,38 @@
-const CACHE_NAME = "pronos-club-v2";
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * Service Worker PRONOS.CLUB (v3 — fix bugs notif 11/05/2026)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Fix bugs notif (11/05/2026) :
+ *   - Bug critique : le fetch handler v2 interceptait TOUTES les requêtes GET
+ *     (sauf vidéos/range), y compris les navigations Next.js (/fr/espace,
+ *     /fr/pronostics, etc.). Quand le réseau bafouillait, le catch → cache
+ *     → refetch déclenchait une boucle qui rejetait la promise et cassait
+ *     la navigation. Résultat visible : ouverture en nouvelle fenêtre
+ *     au lieu de focus, erreurs "FetchEvent ... resulted in a network
+ *     error" en console.
+ *
+ *     Fix : on n'intercepte QUE les images statiques (cache-first). Tout
+ *     le reste (navigations, /api/*, _next/*, fonts, CSS, JS) passe au
+ *     browser natif sans interception.
+ *
+ *   - Bug #4 : tag dynamique pour les notifs push. Avant, tag global
+ *     "pronos-club-notification" → toute nouvelle notif écrasait la
+ *     précédente. Maintenant le payload peut fournir son propre tag
+ *     (ex: "pick-IA-0005"). Fallback timestamp si non fourni.
+ *
+ *   - Bug #6 : fallback openWindow si client.navigate() échoue dans
+ *     notificationclick. Avant : si navigate était dispo mais plantait
+ *     (rare mais possible cross-origin), l'utilisateur cliquait et
+ *     rien ne se passait sauf le focus.
+ *
+ *   - Cache renommé v3 → invalide l'ancien cache v2 au prochain déploiement.
+ *
+ * Path : public/sw.js
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+const CACHE_NAME = "pronos-club-v3";
 
 // ─── Install ────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -26,28 +60,46 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// ─── Fetch ──────────────────────────────────────────────────
+// ─── Fetch (FIX bug critique) ───────────────────────────────
+// On n'intercepte QUE les images statiques. Tout le reste passe au browser
+// natif. Un SW de notifications n'a pas besoin de gérer les navigations.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  // Ne pas intercepter les vidéos ni les range requests
-  if (event.request.url.match(/\.(mp4|webm|ogg|m4a)$/) || event.request.headers.get("range")) return;
 
+  const url = event.request.url;
+  const isImage = /\.(png|jpg|jpeg|svg|ico|webp|gif)(\?.*)?$/i.test(url);
+
+  // Si ce n'est pas une image, on ne touche pas : le browser fait son job.
+  if (!isImage) return;
+
+  // Cache-first pour les images (avec fallback réseau silencieux)
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok && event.request.url.match(/\.(png|jpg|jpeg|svg|ico|webp)$/)) {
+    (async () => {
+      try {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+
+        const response = await fetch(event.request);
+        if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          const cache = await caches.open(CACHE_NAME);
+          // put() peut throw si la requête est opaque ou autre — silent
+          cache.put(event.request, clone).catch(() => {});
         }
         return response;
-      })
-      .catch(() => caches.match(event.request).then((r) => r || fetch(event.request)))
+      } catch {
+        // Réseau down + pas en cache : on retourne une réponse vide plutôt
+        // que de laisser la promise rejetée polluer la console.
+        return new Response("", {
+          status: 504,
+          statusText: "Image fetch failed",
+        });
+      }
+    })()
   );
 });
 
-// ─── Push ───────────────────────────────────────────────────
-// CRITIQUE pour iOS : cet event DOIT toujours appeler showNotification
-// sinon iOS pénalise la PWA (throttle futur)
+// ─── Push (CRITIQUE iOS : toujours appeler showNotification) ─
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -58,6 +110,12 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "PRONOS.CLUB";
+
+  // Fix bug #4 — tag dynamique pour ne pas écraser les notifs précédentes
+  // Le payload peut fournir un tag (ex: "pick-IA-0005") ; sinon timestamp
+  // unique pour garantir l'unicité.
+  const tag = data.tag || `pronos-club-${Date.now()}`;
+
   const options = {
     body: data.body || "Nouveau pronostic disponible !",
     icon: "/android-chrome-192x192.png",
@@ -67,11 +125,8 @@ self.addEventListener("push", (event) => {
       timestamp: Date.now(),
     },
     vibrate: [200, 100, 200],
-    // tag évite les doublons : si une notif avec ce tag existe déjà elle est remplacée
-    tag: "pronos-club-notification",
-    // renotify : true = refait vibrer même si tag existe déjà
+    tag,
     renotify: true,
-    // requireInteraction false = iOS la fait disparaître automatiquement (comme les autres)
     requireInteraction: false,
   };
 
@@ -79,6 +134,7 @@ self.addEventListener("push", (event) => {
 });
 
 // ─── Notification Click ─────────────────────────────────────
+// Fix bug #6 — fallback openWindow si navigate() échoue
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/fr/pronostics";
@@ -90,30 +146,40 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       });
 
-      // Si une fenêtre est déjà ouverte, la focus et naviguer
+      // Si une fenêtre pronos.club est déjà ouverte, on la focus et on navigue
       for (const client of allClients) {
         if (client.url.includes(self.location.origin)) {
-          await client.focus();
-          if ("navigate" in client) {
-            return client.navigate(url);
+          try {
+            await client.focus();
+            if ("navigate" in client) {
+              try {
+                return await client.navigate(url);
+              } catch {
+                // navigate peut throw (cross-origin restrictions par ex.)
+                // → on tombe sur openWindow ci-dessous
+              }
+            }
+            // Pas de navigate dispo OU navigate a échoué : on ouvre
+            return self.clients.openWindow(url);
+          } catch {
+            // focus a échoué : on tente openWindow
+            return self.clients.openWindow(url);
           }
-          return;
         }
       }
 
-      // Sinon ouvrir une nouvelle fenêtre
+      // Aucun client pronos.club ouvert → ouvrir nouvelle fenêtre
       return self.clients.openWindow(url);
     })()
   );
 });
 
 // ─── Notification Close ─────────────────────────────────────
-// Utile pour les stats (optionnel)
 self.addEventListener("notificationclose", () => {
   // Pas de tracking pour le moment
 });
 
-// ─── Message (pour debug : l'app peut envoyer un message au SW) ──
+// ─── Message (debug) ────────────────────────────────────────
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
