@@ -2,28 +2,26 @@
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /espace/notifications/page.tsx (V3.5 Lot 14 — refonte complète)
+ * /espace/notifications/page.tsx (V3.5 Lot 14 + fix bugs notif 11/05/26)
  * ═══════════════════════════════════════════════════════════════════
  *
  * Page utilisateur des préférences de notifications.
  *
- * Structure (V3.5 Lot 14) :
- *   1. Push global activation (1 toggle browser, partagé entre catégories)
- *   2. Groupe Telegram Premium (privé, premium uniquement)
- *   3. PRONOS TIPSTER (Jérôme Bollaert)
- *      · Push (toggle granulaire → users.notify_tipster_push)
- *      · Email (toggle granulaire → users.notify_tipster_email)
- *      · Telegram canal public @pronos_club_notifs
- *   4. PRONOS IA
- *      · Telegram canal public @pronos_club_ia (uniquement)
- *   5. PRONOS ABONNÉS
- *      · Push (toggle granulaire → tipster_notif_prefs.channel_push)
- *      · Email (toggle granulaire → tipster_notif_prefs.channel_email)
- *      · Telegram canal public @pronos_abonnes_club
- *      · Mes tipsters suivis (TipsterNotifSection simplifié)
- *   6. BILANS (premium)
- *      · Email récap hebdo/mensuel
- *   7. Tutos push (Android/iOS) + Telegram + Email
+ * V3.5 Lot 14 (10/05) :
+ *   1 push global, granularité par catégorie. Section 5 (Abonnés) lit
+ *   tipster_notif_prefs ; Section 3 (Tipster) + Section 6 (Bilans) lisent
+ *   directement les colonnes users.
+ *
+ * Fix bugs notif (11/05/2026) :
+ *   - Bug #2 : useState n'initialise plus depuis `u` (qui est null au mount).
+ *     Tous les toggles partent à false, puis un useEffect sync depuis u
+ *     dès qu'il arrive + flag userPrefsLoaded qui désactive les toggles
+ *     pendant le chargement. Avant ce fix, tous les toggles s'affichaient
+ *     ON par défaut et l'utilisateur écrasait ses vraies prefs au 1er click.
+ *   - Bug #3 : updateUserNotif / updateAbonnesPref vérifient maintenant
+ *     response.ok et rollback sur 4xx/5xx (pas seulement sur erreur réseau).
+ *     Avant, un 500 silencieux laissait le toggle ON côté UI alors qu'en
+ *     base il était OFF.
  *
  * Path : src/app/[locale]/(auth)/espace/notifications/page.tsx
  * ═══════════════════════════════════════════════════════════════════
@@ -53,12 +51,14 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const u = user as UserWithNotifs | null;
 
-  // États des toggles granulaires côté users
-  const [tipsterPush, setTipsterPush] = useState(u?.notify_tipster_push ?? true);
-  const [tipsterEmail, setTipsterEmail] = useState(u?.notify_tipster_email ?? true);
-  const [bilanEnabled, setBilanEnabled] = useState(u?.notify_bilan ?? true);
+  // ─── Toggles users (Tipster + Bilan) ───
+  // Fix bug #2 — init à false, sync via useEffect quand u arrive
+  const [tipsterPush, setTipsterPush] = useState(false);
+  const [tipsterEmail, setTipsterEmail] = useState(false);
+  const [bilanEnabled, setBilanEnabled] = useState(false);
+  const [userPrefsLoaded, setUserPrefsLoaded] = useState(false);
 
-  // États des toggles Pronos Abonnés (câblés sur tipster_notif_prefs)
+  // ─── Toggles Pronos Abonnés (câblés sur tipster_notif_prefs) ───
   const [abonnesPush, setAbonnesPush] = useState(false);
   const [abonnesEmail, setAbonnesEmail] = useState(true);
   const [abonnesPrefsLoaded, setAbonnesPrefsLoaded] = useState(false);
@@ -71,6 +71,15 @@ export default function NotificationsPage() {
   const isPremium =
     u?.subscription_status === "active" || u?.subscription_status === "trialing";
   const isInTelegramGroup = !!u?.telegram_user_id;
+
+  // ─── Fix bug #2 — Sync toggles users dès que u est dispo ───
+  useEffect(() => {
+    if (!u) return;
+    setTipsterPush(u.notify_tipster_push ?? true);
+    setTipsterEmail(u.notify_tipster_email ?? true);
+    setBilanEnabled(u.notify_bilan ?? true);
+    setUserPrefsLoaded(true);
+  }, [u]);
 
   // ─── Charger les prefs Pronos Abonnés depuis tipster_notif_prefs ───
   useEffect(() => {
@@ -88,6 +97,7 @@ export default function NotificationsPage() {
   }, [user, isPremium]);
 
   // ─── Update toggles users (Tipster + Bilan) ───
+  // Fix bug #3 — rollback aussi sur !response.ok (pas seulement sur catch réseau)
   async function updateUserNotif(
     field: string,
     newValue: boolean,
@@ -96,18 +106,21 @@ export default function NotificationsPage() {
     setSaving(true);
     setter(newValue);
     try {
-      await fetch("/api/user/notifications", {
+      const res = await fetch("/api/user/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: newValue }),
       });
-    } catch {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      console.error("[notif] updateUserNotif failed", field, e);
       setter(!newValue);
     }
     setSaving(false);
   }
 
   // ─── Update toggles Pronos Abonnés (tipster_notif_prefs) ───
+  // Fix bug #3 — rollback aussi sur !response.ok
   async function updateAbonnesPref(
     field: "channel_push" | "channel_email",
     newValue: boolean,
@@ -122,12 +135,14 @@ export default function NotificationsPage() {
       const body: Record<string, unknown> = { [field]: newValue };
       if (newValue) body.mode = "selected";
 
-      await fetch("/api/tipster-notif-prefs", {
+      const res = await fetch("/api/tipster-notif-prefs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-    } catch {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      console.error("[notif] updateAbonnesPref failed", field, e);
       setter(!newValue);
     }
     setSaving(false);
@@ -253,7 +268,7 @@ export default function NotificationsPage() {
                 onChange={(v) =>
                   updateUserNotif("notify_tipster_push", v, setTipsterPush)
                 }
-                disabled={saving}
+                disabled={saving || !userPrefsLoaded}
                 color="emerald"
               />
               <ToggleRow
@@ -263,7 +278,7 @@ export default function NotificationsPage() {
                 onChange={(v) =>
                   updateUserNotif("notify_tipster_email", v, setTipsterEmail)
                 }
-                disabled={saving}
+                disabled={saving || !userPrefsLoaded}
                 color="emerald"
               />
               <TelegramChannelRow
@@ -383,7 +398,7 @@ export default function NotificationsPage() {
                 <Toggle
                   value={bilanEnabled && isPremium}
                   onChange={(v) => updateUserNotif("notify_bilan", v, setBilanEnabled)}
-                  disabled={saving || !isPremium}
+                  disabled={saving || !isPremium || !userPrefsLoaded}
                   color="amber"
                 />
               </div>
