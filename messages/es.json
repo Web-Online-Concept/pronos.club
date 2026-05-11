@@ -1394,7 +1394,7 @@
     "section_scorers_title": "Pronósticos goleador",
     "empty_live_title": "Sin pronósticos en curso",
     "empty_live_description": "Todos los partidos del día ya comenzaron o aún no se han generado. Consulta el historial para ver los resultados.",
-    "empty_live_next_generation": "Nuevos pronósticos cada día a las 9h (hora de París)",
+    "empty_live_next_generation": "Nuevos pronósticos cada día a las 9:30h y 18:15h (hora de París)",
     "empty_live_cta_history": "Ver el historial",
     "status_awaiting": "Esperando resultados",
     "type_classic_label": "Clásico",
