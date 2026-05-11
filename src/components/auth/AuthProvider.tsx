@@ -1,12 +1,33 @@
 "use client";
 
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * AuthProvider (fix React #418 — 11/05/2026)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Fix React error #418 (hydratation mismatch) :
+ *   Avant ce fix, useState lisait localStorage au mount via initializer :
+ *     const [user, setUser] = useState(() => getCachedUser());
+ *   Côté SSR : localStorage n'existe pas → user=null, loading=true
+ *   Côté CSR : cache rempli → user={...}, loading=false
+ *   → Mismatch d'hydratation détecté par React sur tous les composants
+ *     qui dépendent de useAuth() (Navbar, MobileBottomBar, etc).
+ *
+ *   Fix : init à null/true (match SSR), puis lecture cache dans useEffect
+ *   qui ne tourne que côté client. Le flash entre l'hydratation et la
+ *   lecture cache (<10ms) est invisible. Le Navbar gère déjà l'état
+ *   transitoire via le skeleton authLoading.
+ *
+ * Path : src/components/auth/AuthProvider.tsx
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@/lib/supabase/types";
 import type { Session } from "@supabase/supabase-js";
 
 const CACHE_KEY = "pronos_user_cache";
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes — after this, background refresh
 
 interface CachedUser {
   user: User;
@@ -56,10 +77,14 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialize user from cache IMMEDIATELY — no loading flash
-  const [user, setUser] = useState<User | null>(() => getCachedUser());
+  // ═══════════════════════════════════════════════════════════════
+  // Fix #418 — Init SSR-safe : on initialise toujours à null/true
+  // pour que le rendu serveur corresponde au premier rendu client.
+  // La lecture du cache localStorage se fait dans le useEffect ci-dessous.
+  // ═══════════════════════════════════════════════════════════════
+  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(() => getCachedUser() === null);
+  const [loading, setLoading] = useState(true);
   const supabaseRef = useRef(createClient());
   const fetchingRef = useRef(false);
 
@@ -106,6 +131,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = supabaseRef.current;
 
+    // ─── Étape 1 : lire le cache localStorage (client uniquement) ───
+    // C'est ce qui était fait dans useState initializer auparavant,
+    // mais déplacé ici pour éviter le mismatch SSR/CSR (React error #418).
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
+    }
+
+    // ─── Étape 2 : init session Supabase ───
     async function initSession() {
       const {
         data: { session },
@@ -114,19 +149,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
 
       if (session?.user) {
-        // If we have a cached user, show it immediately and refresh in background
-        const cached = getCachedUser();
         if (cached && cached.id === session.user.id) {
-          // Cache hit — user already displayed, refresh silently
+          // Cache hit — user déjà affiché, on refresh en arrière-plan
           setLoading(false);
           fetchOrCreateUserProfile(session.user.id);
         } else {
-          // Cache miss or different user — fetch/create and wait
+          // Cache miss ou user différent — fetch et attente
           await fetchOrCreateUserProfile(session.user.id);
           setLoading(false);
         }
       } else {
-        // No session — clear everything
+        // Pas de session — clear tout
         updateUser(null);
         setLoading(false);
       }
