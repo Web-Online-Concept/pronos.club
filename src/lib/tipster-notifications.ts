@@ -1,17 +1,22 @@
 // src/lib/tipster-notifications.ts
 // Envoie les notifications aux followers quand un tipster publie un pick
-// 3 canaux : Email (Brevo via emails.ts) + Telegram (bot + canal public) + Push (web-push sur users.push_subscription)
+// 3 canaux : Email (Brevo via emails.ts) + Telegram (canal public) + Push (multi-device)
 //
-// Fix bugs notif (11/05/2026) :
-//   - Bug A — Cleanup des subs mortes (410/403/404) désormais COMPLET :
-//     coupe push_subscription + tous les flags catégories users + miroir
-//     tipster_notif_prefs.channel_push. Avant ce fix, seul notify_push
-//     et push_subscription étaient coupés → notify_tipster_push,
-//     notify_abonnes_push et tipster_notif_prefs.channel_push restaient
-//     à true → Section 5 affichait ON sans sub physique, et le prochain
-//     envoi re-tentait sur une sub morte (et reloggait 410).
-//   - Factorisation : helper exporté cleanupDeadSubscription() partagé
-//     avec /api/notifications/send et /api/admin/push-test.
+// V3.6 (11/05/2026) — Multi-device :
+//   - Push : itère sur push_subscriptions (un user peut avoir plusieurs
+//     subs simultanées : PC + Android PWA + iOS PWA)
+//   - Cleanup : supprime UNIQUEMENT la sub par endpoint sur 410/403/404.
+//     Les autres subs du même user restent actives.
+//   - Si après cleanup il ne reste AUCUNE sub pour le user, on coupe
+//     aussi le miroir users.push_subscription + flags catégories +
+//     tipster_notif_prefs.channel_push.
+//
+// V3.5 (10/05/2026) — historique :
+//   - Suppression des DM Telegram aux abonnés (canal public conservé)
+//
+// Fix bugs notif (11/05/2026) — historique :
+//   - Helper cleanupDeadSubscription exporté, partagé avec les autres
+//     envoyeurs.
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -22,7 +27,6 @@ const supabaseAdmin = createAdminClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Configuration web-push (mêmes env vars que /api/notifications/send)
 if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
     "mailto:contact@pronos.club",
@@ -50,10 +54,94 @@ type Tipster = {
   avatar_url: string | null;
 };
 
-// ─── Helper exporté : cleanup d'une subscription morte ───
-// Coupe TOUT pour éviter les zombies désynchronisés. Appelé sur 410/403/404.
-// Utilisé aussi par /api/notifications/send (batch) et /api/admin/push-test.
+type PushSubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  platform: string | null;
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// Helper : cleanup d'UNE sub morte (par endpoint)
+// ═══════════════════════════════════════════════════════════════════
+// V3.6 : supprime UNIQUEMENT la sub concernée. Si après suppression il
+// n'en reste aucune pour ce user, on coupe aussi le miroir users +
+// flags catégories + tipster_notif_prefs.
+async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string) {
+  // 1. Supprime la sub précise
+  await supabaseAdmin
+    .from("push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
+
+  // 2. Compte ce qui reste pour ce user
+  const { count } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  // 3. Si plus aucune sub : coupe le miroir users + flags + tipster_notif_prefs
+  if ((count || 0) === 0) {
+    await supabaseAdmin
+      .from("users")
+      .update({
+        push_subscription: null,
+        notify_push: false,
+        notify_tipster_push: false,
+        notify_abonnes_push: false,
+      })
+      .eq("id", userId);
+
+    await supabaseAdmin
+      .from("tipster_notif_prefs")
+      .update({
+        channel_push: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+  } else {
+    // Il reste des subs : on rafraîchit le miroir users.push_subscription
+    // avec une autre sub vivante (pour rétrocompat avec ce qui lirait
+    // encore users.push_subscription)
+    const { data: remaining } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("endpoint, p256dh, auth, expiration_time")
+      .eq("user_id", userId)
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (remaining) {
+      const miroirSubscription = {
+        endpoint: remaining.endpoint,
+        keys: { p256dh: remaining.p256dh, auth: remaining.auth },
+        expirationTime: remaining.expiration_time
+          ? new Date(remaining.expiration_time).getTime()
+          : null,
+      };
+      await supabaseAdmin
+        .from("users")
+        .update({ push_subscription: miroirSubscription })
+        .eq("id", userId);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Helper EXPORTÉ : cleanup complet de toutes les subs d'un user
+// ═══════════════════════════════════════════════════════════════════
+// Utilisé par /api/admin/push-test quand le user a une sub manifestement
+// morte et qu'on veut tout nettoyer d'un coup.
+// V3.6 : supprime toutes les push_subscriptions + miroir + flags.
 export async function cleanupDeadSubscription(userId: string) {
+  // 1. Supprime toutes les subs du user
+  await supabaseAdmin
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", userId);
+
+  // 2. Coupe miroir users + flags catégories
   await supabaseAdmin
     .from("users")
     .update({
@@ -64,7 +152,7 @@ export async function cleanupDeadSubscription(userId: string) {
     })
     .eq("id", userId);
 
-  // Miroir vers tipster_notif_prefs (Section 5 UI lit ici)
+  // 3. Coupe tipster_notif_prefs
   await supabaseAdmin
     .from("tipster_notif_prefs")
     .update({
@@ -93,36 +181,79 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
   }
 }
 
-// ── Helper Push ──
-// Lit users.push_subscription (JSON) et utilise notify_push pour opt-in global
+// ═══════════════════════════════════════════════════════════════════
+// Helper Push V3.6 — multi-device
+// ═══════════════════════════════════════════════════════════════════
+// Lit TOUTES les push_subscriptions du user et envoie une notif par sub.
+// Filtre garde-fou : users.notify_push doit être true (kill switch global).
 async function sendPushToUser(userId: string, payload: any) {
   try {
+    // Kill switch global
     const { data: user } = await supabaseAdmin
       .from("users")
-      .select("push_subscription, notify_push")
+      .select("notify_push")
       .eq("id", userId)
       .single();
 
-    if (!user || !user.notify_push || !user.push_subscription) return;
+    if (!user || !user.notify_push) return;
 
-    try {
-      await webpush.sendNotification(
-        user.push_subscription as webpush.PushSubscription,
-        JSON.stringify(payload)
-      );
-    } catch (err: any) {
-      const statusCode = err?.statusCode || 0;
-      // Subscription morte : cleanup complet (fix bug A)
-      if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
-        await cleanupDeadSubscription(userId);
-      }
-    }
+    // Toutes les subs vivantes du user
+    const { data: subs } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth, platform")
+      .eq("user_id", userId);
+
+    if (!subs || subs.length === 0) return;
+
+    const payloadStr = JSON.stringify(payload);
+
+    // Envoi en parallèle sur tous les devices
+    await Promise.allSettled(
+      (subs as PushSubscriptionRow[]).map(async (sub) => {
+        const webpushSub: webpush.PushSubscription = {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        };
+
+        try {
+          await webpush.sendNotification(webpushSub, payloadStr);
+
+          // Succès : on met à jour last_success_at + reset failures
+          await supabaseAdmin
+            .from("push_subscriptions")
+            .update({
+              last_success_at: new Date().toISOString(),
+              last_seen_at: new Date().toISOString(),
+              consecutive_failures: 0,
+            })
+            .eq("id", sub.id);
+        } catch (err: any) {
+          const statusCode = err?.statusCode || 0;
+
+          // Subscription morte : supprime CE device uniquement
+          if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
+            await deleteDeadSubscriptionByEndpoint(userId, sub.endpoint);
+          } else {
+            // Erreur transitoire : incrémente compteur d'échecs
+            await supabaseAdmin
+              .from("push_subscriptions")
+              .update({
+                last_failure_at: new Date().toISOString(),
+                consecutive_failures: ((sub as any).consecutive_failures || 0) + 1,
+              })
+              .eq("id", sub.id);
+          }
+        }
+      })
+    );
   } catch (err) {
     console.error("[push] error:", err);
   }
 }
 
-// ── Main : envoie les notifs pour un nouveau pick ──
+// ═══════════════════════════════════════════════════════════════════
+// Main : envoie les notifs pour un nouveau pick
+// ═══════════════════════════════════════════════════════════════════
 export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   const matchDate = new Date(pick.match_date);
   const matchDateStr = matchDate.toLocaleString("fr-FR", {
@@ -252,11 +383,10 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 3. ENVOI
   // ═════════════════════════════════════
-  // V3.5 (10/05/2026) : suppression des DM Telegram aux abonnés (décision Florent).
-  // Le canal public Telegram (action 1 ci-dessus) reste actif.
-  // Email + Push PWA continuent de fonctionner pour les abonnés qui les ont activés.
+  // V3.5 (10/05/2026) : DM Telegram supprimés. Canal public conservé.
+  // V3.6 (11/05/2026) : push multi-device via push_subscriptions.
   for (const [, n] of toNotify) {
-    // Email via Brevo (emails.ts)
+    // Email via Brevo
     if (n.useEmail && n.email) {
       await sendTipsterNewPickEmail(n.email, "fr", {
         pseudo: tipster.pseudo,
@@ -266,7 +396,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       });
     }
 
-    // Push PWA (users.push_subscription JSON + users.notify_push opt-in global)
+    // Push multi-device
     if (n.usePush) {
       await sendPushToUser(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,

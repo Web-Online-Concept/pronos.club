@@ -1,22 +1,20 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/send (V3.5 Lot 14 + fix bugs notif 11/05/26)
+ * /api/notifications/send (V3.6 multi-device — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
- * V3.5 Lot 14 (10/05/2026) :
- *   - Ajout paramètre `category` au body : "tipster" | "abonnes"
- *   - Filtre les destinataires selon le toggle correspondant :
- *     · category="tipster" → notify_tipster_push / notify_tipster_email
- *     · category="abonnes" → notify_abonnes_push / notify_abonnes_email
- *   - Rétrocompat : si category n'est pas fourni, défaut "tipster"
- *     (comportement historique pour les anciens appels)
+ * V3.6 (11/05/2026) — Multi-device :
+ *   - Itère sur push_subscriptions (un user peut avoir plusieurs subs
+ *     simultanées : PC + Android PWA + iOS PWA).
+ *   - Filtre : on JOIN push_subscriptions sur users avec
+ *     users.notify_<category>_push = true.
+ *   - Cleanup : sur 410/403/404, supprime UNIQUEMENT la sub par endpoint.
+ *     Si après suppression il ne reste aucune sub pour le user, on coupe
+ *     aussi le miroir users + flags + tipster_notif_prefs (cf. helper
+ *     dans tipster-notifications.ts).
  *
- * Fix bugs notif (11/05/2026) :
- *   - Bug A — Cleanup batch des subs mortes maintenant COMPLET :
- *     coupe push_subscription + tous les flags catégories users + miroir
- *     tipster_notif_prefs.channel_push. Avant ce fix, tipster_notif_prefs
- *     restait à channel_push=true → Section 5 affichait ON sans sub
- *     physique.
+ * V3.5 Lot 14 (10/05/2026) — historique :
+ *   - Paramètre `category` au body : "tipster" | "abonnes"
  *
  * Path : src/app/api/notifications/send/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -34,36 +32,100 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 );
 
-type PushUser = {
+type SubRow = {
   id: string;
-  push_subscription: webpush.PushSubscription;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  platform: string | null;
 };
 
 type Category = "tipster" | "abonnes";
 
-function detectPlatform(endpoint: string): { platform: string; domain: string } {
+function detectPlatformFromEndpoint(endpoint: string): { platform: string; domain: string } {
   try {
     const hostname = new URL(endpoint).hostname;
-    if (endpoint.includes("push.apple.com")) return { platform: "ios", domain: hostname };
+    if (endpoint.includes("push.apple.com"))     return { platform: "ios",     domain: hostname };
     if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: hostname };
-    if (endpoint.includes("mozilla.com")) return { platform: "firefox", domain: hostname };
-    if (endpoint.includes("windows.com")) return { platform: "windows", domain: hostname };
+    if (endpoint.includes("mozilla.com"))        return { platform: "firefox", domain: hostname };
+    if (endpoint.includes("windows.com"))        return { platform: "windows", domain: hostname };
     return { platform: "other", domain: hostname };
   } catch {
     return { platform: "other", domain: "unknown" };
   }
 }
 
+// ─── Cleanup d'une sub morte (par endpoint) + miroirs si dernière ───
+async function deleteDeadSubscription(userId: string, endpoint: string) {
+  await supabaseAdmin
+    .from("push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
+
+  const { count } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if ((count || 0) === 0) {
+    await supabaseAdmin
+      .from("users")
+      .update({
+        push_subscription: null,
+        notify_push: false,
+        notify_tipster_push: false,
+        notify_abonnes_push: false,
+      })
+      .eq("id", userId);
+
+    await supabaseAdmin
+      .from("tipster_notif_prefs")
+      .update({
+        channel_push: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+  } else {
+    // Rafraîchir le miroir users.push_subscription avec une autre sub vivante
+    const { data: remaining } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("endpoint, p256dh, auth, expiration_time")
+      .eq("user_id", userId)
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (remaining) {
+      const miroirSubscription = {
+        endpoint: remaining.endpoint,
+        keys: { p256dh: remaining.p256dh, auth: remaining.auth },
+        expirationTime: remaining.expiration_time
+          ? new Date(remaining.expiration_time).getTime()
+          : null,
+      };
+      await supabaseAdmin
+        .from("users")
+        .update({ push_subscription: miroirSubscription })
+        .eq("id", userId);
+    }
+  }
+}
+
+// ─── Envoi d'un push sur une sub précise ───
 async function sendSinglePush(
-  user: PushUser,
-  payload: string,
-  pickId: string | null
+  sub: SubRow,
+  payload: string
 ): Promise<{ status: "sent" | "failed"; statusCode: number; error: string | null; platform: string; domain: string; shouldCleanup: boolean }> {
-  const endpoint = user.push_subscription.endpoint;
-  const { platform, domain } = detectPlatform(endpoint);
+  const { platform, domain } = detectPlatformFromEndpoint(sub.endpoint);
+
+  const webpushSub: webpush.PushSubscription = {
+    endpoint: sub.endpoint,
+    keys: { p256dh: sub.p256dh, auth: sub.auth },
+  };
 
   try {
-    await webpush.sendNotification(user.push_subscription, payload);
+    await webpush.sendNotification(webpushSub, payload);
     return { status: "sent", statusCode: 201, error: null, platform, domain, shouldCleanup: false };
   } catch (err: unknown) {
     let statusCode = 0;
@@ -94,29 +156,38 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { pickId, pickNumber, sport, isPremium } = body;
 
-  // V3.5 Lot 14 — détermine la catégorie pour le filtrage des toggles
-  // Si non fourni, défaut "tipster" (rétrocompat avec les anciens appels)
   const category: Category = body.category === "abonnes" ? "abonnes" : "tipster";
 
-  // Détermine quels toggles vérifier selon la catégorie
   const pushToggleColumn = category === "abonnes" ? "notify_abonnes_push" : "notify_tipster_push";
   const emailToggleColumn = category === "abonnes" ? "notify_abonnes_email" : "notify_tipster_email";
 
   // ═════════════════════════════════════════════════════════════
-  // PUSH : utilisateurs avec push_subscription + toggle catégorie ON
+  // V3.6 PUSH : sélection des destinataires
   // ═════════════════════════════════════════════════════════════
-  let pushQuery = supabaseAdmin
+  // 1. Filtrer les users selon les flags catégorie + premium si besoin
+  // 2. Récupérer TOUTES leurs subs depuis push_subscriptions
+
+  let usersQuery = supabaseAdmin
     .from("users")
-    .select("id, push_subscription")
+    .select("id")
     .eq(pushToggleColumn, true)
-    .not("push_subscription", "is", null);
+    .eq("notify_push", true); // kill switch global
 
   if (isPremium) {
-    pushQuery = pushQuery.in("subscription_status", ["active", "trialing"]);
+    usersQuery = usersQuery.in("subscription_status", ["active", "trialing"]);
   }
 
-  const { data: pushUsersRaw } = await pushQuery;
-  const pushUsers = (pushUsersRaw || []) as PushUser[];
+  const { data: eligibleUsers } = await usersQuery;
+  const eligibleUserIds = (eligibleUsers || []).map((u) => u.id);
+
+  let pushSubs: SubRow[] = [];
+  if (eligibleUserIds.length > 0) {
+    const { data: subsData } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("id, user_id, endpoint, p256dh, auth, platform")
+      .in("user_id", eligibleUserIds);
+    pushSubs = (subsData || []) as SubRow[];
+  }
 
   // ═════════════════════════════════════════════════════════════
   // EMAIL : utilisateurs avec toggle email catégorie ON
@@ -152,28 +223,34 @@ export async function POST(request: Request) {
   });
 
   // ═════════════════════════════════════════════════════════════
-  // ENVOI PUSH
+  // ENVOI PUSH (multi-device)
   // ═════════════════════════════════════════════════════════════
   const logRows: Record<string, unknown>[] = [];
-  const cleanupIds: string[] = [];
+  // Map user_id → endpoints à cleanup (un user peut avoir plusieurs subs mortes)
+  const cleanupByUser = new Map<string, string[]>();
+  // Subs qui ont réussi → on met à jour last_success_at
+  const successSubIds: string[] = [];
 
   await Promise.allSettled(
-    pushUsers.map(async (user) => {
-      const result = await sendSinglePush(user, payload, pickId || null);
+    pushSubs.map(async (sub) => {
+      const result = await sendSinglePush(sub, payload);
 
       if (result.status === "sent") {
         pushSent++;
+        successSubIds.push(sub.id);
       } else {
         pushFailed++;
         if (result.shouldCleanup) {
-          cleanupIds.push(user.id);
+          const arr = cleanupByUser.get(sub.user_id) || [];
+          arr.push(sub.endpoint);
+          cleanupByUser.set(sub.user_id, arr);
           pushCleaned++;
         }
       }
 
       logRows.push({
         pick_id: pickId || null,
-        user_id: user.id,
+        user_id: sub.user_id,
         channel: "push",
         status: result.status,
         sent_at: new Date().toISOString(),
@@ -185,33 +262,30 @@ export async function POST(request: Request) {
     })
   );
 
-  // ═════════════════════════════════════════════════════════════
-  // CLEANUP des subs mortes (fix bug A — cleanup COMPLET)
-  // ═════════════════════════════════════════════════════════════
-  // Avant ce fix : on coupait users.notify_* mais tipster_notif_prefs.channel_push
-  // restait à true → Section 5 affichait ON sans sub physique.
-  if (cleanupIds.length > 0) {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        push_subscription: null,
-        notify_push: false,
-        notify_tipster_push: false,
-        notify_abonnes_push: false,
-      })
-      .in("id", cleanupIds);
-
-    // Miroir tipster_notif_prefs (Section 5 UI lit ici)
-    await supabaseAdmin
-      .from("tipster_notif_prefs")
-      .update({
-        channel_push: false,
-        updated_at: new Date().toISOString(),
-      })
-      .in("user_id", cleanupIds);
+  // ─── Cleanup des subs mortes (séquentiel par user pour cohérence miroir) ───
+  for (const [userId, endpoints] of cleanupByUser) {
+    for (const endpoint of endpoints) {
+      try {
+        await deleteDeadSubscription(userId, endpoint);
+      } catch (e) {
+        console.error("[send] cleanup failed", userId, endpoint, e);
+      }
+    }
   }
 
-  // Insert all log rows in one batch
+  // ─── Mise à jour last_success_at pour les subs OK ───
+  if (successSubIds.length > 0) {
+    await supabaseAdmin
+      .from("push_subscriptions")
+      .update({
+        last_success_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+        consecutive_failures: 0,
+      })
+      .in("id", successSubIds);
+  }
+
+  // ─── Insert logs en batch ───
   if (logRows.length > 0) {
     await supabaseAdmin.from("notification_logs").insert(logRows);
   }
@@ -235,8 +309,6 @@ export async function POST(request: Request) {
 
   // ═════════════════════════════════════════════════════════════
   // TELEGRAM (canal public Tipster — uniquement pour category="tipster")
-  // Pour category="abonnes", c'est tipster-notifications.ts qui s'occupe
-  // de publier sur le canal public Pronos Abonnés.
   // ═════════════════════════════════════════════════════════════
   let telegramSent = false;
   if (
@@ -284,6 +356,7 @@ export async function POST(request: Request) {
     pushCleaned,
     emailSent,
     telegramSent,
-    totalPushTargets: pushUsers.length,
+    totalPushTargets: pushSubs.length,
+    totalEligibleUsers: eligibleUserIds.length,
   });
 }
