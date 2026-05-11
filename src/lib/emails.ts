@@ -108,6 +108,36 @@ const T: Record<Locale, Record<string, string>> = {
     tipster_pick_bookmaker: "🏦 <strong>Bookmaker :</strong> {bookmaker}",
     tipster_pick_btn: "Voir le pronostic →",
     tipster_pick_footer: "Tu reçois cet email car tu es abonné aux notifications Pronos Abonnés. Gère tes préférences dans ton espace personnel.",
+    // 11. Concours gagnant semaine
+    concours_week_subject: "🏆 Félicitations ! Tu as gagné le concours de la semaine",
+    concours_week_preheader: "Tu remportes {prize}€ — Concours hebdo PRONOS.CLUB",
+    concours_week_title: "🏆 Félicitations {name} !",
+    concours_week_intro: "Tu es le meilleur tipster de la semaine à PRONOS.CLUB",
+    concours_week_period: "Semaine du {start} au {end}",
+    concours_week_prize_label: "Ton gain",
+    concours_week_units_label: "Total U",
+    concours_week_picks_label: "Pronos",
+    concours_week_paypal_warning_title: "⚠️ Email PayPal requis",
+    concours_week_paypal_warning_text: "Pour recevoir ton gain, ajoute ton email PayPal dans ton profil.",
+    concours_week_paypal_warning_btn: "⚡ Configurer mon PayPal",
+    concours_week_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> dans les 48h.",
+    concours_week_cta: "Voir le concours →",
+    concours_week_footer: "PRONOS.CLUB · Continue comme ça 🚀",
+    // 12. Concours gagnant mois
+    concours_month_subject: "👑 Tu es le tipster du mois à PRONOS.CLUB !",
+    concours_month_preheader: "Tu remportes {prize}€ — Concours mensuel PRONOS.CLUB",
+    concours_month_title: "👑 Tipster du mois !",
+    concours_month_intro: "Bravo {name}, tu domines le classement mensuel à PRONOS.CLUB",
+    concours_month_period: "Mois de {month}",
+    concours_month_prize_label: "Ton gain",
+    concours_month_units_label: "Total U",
+    concours_month_picks_label: "Pronos",
+    concours_month_paypal_warning_title: "⚠️ Email PayPal requis",
+    concours_month_paypal_warning_text: "Pour recevoir ton gain, ajoute ton email PayPal dans ton profil.",
+    concours_month_paypal_warning_btn: "⚡ Configurer mon PayPal",
+    concours_month_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> dans les 48h.",
+    concours_month_cta: "🏆 Voir le concours →",
+    concours_month_footer: "PRONOS.CLUB · Le champion du mois 👑",
   },
   en: {
     footer_brand: "PRONOS.CLUB — Professional sports predictions",
@@ -191,6 +221,36 @@ const T: Record<Locale, Record<string, string>> = {
     tipster_pick_bookmaker: "🏦 <strong>Bookmaker:</strong> {bookmaker}",
     tipster_pick_btn: "View the pick →",
     tipster_pick_footer: "You receive this email because you subscribed to Pronos Abonnés notifications. Manage your preferences in your personal space.",
+    // 11. Contest winner week
+    concours_week_subject: "🏆 Congrats! You won the weekly contest",
+    concours_week_preheader: "You win €{prize} — Weekly contest PRONOS.CLUB",
+    concours_week_title: "🏆 Congratulations {name}!",
+    concours_week_intro: "You are the best tipster of the week at PRONOS.CLUB",
+    concours_week_period: "Week of {start} to {end}",
+    concours_week_prize_label: "Your prize",
+    concours_week_units_label: "Total U",
+    concours_week_picks_label: "Picks",
+    concours_week_paypal_warning_title: "⚠️ PayPal email required",
+    concours_week_paypal_warning_text: "To receive your prize, add your PayPal email in your profile.",
+    concours_week_paypal_warning_btn: "⚡ Configure my PayPal",
+    concours_week_paypal_ok: "Your prize will be sent to <strong>{email}</strong> within 48h.",
+    concours_week_cta: "View the contest →",
+    concours_week_footer: "PRONOS.CLUB · Keep it up 🚀",
+    // 12. Contest winner month
+    concours_month_subject: "👑 You are the tipster of the month at PRONOS.CLUB!",
+    concours_month_preheader: "You win €{prize} — Monthly contest PRONOS.CLUB",
+    concours_month_title: "👑 Tipster of the month!",
+    concours_month_intro: "Bravo {name}, you dominate the monthly ranking at PRONOS.CLUB",
+    concours_month_period: "Month of {month}",
+    concours_month_prize_label: "Your prize",
+    concours_month_units_label: "Total U",
+    concours_month_picks_label: "Picks",
+    concours_month_paypal_warning_title: "⚠️ PayPal email required",
+    concours_month_paypal_warning_text: "To receive your prize, add your PayPal email in your profile.",
+    concours_month_paypal_warning_btn: "⚡ Configure my PayPal",
+    concours_month_paypal_ok: "Your prize will be sent to <strong>{email}</strong> within 48h.",
+    concours_month_cta: "🏆 View the contest →",
+    concours_month_footer: "PRONOS.CLUB · Champion of the month 👑",
   },
   es: {
     footer_brand: "PRONOS.CLUB — Pronósticos deportivos profesionales",
@@ -274,6 +334,36 @@ const T: Record<Locale, Record<string, string>> = {
     tipster_pick_bookmaker: "🏦 <strong>Casa de apuestas:</strong> {bookmaker}",
     tipster_pick_btn: "Ver el pronóstico →",
     tipster_pick_footer: "Recibes este email porque estás suscrito a las notificaciones Pronos Abonnés. Gestiona tus preferencias en tu espacio personal.",
+    // 11. Concurso ganador semana
+    concours_week_subject: "🏆 ¡Felicidades! Has ganado el concurso de la semana",
+    concours_week_preheader: "Ganas {prize}€ — Concurso semanal PRONOS.CLUB",
+    concours_week_title: "🏆 ¡Felicidades {name}!",
+    concours_week_intro: "Eres el mejor tipster de la semana en PRONOS.CLUB",
+    concours_week_period: "Semana del {start} al {end}",
+    concours_week_prize_label: "Tu premio",
+    concours_week_units_label: "Total U",
+    concours_week_picks_label: "Pronos",
+    concours_week_paypal_warning_title: "⚠️ Email PayPal requerido",
+    concours_week_paypal_warning_text: "Para recibir tu premio, añade tu email PayPal en tu perfil.",
+    concours_week_paypal_warning_btn: "⚡ Configurar mi PayPal",
+    concours_week_paypal_ok: "Tu premio será enviado a <strong>{email}</strong> en 48h.",
+    concours_week_cta: "Ver el concurso →",
+    concours_week_footer: "PRONOS.CLUB · ¡Sigue así! 🚀",
+    // 12. Concurso ganador mes
+    concours_month_subject: "👑 ¡Eres el tipster del mes en PRONOS.CLUB!",
+    concours_month_preheader: "Ganas {prize}€ — Concurso mensual PRONOS.CLUB",
+    concours_month_title: "👑 ¡Tipster del mes!",
+    concours_month_intro: "Bravo {name}, dominas el ranking mensual en PRONOS.CLUB",
+    concours_month_period: "Mes de {month}",
+    concours_month_prize_label: "Tu premio",
+    concours_month_units_label: "Total U",
+    concours_month_picks_label: "Pronos",
+    concours_month_paypal_warning_title: "⚠️ Email PayPal requerido",
+    concours_month_paypal_warning_text: "Para recibir tu premio, añade tu email PayPal en tu perfil.",
+    concours_month_paypal_warning_btn: "⚡ Configurar mi PayPal",
+    concours_month_paypal_ok: "Tu premio será enviado a <strong>{email}</strong> en 48h.",
+    concours_month_cta: "🏆 Ver el concurso →",
+    concours_month_footer: "PRONOS.CLUB · Campeón del mes 👑",
   },
 };
 
@@ -545,4 +635,137 @@ export async function sendTipsterNewPickEmail(
     <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 24px; line-height: 1.6;">${t(locale, "tipster_pick_footer")}</p>
   `, t(locale, "tipster_pick_preheader", { pseudo: data.pseudo }), locale);
   return sendEmail(email, t(locale, "tipster_pick_subject", { pseudo: data.pseudo }), html);
+}
+
+// ═══════════════════════════════════════════════
+// 11. CONCOURS GAGNANT SEMAINE
+// ═══════════════════════════════════════════════
+
+export async function sendConcoursWeekWinnerEmail(
+  email: string,
+  locale: Locale = "fr",
+  data: {
+    pseudo: string;
+    prize: number;
+    totalUnits: number;
+    totalPicks: number;
+    weekStart: string;  // ISO ou date FR pré-formattée
+    weekEnd: string;
+    paypalEmail: string | null;
+  }
+) {
+  // Format dates en locale
+  const startStr = new Date(data.weekStart).toLocaleDateString(
+    locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "en-GB",
+    { day: "numeric", month: "long" }
+  );
+  const endStr = new Date(data.weekEnd).toLocaleDateString(
+    locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "en-GB",
+    { day: "numeric", month: "long", year: "numeric" }
+  );
+
+  const paypalBlock = !data.paypalEmail ? `
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 6px; font-size: 14px; font-weight: 700; color: #92400e;">${t(locale, "concours_week_paypal_warning_title")}</p>
+      <p style="margin: 0 0 10px; font-size: 13px; color: #78350f; line-height: 1.5;">${t(locale, "concours_week_paypal_warning_text")}</p>
+      <a href="${localeUrl(locale, "espace/profil")}" style="display: inline-block; background: #f59e0b; color: #fff; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 12px;">${t(locale, "concours_week_paypal_warning_btn")}</a>
+    </div>
+  ` : `
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0; font-size: 13px; color: #166534; line-height: 1.5;">${t(locale, "concours_week_paypal_ok", { email: data.paypalEmail })}</p>
+    </div>
+  `;
+
+  const html = emailWrapper(`
+    <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "concours_week_title", { name: data.pseudo })}</h2>
+    <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">${t(locale, "concours_week_intro")}</p>
+
+    <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_week_period", { start: startStr, end: endStr })}</p>
+
+      <div style="display: inline-block; background: linear-gradient(135deg, #d1fae5, #6ee7b7); border-radius: 12px; padding: 16px 32px; margin-top: 12px;">
+        <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #065f46;">${t(locale, "concours_week_prize_label")}</p>
+        <p style="margin: 0; font-size: 36px; font-weight: 900; color: #047857;">${data.prize} €</p>
+      </div>
+
+      <div style="display: flex; justify-content: space-around; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #d1d5db;">
+        <div>
+          <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_week_units_label")}</p>
+          <p style="margin: 4px 0 0; font-size: 18px; font-weight: 800; color: #059669;">+${data.totalUnits.toFixed(2)}</p>
+        </div>
+        <div>
+          <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_week_picks_label")}</p>
+          <p style="margin: 4px 0 0; font-size: 18px; font-weight: 800; color: #111;">${data.totalPicks}</p>
+        </div>
+      </div>
+    </div>
+
+    ${paypalBlock}
+    ${greenButton(t(locale, "concours_week_cta"), localeUrl(locale, "pronos-abonnes/classement"))}
+    <p style="text-align: center; color: #bbb; font-size: 11px; margin-top: 24px;">${t(locale, "concours_week_footer")}</p>
+  `, t(locale, "concours_week_preheader", { prize: data.prize }), locale);
+
+  return sendEmail(email, t(locale, "concours_week_subject"), html);
+}
+
+// ═══════════════════════════════════════════════
+// 12. CONCOURS GAGNANT MOIS
+// ═══════════════════════════════════════════════
+
+export async function sendConcoursMonthWinnerEmail(
+  email: string,
+  locale: Locale = "fr",
+  data: {
+    pseudo: string;
+    prize: number;
+    totalUnits: number;
+    totalPicks: number;
+    monthLabel: string;  // ex: "mai 2026", "May 2026", "mayo 2026"
+    paypalEmail: string | null;
+  }
+) {
+  const paypalBlock = !data.paypalEmail ? `
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 6px; font-size: 14px; font-weight: 700; color: #92400e;">${t(locale, "concours_month_paypal_warning_title")}</p>
+      <p style="margin: 0 0 10px; font-size: 13px; color: #78350f; line-height: 1.5;">${t(locale, "concours_month_paypal_warning_text")}</p>
+      <a href="${localeUrl(locale, "espace/profil")}" style="display: inline-block; background: #f59e0b; color: #fff; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 12px;">${t(locale, "concours_month_paypal_warning_btn")}</a>
+    </div>
+  ` : `
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0; font-size: 13px; color: #166534; line-height: 1.5;">${t(locale, "concours_month_paypal_ok", { email: data.paypalEmail })}</p>
+    </div>
+  `;
+
+  const html = emailWrapper(`
+    <h2 style="text-align: center; color: #111; font-size: 24px; font-weight: 800; margin: 0 0 10px;">${t(locale, "concours_month_title")}</h2>
+    <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">${t(locale, "concours_month_intro", { name: data.pseudo })}</p>
+
+    <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_month_period", { month: data.monthLabel })}</p>
+
+      <div style="display: inline-block; background: linear-gradient(135deg, #fde68a, #fcd34d); border-radius: 12px; padding: 20px 40px; margin-top: 12px;">
+        <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #92400e;">${t(locale, "concours_month_prize_label")}</p>
+        <p style="margin: 0; font-size: 48px; font-weight: 900; color: #b45309;">${data.prize} €</p>
+      </div>
+
+      <div style="display: flex; justify-content: space-around; margin-top: 24px; padding-top: 16px; border-top: 1px dashed #d1d5db;">
+        <div>
+          <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_month_units_label")}</p>
+          <p style="margin: 4px 0 0; font-size: 20px; font-weight: 800; color: #059669;">+${data.totalUnits.toFixed(2)}</p>
+        </div>
+        <div>
+          <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_month_picks_label")}</p>
+          <p style="margin: 4px 0 0; font-size: 20px; font-weight: 800; color: #111;">${data.totalPicks}</p>
+        </div>
+      </div>
+    </div>
+
+    ${paypalBlock}
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${localeUrl(locale, "pronos-abonnes/classement")}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; padding: 16px 40px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; box-shadow: 0 4px 14px rgba(245,158,11,0.3);">${t(locale, "concours_month_cta")}</a>
+    </div>
+    <p style="text-align: center; color: #bbb; font-size: 11px; margin-top: 24px;">${t(locale, "concours_month_footer")}</p>
+  `, t(locale, "concours_month_preheader", { prize: data.prize }), locale);
+
+  return sendEmail(email, t(locale, "concours_month_subject"), html);
 }

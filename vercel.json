@@ -57,14 +57,6 @@
       "schedule": "0 20 1 * *"
     },
     {
-      "path": "/api/cron/tipster-concours-week",
-      "schedule": "15 0 * * 1"
-    },
-    {
-      "path": "/api/cron/tipster-concours-month",
-      "schedule": "30 0 1 * *"
-    },
-    {
       "path": "/api/cron/over-05-buts-equipes-detect",
       "schedule": "0 5 * * *"
     },
