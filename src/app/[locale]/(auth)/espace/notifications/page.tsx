@@ -30,6 +30,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PushToggle from "@/components/notifications/PushToggle";
+import DevicesList from "@/components/notifications/DevicesList";
 import EspaceHero from "@/components/layout/EspaceHero";
 import TipsterNotifSection from "@/components/tipster/TipsterNotifSection";
 import { useTranslations } from "next-intl";
@@ -180,15 +181,16 @@ export default function NotificationsPage() {
           {/* ════════════════════════════════════════════════════════ */}
           {/* SECTION 1 — Activation push globale */}
           {/* ════════════════════════════════════════════════════════ */}
-          <SectionContainer
-            title="Activation des notifications push"
-            subtitle="Active une seule fois sur ton appareil — tu choisis ensuite finement quelles notifs recevoir dans chaque section ci-dessous."
-            color="emerald"
-          >
-            <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100/50 p-4">
-              <PushToggle />
-            </div>
-          </SectionContainer>
+  <SectionContainer
+    title="Activation des notifications push"
+    subtitle="Active une seule fois sur ton appareil — tu choisis ensuite finement quelles notifs recevoir dans chaque section ci-dessous."
+    color="emerald"
+  >
+    <div className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100/50 p-4">
+      <PushToggle />
+      <DevicesList />
+    </div>
+  </SectionContainer>
 
 
           {/* ════════════════════════════════════════════════════════ */}
