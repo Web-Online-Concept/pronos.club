@@ -385,7 +385,7 @@ export const aggregateBilanJour = async (
     .is("deleted_at", null)
     .gte("event_date", dayStartIso)
     .lt("event_date", dayEndIso)
-    .order("event_date", { ascending: true });
+    .order("classic_number", { ascending: true });
 
   if (fetchError) {
     console.error(`[bilan-jour] fetch error: ${fetchError.message}`);
