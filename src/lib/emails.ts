@@ -1,19 +1,19 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * Emails Brevo (V2 — logging email_logs — 11/05/2026)
+ * Emails Brevo (V3 — retry inline + queue — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
- * V2 (11/05/2026) :
- *   - Le helper sendEmail() écrit désormais dans la table email_logs
- *     à chaque appel (status='sent' ou 'failed', avec error et
- *     brevo_message_id). Avant : aucune trace en base.
- *   - Chaque fonction exportée accepte un param optionnel `userId`
- *     à la fin (rétrocompat : appelants existants continuent de marcher,
- *     juste le user_id du log sera NULL pour eux).
- *   - Chaque fonction passe sa category fixe à sendEmail pour
- *     traçabilité fine (welcome, new_pick_tipster, bilan, etc.).
- *   - Phase C (à venir) : webhook Brevo qui mettra à jour le status
- *     en delivered/hard_bounce/soft_bounce/spam/unsubscribed.
+ * V3 (11/05/2026) — Retry deux niveaux :
+ *   - Niveau 1 INLINE : sendEmail retry 3x avec backoff 2s/4s sur erreur
+ *     transitoire (timeout, ECONNRESET, code SMTP 4xx, Brevo 5xx).
+ *   - Niveau 2 QUEUE  : si les 3 tentatives échouent, on enqueue dans
+ *     email_retry_queue. Un cron toutes les 15min dépile avec backoff
+ *     exponentiel (15min, 1h, 6h). Au-delà → abandon définitif.
+ *   - Distinction transitoire vs définitif : seules les erreurs
+ *     transitoires déclenchent le retry. Les erreurs définitives
+ *     (5xx SMTP, email invalide) → status='failed' direct sans retry.
+ *
+ * V2 (11/05/2026) — Logging email_logs automatique.
  *
  * Path : src/lib/emails.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // ═══════════════════════════════════════════════
-// I18N — all email texts by locale
+// I18N
 // ═══════════════════════════════════════════════
 
 type Locale = "fr" | "en" | "es";
@@ -41,7 +41,6 @@ const T: Record<Locale, Record<string, string>> = {
   fr: {
     footer_brand: "PRONOS.CLUB — Pronostics sportifs professionnels",
     footer_warning: "Les paris sportifs comportent des risques. Jouez responsablement. 18+",
-    // 1. Welcome
     welcome_subject: "Bienvenue sur PRONOS.CLUB",
     welcome_preheader: "Bienvenue sur PRONOS.CLUB — Votre compte est créé",
     welcome_title: "Bienvenue {name} !",
@@ -51,7 +50,6 @@ const T: Record<Locale, Record<string, string>> = {
     welcome_cta_text: "activez les notifications pour être prévenu à chaque nouveau pronostic.",
     welcome_btn: "Accéder à mon espace →",
     welcome_footer: "Pensez à installer l'application sur votre téléphone pour une expérience optimale.",
-    // 2. Welcome Premium
     premium_subject: "Bienvenue en Premium — PRONOS.CLUB",
     premium_preheader: "Votre abonnement Premium est activé — Bienvenue !",
     premium_title: "Bienvenue en Premium, {name} !",
@@ -63,7 +61,6 @@ const T: Record<Locale, Record<string, string>> = {
     premium_tg_expire: "Lien personnel et à usage unique — expire dans 48h",
     premium_btn: "Voir les pronostics →",
     premium_tg_note: "L'accès au groupe Telegram est lié à votre abonnement.<br>En cas de résiliation, vous serez automatiquement retiré du groupe.",
-    // 3. New pick
     pick_subject: "Nouveau pronostic disponible{sport} — PRONOS.CLUB",
     pick_preheader: "Nouveau pronostic{sport} disponible sur PRONOS.CLUB",
     pick_title: "Nouveau pronostic publié",
@@ -72,7 +69,6 @@ const T: Record<Locale, Record<string, string>> = {
     pick_desc: "Connectez-vous pour consulter la sélection et le ticket du tipster.",
     pick_btn: "Voir le pronostic →",
     pick_footer: "Pour modifier vos préférences de notification, rendez-vous dans votre espace personnel.",
-    // 4. Cancellation
     cancel_subject: "Confirmation de résiliation — PRONOS.CLUB",
     cancel_preheader: "Votre résiliation a été confirmée",
     cancel_title: "Résiliation confirmée",
@@ -82,7 +78,6 @@ const T: Record<Locale, Record<string, string>> = {
     cancel_tg: "<strong>Note :</strong> l'accès au groupe Telegram Premium sera retiré à la fin de votre période d'abonnement.",
     cancel_reabo: "Vous pouvez vous réabonner à tout moment.",
     cancel_btn: "Accéder à mon espace →",
-    // 5. Winback J+7
     wb7_subject: "{name}, on ne vous oublie pas — PRONOS.CLUB",
     wb7_preheader: "Vos statistiques et votre historique vous attendent",
     wb7_title: "{name}, vos stats sont toujours là",
@@ -90,7 +85,6 @@ const T: Record<Locale, Record<string, string>> = {
     wb7_info: "Depuis votre départ, de nouveaux pronostics ont été publiés.<br>Revenez jeter un œil aux résultats — tout est transparent et vérifiable.",
     wb7_btn: "Voir les derniers résultats →",
     wb7_footer: "Vous pouvez vous réabonner à tout moment depuis votre espace personnel.",
-    // 6. Winback J+30
     wb30_subject: "{profit}U ce mois sur PRONOS.CLUB — {name}",
     wb30_preheader: "{profit}U ce mois — voici ce que vous avez manqué",
     wb30_title: "Le mois dernier sur PRONOS.CLUB",
@@ -98,7 +92,6 @@ const T: Record<Locale, Record<string, string>> = {
     wb30_picks: "picks publiés",
     wb30_btn: "Revenir sur PRONOS.CLUB →",
     wb30_footer: "20€/mois · Sans engagement · Résiliable en 1 clic",
-    // 7. Premium expiring
     expire_subject: "Votre accès Premium se termine demain — PRONOS.CLUB",
     expire_preheader: "Votre accès Premium expire demain",
     expire_title: "Votre accès Premium se termine demain",
@@ -106,7 +99,6 @@ const T: Record<Locale, Record<string, string>> = {
     expire_after: "Après cette date :<br>• Vous n'aurez plus accès aux pronostics Premium<br>• Votre accès au groupe Telegram sera retiré<br>• Votre compte repassera en version gratuite<br>• Vos données seront conservées",
     expire_cta: "Pour continuer à profiter de tous nos pronostics, souscrivez à l'abonnement Premium.",
     expire_btn: "S'abonner — 20€/mois →",
-    // 8. Inactivity
     inactive_subject: "{name}, de nouveaux pronos vous attendent — PRONOS.CLUB",
     inactive_preheader: "De nouveaux pronostics vous attendent sur PRONOS.CLUB",
     inactive_title: "{name}, tout va bien ?",
@@ -114,13 +106,11 @@ const T: Record<Locale, Record<string, string>> = {
     inactive_info: "<strong>Pensez à :</strong><br>• Activer les notifications push ou email<br>• Installer l'application sur votre téléphone<br>• Configurer votre bankroll pour un suivi personnalisé",
     inactive_btn: "Revenir sur PRONOS.CLUB →",
     inactive_footer: "Pour ne plus recevoir ces rappels, désactivez les emails dans vos notifications.",
-    // 9. Bilan
     bilan_subject: "Bilan {month} publié — PRONOS.CLUB",
     bilan_preheader: "Bilan {month} disponible — PRONOS.CLUB",
     bilan_title: "Bilan {month}",
     bilan_intro: "Bonjour {name}, le bilan du mois est disponible !",
     bilan_btn: "Lire le bilan complet →",
-    // 10. Nouveau pick tipster abonné
     tipster_pick_subject: "🎯 Nouveau prono de {pseudo}",
     tipster_pick_preheader: "{pseudo} vient de poster un nouveau pronostic",
     tipster_pick_title: "Nouveau pronostic !",
@@ -130,7 +120,6 @@ const T: Record<Locale, Record<string, string>> = {
     tipster_pick_bookmaker: "🏦 <strong>Bookmaker :</strong> {bookmaker}",
     tipster_pick_btn: "Voir le pronostic →",
     tipster_pick_footer: "Tu reçois cet email car tu es abonné aux notifications Pronos Abonnés. Gère tes préférences dans ton espace personnel.",
-    // 11. Concours gagnant semaine
     concours_week_subject: "🏆 Félicitations ! Tu as gagné le concours de la semaine",
     concours_week_preheader: "Tu remportes {prize}€ — Concours hebdo PRONOS.CLUB",
     concours_week_title: "🏆 Félicitations {name} !",
@@ -145,7 +134,6 @@ const T: Record<Locale, Record<string, string>> = {
     concours_week_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> sous 48h.",
     concours_week_cta: "Voir le concours →",
     concours_week_footer: "PRONOS.CLUB · Continue comme ça ! 🚀",
-    // 12. Concours gagnant mois
     concours_month_subject: "👑 Tu es le tipster du mois sur PRONOS.CLUB !",
     concours_month_preheader: "Tu remportes {prize}€ — Concours mensuel PRONOS.CLUB",
     concours_month_title: "👑 Tipster du mois !",
@@ -430,7 +418,48 @@ function infoBox(content: string, color: "green" | "amber" | "blue" = "green") {
 }
 
 // ═══════════════════════════════════════════════
-// V2 — Helper sendEmail avec logging email_logs
+// V3 — Détection erreur transitoire vs définitive
+// ═══════════════════════════════════════════════
+
+function isTransientError(err: unknown): boolean {
+  if (!err) return false;
+
+  const e = err as { code?: string; responseCode?: number; message?: string };
+
+  // Erreurs réseau classiques
+  if (e.code) {
+    const transientCodes = [
+      "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "ENOTFOUND",
+      "ESOCKET", "EAI_AGAIN", "EPIPE", "ECONNABORTED",
+    ];
+    if (transientCodes.includes(e.code)) return true;
+  }
+
+  // SMTP response codes 4xx = transitoire
+  if (typeof e.responseCode === "number") {
+    if (e.responseCode >= 400 && e.responseCode < 500) return true;
+    // 5xx Brevo (rare mais possible : 500, 502, 503, 504)
+    if ([500, 502, 503, 504].includes(e.responseCode)) return true;
+  }
+
+  // Message contient timeout / temporarily / try again
+  if (e.message) {
+    const msg = e.message.toLowerCase();
+    if (msg.includes("timeout") || msg.includes("timed out")) return true;
+    if (msg.includes("temporar")) return true;
+    if (msg.includes("try again")) return true;
+    if (msg.includes("rate limit")) return true;
+  }
+
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ═══════════════════════════════════════════════
+// V3 — Helper sendEmail avec retry inline + enqueue
 // ═══════════════════════════════════════════════
 
 type SendEmailMeta = {
@@ -446,43 +475,144 @@ async function sendEmail(
   meta?: SendEmailMeta
 ): Promise<boolean> {
   const sentAt = new Date().toISOString();
-  let success = false;
-  let errorMsg: string | null = null;
-  let messageId: string | null = null;
+  const category = meta?.category ?? "unknown";
+  const userId = meta?.userId ?? null;
+  const locale = meta?.locale ?? null;
 
-  try {
-    const info = await transporter.sendMail({
-      from: '"PRONOS.CLUB" <noreply@pronos.club>',
-      replyTo: '"PRONOS.CLUB" <contact@pronos.club>',
-      to,
-      subject,
-      html,
-    });
-    success = true;
-    messageId = (info as { messageId?: string }).messageId ?? null;
-  } catch (err) {
-    errorMsg = err instanceof Error ? err.message : String(err);
-    console.error("Email send error:", err);
+  let success = false;
+  let lastError: string | null = null;
+  let messageId: string | null = null;
+  let lastWasTransient = false;
+  const MAX_ATTEMPTS = 3;
+
+  // ─── Niveau 1 : retry inline 3x avec backoff 2s, 4s ───
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const info = await transporter.sendMail({
+        from: '"PRONOS.CLUB" <noreply@pronos.club>',
+        replyTo: '"PRONOS.CLUB" <contact@pronos.club>',
+        to,
+        subject,
+        html,
+      });
+      success = true;
+      messageId = (info as { messageId?: string }).messageId ?? null;
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      lastWasTransient = isTransientError(err);
+      console.error(`[sendEmail] attempt ${attempt}/${MAX_ATTEMPTS} failed`, {
+        category, to, transient: lastWasTransient, err: lastError,
+      });
+
+      // Pas de retry si dernier essai OU erreur définitive
+      if (attempt === MAX_ATTEMPTS || !lastWasTransient) break;
+
+      // Backoff : 2s, 4s
+      await sleep(attempt * 2000);
+    }
   }
 
-  // V2 — Log toujours (best-effort). Une erreur de log ne doit pas masquer l'envoi.
+  // ─── Log dans email_logs (sent ou failed) ───
   try {
     await supabaseAdmin.from("email_logs").insert({
-      user_id: meta?.userId ?? null,
+      user_id: userId,
       email: to,
-      category: meta?.category ?? "unknown",
+      category,
       subject: subject ? subject.slice(0, 500) : null,
-      locale: meta?.locale ?? null,
+      locale,
       status: success ? "sent" : "failed",
-      error: errorMsg ? errorMsg.slice(0, 500) : null,
+      error: lastError ? lastError.slice(0, 500) : null,
       brevo_message_id: messageId ? messageId.slice(0, 500) : null,
       sent_at: sentAt,
     });
   } catch (logErr) {
-    console.error("Email log insert failed:", logErr);
+    console.error("[sendEmail] email_logs insert failed", logErr);
+  }
+
+  // ─── Niveau 2 : enqueue si échec ET erreur transitoire ───
+  // (les erreurs définitives — email invalide, 5xx SMTP — ne sont pas retry,
+  // le webhook Brevo s'occupera du cleanup via hard_bounce)
+  if (!success && lastWasTransient) {
+    try {
+      const nextRetry = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // T+15min
+      await supabaseAdmin.from("email_retry_queue").insert({
+        user_id: userId,
+        email: to,
+        subject,
+        html,
+        category,
+        locale,
+        attempts: 0,
+        last_error: lastError ? lastError.slice(0, 500) : null,
+        next_retry_at: nextRetry,
+      });
+      console.log("[sendEmail] enqueued for retry", { category, to });
+    } catch (queueErr) {
+      console.error("[sendEmail] email_retry_queue insert failed", queueErr);
+    }
   }
 
   return success;
+}
+
+// ═══════════════════════════════════════════════
+// V3 — Helper exporté pour le cron retry
+// (réutilise la même logique mais sans re-enqueue)
+// ═══════════════════════════════════════════════
+
+export async function sendEmailFromQueue(
+  to: string,
+  subject: string,
+  html: string,
+  meta: SendEmailMeta
+): Promise<{ success: boolean; transient: boolean; error: string | null; messageId: string | null }> {
+  let success = false;
+  let lastError: string | null = null;
+  let messageId: string | null = null;
+  let lastWasTransient = false;
+  const MAX_ATTEMPTS = 3;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const info = await transporter.sendMail({
+        from: '"PRONOS.CLUB" <noreply@pronos.club>',
+        replyTo: '"PRONOS.CLUB" <contact@pronos.club>',
+        to,
+        subject,
+        html,
+      });
+      success = true;
+      messageId = (info as { messageId?: string }).messageId ?? null;
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      lastWasTransient = isTransientError(err);
+      if (attempt === MAX_ATTEMPTS || !lastWasTransient) break;
+      await sleep(attempt * 2000);
+    }
+  }
+
+  // Logger dans email_logs aussi pour les retries depuis la queue
+  try {
+    await supabaseAdmin.from("email_logs").insert({
+      user_id: meta.userId ?? null,
+      email: to,
+      category: (meta.category ?? "unknown") + (success ? "_retry_ok" : "_retry_fail"),
+      subject: subject ? subject.slice(0, 500) : null,
+      locale: meta.locale ?? null,
+      status: success ? "sent" : "failed",
+      error: lastError ? lastError.slice(0, 500) : null,
+      brevo_message_id: messageId ? messageId.slice(0, 500) : null,
+      sent_at: new Date().toISOString(),
+    });
+  } catch (logErr) {
+    console.error("[sendEmailFromQueue] log failed", logErr);
+  }
+
+  return { success, transient: lastWasTransient, error: lastError, messageId };
 }
 
 // ═══════════════════════════════════════════════
@@ -681,12 +811,7 @@ export async function sendBilanEmail(email: string, displayName: string, locale:
 export async function sendTipsterNewPickEmail(
   email: string,
   locale: Locale = "fr",
-  data: {
-    pseudo: string;
-    matchDate: string;
-    sport: string;
-    bookmaker: string;
-  },
+  data: { pseudo: string; matchDate: string; sport: string; bookmaker: string },
   userId?: string
 ) {
   const html = emailWrapper(`
@@ -710,15 +835,7 @@ export async function sendTipsterNewPickEmail(
 export async function sendConcoursWeekWinnerEmail(
   email: string,
   locale: Locale = "fr",
-  data: {
-    pseudo: string;
-    prize: number;
-    totalUnits: number;
-    totalPicks: number;
-    weekStart: string;
-    weekEnd: string;
-    paypalEmail: string | null;
-  },
+  data: { pseudo: string; prize: number; totalUnits: number; totalPicks: number; weekStart: string; weekEnd: string; paypalEmail: string | null },
   userId?: string
 ) {
   const startStr = new Date(data.weekStart).toLocaleDateString(
@@ -745,15 +862,12 @@ export async function sendConcoursWeekWinnerEmail(
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "concours_week_title", { name: data.pseudo })}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">${t(locale, "concours_week_intro")}</p>
-
     <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
       <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_week_period", { start: startStr, end: endStr })}</p>
-
       <div style="display: inline-block; background: linear-gradient(135deg, #d1fae5, #6ee7b7); border-radius: 12px; padding: 16px 32px; margin-top: 12px;">
         <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #065f46;">${t(locale, "concours_week_prize_label")}</p>
         <p style="margin: 0; font-size: 36px; font-weight: 900; color: #047857;">${data.prize} €</p>
       </div>
-
       <div style="display: flex; justify-content: space-around; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #d1d5db;">
         <div>
           <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_week_units_label")}</p>
@@ -765,7 +879,6 @@ export async function sendConcoursWeekWinnerEmail(
         </div>
       </div>
     </div>
-
     ${paypalBlock}
     ${greenButton(t(locale, "concours_week_cta"), localeUrl(locale, "pronos-abonnes/classement"))}
     <p style="text-align: center; color: #bbb; font-size: 11px; margin-top: 24px;">${t(locale, "concours_week_footer")}</p>
@@ -781,14 +894,7 @@ export async function sendConcoursWeekWinnerEmail(
 export async function sendConcoursMonthWinnerEmail(
   email: string,
   locale: Locale = "fr",
-  data: {
-    pseudo: string;
-    prize: number;
-    totalUnits: number;
-    totalPicks: number;
-    monthLabel: string;
-    paypalEmail: string | null;
-  },
+  data: { pseudo: string; prize: number; totalUnits: number; totalPicks: number; monthLabel: string; paypalEmail: string | null },
   userId?: string
 ) {
   const paypalBlock = !data.paypalEmail ? `
@@ -806,15 +912,12 @@ export async function sendConcoursMonthWinnerEmail(
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 24px; font-weight: 800; margin: 0 0 10px;">${t(locale, "concours_month_title")}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 25px;">${t(locale, "concours_month_intro", { name: data.pseudo })}</p>
-
     <div style="background: #f8faf9; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center;">
       <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_month_period", { month: data.monthLabel })}</p>
-
       <div style="display: inline-block; background: linear-gradient(135deg, #fde68a, #fcd34d); border-radius: 12px; padding: 20px 40px; margin-top: 12px;">
         <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #92400e;">${t(locale, "concours_month_prize_label")}</p>
         <p style="margin: 0; font-size: 48px; font-weight: 900; color: #b45309;">${data.prize} €</p>
       </div>
-
       <div style="display: flex; justify-content: space-around; margin-top: 24px; padding-top: 16px; border-top: 1px dashed #d1d5db;">
         <div>
           <p style="margin: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9ca3af;">${t(locale, "concours_month_units_label")}</p>
@@ -826,7 +929,6 @@ export async function sendConcoursMonthWinnerEmail(
         </div>
       </div>
     </div>
-
     ${paypalBlock}
     <div style="text-align: center; margin: 30px 0;">
       <a href="${localeUrl(locale, "pronos-abonnes/classement")}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; padding: 16px 40px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; box-shadow: 0 4px 14px rgba(245,158,11,0.3);">${t(locale, "concours_month_cta")}</a>

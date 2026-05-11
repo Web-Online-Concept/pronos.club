@@ -63,6 +63,8 @@
     {
       "path": "/api/cron/ai-picks-dossier",
       "schedule": "15 7 * * *"
-    }
+    },
+    { "path": "/api/cron/email-retry", 
+      "schedule": "*/15 * * * *" }
   ]
 }
