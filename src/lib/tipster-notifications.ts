@@ -1,18 +1,12 @@
 // src/lib/tipster-notifications.ts
-// Envoie les notifications aux followers quand un tipster publie un pick
-// 3 canaux : Email (Brevo) + Telegram (canal public) + Push (multi-device)
 //
-// V3.6 (11/05/2026) — Multi-device push (déjà déployé) :
-//   - Push : itère sur push_subscriptions (PC + Android PWA + iOS PWA).
-//   - Cleanup ciblé par endpoint sur 410/403/404.
-//   - Helper cleanupDeadSubscription(userId) exporté.
+// V3.8 (11/05/2026) — Nettoyage legacy :
+//   - cleanupDeadSubscription et deleteDeadSubscriptionByEndpoint
+//     ne touchent plus à users.push_subscription. La colonne est orpheline
+//     (DROP COLUMN prévu 25/05/2026).
 //
-// V3.7 (11/05/2026) — Email logging + locale dynamique :
-//   - SELECT user.locale dans les 2 queries (allModeUsers + followers).
-//   - sendTipsterNewPickEmail reçoit la locale du user (au lieu de "fr"
-//     hardcoded). Un user en mode "en" recevra l'email en anglais.
-//   - sendTipsterNewPickEmail reçoit aussi le userId → traçabilité
-//     email_logs.
+// V3.7 (11/05/2026) — Email logging + locale dynamique.
+// V3.6 (11/05/2026) — Multi-device push via push_subscriptions.
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -61,7 +55,8 @@ type PushSubscriptionRow = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// Helper : cleanup d'UNE sub morte (par endpoint)
+// V3.8 — Helper : cleanup d'UNE sub morte (par endpoint)
+// Plus de mise à jour users.push_subscription.
 // ═══════════════════════════════════════════════════════════════════
 async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string) {
   await supabaseAdmin
@@ -75,10 +70,10 @@ async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string
     .eq("user_id", userId);
 
   if ((count || 0) === 0) {
+    // Plus aucune sub → coupe les flags catégorie
     await supabaseAdmin
       .from("users")
       .update({
-        push_subscription: null,
         notify_push: false,
         notify_tipster_push: false,
         notify_abonnes_push: false,
@@ -92,33 +87,13 @@ async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", userId);
-  } else {
-    const { data: remaining } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("endpoint, p256dh, auth, expiration_time")
-      .eq("user_id", userId)
-      .order("last_seen_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (remaining) {
-      const miroirSubscription = {
-        endpoint: remaining.endpoint,
-        keys: { p256dh: remaining.p256dh, auth: remaining.auth },
-        expirationTime: remaining.expiration_time
-          ? new Date(remaining.expiration_time).getTime()
-          : null,
-      };
-      await supabaseAdmin
-        .from("users")
-        .update({ push_subscription: miroirSubscription })
-        .eq("id", userId);
-    }
   }
+  // Sinon : rien à faire. Avant on rafraîchissait users.push_subscription
+  // avec un autre device, devenu inutile.
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Helper EXPORTÉ : cleanup complet de toutes les subs d'un user
+// V3.8 — Helper EXPORTÉ : cleanup complet de toutes les subs d'un user
 // ═══════════════════════════════════════════════════════════════════
 export async function cleanupDeadSubscription(userId: string) {
   await supabaseAdmin
@@ -129,7 +104,6 @@ export async function cleanupDeadSubscription(userId: string) {
   await supabaseAdmin
     .from("users")
     .update({
-      push_subscription: null,
       notify_push: false,
       notify_tipster_push: false,
       notify_abonnes_push: false,
@@ -232,7 +206,6 @@ async function sendPushToUser(userId: string, payload: any) {
 export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   const matchDate = new Date(pick.match_date);
 
-  // Helper : formatte la date dans la locale du destinataire
   function formatDateForLocale(loc: Locale): string {
     return matchDate.toLocaleString(
       loc === "fr" ? "fr-FR" : loc === "es" ? "es-ES" : "en-GB",
@@ -263,7 +236,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 2. NOTIFS PERSONNALISEES AUX ABONNES
   // ═════════════════════════════════════
-  // V3.7 — ajout de locale au SELECT users
   const { data: allModeUsers } = await supabaseAdmin
     .from("tipster_notif_prefs")
     .select(`
@@ -373,8 +345,8 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // V3.5 (10/05/2026) : DM Telegram supprimés. Canal public conservé.
   // V3.6 (11/05/2026) : push multi-device via push_subscriptions.
   // V3.7 (11/05/2026) : email avec locale dynamique + userId pour email_logs.
+  // V3.8 (11/05/2026) : nettoyage users.push_subscription.
   for (const [, n] of toNotify) {
-    // Email via Brevo (locale du destinataire + userId pour log)
     if (n.useEmail && n.email) {
       await sendTipsterNewPickEmail(
         n.email,
@@ -389,7 +361,6 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       );
     }
 
-    // Push multi-device
     if (n.usePush) {
       await sendPushToUser(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,

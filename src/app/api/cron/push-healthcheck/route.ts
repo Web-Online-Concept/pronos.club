@@ -1,24 +1,22 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/cron/push-healthcheck (11/05/2026)
+ * /api/cron/push-healthcheck (V2 — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
+ * V2 (11/05/2026) — Nettoyage legacy :
+ *   - Plus de mise à jour de users.push_subscription. La colonne est
+ *     orpheline (DROP COLUMN prévu 25/05/2026).
+ *
  * Cron quotidien (1h UTC = 3h Paris) qui purge les push_subscriptions
- * zombies pour garder la table propre et éviter les envois inutiles.
+ * zombies.
  *
  * Critères de purge :
  *   1. consecutive_failures >= 5
- *      (5 échecs d'affilée non-410 → sub probablement cassée, on coupe)
  *   2. last_seen_at < NOW() - 6 mois
- *      (user n'a pas réutilisé son device depuis 6 mois → on suppose mort)
  *   3. last_success_at IS NULL AND created_at < NOW() - 30 jours
- *      (sub jamais utilisée avec succès depuis 30 jours → mort-né)
  *
  * Pour chaque user dont on supprime la dernière sub, on coupe aussi
- * les flags catégorie + miroir tipster_notif_prefs (comme
- * cleanupDeadSubscription).
- *
- * Auth : Bearer CRON_SECRET (standard Vercel cron).
+ * les flags catégorie + miroir tipster_notif_prefs.
  *
  * Path : src/app/api/cron/push-healthcheck/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -30,7 +28,6 @@ import { NextResponse } from "next/server";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  // Auth Vercel cron
   const authHeader = request.headers.get("authorization") || "";
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,29 +38,23 @@ export async function GET(request: Request) {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   // ─── 1. Identifier les subs à purger ───
-  // On collecte les id + user_id pour pouvoir ensuite vérifier les users
-  // dont c'était la dernière sub.
-
-  // Critère 1 : consecutive_failures >= 5
   const { data: failedSubs } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id, user_id, endpoint, platform, consecutive_failures, last_seen_at")
     .gte("consecutive_failures", 5);
 
-  // Critère 2 : last_seen_at < 6 mois
   const { data: staleSubs } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id, user_id, endpoint, platform, consecutive_failures, last_seen_at")
     .lt("last_seen_at", sixMonthsAgo);
 
-  // Critère 3 : last_success_at NULL ET created_at < 30 jours
   const { data: orphanSubs } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id, user_id, endpoint, platform, consecutive_failures, last_seen_at")
     .is("last_success_at", null)
     .lt("created_at", thirtyDaysAgo);
 
-  // Dédupe par id (un même sub peut matcher plusieurs critères)
+  // Dédupe par id
   const toDeleteMap = new Map<string, { id: string; user_id: string; endpoint: string; platform: string | null; reason: string }>();
 
   for (const s of failedSubs || []) {
@@ -99,8 +90,7 @@ export async function GET(request: Request) {
   }
 
   // ─── 3. Cleanup users sans plus aucune sub ───
-  // Pour chaque user affecté, on vérifie s'il lui reste des subs.
-  // Si non, on coupe les flags catégorie + miroir tipster_notif_prefs.
+  // V2 — Plus de maintenance users.push_subscription.
   const cleanedUsers: string[] = [];
 
   for (const userId of affectedUserIds) {
@@ -113,7 +103,6 @@ export async function GET(request: Request) {
       await supabaseAdmin
         .from("users")
         .update({
-          push_subscription: null,
           notify_push: false,
           notify_tipster_push: false,
           notify_abonnes_push: false,
@@ -129,31 +118,9 @@ export async function GET(request: Request) {
         .eq("user_id", userId);
 
       cleanedUsers.push(userId);
-    } else {
-      // Il reste des subs : rafraîchir le miroir users.push_subscription avec
-      // une autre sub vivante (rétrocompat envoyeurs)
-      const { data: remaining } = await supabaseAdmin
-        .from("push_subscriptions")
-        .select("endpoint, p256dh, auth, expiration_time")
-        .eq("user_id", userId)
-        .order("last_seen_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (remaining) {
-        const miroirSubscription = {
-          endpoint: remaining.endpoint,
-          keys: { p256dh: remaining.p256dh, auth: remaining.auth },
-          expirationTime: remaining.expiration_time
-            ? new Date(remaining.expiration_time).getTime()
-            : null,
-        };
-        await supabaseAdmin
-          .from("users")
-          .update({ push_subscription: miroirSubscription })
-          .eq("id", userId);
-      }
     }
+    // V2 — Sinon, plus rien à faire côté users (avant on rafraîchissait
+    // users.push_subscription avec un autre device, devenu inutile).
   }
 
   // ─── 4. Reporting ───
@@ -163,7 +130,6 @@ export async function GET(request: Request) {
     never_succeeded_30d: toDelete.filter((s) => s.reason === "never_succeeded_30d").length,
   };
 
-  // Log compteur dans notification_logs pour avoir une trace historique
   await supabaseAdmin.from("notification_logs").insert({
     pick_id: null,
     user_id: null,

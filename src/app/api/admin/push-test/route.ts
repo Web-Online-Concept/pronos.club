@@ -1,11 +1,11 @@
 // src/app/api/admin/push-test/route.ts
-// Route admin pour envoyer une notification push test à un user spécifique
-// Usage: POST /api/admin/push-test avec body { userId: "xxx" } ou { email: "xxx" }
 //
-// V3.6 (11/05/2026) — Multi-device :
-//   - Envoie la notif test sur TOUS les devices du user (PC + mobile PWA).
-//   - Retourne le détail par device (sent/failed + cleanup auto sur 410).
-//   - Si aucune sub trouvée, on retourne une erreur explicite.
+// V2 (11/05/2026) — Nettoyage legacy :
+//   - deleteOneDeadSub ne touche plus à users.push_subscription
+//     (colonne orpheline, DROP COLUMN prévu 25/05/2026).
+//   - Utilise sub.platform stocké au subscribe (cohérent V4 send/route).
+//
+// V3.6 (11/05/2026) — Multi-device : envoie sur TOUS les devices du user.
 
 import { requireAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -27,58 +27,31 @@ type SubRow = {
   platform: string | null;
 };
 
-function detectPlatformFromEndpoint(endpoint: string): { platform: string; domain: string } {
+function extractEndpointHostname(endpoint: string): string {
   try {
-    const hostname = new URL(endpoint).hostname;
-    if (endpoint.includes("push.apple.com"))     return { platform: "ios",     domain: hostname };
-    if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: hostname };
-    if (endpoint.includes("mozilla.com"))        return { platform: "firefox", domain: hostname };
-    if (endpoint.includes("windows.com"))        return { platform: "windows", domain: hostname };
-    return { platform: "other", domain: hostname };
+    return new URL(endpoint).hostname;
   } catch {
-    return { platform: "other", domain: "unknown" };
+    return "unknown";
   }
 }
 
-// ─── Cleanup d'UNE sub par endpoint (sans toucher aux autres devices) ───
+// ─── V2 — Cleanup d'UNE sub par endpoint, sans toucher users.push_subscription ───
 async function deleteOneDeadSub(userId: string, endpoint: string) {
   await supabaseAdmin
     .from("push_subscriptions")
     .delete()
     .eq("endpoint", endpoint);
 
-  // Si plus aucune sub : cleanup complet via le helper partagé
   const { count } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
 
   if ((count || 0) === 0) {
+    // Plus aucune sub : cleanup complet via le helper partagé
     await cleanupDeadSubscription(userId);
-  } else {
-    // Il reste des subs : rafraîchir le miroir users.push_subscription
-    const { data: remaining } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("endpoint, p256dh, auth, expiration_time")
-      .eq("user_id", userId)
-      .order("last_seen_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (remaining) {
-      const miroirSubscription = {
-        endpoint: remaining.endpoint,
-        keys: { p256dh: remaining.p256dh, auth: remaining.auth },
-        expirationTime: remaining.expiration_time
-          ? new Date(remaining.expiration_time).getTime()
-          : null,
-      };
-      await supabaseAdmin
-        .from("users")
-        .update({ push_subscription: miroirSubscription })
-        .eq("id", userId);
-    }
   }
+  // V2 — Sinon, plus rien à faire (avant on rafraîchissait users.push_subscription)
 }
 
 export async function POST(request: Request) {
@@ -95,7 +68,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "userId or email required" }, { status: 400 });
   }
 
-  // Find user
   const query = supabaseAdmin
     .from("users")
     .select("id, email, notify_push, subscription_status");
@@ -108,7 +80,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // V3.6 — récupérer TOUTES les subs du user
   const { data: subs } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth, platform")
@@ -129,7 +100,6 @@ export async function POST(request: Request) {
     url: "/fr/espace",
   });
 
-  // ─── Envoi en parallèle sur toutes les subs du user ───
   const deviceResults: Array<{
     platform: string;
     success: boolean;
@@ -140,7 +110,9 @@ export async function POST(request: Request) {
 
   await Promise.allSettled(
     subList.map(async (sub) => {
-      const { platform, domain } = detectPlatformFromEndpoint(sub.endpoint);
+      // V2 — on lit sub.platform (déjà détecté au subscribe avec endpoint + UA)
+      const platform = sub.platform || "other";
+      const domain = extractEndpointHostname(sub.endpoint);
 
       const webpushSub: webpush.PushSubscription = {
         endpoint: sub.endpoint,

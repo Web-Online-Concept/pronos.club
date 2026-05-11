@@ -1,22 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/send (V4.0 — 11/05/2026)
+ * /api/notifications/send (V4.1 — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
- * V4.0 (11/05/2026) — Lit sub.platform au lieu de redétecter :
- *   - La fonction detectPlatformFromEndpoint() supprimée.
- *   - On utilise directement push_subscriptions.platform (capturé au
- *     subscribe avec endpoint + User-Agent, plus précis).
+ * V4.1 (11/05/2026) — Nettoyage legacy :
+ *   - deleteDeadSubscription ne met plus à jour users.push_subscription.
+ *     La colonne est devenue orpheline (DROP COLUMN prévu 25/05/2026).
  *
- * V3.7 (11/05/2026) — Email logging :
- *   - Passage de user.id à sendNewPickEmail → traçabilité dans email_logs.
- *
- * V3.6 (11/05/2026) — Multi-device push :
- *   - Itère sur push_subscriptions.
- *   - Cleanup ciblé par endpoint sur 410/403/404.
- *
- * V3.5 Lot 14 (10/05/2026) :
- *   - Paramètre `category` au body : "tipster" | "abonnes".
+ * V4.0 (11/05/2026) — Lit sub.platform au lieu de redétecter.
+ * V3.7 (11/05/2026) — Email logging avec userId.
+ * V3.6 (11/05/2026) — Multi-device push.
+ * V3.5 Lot 14         — Paramètre `category` au body.
  *
  * Path : src/app/api/notifications/send/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -64,11 +58,12 @@ async function deleteDeadSubscription(userId: string, endpoint: string) {
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
 
+  // V4.1 — Si plus aucune sub : on coupe juste les flags catégorie.
+  // Plus de maintenance de users.push_subscription (orphan).
   if ((count || 0) === 0) {
     await supabaseAdmin
       .from("users")
       .update({
-        push_subscription: null,
         notify_push: false,
         notify_tipster_push: false,
         notify_abonnes_push: false,
@@ -82,29 +77,9 @@ async function deleteDeadSubscription(userId: string, endpoint: string) {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", userId);
-  } else {
-    const { data: remaining } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("endpoint, p256dh, auth, expiration_time")
-      .eq("user_id", userId)
-      .order("last_seen_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (remaining) {
-      const miroirSubscription = {
-        endpoint: remaining.endpoint,
-        keys: { p256dh: remaining.p256dh, auth: remaining.auth },
-        expirationTime: remaining.expiration_time
-          ? new Date(remaining.expiration_time).getTime()
-          : null,
-      };
-      await supabaseAdmin
-        .from("users")
-        .update({ push_subscription: miroirSubscription })
-        .eq("id", userId);
-    }
   }
+  // V4.1 — Si il reste des subs, plus rien à faire côté users
+  // (avant on rafraîchissait users.push_subscription avec un autre device).
 }
 
 async function sendSinglePush(
@@ -118,8 +93,6 @@ async function sendSinglePush(
   domain: string;
   shouldCleanup: boolean;
 }> {
-  // V4.0 — On lit le platform déjà stocké au subscribe (croisé avec UA),
-  // plus précis que redétecter ici (où l'on n'a plus l'UA).
   const platform = sub.platform || "other";
   const domain = extractEndpointHostname(sub.endpoint);
 
@@ -165,9 +138,6 @@ export async function POST(request: Request) {
   const pushToggleColumn = category === "abonnes" ? "notify_abonnes_push" : "notify_tipster_push";
   const emailToggleColumn = category === "abonnes" ? "notify_abonnes_email" : "notify_tipster_email";
 
-  // ═════════════════════════════════════════════════════════════
-  // PUSH : sélection des destinataires
-  // ═════════════════════════════════════════════════════════════
   let usersQuery = supabaseAdmin
     .from("users")
     .select("id")
@@ -190,9 +160,6 @@ export async function POST(request: Request) {
     pushSubs = (subsData || []) as SubRow[];
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // EMAIL : utilisateurs avec toggle email catégorie ON
-  // ═════════════════════════════════════════════════════════════
   let emailQuery = supabaseAdmin
     .from("users")
     .select("id, email, locale")
@@ -209,9 +176,6 @@ export async function POST(request: Request) {
   let pushCleaned = 0;
   let emailSent = 0;
 
-  // ═════════════════════════════════════════════════════════════
-  // PAYLOAD PUSH
-  // ═════════════════════════════════════════════════════════════
   const titlePrefix = category === "abonnes" ? "👥" : "🔔";
   const urlPath = category === "abonnes" ? "/fr/pronos-abonnes" : "/fr/pronostics";
 
@@ -223,9 +187,6 @@ export async function POST(request: Request) {
     url: urlPath,
   });
 
-  // ═════════════════════════════════════════════════════════════
-  // ENVOI PUSH (multi-device)
-  // ═════════════════════════════════════════════════════════════
   const logRows: Record<string, unknown>[] = [];
   const cleanupByUser = new Map<string, string[]>();
   const successSubIds: string[] = [];
@@ -286,9 +247,6 @@ export async function POST(request: Request) {
     await supabaseAdmin.from("notification_logs").insert(logRows);
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // ENVOI EMAILS
-  // ═════════════════════════════════════════════════════════════
   if (emailUsers) {
     await Promise.allSettled(
       emailUsers.map(async (user) => {
@@ -303,9 +261,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // TELEGRAM (canal public Tipster — uniquement pour category="tipster")
-  // ═════════════════════════════════════════════════════════════
   let telegramSent = false;
   if (
     category === "tipster" &&

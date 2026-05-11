@@ -1,3 +1,10 @@
+// src/lib/supabase/types.ts
+//
+// V2 (11/05/2026) — Nettoyage legacy :
+//   - Retrait de `push_subscription: object | null` de l'interface User.
+//     Cette colonne devient orpheline en DB et sera DROP le 25/05/2026.
+//     Les push subs sont désormais dans la table push_subscriptions.
+
 export type PickStatus = "pending" | "won" | "lost" | "void" | "half_won" | "half_lost";
 export type SubscriptionStatus = "free" | "active" | "trialing" | "past_due" | "canceled";
 export type NotificationChannel = "email" | "push";
@@ -13,7 +20,6 @@ export interface User {
   notify_email: boolean;
   notify_push: boolean;
   notify_bilan: boolean;
-  push_subscription: object | null;
   telegram_user_id: number | null;
   telegram_invite_link: string | null;
   stripe_customer_id: string | null;
