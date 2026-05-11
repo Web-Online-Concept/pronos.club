@@ -1,17 +1,14 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/send (V3.6 multi-device — 11/05/2026)
+ * /api/notifications/send (V3.7 — 11/05/2026)
  * ═══════════════════════════════════════════════════════════════════
  *
- * V3.6 (11/05/2026) — Multi-device :
- *   - Itère sur push_subscriptions (un user peut avoir plusieurs subs
- *     simultanées : PC + Android PWA + iOS PWA).
- *   - Filtre : on JOIN push_subscriptions sur users avec
- *     users.notify_<category>_push = true.
- *   - Cleanup : sur 410/403/404, supprime UNIQUEMENT la sub par endpoint.
- *     Si après suppression il ne reste aucune sub pour le user, on coupe
- *     aussi le miroir users + flags + tipster_notif_prefs (cf. helper
- *     dans tipster-notifications.ts).
+ * V3.6 (11/05/2026) — Multi-device push (déjà déployé) :
+ *   - Itère sur push_subscriptions.
+ *   - Cleanup ciblé par endpoint.
+ *
+ * V3.7 (11/05/2026) — Email logging :
+ *   - Passage de user.id à sendNewPickEmail → traçabilité dans email_logs.
  *
  * V3.5 Lot 14 (10/05/2026) — historique :
  *   - Paramètre `category` au body : "tipster" | "abonnes"
@@ -56,7 +53,6 @@ function detectPlatformFromEndpoint(endpoint: string): { platform: string; domai
   }
 }
 
-// ─── Cleanup d'une sub morte (par endpoint) + miroirs si dernière ───
 async function deleteDeadSubscription(userId: string, endpoint: string) {
   await supabaseAdmin
     .from("push_subscriptions")
@@ -87,7 +83,6 @@ async function deleteDeadSubscription(userId: string, endpoint: string) {
       })
       .eq("user_id", userId);
   } else {
-    // Rafraîchir le miroir users.push_subscription avec une autre sub vivante
     const { data: remaining } = await supabaseAdmin
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth, expiration_time")
@@ -112,7 +107,6 @@ async function deleteDeadSubscription(userId: string, endpoint: string) {
   }
 }
 
-// ─── Envoi d'un push sur une sub précise ───
 async function sendSinglePush(
   sub: SubRow,
   payload: string
@@ -164,9 +158,6 @@ export async function POST(request: Request) {
   // ═════════════════════════════════════════════════════════════
   // V3.6 PUSH : sélection des destinataires
   // ═════════════════════════════════════════════════════════════
-  // 1. Filtrer les users selon les flags catégorie + premium si besoin
-  // 2. Récupérer TOUTES leurs subs depuis push_subscriptions
-
   let usersQuery = supabaseAdmin
     .from("users")
     .select("id")
@@ -191,6 +182,7 @@ export async function POST(request: Request) {
 
   // ═════════════════════════════════════════════════════════════
   // EMAIL : utilisateurs avec toggle email catégorie ON
+  // V3.7 — ajout de id au SELECT pour passer userId à sendNewPickEmail
   // ═════════════════════════════════════════════════════════════
   let emailQuery = supabaseAdmin
     .from("users")
@@ -226,9 +218,7 @@ export async function POST(request: Request) {
   // ENVOI PUSH (multi-device)
   // ═════════════════════════════════════════════════════════════
   const logRows: Record<string, unknown>[] = [];
-  // Map user_id → endpoints à cleanup (un user peut avoir plusieurs subs mortes)
   const cleanupByUser = new Map<string, string[]>();
-  // Subs qui ont réussi → on met à jour last_success_at
   const successSubIds: string[] = [];
 
   await Promise.allSettled(
@@ -262,7 +252,6 @@ export async function POST(request: Request) {
     })
   );
 
-  // ─── Cleanup des subs mortes (séquentiel par user pour cohérence miroir) ───
   for (const [userId, endpoints] of cleanupByUser) {
     for (const endpoint of endpoints) {
       try {
@@ -273,7 +262,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // ─── Mise à jour last_success_at pour les subs OK ───
   if (successSubIds.length > 0) {
     await supabaseAdmin
       .from("push_subscriptions")
@@ -285,20 +273,19 @@ export async function POST(request: Request) {
       .in("id", successSubIds);
   }
 
-  // ─── Insert logs en batch ───
   if (logRows.length > 0) {
     await supabaseAdmin.from("notification_logs").insert(logRows);
   }
 
   // ═════════════════════════════════════════════════════════════
-  // ENVOI EMAILS
+  // ENVOI EMAILS (V3.7 — passe userId pour email_logs)
   // ═════════════════════════════════════════════════════════════
   if (emailUsers) {
     await Promise.allSettled(
       emailUsers.map(async (user) => {
         try {
           const locale = (user.locale as "fr" | "en" | "es") || "fr";
-          const sent = await sendNewPickEmail(user.email, locale, sport, isPremium, pickNumber);
+          const sent = await sendNewPickEmail(user.email, locale, sport, isPremium, pickNumber, user.id);
           if (sent) emailSent++;
         } catch {
           // Silent fail for individual emails
@@ -341,7 +328,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Mark pick as notified
   if (pickId) {
     await supabaseAdmin
       .from("picks")

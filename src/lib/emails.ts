@@ -1,4 +1,26 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * Emails Brevo (V2 — logging email_logs — 11/05/2026)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * V2 (11/05/2026) :
+ *   - Le helper sendEmail() écrit désormais dans la table email_logs
+ *     à chaque appel (status='sent' ou 'failed', avec error et
+ *     brevo_message_id). Avant : aucune trace en base.
+ *   - Chaque fonction exportée accepte un param optionnel `userId`
+ *     à la fin (rétrocompat : appelants existants continuent de marcher,
+ *     juste le user_id du log sera NULL pour eux).
+ *   - Chaque fonction passe sa category fixe à sendEmail pour
+ *     traçabilité fine (welcome, new_pick_tipster, bilan, etc.).
+ *   - Phase C (à venir) : webhook Brevo qui mettra à jour le status
+ *     en delivered/hard_bounce/soft_bounce/spam/unsubscribed.
+ *
+ * Path : src/lib/emails.ts
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import nodemailer from "nodemailer";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
@@ -120,14 +142,14 @@ const T: Record<Locale, Record<string, string>> = {
     concours_week_paypal_warning_title: "⚠️ Email PayPal requis",
     concours_week_paypal_warning_text: "Pour recevoir ton gain, ajoute ton email PayPal dans ton profil.",
     concours_week_paypal_warning_btn: "⚡ Configurer mon PayPal",
-    concours_week_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> dans les 48h.",
+    concours_week_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> sous 48h.",
     concours_week_cta: "Voir le concours →",
-    concours_week_footer: "PRONOS.CLUB · Continue comme ça 🚀",
+    concours_week_footer: "PRONOS.CLUB · Continue comme ça ! 🚀",
     // 12. Concours gagnant mois
-    concours_month_subject: "👑 Tu es le tipster du mois à PRONOS.CLUB !",
+    concours_month_subject: "👑 Tu es le tipster du mois sur PRONOS.CLUB !",
     concours_month_preheader: "Tu remportes {prize}€ — Concours mensuel PRONOS.CLUB",
     concours_month_title: "👑 Tipster du mois !",
-    concours_month_intro: "Bravo {name}, tu domines le classement mensuel à PRONOS.CLUB",
+    concours_month_intro: "Bravo {name}, tu domines le classement mensuel sur PRONOS.CLUB",
     concours_month_period: "Mois de {month}",
     concours_month_prize_label: "Ton gain",
     concours_month_units_label: "Total U",
@@ -135,55 +157,55 @@ const T: Record<Locale, Record<string, string>> = {
     concours_month_paypal_warning_title: "⚠️ Email PayPal requis",
     concours_month_paypal_warning_text: "Pour recevoir ton gain, ajoute ton email PayPal dans ton profil.",
     concours_month_paypal_warning_btn: "⚡ Configurer mon PayPal",
-    concours_month_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> dans les 48h.",
+    concours_month_paypal_ok: "Ton gain sera envoyé sur <strong>{email}</strong> sous 48h.",
     concours_month_cta: "🏆 Voir le concours →",
-    concours_month_footer: "PRONOS.CLUB · Le champion du mois 👑",
+    concours_month_footer: "PRONOS.CLUB · Champion du mois 👑",
   },
   en: {
-    footer_brand: "PRONOS.CLUB — Professional sports predictions",
-    footer_warning: "Sports betting involves risks. Gamble responsibly. 18+",
+    footer_brand: "PRONOS.CLUB — Professional sports tipster",
+    footer_warning: "Sports betting carries risks. Play responsibly. 18+",
     welcome_subject: "Welcome to PRONOS.CLUB",
     welcome_preheader: "Welcome to PRONOS.CLUB — Your account is created",
     welcome_title: "Welcome {name}!",
-    welcome_intro: "Your PRONOS.CLUB account is created. You have access to free predictions, statistics and full history.",
-    welcome_features: "<strong>What awaits you:</strong><br>• Sports predictions published daily<br>• Transparent and verifiable history<br>• Detailed real-time statistics<br>• A personalized bankroll management tool",
+    welcome_intro: "Your PRONOS.CLUB account is created. You have access to free picks, statistics, and the full history.",
+    welcome_features: "<strong>What awaits you:</strong><br>• Daily sports picks<br>• Transparent and verifiable history<br>• Detailed real-time statistics<br>• Personalized bankroll management tool",
     welcome_cta_label: "First thing to do:",
-    welcome_cta_text: "enable notifications to be alerted for each new prediction.",
+    welcome_cta_text: "activate notifications to be alerted to each new pick.",
     welcome_btn: "Access my space →",
     welcome_footer: "Consider installing the app on your phone for an optimal experience.",
     premium_subject: "Welcome to Premium — PRONOS.CLUB",
-    premium_preheader: "Your Premium subscription is activated — Welcome!",
+    premium_preheader: "Your Premium subscription is active — Welcome!",
     premium_title: "Welcome to Premium, {name}!",
-    premium_intro: "Thank you for your trust. You now have access to all our predictions.",
-    premium_features: "<strong>Your Premium subscription includes:</strong><br>• All predictions (50+/month)<br>• Exclusive Telegram group<br>• Priority notifications<br>• Monthly report by email<br>• Cancel in 1 click, no commitment",
+    premium_intro: "Thank you for your trust. You now have access to all our picks.",
+    premium_features: "<strong>Your Premium subscription includes:</strong><br>• All picks (50+/month)<br>• Exclusive Telegram group<br>• Priority notifications<br>• Monthly email report<br>• Cancel in 1 click, no commitment",
     premium_tg_title: "Exclusive Telegram group",
     premium_tg_desc: "Chat with other Premium members and the tipster",
     premium_tg_btn: "Join the Telegram group →",
-    premium_tg_expire: "Personal single-use link — expires in 48h",
-    premium_btn: "View predictions →",
-    premium_tg_note: "Telegram group access is linked to your subscription.<br>If you cancel, you will be automatically removed from the group.",
-    pick_subject: "New prediction available{sport} — PRONOS.CLUB",
-    pick_preheader: "New prediction{sport} available on PRONOS.CLUB",
-    pick_title: "New prediction published",
-    pick_premium: "Premium prediction",
-    pick_free: "Free prediction",
-    pick_desc: "Log in to view the tipster's selection and ticket.",
-    pick_btn: "View the prediction →",
+    premium_tg_expire: "Personal one-time link — expires in 48h",
+    premium_btn: "View picks →",
+    premium_tg_note: "Access to the Telegram group is tied to your subscription.<br>If cancelled, you will be automatically removed from the group.",
+    pick_subject: "New pick available{sport} — PRONOS.CLUB",
+    pick_preheader: "New pick{sport} available on PRONOS.CLUB",
+    pick_title: "New pick published",
+    pick_premium: "Premium pick",
+    pick_free: "Free pick",
+    pick_desc: "Sign in to view the selection and tipster's ticket.",
+    pick_btn: "View the pick →",
     pick_footer: "To change your notification preferences, go to your personal space.",
-    cancel_subject: "Cancellation confirmed — PRONOS.CLUB",
+    cancel_subject: "Cancellation confirmation — PRONOS.CLUB",
     cancel_preheader: "Your cancellation has been confirmed",
     cancel_title: "Cancellation confirmed",
     cancel_intro: "Hello {name}, your cancellation request has been processed.",
     cancel_active: "<strong>Your Premium access remains active until {date}.</strong>",
-    cancel_after: "After this date, your account will revert to the free version. Your data is preserved: history, statistics and preferences.",
+    cancel_after: "After this date, your account will return to the free version. Your data is kept: history, statistics, and preferences.",
     cancel_tg: "<strong>Note:</strong> access to the Premium Telegram group will be removed at the end of your subscription period.",
     cancel_reabo: "You can resubscribe at any time.",
     cancel_btn: "Access my space →",
     wb7_subject: "{name}, we haven't forgotten you — PRONOS.CLUB",
-    wb7_preheader: "Your statistics and history are waiting for you",
+    wb7_preheader: "Your stats and history are waiting",
     wb7_title: "{name}, your stats are still there",
-    wb7_intro: "Your personal space is intact — history, statistics and bankroll are waiting.",
-    wb7_info: "Since you left, new predictions have been published.<br>Come back and check the results — everything is transparent and verifiable.",
+    wb7_intro: "Your personal space is intact — history, statistics, and bankroll await you.",
+    wb7_info: "Since your departure, new picks have been published.<br>Come back and see the results — everything is transparent and verifiable.",
     wb7_btn: "View latest results →",
     wb7_footer: "You can resubscribe at any time from your personal space.",
     wb30_subject: "{profit}U this month on PRONOS.CLUB — {name}",
@@ -192,89 +214,87 @@ const T: Record<Locale, Record<string, string>> = {
     wb30_intro: "Hello {name}, here's what you missed:",
     wb30_picks: "picks published",
     wb30_btn: "Come back to PRONOS.CLUB →",
-    wb30_footer: "€20/month · No commitment · Cancel in 1 click",
+    wb30_footer: "20€/month · No commitment · Cancel in 1 click",
     expire_subject: "Your Premium access ends tomorrow — PRONOS.CLUB",
     expire_preheader: "Your Premium access expires tomorrow",
     expire_title: "Your Premium access ends tomorrow",
-    expire_intro: "Hello {name}, your complimentary Premium access expires on {date}.",
-    expire_after: "After this date:<br>• You will no longer have access to Premium predictions<br>• Your Telegram group access will be removed<br>• Your account will revert to the free version<br>• Your data will be preserved",
-    expire_cta: "To continue enjoying all our predictions, subscribe to the Premium plan.",
-    expire_btn: "Subscribe — €20/month →",
-    inactive_subject: "{name}, new predictions await — PRONOS.CLUB",
-    inactive_preheader: "New predictions are waiting for you on PRONOS.CLUB",
-    inactive_title: "{name}, is everything okay?",
-    inactive_intro: "It's been a while since you last logged in. New predictions are waiting!",
-    inactive_info: "<strong>Remember to:</strong><br>• Enable push or email notifications<br>• Install the app on your phone<br>• Set up your bankroll for personalized tracking",
+    expire_intro: "Hello {name}, your free Premium access expires on {date}.",
+    expire_after: "After this date:<br>• You will no longer have access to Premium picks<br>• Your access to the Telegram group will be removed<br>• Your account will return to the free version<br>• Your data will be kept",
+    expire_cta: "To continue enjoying all our picks, subscribe to Premium.",
+    expire_btn: "Subscribe — 20€/month →",
+    inactive_subject: "{name}, new picks await you — PRONOS.CLUB",
+    inactive_preheader: "New picks await you on PRONOS.CLUB",
+    inactive_title: "{name}, everything okay?",
+    inactive_intro: "It's been a while since you logged in. New picks await you!",
+    inactive_info: "<strong>Remember to:</strong><br>• Activate push or email notifications<br>• Install the app on your phone<br>• Set up your bankroll for personalized tracking",
     inactive_btn: "Come back to PRONOS.CLUB →",
     inactive_footer: "To stop receiving these reminders, disable emails in your notifications.",
-    bilan_subject: "{month} report published — PRONOS.CLUB",
-    bilan_preheader: "{month} report available — PRONOS.CLUB",
-    bilan_title: "{month} Report",
+    bilan_subject: "Report {month} published — PRONOS.CLUB",
+    bilan_preheader: "Report {month} available — PRONOS.CLUB",
+    bilan_title: "Report {month}",
     bilan_intro: "Hello {name}, the monthly report is available!",
     bilan_btn: "Read the full report →",
     tipster_pick_subject: "🎯 New pick from {pseudo}",
     tipster_pick_preheader: "{pseudo} just posted a new pick",
     tipster_pick_title: "New pick!",
-    tipster_pick_intro: "<strong>{pseudo}</strong> just posted a new pick.",
+    tipster_pick_intro: "<strong>{pseudo}</strong> just posted a pick.",
     tipster_pick_match: "📅 <strong>Match:</strong> {date}",
     tipster_pick_sport: "🏅 <strong>Sport:</strong> {sport}",
     tipster_pick_bookmaker: "🏦 <strong>Bookmaker:</strong> {bookmaker}",
     tipster_pick_btn: "View the pick →",
-    tipster_pick_footer: "You receive this email because you subscribed to Pronos Abonnés notifications. Manage your preferences in your personal space.",
-    // 11. Contest winner week
-    concours_week_subject: "🏆 Congrats! You won the weekly contest",
-    concours_week_preheader: "You win €{prize} — Weekly contest PRONOS.CLUB",
+    tipster_pick_footer: "You receive this email because you're subscribed to Pronos Abonnés notifications. Manage your preferences in your personal space.",
+    concours_week_subject: "🏆 Congratulations! You won the weekly contest",
+    concours_week_preheader: "You win {prize}€ — Weekly contest PRONOS.CLUB",
     concours_week_title: "🏆 Congratulations {name}!",
-    concours_week_intro: "You are the best tipster of the week at PRONOS.CLUB",
-    concours_week_period: "Week of {start} to {end}",
+    concours_week_intro: "You are the best tipster of the week on PRONOS.CLUB",
+    concours_week_period: "Week from {start} to {end}",
     concours_week_prize_label: "Your prize",
     concours_week_units_label: "Total U",
     concours_week_picks_label: "Picks",
     concours_week_paypal_warning_title: "⚠️ PayPal email required",
     concours_week_paypal_warning_text: "To receive your prize, add your PayPal email in your profile.",
-    concours_week_paypal_warning_btn: "⚡ Configure my PayPal",
+    concours_week_paypal_warning_btn: "⚡ Set up my PayPal",
     concours_week_paypal_ok: "Your prize will be sent to <strong>{email}</strong> within 48h.",
     concours_week_cta: "View the contest →",
-    concours_week_footer: "PRONOS.CLUB · Keep it up 🚀",
-    // 12. Contest winner month
-    concours_month_subject: "👑 You are the tipster of the month at PRONOS.CLUB!",
-    concours_month_preheader: "You win €{prize} — Monthly contest PRONOS.CLUB",
+    concours_week_footer: "PRONOS.CLUB · Keep it up! 🚀",
+    concours_month_subject: "👑 You are the tipster of the month on PRONOS.CLUB!",
+    concours_month_preheader: "You win {prize}€ — Monthly contest PRONOS.CLUB",
     concours_month_title: "👑 Tipster of the month!",
-    concours_month_intro: "Bravo {name}, you dominate the monthly ranking at PRONOS.CLUB",
+    concours_month_intro: "Well done {name}, you dominate the monthly ranking on PRONOS.CLUB",
     concours_month_period: "Month of {month}",
     concours_month_prize_label: "Your prize",
     concours_month_units_label: "Total U",
     concours_month_picks_label: "Picks",
     concours_month_paypal_warning_title: "⚠️ PayPal email required",
     concours_month_paypal_warning_text: "To receive your prize, add your PayPal email in your profile.",
-    concours_month_paypal_warning_btn: "⚡ Configure my PayPal",
+    concours_month_paypal_warning_btn: "⚡ Set up my PayPal",
     concours_month_paypal_ok: "Your prize will be sent to <strong>{email}</strong> within 48h.",
     concours_month_cta: "🏆 View the contest →",
     concours_month_footer: "PRONOS.CLUB · Champion of the month 👑",
   },
   es: {
     footer_brand: "PRONOS.CLUB — Pronósticos deportivos profesionales",
-    footer_warning: "Las apuestas deportivas conllevan riesgos. Juega con responsabilidad. 18+",
+    footer_warning: "Las apuestas deportivas conllevan riesgos. Juega responsablemente. 18+",
     welcome_subject: "Bienvenido a PRONOS.CLUB",
     welcome_preheader: "Bienvenido a PRONOS.CLUB — Tu cuenta está creada",
     welcome_title: "¡Bienvenido {name}!",
-    welcome_intro: "Tu cuenta PRONOS.CLUB está creada. Tienes acceso a los pronósticos gratuitos, estadísticas e historial completo.",
-    welcome_features: "<strong>Lo que te espera:</strong><br>• Pronósticos deportivos publicados cada día<br>• Historial transparente y verificable<br>• Estadísticas detalladas en tiempo real<br>• Herramienta personalizada de gestión de bankroll",
+    welcome_intro: "Tu cuenta PRONOS.CLUB está creada. Tienes acceso a pronósticos gratuitos, estadísticas e historial completo.",
+    welcome_features: "<strong>Lo que te espera:</strong><br>• Pronósticos deportivos publicados a diario<br>• Historial transparente y verificable<br>• Estadísticas detalladas en tiempo real<br>• Herramienta de gestión de bankroll personalizada",
     welcome_cta_label: "Lo primero que debes hacer:",
-    welcome_cta_text: "activa las notificaciones para recibir alertas con cada nuevo pronóstico.",
+    welcome_cta_text: "activa las notificaciones para ser avisado de cada nuevo pronóstico.",
     welcome_btn: "Acceder a mi espacio →",
-    welcome_footer: "Considera instalar la app en tu teléfono para una experiencia óptima.",
+    welcome_footer: "Considera instalar la aplicación en tu teléfono para una experiencia óptima.",
     premium_subject: "Bienvenido a Premium — PRONOS.CLUB",
-    premium_preheader: "Tu suscripción Premium está activada — ¡Bienvenido!",
+    premium_preheader: "Tu suscripción Premium está activa — ¡Bienvenido!",
     premium_title: "¡Bienvenido a Premium, {name}!",
     premium_intro: "Gracias por tu confianza. Ahora tienes acceso a todos nuestros pronósticos.",
     premium_features: "<strong>Tu suscripción Premium incluye:</strong><br>• Todos los pronósticos (50+/mes)<br>• Grupo Telegram exclusivo<br>• Notificaciones prioritarias<br>• Informe mensual por email<br>• Cancelable en 1 clic, sin compromiso",
     premium_tg_title: "Grupo Telegram exclusivo",
-    premium_tg_desc: "Chatea con otros miembros Premium y el tipster",
+    premium_tg_desc: "Habla con otros miembros Premium y el tipster",
     premium_tg_btn: "Unirse al grupo Telegram →",
     premium_tg_expire: "Enlace personal de un solo uso — expira en 48h",
     premium_btn: "Ver pronósticos →",
-    premium_tg_note: "El acceso al grupo Telegram está vinculado a tu suscripción.<br>Si cancelas, serás retirado automáticamente del grupo.",
+    premium_tg_note: "El acceso al grupo Telegram está vinculado a tu suscripción.<br>En caso de cancelación, serás eliminado automáticamente del grupo.",
     pick_subject: "Nuevo pronóstico disponible{sport} — PRONOS.CLUB",
     pick_preheader: "Nuevo pronóstico{sport} disponible en PRONOS.CLUB",
     pick_title: "Nuevo pronóstico publicado",
@@ -334,7 +354,6 @@ const T: Record<Locale, Record<string, string>> = {
     tipster_pick_bookmaker: "🏦 <strong>Casa de apuestas:</strong> {bookmaker}",
     tipster_pick_btn: "Ver el pronóstico →",
     tipster_pick_footer: "Recibes este email porque estás suscrito a las notificaciones Pronos Abonnés. Gestiona tus preferencias en tu espacio personal.",
-    // 11. Concurso ganador semana
     concours_week_subject: "🏆 ¡Felicidades! Has ganado el concurso de la semana",
     concours_week_preheader: "Ganas {prize}€ — Concurso semanal PRONOS.CLUB",
     concours_week_title: "🏆 ¡Felicidades {name}!",
@@ -349,7 +368,6 @@ const T: Record<Locale, Record<string, string>> = {
     concours_week_paypal_ok: "Tu premio será enviado a <strong>{email}</strong> en 48h.",
     concours_week_cta: "Ver el concurso →",
     concours_week_footer: "PRONOS.CLUB · ¡Sigue así! 🚀",
-    // 12. Concurso ganador mes
     concours_month_subject: "👑 ¡Eres el tipster del mes en PRONOS.CLUB!",
     concours_month_preheader: "Ganas {prize}€ — Concurso mensual PRONOS.CLUB",
     concours_month_title: "👑 ¡Tipster del mes!",
@@ -411,21 +429,67 @@ function infoBox(content: string, color: "green" | "amber" | "blue" = "green") {
   return `<div style="background: ${c.bg}; border: 1px solid ${c.border}; border-radius: 12px; padding: 16px 20px; margin: 20px 0;"><p style="margin: 0; font-size: 13px; color: ${c.text}; line-height: 1.6;">${content}</p></div>`;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+// ═══════════════════════════════════════════════
+// V2 — Helper sendEmail avec logging email_logs
+// ═══════════════════════════════════════════════
+
+type SendEmailMeta = {
+  category?: string;
+  userId?: string | null;
+  locale?: Locale | null;
+};
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  meta?: SendEmailMeta
+): Promise<boolean> {
+  const sentAt = new Date().toISOString();
+  let success = false;
+  let errorMsg: string | null = null;
+  let messageId: string | null = null;
+
   try {
-    await transporter.sendMail({ from: '"PRONOS.CLUB" <noreply@pronos.club>', replyTo: '"PRONOS.CLUB" <contact@pronos.club>', to, subject, html });
-    return true;
+    const info = await transporter.sendMail({
+      from: '"PRONOS.CLUB" <noreply@pronos.club>',
+      replyTo: '"PRONOS.CLUB" <contact@pronos.club>',
+      to,
+      subject,
+      html,
+    });
+    success = true;
+    messageId = (info as { messageId?: string }).messageId ?? null;
   } catch (err) {
+    errorMsg = err instanceof Error ? err.message : String(err);
     console.error("Email send error:", err);
-    return false;
   }
+
+  // V2 — Log toujours (best-effort). Une erreur de log ne doit pas masquer l'envoi.
+  try {
+    await supabaseAdmin.from("email_logs").insert({
+      user_id: meta?.userId ?? null,
+      email: to,
+      category: meta?.category ?? "unknown",
+      subject: subject ? subject.slice(0, 500) : null,
+      locale: meta?.locale ?? null,
+      status: success ? "sent" : "failed",
+      error: errorMsg ? errorMsg.slice(0, 500) : null,
+      brevo_message_id: messageId ? messageId.slice(0, 500) : null,
+      sent_at: sentAt,
+    });
+  } catch (logErr) {
+    console.error("Email log insert failed:", logErr);
+  }
+
+  return success;
 }
 
 // ═══════════════════════════════════════════════
 // 1. BIENVENUE
 // ═══════════════════════════════════════════════
 
-export async function sendWelcomeEmail(email: string, displayName: string, locale: Locale = "fr") {
+export async function sendWelcomeEmail(email: string, displayName: string, locale: Locale = "fr", userId?: string) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "welcome_title", { name: displayName })}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${t(locale, "welcome_intro")}</p>
@@ -434,14 +498,14 @@ export async function sendWelcomeEmail(email: string, displayName: string, local
     ${greenButton(t(locale, "welcome_btn"), localeUrl(locale, "espace"))}
     <p style="text-align: center; color: #999; font-size: 12px;">${t(locale, "welcome_footer")}</p>
   `, t(locale, "welcome_preheader"), locale);
-  return sendEmail(email, t(locale, "welcome_subject"), html);
+  return sendEmail(email, t(locale, "welcome_subject"), html, { category: "welcome", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 2. BIENVENUE PREMIUM
 // ═══════════════════════════════════════════════
 
-export async function sendWelcomePremiumEmail(email: string, displayName: string, locale: Locale = "fr", telegramLink?: string | null) {
+export async function sendWelcomePremiumEmail(email: string, displayName: string, locale: Locale = "fr", telegramLink?: string | null, userId?: string) {
   const telegramBlock = telegramLink ? `
     <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
       <p style="margin: 0 0 8px; font-size: 13px; color: #166534; font-weight: 600;">${t(locale, "premium_tg_title")}</p>
@@ -461,14 +525,14 @@ export async function sendWelcomePremiumEmail(email: string, displayName: string
       <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5;">${t(locale, "premium_tg_note")}</p>
     </div>
   `, t(locale, "premium_preheader"), locale);
-  return sendEmail(email, t(locale, "premium_subject"), html);
+  return sendEmail(email, t(locale, "premium_subject"), html, { category: "welcome_premium", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
-// 3. NOUVEAU PICK
+// 3. NOUVEAU PICK (Tipster Jérôme)
 // ═══════════════════════════════════════════════
 
-export async function sendNewPickEmail(email: string, locale: Locale = "fr", sport?: string, isPremium?: boolean, pickNumber?: number) {
+export async function sendNewPickEmail(email: string, locale: Locale = "fr", sport?: string, isPremium?: boolean, pickNumber?: number, userId?: string) {
   const accessLabel = isPremium ? t(locale, "pick_premium") : t(locale, "pick_free");
   const sportLabel = sport ? ` — ${sport}` : "";
   const pickLabel = pickNumber ? `#${pickNumber} ` : "";
@@ -480,14 +544,14 @@ export async function sendNewPickEmail(email: string, locale: Locale = "fr", spo
     ${greenButton(t(locale, "pick_btn"), localeUrl(locale, "pronostics"))}
     <p style="text-align: center; color: #bbb; font-size: 11px;">${t(locale, "pick_footer")}</p>
   `, t(locale, "pick_preheader", { sport: sportLabel }), locale);
-  return sendEmail(email, `${pickLabel}${t(locale, "pick_subject", { sport: sportLabel })}`, html);
+  return sendEmail(email, `${pickLabel}${t(locale, "pick_subject", { sport: sportLabel })}`, html, { category: "new_pick_tipster", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 4. RÉSILIATION
 // ═══════════════════════════════════════════════
 
-export async function sendCancellationEmail(email: string, displayName: string, endDate: string, locale: Locale = "fr") {
+export async function sendCancellationEmail(email: string, displayName: string, endDate: string, locale: Locale = "fr", userId?: string) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "cancel_title")}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6;">${t(locale, "cancel_intro", { name: displayName })}</p>
@@ -497,14 +561,14 @@ export async function sendCancellationEmail(email: string, displayName: string, 
     <p style="color: #666; font-size: 14px; line-height: 1.6;">${t(locale, "cancel_reabo")}</p>
     ${greenButton(t(locale, "cancel_btn"), localeUrl(locale, "espace"))}
   `, t(locale, "cancel_preheader"), locale);
-  return sendEmail(email, t(locale, "cancel_subject"), html);
+  return sendEmail(email, t(locale, "cancel_subject"), html, { category: "cancellation", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 5. RELANCE J+7
 // ═══════════════════════════════════════════════
 
-export async function sendWinbackDay7Email(email: string, displayName: string, locale: Locale = "fr") {
+export async function sendWinbackDay7Email(email: string, displayName: string, locale: Locale = "fr", userId?: string) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "wb7_title", { name: displayName })}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${t(locale, "wb7_intro")}</p>
@@ -512,14 +576,14 @@ export async function sendWinbackDay7Email(email: string, displayName: string, l
     ${greenButton(t(locale, "wb7_btn"), localeUrl(locale, "historique"))}
     <p style="text-align: center; color: #bbb; font-size: 11px;">${t(locale, "wb7_footer")}</p>
   `, t(locale, "wb7_preheader"), locale);
-  return sendEmail(email, t(locale, "wb7_subject", { name: displayName }), html);
+  return sendEmail(email, t(locale, "wb7_subject", { name: displayName }), html, { category: "winback_7", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 6. RELANCE J+30
 // ═══════════════════════════════════════════════
 
-export async function sendWinbackDay30Email(email: string, displayName: string, locale: Locale = "fr", monthProfit: number, monthWinRate: number, monthPicks: number) {
+export async function sendWinbackDay30Email(email: string, displayName: string, locale: Locale = "fr", monthProfit: number, monthWinRate: number, monthPicks: number, userId?: string) {
   const profitColor = monthProfit >= 0 ? "#059669" : "#dc2626";
   const profitSign = monthProfit >= 0 ? "+" : "";
 
@@ -543,14 +607,14 @@ export async function sendWinbackDay30Email(email: string, displayName: string, 
     ${greenButton(t(locale, "wb30_btn"), localeUrl(locale, "abonnement"))}
     <p style="text-align: center; color: #bbb; font-size: 11px;">${t(locale, "wb30_footer")}</p>
   `, t(locale, "wb30_preheader", { profit: `${profitSign}${monthProfit}` }), locale);
-  return sendEmail(email, t(locale, "wb30_subject", { profit: `${profitSign}${monthProfit}`, name: displayName }), html);
+  return sendEmail(email, t(locale, "wb30_subject", { profit: `${profitSign}${monthProfit}`, name: displayName }), html, { category: "winback_30", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 7. EXPIRATION PREMIUM
 // ═══════════════════════════════════════════════
 
-export async function sendPremiumExpiringEmail(email: string, displayName: string, endDate: string, locale: Locale = "fr") {
+export async function sendPremiumExpiringEmail(email: string, displayName: string, endDate: string, locale: Locale = "fr", userId?: string) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "expire_title")}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${t(locale, "expire_intro", { name: displayName, date: endDate })}</p>
@@ -558,14 +622,14 @@ export async function sendPremiumExpiringEmail(email: string, displayName: strin
     <p style="text-align: center; color: #666; font-size: 14px; line-height: 1.6;">${t(locale, "expire_cta")}</p>
     ${greenButton(t(locale, "expire_btn"), localeUrl(locale, "abonnement"))}
   `, t(locale, "expire_preheader"), locale);
-  return sendEmail(email, t(locale, "expire_subject"), html);
+  return sendEmail(email, t(locale, "expire_subject"), html, { category: "premium_expiring", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 8. INACTIVITÉ
 // ═══════════════════════════════════════════════
 
-export async function sendInactivityEmail(email: string, displayName: string, locale: Locale = "fr") {
+export async function sendInactivityEmail(email: string, displayName: string, locale: Locale = "fr", userId?: string) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "inactive_title", { name: displayName })}</h2>
     <p style="text-align: center; color: #666; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">${t(locale, "inactive_intro")}</p>
@@ -573,14 +637,14 @@ export async function sendInactivityEmail(email: string, displayName: string, lo
     ${greenButton(t(locale, "inactive_btn"), localeUrl(locale, "pronostics"))}
     <p style="text-align: center; color: #bbb; font-size: 11px;">${t(locale, "inactive_footer")}</p>
   `, t(locale, "inactive_preheader"), locale);
-  return sendEmail(email, t(locale, "inactive_subject", { name: displayName }), html);
+  return sendEmail(email, t(locale, "inactive_subject", { name: displayName }), html, { category: "inactivity", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
 // 9. BILAN MENSUEL
 // ═══════════════════════════════════════════════
 
-export async function sendBilanEmail(email: string, displayName: string, locale: Locale = "fr", month: string, slug: string, stats: { totalPicks: number; winRate: number; roi: number; profit: number }) {
+export async function sendBilanEmail(email: string, displayName: string, locale: Locale = "fr", month: string, slug: string, stats: { totalPicks: number; winRate: number; roi: number; profit: number }, userId?: string) {
   const profitColor = stats.profit >= 0 ? "#059669" : "#dc2626";
   const roiColor = stats.roi >= 0 ? "#059669" : "#dc2626";
 
@@ -607,8 +671,9 @@ export async function sendBilanEmail(email: string, displayName: string, locale:
     </div>
     ${greenButton(t(locale, "bilan_btn"), `https://pronos.club/${locale}/bilans/${slug}`)}
   `, t(locale, "bilan_preheader", { month }), locale);
-  return sendEmail(email, t(locale, "bilan_subject", { month }), html);
+  return sendEmail(email, t(locale, "bilan_subject", { month }), html, { category: "bilan", userId, locale });
 }
+
 // ═══════════════════════════════════════════════
 // 10. NOUVEAU PICK TIPSTER ABONNÉ
 // ═══════════════════════════════════════════════
@@ -621,7 +686,8 @@ export async function sendTipsterNewPickEmail(
     matchDate: string;
     sport: string;
     bookmaker: string;
-  }
+  },
+  userId?: string
 ) {
   const html = emailWrapper(`
     <h2 style="text-align: center; color: #111; font-size: 22px; font-weight: 800; margin: 0 0 10px;">${t(locale, "tipster_pick_title")}</h2>
@@ -634,7 +700,7 @@ export async function sendTipsterNewPickEmail(
     ${greenButton(t(locale, "tipster_pick_btn"), `https://pronos.club/${locale}/pronos-abonnes/en-cours`)}
     <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 24px; line-height: 1.6;">${t(locale, "tipster_pick_footer")}</p>
   `, t(locale, "tipster_pick_preheader", { pseudo: data.pseudo }), locale);
-  return sendEmail(email, t(locale, "tipster_pick_subject", { pseudo: data.pseudo }), html);
+  return sendEmail(email, t(locale, "tipster_pick_subject", { pseudo: data.pseudo }), html, { category: "new_pick_abonnes", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
@@ -649,12 +715,12 @@ export async function sendConcoursWeekWinnerEmail(
     prize: number;
     totalUnits: number;
     totalPicks: number;
-    weekStart: string;  // ISO ou date FR pré-formattée
+    weekStart: string;
     weekEnd: string;
     paypalEmail: string | null;
-  }
+  },
+  userId?: string
 ) {
-  // Format dates en locale
   const startStr = new Date(data.weekStart).toLocaleDateString(
     locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "en-GB",
     { day: "numeric", month: "long" }
@@ -705,7 +771,7 @@ export async function sendConcoursWeekWinnerEmail(
     <p style="text-align: center; color: #bbb; font-size: 11px; margin-top: 24px;">${t(locale, "concours_week_footer")}</p>
   `, t(locale, "concours_week_preheader", { prize: data.prize }), locale);
 
-  return sendEmail(email, t(locale, "concours_week_subject"), html);
+  return sendEmail(email, t(locale, "concours_week_subject"), html, { category: "concours_week", userId, locale });
 }
 
 // ═══════════════════════════════════════════════
@@ -720,9 +786,10 @@ export async function sendConcoursMonthWinnerEmail(
     prize: number;
     totalUnits: number;
     totalPicks: number;
-    monthLabel: string;  // ex: "mai 2026", "May 2026", "mayo 2026"
+    monthLabel: string;
     paypalEmail: string | null;
-  }
+  },
+  userId?: string
 ) {
   const paypalBlock = !data.paypalEmail ? `
     <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0;">
@@ -767,5 +834,5 @@ export async function sendConcoursMonthWinnerEmail(
     <p style="text-align: center; color: #bbb; font-size: 11px; margin-top: 24px;">${t(locale, "concours_month_footer")}</p>
   `, t(locale, "concours_month_preheader", { prize: data.prize }), locale);
 
-  return sendEmail(email, t(locale, "concours_month_subject"), html);
+  return sendEmail(email, t(locale, "concours_month_subject"), html, { category: "concours_month", userId, locale });
 }

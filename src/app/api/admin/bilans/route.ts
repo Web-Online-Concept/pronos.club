@@ -1,3 +1,18 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * /api/admin/bilans (V2 — 11/05/2026)
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * V2 (11/05/2026) :
+ *   - notifyPremiumSubscribers : parallélisation avec Promise.allSettled
+ *     (avant : boucle for séquentielle = lent si beaucoup d'abonnés).
+ *   - Passage de user.id à sendBilanEmail pour traçabilité email_logs.
+ *   - Ajout de id au SELECT users (préalable au passage userId).
+ *
+ * Path : src/app/api/admin/bilans/route.ts
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { sendBilanEmail } from "@/lib/emails";
@@ -143,9 +158,10 @@ export async function PUT(request: Request) {
 }
 
 async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
+  // V2 — ajout id au SELECT pour passer userId à sendBilanEmail
   const { data: premiumUsers } = await supabaseAdmin
     .from("users")
-    .select("email, pseudo, display_name, locale")
+    .select("id, email, pseudo, display_name, locale")
     .in("subscription_status", ["active", "trialing"])
     .eq("notify_bilan", true)
     .not("email", "is", null);
@@ -161,11 +177,14 @@ async function notifyPremiumSubscribers(bilan: Record<string, unknown>) {
     profit: bilan.profit as number,
   };
 
-  for (const user of premiumUsers) {
-    const name = user.pseudo || user.display_name || user.email.split("@")[0];
-    const locale = (user.locale as "fr" | "en" | "es") || "fr";
-    await sendBilanEmail(user.email, name, locale, month, slug, stats).catch(() => {});
-  }
+  // V2 — parallélisation avec Promise.allSettled au lieu de for séquentiel
+  await Promise.allSettled(
+    premiumUsers.map(async (user) => {
+      const name = user.pseudo || user.display_name || user.email.split("@")[0];
+      const locale = (user.locale as "fr" | "en" | "es") || "fr";
+      await sendBilanEmail(user.email, name, locale, month, slug, stats, user.id);
+    })
+  );
 }
 
 export async function DELETE(request: Request) {

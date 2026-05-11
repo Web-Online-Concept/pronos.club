@@ -1,22 +1,18 @@
 // src/lib/tipster-notifications.ts
 // Envoie les notifications aux followers quand un tipster publie un pick
-// 3 canaux : Email (Brevo via emails.ts) + Telegram (canal public) + Push (multi-device)
+// 3 canaux : Email (Brevo) + Telegram (canal public) + Push (multi-device)
 //
-// V3.6 (11/05/2026) — Multi-device :
-//   - Push : itère sur push_subscriptions (un user peut avoir plusieurs
-//     subs simultanées : PC + Android PWA + iOS PWA)
-//   - Cleanup : supprime UNIQUEMENT la sub par endpoint sur 410/403/404.
-//     Les autres subs du même user restent actives.
-//   - Si après cleanup il ne reste AUCUNE sub pour le user, on coupe
-//     aussi le miroir users.push_subscription + flags catégories +
-//     tipster_notif_prefs.channel_push.
+// V3.6 (11/05/2026) — Multi-device push (déjà déployé) :
+//   - Push : itère sur push_subscriptions (PC + Android PWA + iOS PWA).
+//   - Cleanup ciblé par endpoint sur 410/403/404.
+//   - Helper cleanupDeadSubscription(userId) exporté.
 //
-// V3.5 (10/05/2026) — historique :
-//   - Suppression des DM Telegram aux abonnés (canal public conservé)
-//
-// Fix bugs notif (11/05/2026) — historique :
-//   - Helper cleanupDeadSubscription exporté, partagé avec les autres
-//     envoyeurs.
+// V3.7 (11/05/2026) — Email logging + locale dynamique :
+//   - SELECT user.locale dans les 2 queries (allModeUsers + followers).
+//   - sendTipsterNewPickEmail reçoit la locale du user (au lieu de "fr"
+//     hardcoded). Un user en mode "en" recevra l'email en anglais.
+//   - sendTipsterNewPickEmail reçoit aussi le userId → traçabilité
+//     email_logs.
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -37,6 +33,8 @@ if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 
 const TELEGRAM_BOT_TOKEN = process.env.TIPSTERS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_PUBLIC_CHANNEL = process.env.TIPSTERS_TELEGRAM_CHANNEL;
+
+type Locale = "fr" | "en" | "es";
 
 type Pick = {
   id: string;
@@ -65,23 +63,17 @@ type PushSubscriptionRow = {
 // ═══════════════════════════════════════════════════════════════════
 // Helper : cleanup d'UNE sub morte (par endpoint)
 // ═══════════════════════════════════════════════════════════════════
-// V3.6 : supprime UNIQUEMENT la sub concernée. Si après suppression il
-// n'en reste aucune pour ce user, on coupe aussi le miroir users +
-// flags catégories + tipster_notif_prefs.
 async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string) {
-  // 1. Supprime la sub précise
   await supabaseAdmin
     .from("push_subscriptions")
     .delete()
     .eq("endpoint", endpoint);
 
-  // 2. Compte ce qui reste pour ce user
   const { count } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
 
-  // 3. Si plus aucune sub : coupe le miroir users + flags + tipster_notif_prefs
   if ((count || 0) === 0) {
     await supabaseAdmin
       .from("users")
@@ -101,9 +93,6 @@ async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string
       })
       .eq("user_id", userId);
   } else {
-    // Il reste des subs : on rafraîchit le miroir users.push_subscription
-    // avec une autre sub vivante (pour rétrocompat avec ce qui lirait
-    // encore users.push_subscription)
     const { data: remaining } = await supabaseAdmin
       .from("push_subscriptions")
       .select("endpoint, p256dh, auth, expiration_time")
@@ -131,17 +120,12 @@ async function deleteDeadSubscriptionByEndpoint(userId: string, endpoint: string
 // ═══════════════════════════════════════════════════════════════════
 // Helper EXPORTÉ : cleanup complet de toutes les subs d'un user
 // ═══════════════════════════════════════════════════════════════════
-// Utilisé par /api/admin/push-test quand le user a une sub manifestement
-// morte et qu'on veut tout nettoyer d'un coup.
-// V3.6 : supprime toutes les push_subscriptions + miroir + flags.
 export async function cleanupDeadSubscription(userId: string) {
-  // 1. Supprime toutes les subs du user
   await supabaseAdmin
     .from("push_subscriptions")
     .delete()
     .eq("user_id", userId);
 
-  // 2. Coupe miroir users + flags catégories
   await supabaseAdmin
     .from("users")
     .update({
@@ -152,7 +136,6 @@ export async function cleanupDeadSubscription(userId: string) {
     })
     .eq("id", userId);
 
-  // 3. Coupe tipster_notif_prefs
   await supabaseAdmin
     .from("tipster_notif_prefs")
     .update({
@@ -184,11 +167,8 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 // ═══════════════════════════════════════════════════════════════════
 // Helper Push V3.6 — multi-device
 // ═══════════════════════════════════════════════════════════════════
-// Lit TOUTES les push_subscriptions du user et envoie une notif par sub.
-// Filtre garde-fou : users.notify_push doit être true (kill switch global).
 async function sendPushToUser(userId: string, payload: any) {
   try {
-    // Kill switch global
     const { data: user } = await supabaseAdmin
       .from("users")
       .select("notify_push")
@@ -197,7 +177,6 @@ async function sendPushToUser(userId: string, payload: any) {
 
     if (!user || !user.notify_push) return;
 
-    // Toutes les subs vivantes du user
     const { data: subs } = await supabaseAdmin
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth, platform")
@@ -207,7 +186,6 @@ async function sendPushToUser(userId: string, payload: any) {
 
     const payloadStr = JSON.stringify(payload);
 
-    // Envoi en parallèle sur tous les devices
     await Promise.allSettled(
       (subs as PushSubscriptionRow[]).map(async (sub) => {
         const webpushSub: webpush.PushSubscription = {
@@ -218,7 +196,6 @@ async function sendPushToUser(userId: string, payload: any) {
         try {
           await webpush.sendNotification(webpushSub, payloadStr);
 
-          // Succès : on met à jour last_success_at + reset failures
           await supabaseAdmin
             .from("push_subscriptions")
             .update({
@@ -230,11 +207,9 @@ async function sendPushToUser(userId: string, payload: any) {
         } catch (err: any) {
           const statusCode = err?.statusCode || 0;
 
-          // Subscription morte : supprime CE device uniquement
           if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
             await deleteDeadSubscriptionByEndpoint(userId, sub.endpoint);
           } else {
-            // Erreur transitoire : incrémente compteur d'échecs
             await supabaseAdmin
               .from("push_subscriptions")
               .update({
@@ -256,23 +231,30 @@ async function sendPushToUser(userId: string, payload: any) {
 // ═══════════════════════════════════════════════════════════════════
 export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   const matchDate = new Date(pick.match_date);
-  const matchDateStr = matchDate.toLocaleString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Paris",
-  });
+
+  // Helper : formatte la date dans la locale du destinataire
+  function formatDateForLocale(loc: Locale): string {
+    return matchDate.toLocaleString(
+      loc === "fr" ? "fr-FR" : loc === "es" ? "es-ES" : "en-GB",
+      {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Paris",
+      }
+    );
+  }
 
   const publicUrl = `https://pronos.club/fr/pronos-abonnes/en-cours`;
 
   // ═════════════════════════════════════
-  // 1. CANAL PUBLIC TELEGRAM
+  // 1. CANAL PUBLIC TELEGRAM (toujours FR)
   // ═════════════════════════════════════
   if (TELEGRAM_PUBLIC_CHANNEL) {
     const publicMsg =
       `🎯 <b>Nouveau prono de ${tipster.pseudo}</b>\n\n` +
-      `📅 ${matchDateStr}\n` +
+      `📅 ${formatDateForLocale("fr")}\n` +
       `🏅 ${pick.sport}\n\n` +
       `👉 <a href="${publicUrl}">pronos.club/fr/pronos-abonnes/en-cours</a>`;
     await sendTelegramMessage(TELEGRAM_PUBLIC_CHANNEL, publicMsg);
@@ -281,6 +263,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // 2. NOTIFS PERSONNALISEES AUX ABONNES
   // ═════════════════════════════════════
+  // V3.7 — ajout de locale au SELECT users
   const { data: allModeUsers } = await supabaseAdmin
     .from("tipster_notif_prefs")
     .select(`
@@ -289,7 +272,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       channel_email,
       channel_telegram,
       channel_push,
-      users:user_id (id, pseudo, email, subscription_status, tipsters_telegram_chat_id)
+      users:user_id (id, pseudo, email, locale, subscription_status, tipsters_telegram_chat_id)
     `)
     .eq("mode", "all");
 
@@ -304,6 +287,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
         id,
         pseudo,
         email,
+        locale,
         subscription_status,
         tipsters_telegram_chat_id
       )
@@ -314,6 +298,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
     userId: string;
     pseudo: string;
     email: string;
+    locale: Locale;
     premium: boolean;
     telegramChatId: number | null;
     useEmail: boolean;
@@ -333,6 +318,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
       userId: u.id,
       pseudo: u.pseudo || "",
       email: u.email || "",
+      locale: (u.locale as Locale) || "fr",
       premium,
       telegramChatId: u.tipsters_telegram_chat_id || null,
       useEmail: pref.channel_email,
@@ -371,6 +357,7 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
         userId: u.id,
         pseudo: u.pseudo || "",
         email: u.email || "",
+        locale: (u.locale as Locale) || "fr",
         premium,
         telegramChatId: u.tipsters_telegram_chat_id || null,
         useEmail: globalPref.channel_email && follow.channel_email,
@@ -385,22 +372,28 @@ export async function notifyFollowersOfNewPick(pick: Pick, tipster: Tipster) {
   // ═════════════════════════════════════
   // V3.5 (10/05/2026) : DM Telegram supprimés. Canal public conservé.
   // V3.6 (11/05/2026) : push multi-device via push_subscriptions.
+  // V3.7 (11/05/2026) : email avec locale dynamique + userId pour email_logs.
   for (const [, n] of toNotify) {
-    // Email via Brevo
+    // Email via Brevo (locale du destinataire + userId pour log)
     if (n.useEmail && n.email) {
-      await sendTipsterNewPickEmail(n.email, "fr", {
-        pseudo: tipster.pseudo,
-        matchDate: matchDateStr,
-        sport: pick.sport,
-        bookmaker: pick.bookmaker || "Non précisé",
-      });
+      await sendTipsterNewPickEmail(
+        n.email,
+        n.locale,
+        {
+          pseudo: tipster.pseudo,
+          matchDate: formatDateForLocale(n.locale),
+          sport: pick.sport,
+          bookmaker: pick.bookmaker || "Non précisé",
+        },
+        n.userId
+      );
     }
 
     // Push multi-device
     if (n.usePush) {
       await sendPushToUser(n.userId, {
         title: `🎯 Nouveau prono de ${tipster.pseudo}`,
-        body: `${pick.sport} · ${matchDateStr}`,
+        body: `${pick.sport} · ${formatDateForLocale(n.locale)}`,
         url: "/fr/pronos-abonnes/en-cours",
       });
     }
