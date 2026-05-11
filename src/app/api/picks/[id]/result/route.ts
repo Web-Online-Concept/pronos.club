@@ -2,7 +2,13 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { calculateProfit, calculateCombinedResult } from "@/lib/calculations";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import type { PickStatus } from "@/lib/supabase/types";
+
+// Next.js 16 : revalidateTag exige un 2e argument.
+// On veut une expiration immédiate (l'admin résout un pick, la home doit
+// refléter le changement tout de suite, pas en stale-while-revalidate).
+const IMMEDIATE_EXPIRE = { expire: 0 } as const;
 
 export async function POST(
   request: Request,
@@ -67,6 +73,9 @@ export async function POST(
       console.error("[picks/result] Bankroll update failed (non-blocking):", err);
     }
 
+    // Invalidate home cache (compteur "pronos en cours" + listings)
+    revalidateTag("home-picks", IMMEDIATE_EXPIRE);
+
     return NextResponse.json(data);
   }
 
@@ -121,10 +130,17 @@ export async function POST(
       console.error("[picks/result] Bankroll update failed (non-blocking):", err);
     }
 
+    // Invalidate home cache (compteur "pronos en cours" + listings)
+    revalidateTag("home-picks", IMMEDIATE_EXPIRE);
+
     return NextResponse.json({ ...data, all_resolved: true });
   }
 
   // Not all legs resolved yet — return partial state
+  // On invalide aussi le cache home : si une jambe d'un combiné a démarré,
+  // le combiné n'est plus "en cours" donc le compteur home doit décrémenter.
+  revalidateTag("home-picks", IMMEDIATE_EXPIRE);
+
   return NextResponse.json({
     id,
     leg_number,
