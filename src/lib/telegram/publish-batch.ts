@@ -69,6 +69,7 @@ type PendingPickRow = {
   generation_batch: string | null;
   tier: string | null;
   ai_pick_number: number | null;
+  classic_number: number | null;
   odds_comparison: Record<string, unknown> | null;
 };
 
@@ -114,6 +115,19 @@ const markPickAsPublished = async (
 };
 
 /**
+ * Génère le label affiché du pick (ex: "IA-0005").
+ * Cohérent avec buildAiPickLabel() de adapt-ai-pick.ts.
+ */
+const formatPickLabel = (
+  classicNumber: number | null,
+  aiPickNumber: number | null
+): string | null => {
+  const num = classicNumber ?? aiPickNumber;
+  if (num == null) return null;
+  return `IA-${String(num).padStart(4, "0")}`;
+};
+
+/**
  * Convertit un PendingPickRow en PickForX (typing strict).
  */
 const toPickForX = (pick: PendingPickRow): PickForX | null => {
@@ -132,6 +146,7 @@ const toPickForX = (pick: PendingPickRow): PickForX | null => {
     tier: pick.tier,
     drop_window: pick.drop_window,
     ai_pick_number: pick.ai_pick_number,
+    pick_label: formatPickLabel(pick.classic_number, pick.ai_pick_number),
   };
 };
 
@@ -306,7 +321,7 @@ export const publishBatchForDropWindow = async (
   const { data: picks, error: fetchError } = await supabaseAdmin
     .from("ai_picks")
     .select(
-      "id, slug, sport, league, event_name, event_date, selection, market, odds, reasoning, drop_window, generation_batch, tier, ai_pick_number, odds_comparison"
+      "id, slug, sport, league, event_name, event_date, selection, market, odds, reasoning, drop_window, generation_batch, tier, ai_pick_number, classic_number, odds_comparison"
     )
     .eq("generation_version", "v3")
     .eq("drop_window", dropWindow)

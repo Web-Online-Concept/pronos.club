@@ -41,6 +41,12 @@ export type PickForX = {
   tier: string | null;
   drop_window: string | null;
   ai_pick_number: number | null;
+  /**
+   * Label complet du pick (ex: "IA-0005", "BUT-0001").
+   * Si fourni, est utilisé en priorité sur ai_pick_number pour l'affichage.
+   * Construit via buildAiPickLabel() de adapt-ai-pick.ts.
+   */
+  pick_label: string | null;
 };
 
 export type FormattedXPick = {
@@ -148,11 +154,14 @@ export const formatPickForX = async (
   const sportEmoji = SPORT_EMOJI_X[pick.sport] ?? "🎯";
   const tierLabel = pick.tier ? TIER_LABEL_X[pick.tier] : "";
 
-  // ─── 0. Ligne d'identification IA + numéro pick + branding
-  // Format : "🤖 PRONO IA n°79 PRONOS CLUB" (~30 chars)
-  const aiBrandLine = pick.ai_pick_number != null
-    ? `🤖 PRONO IA n°${pick.ai_pick_number} PRONOS CLUB`
-    : `🤖 PRONO IA PRONOS CLUB`;
+  // ─── 0. Ligne d'identification IA + label pick + branding
+  // Format : "🤖 PRONO IA-0005 PRONOS CLUB" ou "🤖 PRONO BUT-0001 PRONOS CLUB" (~32 chars)
+  // Priorité : pick_label (IA-XXXX / BUT-XXXX) > ai_pick_number (fallback) > générique
+  const aiBrandLine = pick.pick_label
+    ? `🤖 PRONO ${pick.pick_label} PRONOS CLUB`
+    : pick.ai_pick_number != null
+      ? `🤖 PRONO IA n°${pick.ai_pick_number} PRONOS CLUB`
+      : `🤖 PRONO IA PRONOS CLUB`;
 
   // ─── 1. Header (tier + sport + league)
   const leagueShort = truncate(pick.league, 25);

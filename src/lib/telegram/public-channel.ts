@@ -69,6 +69,22 @@ type TelegramSendMessageResponse = {
 // CONSTANTS - Affichage
 // ============================================================================
 
+/**
+ * Génère le label affiché du pick (ex: "IA-0005").
+ * Utilise classic_number en priorité (cohérent avec le site / AiPickCard).
+ * Fallback sur ai_pick_number si classic_number absent (cas v1/v2 legacy).
+ *
+ * Cohérent avec buildAiPickLabel() de lib/ai-picks-v2/adapt-ai-pick.ts.
+ */
+const formatPickLabel = (
+  classicNumber: number | null,
+  aiPickNumber: number | null
+): string | null => {
+  const num = classicNumber ?? aiPickNumber;
+  if (num == null) return null;
+  return `IA-${String(num).padStart(4, "0")}`;
+};
+
 const SPORT_EMOJI: Record<string, string> = {
   football: "⚽",
   tennis: "🎾",
@@ -230,9 +246,10 @@ const formatPickMessage = (pick: PickRow, shortUrl: string): string => {
     : "";
 
   // Ligne d'identification IA + numéro pick + branding
-  // Format : "🤖 PRONO IA n°79 PRONOS CLUB"
-  const aiBrandLine = pick.ai_pick_number != null
-    ? `🤖 <b>PRONO IA n°${pick.ai_pick_number} PRONOS CLUB</b>`
+  // Format : "🤖 PRONO IA-0005 PRONOS CLUB" (basé sur classic_number → cohérent avec le site)
+  const pickLabel = formatPickLabel(pick.classic_number, pick.ai_pick_number);
+  const aiBrandLine = pickLabel
+    ? `🤖 <b>PRONO ${pickLabel} PRONOS CLUB</b>`
     : `🤖 <b>PRONO IA PRONOS CLUB</b>`;
 
   const lines = [
@@ -384,8 +401,11 @@ const formatBilanJourMessage = (bilan: BilanJour, bilanLinkUrl: string): string 
       const scoreLabel = pickEntry.final_score
         ? ` <i>(${escapeHtml(pickEntry.final_score)})</i>`
         : "";
+      // Préfixe IA-XXXX (cohérent avec site + Telegram pick individuel)
+      const pickLabel = formatPickLabel(pickEntry.classic_number, null);
+      const labelPrefix = pickLabel ? `<b>${pickLabel}</b> · ` : "";
       lines.push(
-        `${statusEmoji} ${sportEmoji} ${eventShort} — ${selectionShort} @ ${pickEntry.odds.toFixed(2)}${scoreLabel}`
+        `${statusEmoji} ${sportEmoji} ${labelPrefix}${eventShort} — ${selectionShort} @ ${pickEntry.odds.toFixed(2)}${scoreLabel}`
       );
     }
     if (bilan.picks.length > MAX_PICKS_DETAIL) {
