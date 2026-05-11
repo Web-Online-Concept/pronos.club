@@ -1,5 +1,16 @@
 // src/app/api/tipster-notif-prefs/route.ts
 // Préférences globales de notifs Pronos Abonnés
+//
+// Fix bugs notif (11/05/2026) :
+//   - Bug B — Miroir vers users.notify_abonnes_push et notify_abonnes_email.
+//     Avant ce fix, le PATCH ne touchait que tipster_notif_prefs. Or
+//     /api/notifications/send avec category="abonnes" filtre sur
+//     users.notify_abonnes_push. Sans miroir, une désactivation Section 5
+//     n'aurait aucun effet sur cet envoyeur (préparé pour futur usage).
+//     Maintenant les 2 tables restent cohérentes : tipster_notif_prefs
+//     = source de vérité côté UI + envoyeur tipster-notifications.ts,
+//     users.notify_abonnes_* = miroir pour /api/notifications/send et
+//     pour les requêtes admin par filtre direct.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -90,6 +101,28 @@ export async function PATCH(req: NextRequest) {
           channel_push: updateData.channel_push ?? false,
         });
       if (error) throw error;
+    }
+
+    // ─── Fix bug B — Miroir vers users.notify_abonnes_* ───
+    // Garde la cohérence avec /api/notifications/send qui filtre sur
+    // users.notify_abonnes_push / notify_abonnes_email pour category="abonnes".
+    // On miroir UNIQUEMENT les champs explicitement passés dans le body.
+    const mirrorUpdates: Record<string, boolean> = {};
+    if (typeof channel_push === "boolean") {
+      mirrorUpdates.notify_abonnes_push = channel_push;
+    }
+    if (typeof channel_email === "boolean") {
+      mirrorUpdates.notify_abonnes_email = channel_email;
+    }
+    if (Object.keys(mirrorUpdates).length > 0) {
+      const { error: mirrorErr } = await supabaseAdmin
+        .from("users")
+        .update(mirrorUpdates)
+        .eq("id", user.id);
+      if (mirrorErr) {
+        // Non fatal : la pref principale a été sauvegardée. On log.
+        console.error("[tipster-notif-prefs] miroir users échoué:", mirrorErr.message);
+      }
     }
 
     return NextResponse.json({ success: true });

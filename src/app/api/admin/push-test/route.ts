@@ -1,9 +1,19 @@
 // src/app/api/admin/push-test/route.ts
 // Route admin pour envoyer une notification push test à un user spécifique
 // Usage: POST /api/admin/push-test avec body { userId: "xxx" } ou { email: "xxx" }
+//
+// Fix bugs notif (11/05/2026) :
+//   - Bug A — Cleanup automatique des subs mortes (410/403/404) maintenant
+//     EXÉCUTÉ. Avant ce fix, on retournait juste shouldCleanup:true sans
+//     toucher la DB → la sub zombie restait en base et bloquait les
+//     prochains tests. Symptôme typique : on revient sur le site après
+//     un device unsubscribe (Android Chrome qui purge), le test renvoie
+//     410 indéfiniment jusqu'à un toggle OFF/ON manuel.
+//   - Bug #5 — endpoint_domain stocke maintenant le vrai hostname.
 
 import { requireAdmin } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { cleanupDeadSubscription } from "@/lib/tipster-notifications";
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 
@@ -13,12 +23,17 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 );
 
-function detectPlatform(endpoint: string): string {
-  if (endpoint.includes("push.apple.com")) return "ios";
-  if (endpoint.includes("fcm.googleapis.com")) return "android";
-  if (endpoint.includes("mozilla.com")) return "firefox";
-  if (endpoint.includes("windows.com")) return "windows";
-  return "other";
+function detectPlatform(endpoint: string): { platform: string; domain: string } {
+  try {
+    const hostname = new URL(endpoint).hostname;
+    if (endpoint.includes("push.apple.com")) return { platform: "ios", domain: hostname };
+    if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: hostname };
+    if (endpoint.includes("mozilla.com")) return { platform: "firefox", domain: hostname };
+    if (endpoint.includes("windows.com")) return { platform: "windows", domain: hostname };
+    return { platform: "other", domain: hostname };
+  } catch {
+    return { platform: "other", domain: "unknown" };
+  }
 }
 
 export async function POST(request: Request) {
@@ -56,7 +71,7 @@ export async function POST(request: Request) {
   }
 
   const endpoint = (user.push_subscription as { endpoint: string }).endpoint;
-  const platform = detectPlatform(endpoint);
+  const { platform, domain } = detectPlatform(endpoint);
 
   const payload = JSON.stringify({
     title: "🧪 Test notification PRONOS.CLUB",
@@ -76,7 +91,7 @@ export async function POST(request: Request) {
       sent_at: new Date().toISOString(),
       error: null,
       platform,
-      endpoint_domain: platform,
+      endpoint_domain: domain,
       status_code: 201,
     });
 
@@ -94,6 +109,8 @@ export async function POST(request: Request) {
       if ("body" in err) errorMsg = String((err as { body: string }).body);
     }
 
+    const isDead = statusCode === 404 || statusCode === 410 || statusCode === 403;
+
     // Log
     await supabaseAdmin.from("notification_logs").insert({
       pick_id: null,
@@ -103,9 +120,20 @@ export async function POST(request: Request) {
       sent_at: new Date().toISOString(),
       error: errorMsg.slice(0, 500),
       platform,
-      endpoint_domain: platform,
+      endpoint_domain: domain,
       status_code: statusCode,
     });
+
+    // Fix bug A — cleanup auto si la sub est morte
+    let cleaned = false;
+    if (isDead) {
+      try {
+        await cleanupDeadSubscription(user.id);
+        cleaned = true;
+      } catch (cleanupErr) {
+        console.error("[push-test] cleanup failed", cleanupErr);
+      }
+    }
 
     return NextResponse.json({
       success: false,
@@ -113,7 +141,8 @@ export async function POST(request: Request) {
       statusCode,
       platform,
       user: { id: user.id, email: user.email },
-      shouldCleanup: statusCode === 404 || statusCode === 410 || statusCode === 403,
+      shouldCleanup: isDead,
+      cleaned,
     }, { status: 200 }); // 200 car on a bien traité la requête, c'est le push qui a foiré
   }
 }

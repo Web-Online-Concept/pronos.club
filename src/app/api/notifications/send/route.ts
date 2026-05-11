@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * /api/notifications/send (V3.5 Lot 14 — granularité par catégorie)
+ * /api/notifications/send (V3.5 Lot 14 + fix bugs notif 11/05/26)
  * ═══════════════════════════════════════════════════════════════════
  *
  * V3.5 Lot 14 (10/05/2026) :
@@ -10,6 +10,13 @@
  *     · category="abonnes" → notify_abonnes_push / notify_abonnes_email
  *   - Rétrocompat : si category n'est pas fourni, défaut "tipster"
  *     (comportement historique pour les anciens appels)
+ *
+ * Fix bugs notif (11/05/2026) :
+ *   - Bug A — Cleanup batch des subs mortes maintenant COMPLET :
+ *     coupe push_subscription + tous les flags catégories users + miroir
+ *     tipster_notif_prefs.channel_push. Avant ce fix, tipster_notif_prefs
+ *     restait à channel_push=true → Section 5 affichait ON sans sub
+ *     physique.
  *
  * Path : src/app/api/notifications/send/route.ts
  * ═══════════════════════════════════════════════════════════════════
@@ -35,11 +42,16 @@ type PushUser = {
 type Category = "tipster" | "abonnes";
 
 function detectPlatform(endpoint: string): { platform: string; domain: string } {
-  if (endpoint.includes("push.apple.com")) return { platform: "ios", domain: "apple" };
-  if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: "fcm" };
-  if (endpoint.includes("mozilla.com")) return { platform: "firefox", domain: "mozilla" };
-  if (endpoint.includes("windows.com")) return { platform: "windows", domain: "wns" };
-  return { platform: "other", domain: "unknown" };
+  try {
+    const hostname = new URL(endpoint).hostname;
+    if (endpoint.includes("push.apple.com")) return { platform: "ios", domain: hostname };
+    if (endpoint.includes("fcm.googleapis.com")) return { platform: "android", domain: hostname };
+    if (endpoint.includes("mozilla.com")) return { platform: "firefox", domain: hostname };
+    if (endpoint.includes("windows.com")) return { platform: "windows", domain: hostname };
+    return { platform: "other", domain: hostname };
+  } catch {
+    return { platform: "other", domain: "unknown" };
+  }
 }
 
 async function sendSinglePush(
@@ -173,8 +185,11 @@ export async function POST(request: Request) {
     })
   );
 
-  // Cleanup invalid subscriptions (en batch)
-  // V3.5 Lot 14 — on désactive aussi les toggles catégories
+  // ═════════════════════════════════════════════════════════════
+  // CLEANUP des subs mortes (fix bug A — cleanup COMPLET)
+  // ═════════════════════════════════════════════════════════════
+  // Avant ce fix : on coupait users.notify_* mais tipster_notif_prefs.channel_push
+  // restait à true → Section 5 affichait ON sans sub physique.
   if (cleanupIds.length > 0) {
     await supabaseAdmin
       .from("users")
@@ -185,6 +200,15 @@ export async function POST(request: Request) {
         notify_abonnes_push: false,
       })
       .in("id", cleanupIds);
+
+    // Miroir tipster_notif_prefs (Section 5 UI lit ici)
+    await supabaseAdmin
+      .from("tipster_notif_prefs")
+      .update({
+        channel_push: false,
+        updated_at: new Date().toISOString(),
+      })
+      .in("user_id", cleanupIds);
   }
 
   // Insert all log rows in one batch

@@ -1,6 +1,17 @@
 // src/lib/tipster-notifications.ts
 // Envoie les notifications aux followers quand un tipster publie un pick
 // 3 canaux : Email (Brevo via emails.ts) + Telegram (bot + canal public) + Push (web-push sur users.push_subscription)
+//
+// Fix bugs notif (11/05/2026) :
+//   - Bug A — Cleanup des subs mortes (410/403/404) désormais COMPLET :
+//     coupe push_subscription + tous les flags catégories users + miroir
+//     tipster_notif_prefs.channel_push. Avant ce fix, seul notify_push
+//     et push_subscription étaient coupés → notify_tipster_push,
+//     notify_abonnes_push et tipster_notif_prefs.channel_push restaient
+//     à true → Section 5 affichait ON sans sub physique, et le prochain
+//     envoi re-tentait sur une sub morte (et reloggait 410).
+//   - Factorisation : helper exporté cleanupDeadSubscription() partagé
+//     avec /api/notifications/send et /api/admin/push-test.
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -38,6 +49,30 @@ type Tipster = {
   pseudo: string;
   avatar_url: string | null;
 };
+
+// ─── Helper exporté : cleanup d'une subscription morte ───
+// Coupe TOUT pour éviter les zombies désynchronisés. Appelé sur 410/403/404.
+// Utilisé aussi par /api/notifications/send (batch) et /api/admin/push-test.
+export async function cleanupDeadSubscription(userId: string) {
+  await supabaseAdmin
+    .from("users")
+    .update({
+      push_subscription: null,
+      notify_push: false,
+      notify_tipster_push: false,
+      notify_abonnes_push: false,
+    })
+    .eq("id", userId);
+
+  // Miroir vers tipster_notif_prefs (Section 5 UI lit ici)
+  await supabaseAdmin
+    .from("tipster_notif_prefs")
+    .update({
+      channel_push: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+}
 
 // ── Helper Telegram ──
 async function sendTelegramMessage(chatId: string | number, text: string) {
@@ -77,12 +112,9 @@ async function sendPushToUser(userId: string, payload: any) {
       );
     } catch (err: any) {
       const statusCode = err?.statusCode || 0;
-      // Subscription morte : on nettoie
+      // Subscription morte : cleanup complet (fix bug A)
       if (statusCode === 404 || statusCode === 410 || statusCode === 403) {
-        await supabaseAdmin
-          .from("users")
-          .update({ push_subscription: null, notify_push: false })
-          .eq("id", userId);
+        await cleanupDeadSubscription(userId);
       }
     }
   } catch (err) {
