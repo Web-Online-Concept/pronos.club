@@ -34,7 +34,7 @@
     },
     {
       "path": "/api/cron/ai-picks-publish-evening",
-      "schedule": "15 16 * * *"
+      "schedule": "45 15 * * *"
     },
     {
       "path": "/api/cron/ai-picks-resolve",
