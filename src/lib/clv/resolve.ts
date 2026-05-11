@@ -115,6 +115,58 @@ const getYesterdayParisDate = (): string => {
   return yesterday.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
 };
 
+// ============================================================================
+// HELPERS TIMEZONE PARIS (robuste été/hiver)
+// ============================================================================
+
+/**
+ * Calcule l'offset Paris/UTC en millisecondes pour une date donnée.
+ * Été : +2h, Hiver : +1h.
+ */
+const getParisOffsetMs = (utcDate: Date): number => {
+  const parisTime = new Date(utcDate.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const utcTime = new Date(utcDate.toLocaleString("en-US", { timeZone: "UTC" }));
+  return parisTime.getTime() - utcTime.getTime();
+};
+
+/**
+ * Retourne le timestamp UTC correspondant à minuit (00:00:00) heure Paris
+ * pour une date calendaire donnée (YYYY-MM-DD).
+ *
+ * Exemples :
+ *   - "2026-05-10" été UTC+2 → "2026-05-09T22:00:00.000Z"
+ *   - "2026-01-15" hiver UTC+1 → "2026-01-14T23:00:00.000Z"
+ */
+const parisDateToUTCMidnight = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  // Référence à 12h UTC pour être sûr d'être dans le bon jour Paris
+  const noonUTC = new Date(Date.UTC(year, month - 1, day, 12));
+  const parisOffsetMs = getParisOffsetMs(noonUTC);
+  const utcMidnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  return new Date(utcMidnight.getTime() - parisOffsetMs);
+};
+
+/**
+ * Retourne les bornes UTC pour une journée Paris donnée.
+ * - dayStart = minuit Paris du jour cible (UTC)
+ * - dayEnd = minuit Paris du jour SUIVANT (UTC), exclusif (utiliser .lt())
+ *
+ * Exemple ("2026-05-10" été) :
+ *   dayStart = 2026-05-09T22:00:00Z
+ *   dayEnd   = 2026-05-10T22:00:00Z
+ */
+const getParisDayBoundsUTC = (dateStr: string): { dayStart: Date; dayEnd: Date } => {
+  const dayStart = parisDateToUTCMidnight(dateStr);
+
+  // Calcul du jour suivant en Paris
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const nextDay = new Date(year, month - 1, day + 1);
+  const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+  const dayEnd = parisDateToUTCMidnight(nextDayStr);
+
+  return { dayStart, dayEnd };
+};
+
 /**
  * Calcule le clv_pct à partir des cotes opening et closing no-vig.
  *
@@ -231,9 +283,12 @@ export const finalizeCLVForResolvedPicks = async (
     errors: [],
   };
 
-  // Bornes Paris : 00:00 → 23:59:59 du jour cible
-  const dayStartIso = new Date(`${date}T00:00:00+02:00`).toISOString();
-  const dayEndIso = new Date(`${date}T23:59:59.999+02:00`).toISOString();
+  // Bornes Paris robustes (été/hiver)
+  // On filtre sur event_date pour rester cohérent avec aggregateBilanJour :
+  // un pick est "du 10 mai" si son match était le 10 mai (peu importe quand résolu).
+  const { dayStart, dayEnd } = getParisDayBoundsUTC(date);
+  const dayStartIso = dayStart.toISOString();
+  const dayEndIso = dayEnd.toISOString();
 
   const { data: picks, error: fetchError } = await supabaseAdmin
     .from("ai_picks")
@@ -241,8 +296,8 @@ export const finalizeCLVForResolvedPicks = async (
     .eq("generation_version", "v3")
     .in("status", ["won", "lost", "void"])
     .is("deleted_at", null)
-    .gte("resolved_at", dayStartIso)
-    .lte("resolved_at", dayEndIso);
+    .gte("event_date", dayStartIso)
+    .lt("event_date", dayEndIso);
 
   if (fetchError) {
     result.errors.push(`Supabase fetch failed: ${fetchError.message}`);
@@ -313,8 +368,12 @@ export const aggregateBilanJour = async (
 ): Promise<BilanJour | null> => {
   const date = targetDate ?? getYesterdayParisDate();
 
-  const dayStartIso = new Date(`${date}T00:00:00+02:00`).toISOString();
-  const dayEndIso = new Date(`${date}T23:59:59.999+02:00`).toISOString();
+  // Bornes Paris robustes (été/hiver)
+  // On filtre sur event_date (date du match) — un pick appartient au bilan
+  // du jour où il a été disputé, peu importe quand il a été résolu.
+  const { dayStart, dayEnd } = getParisDayBoundsUTC(date);
+  const dayStartIso = dayStart.toISOString();
+  const dayEndIso = dayEnd.toISOString();
 
   const { data: picks, error: fetchError } = await supabaseAdmin
     .from("ai_picks")
@@ -324,9 +383,9 @@ export const aggregateBilanJour = async (
     .eq("generation_version", "v3")
     .in("status", ["won", "lost", "void"])
     .is("deleted_at", null)
-    .gte("resolved_at", dayStartIso)
-    .lte("resolved_at", dayEndIso)
-    .order("resolved_at", { ascending: true });
+    .gte("event_date", dayStartIso)
+    .lt("event_date", dayEndIso)
+    .order("event_date", { ascending: true });
 
   if (fetchError) {
     console.error(`[bilan-jour] fetch error: ${fetchError.message}`);
