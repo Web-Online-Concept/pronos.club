@@ -33,7 +33,16 @@
     "tipster_dropdown": "Pronos Tipster",
     "ai_dropdown": "Pronos IA",
     "abonnes_dropdown": "Pronos Abonnés",
-    "media_dropdown": "Médias"
+    "media_dropdown": "Médias",
+    "live_picks": "Pronos en cours",
+    "how_it_works": "Fonctionnement",
+    "ranking": "Classement",
+    "contest": "Concours",
+    "scores": "Scores",
+    "stats_sports": "Stats Sports",
+    "news": "News",
+    "videos": "Vidéos",
+    "world_cup": "Coupe du Monde 2026"
   },
   "home": {
     "hero_title_line1": "Pronostics sportifs",

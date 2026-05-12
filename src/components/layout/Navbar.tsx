@@ -70,19 +70,19 @@ export default function Navbar() {
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
     { href: `/${locale}/tipster`, label: t("tipster_short"), icon: "👨‍💼" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
-    { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
+    { href: `/${locale}/livescore`, label: t("scores"), icon: "🏟️" },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
-    { href: `/${locale}/news`, label: "News", icon: "📰" },
-    { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
+    { href: `/${locale}/news`, label: t("news"), icon: "📰" },
+    { href: `/${locale}/videos`, label: t("videos"), icon: "🎬" },
   ];
 
   // Desktop : dropdown "Pronos Tipster"
   const DESKTOP_PRONOS = [
-    { href: `/${locale}/pronostics`, label: "Pronos en cours", icon: "🎯" },
+    { href: `/${locale}/pronostics`, label: t("live_picks"), icon: "🎯" },
     { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
     { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
     { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/tipster`, label: "Fonctionnement", icon: "❓" },
+    { href: `/${locale}/tipster`, label: t("how_it_works"), icon: "❓" },
     { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
   ];
 
@@ -90,28 +90,28 @@ export default function Navbar() {
   const DESKTOP_PRONOS_IA = [
     { href: `/${locale}/pronos-ia`, label: t("ai_picks_live"), icon: "🎯" },
     { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
-    { href: `/${locale}/pronos-ia/stats`, label: "Stats", icon: "📊" },
+    { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
     { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
-    { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
+    { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("how_it_works"), icon: "❓" },
   ];
 
   // Desktop : dropdown "Pronos Abonnés"
   const DESKTOP_PRONOS_ABONNES = [
-    { href: `/${locale}/pronos-abonnes/en-cours`, label: "Pronos en cours", icon: "🎯" },
+    { href: `/${locale}/pronos-abonnes/en-cours`, label: t("live_picks"), icon: "🎯" },
     { href: `/${locale}/pronos-abonnes/historique`, label: t("history_short"), icon: "📋" },
-    { href: `/${locale}/pronos-abonnes/classement`, label: "Classement", icon: "🏆" },
-    { href: `/${locale}/pronos-abonnes/concours`, label: "Concours", icon: "🎁" },
-    { href: `/${locale}/pronos-abonnes`, label: "Fonctionnement", icon: "❓" },
+    { href: `/${locale}/pronos-abonnes/classement`, label: t("ranking"), icon: "🏆" },
+    { href: `/${locale}/pronos-abonnes/concours`, label: t("contest"), icon: "🎁" },
+    { href: `/${locale}/pronos-abonnes`, label: t("how_it_works"), icon: "❓" },
   ];
 
   // Desktop : dropdown "Médias"
   const DESKTOP_MEDIA = [
-    { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
-    { href: `/${locale}/stats-sports`, label: "Stats Sports", icon: "📉" },
+    { href: `/${locale}/livescore`, label: t("scores"), icon: "🏟️" },
+    { href: `/${locale}/stats-sports`, label: t("stats_sports"), icon: "📉" },
     { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
-    { href: `/${locale}/news`, label: "News", icon: "📰" },
-    { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
-    { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026", icon: "🏆" },
+    { href: `/${locale}/news`, label: t("news"), icon: "📰" },
+    { href: `/${locale}/videos`, label: t("videos"), icon: "🎬" },
+    { href: `/${locale}/coupe-du-monde`, label: t("world_cup"), icon: "🏆" },
   ];
 
   const currentFlag = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
@@ -515,11 +515,11 @@ export default function Navbar() {
               <p className="mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">🎯 {t("tipster_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { href: `/${locale}/pronostics`, label: "En Cours", icon: "🎯" },
+                  { href: `/${locale}/pronostics`, label: t("live_picks"), icon: "🎯" },
                   { href: `/${locale}/historique`, label: t("history_short"), icon: "📋" },
                   { href: `/${locale}/statistiques`, label: t("stats_short"), icon: "📊" },
                   { href: `/${locale}/bilans`, label: t("bilans_short"), icon: "📈" },
-                  { href: `/${locale}/tipster`, label: "Fonctionnement", icon: "❓" },
+                  { href: `/${locale}/tipster`, label: t("how_it_works"), icon: "❓" },
                   { href: `/${locale}/bookmakers`, label: t("books"), icon: "📚" },
                 ].map((link) => (
                   <Link
@@ -540,9 +540,9 @@ export default function Navbar() {
                 {[
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
                   { href: `/${locale}/pronos-ia/historique`, label: t("ai_picks_history"), icon: "📋" },
-                  { href: `/${locale}/pronos-ia/stats`, label: "Stats", icon: "📊" },
+                  { href: `/${locale}/pronos-ia/stats`, label: t("ai_picks_stats_short"), icon: "📊" },
                   { href: `/${locale}/pronos-ia/bilans`, label: t("bilans_short"), icon: "📈" },
-                  { href: `/${locale}/pronos-ia/comment-ca-marche`, label: "Fonctionnement", icon: "❓" },
+                  { href: `/${locale}/pronos-ia/comment-ca-marche`, label: t("how_it_works"), icon: "❓" },
                 ].map((link) => (
                   <Link
                     key={link.href}
@@ -560,11 +560,11 @@ export default function Navbar() {
               <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">⭐ {t("abonnes_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { href: `/${locale}/pronos-abonnes/en-cours`, label: "En Cours", icon: "🎯" },
+                  { href: `/${locale}/pronos-abonnes/en-cours`, label: t("live_picks"), icon: "🎯" },
                   { href: `/${locale}/pronos-abonnes/historique`, label: t("history_short"), icon: "📋" },
-                  { href: `/${locale}/pronos-abonnes/classement`, label: "Classement", icon: "🏆" },
-                  { href: `/${locale}/pronos-abonnes/concours`, label: "Concours", icon: "🎁" },
-                  { href: `/${locale}/pronos-abonnes`, label: "Fonctionnement", icon: "❓" },
+                  { href: `/${locale}/pronos-abonnes/classement`, label: t("ranking"), icon: "🏆" },
+                  { href: `/${locale}/pronos-abonnes/concours`, label: t("contest"), icon: "🎁" },
+                  { href: `/${locale}/pronos-abonnes`, label: t("how_it_works"), icon: "❓" },
                 ].map((link) => (
                   <Link
                     key={link.href}
@@ -582,12 +582,12 @@ export default function Navbar() {
               <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">📺 {t("media_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },
-                  { href: `/${locale}/stats-sports`, label: "Stats Sports", icon: "📉" },
+                  { href: `/${locale}/livescore`, label: t("scores"), icon: "🏟️" },
+                  { href: `/${locale}/stats-sports`, label: t("stats_sports"), icon: "📉" },
                   { href: `/${locale}/blog`, label: t("blog_short"), icon: "✍️" },
-                  { href: `/${locale}/news`, label: "News", icon: "📰" },
-                  { href: `/${locale}/videos`, label: "Vidéos", icon: "🎬" },
-                  { href: `/${locale}/coupe-du-monde`, label: "World Cup 2026", icon: "🏆" },
+                  { href: `/${locale}/news`, label: t("news"), icon: "📰" },
+                  { href: `/${locale}/videos`, label: t("videos"), icon: "🎬" },
+                  { href: `/${locale}/coupe-du-monde`, label: t("world_cup"), icon: "🏆" },
                 ].map((link) => (
                   <Link
                     key={link.href}

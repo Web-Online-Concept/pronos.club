@@ -33,7 +33,16 @@
     "tipster_dropdown": "Tipster",
     "ai_dropdown": "IA",
     "abonnes_dropdown": "Comunidad",
-    "media_dropdown": "Medios"
+    "media_dropdown": "Medios",
+    "live_picks": "En curso",
+    "how_it_works": "Funcionamiento",
+    "ranking": "Clasificación",
+    "contest": "Concurso",
+    "scores": "Resultados",
+    "stats_sports": "Estadísticas Deportes",
+    "news": "Noticias",
+    "videos": "Vídeos",
+    "world_cup": "Mundial 2026"
   },
   "home": {
     "hero_title_line1": "Pronósticos deportivos",

@@ -33,7 +33,16 @@
     "tipster_dropdown": "Tipster Picks",
     "ai_dropdown": "AI Picks",
     "abonnes_dropdown": "Community Picks",
-    "media_dropdown": "Media"
+    "media_dropdown": "Media",
+    "live_picks": "Live picks",
+    "how_it_works": "How it works",
+    "ranking": "Leaderboard",
+    "contest": "Contest",
+    "scores": "Scores",
+    "stats_sports": "Sports Stats",
+    "news": "News",
+    "videos": "Videos",
+    "world_cup": "World Cup 2026"
   },
   "home": {
     "hero_title_line1": "Professional",
