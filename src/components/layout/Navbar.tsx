@@ -247,7 +247,7 @@ export default function Navbar() {
                   isPronosActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Pronos Tipster
+                {t("tipster_dropdown")}
               </button>
 
               {pronosOpen && (
@@ -279,7 +279,7 @@ export default function Navbar() {
                   isPronosIAActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Pronos IA
+                {t("ai_dropdown")}
               </button>
 
               {pronosIAOpen && (
@@ -311,7 +311,7 @@ export default function Navbar() {
                   pathname.includes("/pronos-abonnes") ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Pronos Abonnés
+                {t("abonnes_dropdown")}
               </button>
 
               {pronosAbonnesOpen && (
@@ -343,7 +343,7 @@ export default function Navbar() {
                   isMediaActive ? "text-emerald-400" : "text-neutral-300"
                 }`}
               >
-                Médias
+                {t("media_dropdown")}
               </button>
 
               {mediaOpen && (
@@ -512,7 +512,7 @@ export default function Navbar() {
             {/* Nav links + lang + CTA — all in scrollable area */}
             <div className="flex-1 overflow-y-auto px-3 pt-4 pb-32" style={{ paddingBottom: "max(8rem, env(safe-area-inset-bottom))" }}>
               {/* Pronos Tipster */}
-              <p className="mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">🎯 Pronos Tipster</p>
+              <p className="mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">🎯 {t("tipster_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/pronostics`, label: "En Cours", icon: "🎯" },
@@ -535,7 +535,7 @@ export default function Navbar() {
               </div>
 
               {/* Pronos IA */}
-              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">🤖 Pronos IA</p>
+              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">🤖 {t("ai_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/pronos-ia`, label: t("ai_picks_live_short"), icon: "🎯" },
@@ -557,7 +557,7 @@ export default function Navbar() {
               </div>
 
               {/* Pronos Abonnes */}
-              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">⭐ Pronos Abonnés</p>
+              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">⭐ {t("abonnes_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/pronos-abonnes/en-cours`, label: "En Cours", icon: "🎯" },
@@ -579,7 +579,7 @@ export default function Navbar() {
               </div>
 
               {/* Médias */}
-              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">📺 Médias</p>
+              <p className="mt-4 mb-2 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">📺 {t("media_dropdown")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { href: `/${locale}/livescore`, label: "Scores", icon: "🏟️" },

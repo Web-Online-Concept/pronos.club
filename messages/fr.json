@@ -29,7 +29,11 @@
     "ai_picks_stats": "Statistiques",
     "ai_picks_how": "Fonctionnement",
     "ai_picks_live_short": "En Cours",
-    "ai_picks_stats_short": "Stats"
+    "ai_picks_stats_short": "Stats",
+    "tipster_dropdown": "Pronos Tipster",
+    "ai_dropdown": "Pronos IA",
+    "abonnes_dropdown": "Pronos Abonnés",
+    "media_dropdown": "Médias"
   },
   "home": {
     "hero_title_line1": "Pronostics sportifs",
