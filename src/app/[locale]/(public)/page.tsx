@@ -360,7 +360,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 },
                 {
                   href_pending: `/${locale}/pronos-ia`,
-                  href_history: `/${locale}/pronos-ia`,
+                  href_history: `/${locale}/pronos-ia/historique`,
                   count: activeAiPronos,
                   img:
                     locale === "en"
@@ -372,7 +372,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 },
                 {
                   href_pending: `/${locale}/pronos-abonnes/en-cours`,
-                  href_history: `/${locale}/pronos-abonnes/en-cours`,
+                  href_history: `/${locale}/pronos-abonnes/historique`,
                   count: activeAbonnesPronos,
                   img:
                     locale === "en"
