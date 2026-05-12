@@ -321,6 +321,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         />
 
         <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
+          {/* Titre + sous-titre (déplacés au-dessus des cartes le 12/05/2026) */}
+          <h1 className="text-2xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl">
+            <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
+              {t("hero_title_line1")}
+            </span>
+            <br />
+            <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, #34d399 0%, #34d399 35%, #ffffff 45%, #ffffff 50%, #ffffff 55%, #34d399 65%, #34d399 100%)", animationDelay: "0.3s" }}>
+              {t("hero_title_line2")}
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400 sm:mt-5 sm:text-lg">
+            {t("hero_subtitle")}
+          </p>
+
           {/* Hero — 3 cartes médaillons (Tipster / IA / Abonnés) */}
           {/* Remplace l'ancien logo pronos_club_hero. Chaque carte est cliquable :
               - badge "X en cours" → page des pronos en cours de la catégorie
@@ -328,7 +343,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               Les 3 compteurs viennent de caches taggés "home-picks" donc actualisés
               automatiquement à chaque résolution de pick (cf. revalidateTag dans
               picks/[id]/result/route.ts). */}
-          <div className="mx-auto mb-3 grid w-full max-w-3xl grid-cols-3 gap-3 sm:mb-6 sm:gap-6">
+          <div className="mx-auto mt-6 mb-3 grid w-full max-w-3xl grid-cols-3 gap-3 sm:mt-8 sm:mb-6 sm:gap-6">
             {(
               [
                 {
@@ -373,15 +388,20 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 key={card.alt}
                 className="flex flex-col items-center gap-2 sm:gap-3"
               >
-                {/* Médaillon image */}
-                <Image
-                  src={card.img}
-                  alt={card.alt}
-                  width={200}
-                  height={200}
-                  className="h-[90px] w-[90px] object-contain sm:h-[160px] sm:w-[160px] lg:h-[200px] lg:w-[200px]"
-                  priority
-                />
+                {/* Médaillon image — cliquable vers la page des pronos en cours */}
+                <Link
+                  href={card.href_pending}
+                  className="block transition hover:scale-105"
+                >
+                  <Image
+                    src={card.img}
+                    alt={card.alt}
+                    width={200}
+                    height={200}
+                    className="h-[90px] w-[90px] object-contain sm:h-[160px] sm:w-[160px] lg:h-[200px] lg:w-[200px]"
+                    priority
+                  />
+                </Link>
 
                 {/* Badge "X en cours" cliquable */}
                 <Link
@@ -408,48 +428,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ))}
           </div>
 
-          {/* Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-xs font-semibold text-emerald-400">
-                {activePronos > 1 ? t("badge_active_many", { count: activePronos }) : t("badge_active_one", { count: activePronos })}
-              </span>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5">
-              <span className="text-xs font-semibold text-sky-400">
-                {totalPicks > 1 ? t("badge_finished_many", { count: totalPicks }) : t("badge_finished_one", { count: totalPicks })}
-              </span>
-            </div>
-          </div>
-
-          <h1 className="mt-4 text-2xl font-extrabold leading-[1.1] tracking-tight sm:mt-6 sm:text-4xl lg:text-5xl">
-            <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
-              {t("hero_title_line1")}
-            </span>
-            <br />
-            <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, #34d399 0%, #34d399 35%, #ffffff 45%, #ffffff 50%, #ffffff 55%, #34d399 65%, #34d399 100%)", animationDelay: "0.3s" }}>
-              {t("hero_title_line2")}
-            </span>
-          </h1>
-
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400 sm:mt-5 sm:text-lg">
-            {t("hero_subtitle")}
-          </p>
-
-          <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:flex-row sm:gap-3 sm:justify-center">
+          <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:justify-center">
             {isPremium ? (
               <>
-                {/* PREMIUM : Voir les pronos (primary) + Mon espace (secondary) */}
-                <Link
-                  href={`/${locale}/pronostics`}
-                  className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
-                >
-                  {t("cta_see_picks")}
-                </Link>
+                {/* PREMIUM : Accéder à mon espace */}
                 <Link
                   href={`/${locale}/espace`}
                   className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
@@ -459,7 +441,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </>
             ) : (
               <>
-                {/* NON-PREMIUM : Essai 7j gratuits (primary) + Voir pronos (secondary) */}
+                {/* NON-PREMIUM : Essai 7j gratuits */}
                 <Link
                   href={isLoggedIn ? `/${locale}/espace/abonnement` : `/${locale}/login`}
                   className="group relative w-full overflow-hidden rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4"
@@ -474,12 +456,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                       ? "Prueba 7 días gratis"
                       : "Essayer 7 jours gratuits"}
                   </span>
-                </Link>
-                <Link
-                  href={`/${locale}/pronostics`}
-                  className="w-full rounded-xl border border-neutral-700 px-6 py-3 text-sm font-semibold text-neutral-300 transition hover:border-neutral-500 hover:text-white sm:w-auto sm:px-8 sm:py-4"
-                >
-                  {t("cta_see_picks")}
                 </Link>
               </>
             )}
