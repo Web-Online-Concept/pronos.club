@@ -191,7 +191,12 @@
     "abonnes_feature3_desc": "El campeón del mes se lleva un premio mayor. Una competición continua para los mejores.",
     "abonnes_cta_main": "Descubrir Pronos Abonados",
     "abonnes_cta_secondary": "Ver clasificación",
-    "abonnes_note": "Reservado a los abonados Premium. Tipsters de nuestra comunidad activa."
+    "abonnes_note": "Reservado a los abonados Premium. Tipsters de nuestra comunidad activa.",
+    "hero_card_tipster": "Pronos Tipster",
+    "hero_card_ia": "Pronos IA",
+    "hero_card_abonnes": "Pronos Abonados",
+    "hero_card_pending": "{count} en curso",
+    "hero_card_history": "Historial"
   },
   "picks": {
     "title": "Pronósticos",

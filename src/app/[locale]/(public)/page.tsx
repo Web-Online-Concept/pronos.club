@@ -93,6 +93,46 @@ const getCachedPendingCount = unstable_cache(
   { revalidate: 300, tags: ["home-picks"] }
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// Cache compteur Pronos IA en cours (ajout 12/05/2026)
+// Source: table ai_picks, mêmes critères que la page /pronos-ia
+//         (status='pending' AND event_date > NOW() AND pick_type='classic'
+//          AND deleted_at IS NULL)
+// ═══════════════════════════════════════════════════════════════════
+const getCachedAiPendingCount = unstable_cache(
+  async () => {
+    const { count } = await supabaseAdmin
+      .from("ai_picks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("pick_type", "classic")
+      .is("deleted_at", null)
+      .gt("event_date", new Date().toISOString());
+    return count ?? 0;
+  },
+  ["home-ai-pending-count"],
+  { revalidate: 300, tags: ["home-picks"] }
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// Cache compteur Pronos Abonnés en cours (ajout 12/05/2026)
+// Source: table tipster_picks, MÊMES critères que /pronos-abonnes/en-cours
+//         (status='live' AND match_date >= NOW())
+// → Source de vérité unique pour éviter toute incohérence home vs page détail
+// ═══════════════════════════════════════════════════════════════════
+const getCachedAbonnesPendingCount = unstable_cache(
+  async () => {
+    const { count } = await supabaseAdmin
+      .from("tipster_picks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "live")
+      .gte("match_date", new Date().toISOString());
+    return count ?? 0;
+  },
+  ["home-abonnes-pending-count"],
+  { revalidate: 300, tags: ["home-picks"] }
+);
+
 const getCachedReviews = unstable_cache(
   async () => {
     const { data } = await supabaseAdmin
@@ -151,9 +191,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const isPremium = user?.subscription_status === "active" || user?.subscription_status === "trialing";
 
   // ─── Fetch real stats (cached) ───
-  const [allPicks, pendingCount, reviewsData, teaserPick] = await Promise.all([
+  const [allPicks, pendingCount, aiPendingCount, abonnesPendingCount, reviewsData, teaserPick] = await Promise.all([
     getCachedPicks(),
     getCachedPendingCount(),
+    getCachedAiPendingCount(),
+    getCachedAbonnesPendingCount(),
     getCachedReviews(),
     isPremium ? Promise.resolve(null) : getCachedTeaserPick(),
   ]);
@@ -161,6 +203,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const picks = allPicks ?? [];
   const totalPicks = picks.length;
   const activePronos = pendingCount ?? 0;
+  const activeAiPronos = aiPendingCount ?? 0;
+  const activeAbonnesPronos = abonnesPendingCount ?? 0;
   const totalProfit = picks.reduce((s, p) => s + (p.profit ?? 0), 0);
   const wonPicks = picks.filter((p) => p.status === "won" || p.status === "half_won").length;
   const resolvedPicks = picks.filter((p) => p.status !== "void").length;
@@ -277,17 +321,91 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         />
 
         <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
-          {/* Hero Logo */}
-          <div className="mx-auto mb-3 animate-[logoFloat_6s_ease-in-out_infinite] sm:mb-6">
-            <Image
-              src="/pronos_club_hero.png"
-              alt="PRONOS.CLUB"
-              width={400}
-              height={320}
-              className="mx-auto h-[90px] w-auto sm:h-[170px] lg:h-[200px]"
-              style={{ width: "auto" }}
-              priority
-            />
+          {/* Hero — 3 cartes médaillons (Tipster / IA / Abonnés) */}
+          {/* Remplace l'ancien logo pronos_club_hero. Chaque carte est cliquable :
+              - badge "X en cours" → page des pronos en cours de la catégorie
+              - bouton "Historique" → page historique de la catégorie
+              Les 3 compteurs viennent de caches taggés "home-picks" donc actualisés
+              automatiquement à chaque résolution de pick (cf. revalidateTag dans
+              picks/[id]/result/route.ts). */}
+          <div className="mx-auto mb-3 grid w-full max-w-3xl grid-cols-3 gap-3 sm:mb-6 sm:gap-6">
+            {(
+              [
+                {
+                  href_pending: `/${locale}/pronostics`,
+                  href_history: `/${locale}/historique`,
+                  count: activePronos,
+                  img:
+                    locale === "en"
+                      ? "/pronos_tipster_en.png"
+                      : locale === "es"
+                      ? "/pronos_tipster_es.png"
+                      : "/pronos_tipster.png",
+                  alt: t("hero_card_tipster"),
+                },
+                {
+                  href_pending: `/${locale}/pronos-ia`,
+                  href_history: `/${locale}/pronos-ia`,
+                  count: activeAiPronos,
+                  img:
+                    locale === "en"
+                      ? "/pronos_IA_en.png"
+                      : locale === "es"
+                      ? "/pronos_IA_es.png"
+                      : "/pronos_IA.png",
+                  alt: t("hero_card_ia"),
+                },
+                {
+                  href_pending: `/${locale}/pronos-abonnes/en-cours`,
+                  href_history: `/${locale}/pronos-abonnes/en-cours`,
+                  count: activeAbonnesPronos,
+                  img:
+                    locale === "en"
+                      ? "/pronos_abonnes_en.png"
+                      : locale === "es"
+                      ? "/pronos_abonnes_es.png"
+                      : "/pronos_abonnes.png",
+                  alt: t("hero_card_abonnes"),
+                },
+              ] as const
+            ).map((card) => (
+              <div
+                key={card.alt}
+                className="flex flex-col items-center gap-2 sm:gap-3"
+              >
+                {/* Médaillon image */}
+                <Image
+                  src={card.img}
+                  alt={card.alt}
+                  width={200}
+                  height={200}
+                  className="h-[90px] w-[90px] object-contain sm:h-[160px] sm:w-[160px] lg:h-[200px] lg:w-[200px]"
+                  priority
+                />
+
+                {/* Badge "X en cours" cliquable */}
+                <Link
+                  href={card.href_pending}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 transition hover:border-emerald-500/60 hover:bg-emerald-500/20 sm:px-4 sm:py-1.5"
+                >
+                  <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500 sm:h-2 sm:w-2" />
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-400 sm:text-xs">
+                    {t("hero_card_pending", { count: card.count })}
+                  </span>
+                </Link>
+
+                {/* Bouton Historique cliquable */}
+                <Link
+                  href={card.href_history}
+                  className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-semibold text-sky-400 transition hover:border-sky-500/60 hover:bg-sky-500/20 sm:px-4 sm:py-1.5 sm:text-xs"
+                >
+                  {t("hero_card_history")}
+                </Link>
+              </div>
+            ))}
           </div>
 
           {/* Badges */}

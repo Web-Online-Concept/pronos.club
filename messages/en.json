@@ -191,7 +191,12 @@
     "abonnes_feature3_desc": "The monthly champion wins a bigger prize pool. An ongoing competition for the best.",
     "abonnes_cta_main": "Discover Community Picks",
     "abonnes_cta_secondary": "View leaderboard",
-    "abonnes_note": "Premium members only. Tipsters from our active community."
+    "abonnes_note": "Premium members only. Tipsters from our active community.",
+    "hero_card_tipster": "Tipster Picks",
+    "hero_card_ia": "AI Picks",
+    "hero_card_abonnes": "Community Picks",
+    "hero_card_pending": "{count} live",
+    "hero_card_history": "History"
   },
   "picks": {
     "title": "Predictions",

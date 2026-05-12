@@ -191,7 +191,12 @@
     "abonnes_feature3_desc": "Le champion du mois remporte une cagnotte plus importante. Une compétition continue pour les meilleurs.",
     "abonnes_cta_main": "Découvrir les Pronos Abonnés",
     "abonnes_cta_secondary": "Voir le classement",
-    "abonnes_note": "Réservé aux abonnés Premium. Tipsters issus de notre communauté active."
+    "abonnes_note": "Réservé aux abonnés Premium. Tipsters issus de notre communauté active.",
+    "hero_card_tipster": "Pronos Tipster",
+    "hero_card_ia": "Pronos IA",
+    "hero_card_abonnes": "Pronos Abonnés",
+    "hero_card_pending": "{count} en cours",
+    "hero_card_history": "Historique"
   },
   "picks": {
     "title": "Pronostics",
