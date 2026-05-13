@@ -1227,11 +1227,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-emerald-600 bg-emerald-500 p-5 text-center shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-emerald-500/30"
+                className="rounded-2xl border border-emerald-900/40 p-5 text-center shadow-md shadow-emerald-900/10 transition hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20"
+                style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
               >
                 <span className="text-2xl">{item.icon}</span>
                 <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-white/90">{item.desc}</p>
+                <p className="mt-2 text-xs leading-relaxed text-white/70">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -1250,7 +1251,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
             <Link
               href={`/${locale}/pronos-abonnes/classement`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-emerald-500/40 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-900/40 px-8 py-4 text-sm font-bold text-white shadow-md shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20 sm:w-auto"
+              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
             >
               {t("abonnes_cta_secondary")}
             </Link>
