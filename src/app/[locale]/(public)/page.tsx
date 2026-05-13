@@ -724,6 +724,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <section className="bg-neutral-50 px-4 py-16">
           <div className="mx-auto max-w-3xl">
             <div className="text-center">
+              <Image
+                src={
+                  locale === "en"
+                    ? "/pronos_tipster_en.png"
+                    : locale === "es"
+                    ? "/pronos_tipster_es.png"
+                    : "/pronos_tipster.png"
+                }
+                alt={t("hero_card_tipster")}
+                width={100}
+                height={100}
+                className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+              />
               <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">
                 {t("results_tag")}
               </p>
@@ -1131,6 +1144,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <div className="relative mx-auto max-w-5xl">
           {/* En-tête */}
           <div className="text-center">
+            <Image
+              src={
+                locale === "en"
+                  ? "/pronos_IA_en.png"
+                  : locale === "es"
+                  ? "/pronos_IA_es.png"
+                  : "/pronos_IA.png"
+              }
+              alt={t("hero_card_ia")}
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-4 py-1.5">
               <span className="text-base">🤖</span>
               <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-violet-300">
@@ -1204,6 +1230,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         <div className="relative mx-auto max-w-5xl">
           {/* En-tête */}
           <div className="text-center">
+            <Image
+              src={
+                locale === "en"
+                  ? "/pronos_abonnes_en.png"
+                  : locale === "es"
+                  ? "/pronos_abonnes_es.png"
+                  : "/pronos_abonnes.png"
+              }
+              alt={t("hero_card_abonnes")}
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
               <span className="text-base">🏆</span>
               <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-700">
@@ -1251,8 +1290,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
             <Link
               href={`/${locale}/pronos-abonnes/classement`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-900/40 px-8 py-4 text-sm font-bold text-white shadow-md shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:border-emerald-400/60 hover:shadow-xl hover:shadow-emerald-500/20 sm:w-auto"
-              style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 100%)" }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400 hover:shadow-emerald-500/40 sm:w-auto"
             >
               {t("abonnes_cta_secondary")}
             </Link>
