@@ -1191,30 +1191,29 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* ═══════════ PRONOS ABONNÉS (DARK — amber + accent cyan) ═══════════ */}
-      <section
-        className="relative overflow-hidden px-4 py-16"
-        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a1004 50%, #0a0a0a 100%)" }}
-      >
+      {/* ═══════════ PRONOS ABONNÉS (LIGHT — amber + accent cyan) ═══════════ */}
+      {/* Modif 12/05/2026 : passage en fond clair (bg-neutral-50) pour respecter
+          l'alternance dark/light de la page. Accents amber+cyan conservés. */}
+      <section className="relative overflow-hidden bg-neutral-50 px-4 py-16">
         {/* Halos accents */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-amber-500/10 blur-[100px]" />
-          <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[100px]" />
+          <div className="absolute -left-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-amber-500/15 blur-[100px]" />
+          <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-[100px]" />
         </div>
 
         <div className="relative mx-auto max-w-5xl">
           {/* En-tête */}
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/5 px-4 py-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
               <span className="text-base">🏆</span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-300">
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-700">
                 {t("abonnes_tag")}
               </span>
             </div>
-            <h2 className="mt-4 text-2xl font-extrabold text-white sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-extrabold text-neutral-900 sm:text-3xl">
               {t("abonnes_title")}
             </h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/50">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-neutral-600">
               {t("abonnes_subtitle")}
             </p>
           </div>
@@ -1228,12 +1227,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-white/[0.06] p-5 text-center transition hover:border-amber-400/30"
-                style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a1004 100%)" }}
+                className="rounded-2xl border border-neutral-200 bg-white p-5 text-center shadow-sm transition hover:border-amber-400/50 hover:shadow-md"
               >
                 <span className="text-2xl">{item.icon}</span>
-                <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-white/40">{item.desc}</p>
+                <h3 className="mt-3 text-sm font-bold text-neutral-900">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-neutral-600">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -1252,14 +1250,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
             <Link
               href={`/${locale}/pronos-abonnes/classement`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-8 py-4 text-sm font-semibold text-white/70 transition hover:border-amber-400/40 hover:text-white sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-8 py-4 text-sm font-semibold text-neutral-700 transition hover:border-amber-400/60 hover:text-neutral-900 sm:w-auto"
             >
               {t("abonnes_cta_secondary")}
             </Link>
           </div>
 
           {/* Note */}
-          <p className="mx-auto mt-6 max-w-md text-center text-xs text-white/30">
+          <p className="mx-auto mt-6 max-w-md text-center text-xs text-neutral-500">
             {t("abonnes_note")}
           </p>
         </div>
