@@ -821,6 +821,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         <div className="relative mx-auto max-w-4xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">{t("how_tag")}</p>
             <h2 className="mt-2 text-2xl font-bold text-white">{t("how_title")}</h2>
           </div>
@@ -877,6 +884,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="bg-neutral-50 px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("why_tag")}</p>
             <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("why_title")}</h2>
           </div>
@@ -916,6 +930,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         <div className="relative mx-auto max-w-4xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("space_tag")}</p>
             <h2 className="mt-2 text-2xl font-extrabold text-white">{t("space_title")}</h2>
             <p className="mx-auto mt-3 max-w-lg text-sm text-white/40">
@@ -961,6 +982,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="bg-neutral-50 px-4 py-16">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">
               {locale === "en" ? "Premium tools" : locale === "es" ? "Herramientas premium" : "Outils premium"}
             </p>
@@ -1315,6 +1343,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         <div className="relative mx-auto max-w-3xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-400">{t("pricing_tag")}</p>
             <h2 className="mt-2 text-2xl font-extrabold text-white">{t("pricing_title")}</h2>
           </div>
@@ -1430,6 +1465,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="bg-neutral-50 px-4 py-16">
         <div className="mx-auto max-w-2xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">{t("faq_tag")}</p>
             <h2 className="mt-2 text-2xl font-extrabold text-neutral-900">{t("faq_title")}</h2>
           </div>
@@ -1481,6 +1523,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
           <div className="relative mx-auto max-w-5xl">
             <div className="text-center">
+              <Image
+                src="/pronos_club.png"
+                alt="PRONOS.CLUB"
+                width={100}
+                height={100}
+                className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+              />
               <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-amber-400">⭐ {t("reviews_tag")}</p>
               <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">{t("reviews_title")}</h2>
 
@@ -1546,6 +1595,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="px-4 py-16 bg-white">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
+            <Image
+              src="/pronos_club.png"
+              alt="PRONOS.CLUB"
+              width={100}
+              height={100}
+              className="mx-auto mb-4 h-[100px] w-[100px] object-contain"
+            />
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-emerald-600">📚 {locale === "en" ? "CONTENT" : locale === "es" ? "CONTENIDO" : "CONTENU"}</p>
             <h2 className="mt-2 text-2xl font-extrabold text-neutral-900 sm:text-3xl">
               {locale === "en" ? "Stay informed, stay ahead" : locale === "es" ? "Mantente informado, mantente adelante" : "Restez informé, gardez l'avantage"}
