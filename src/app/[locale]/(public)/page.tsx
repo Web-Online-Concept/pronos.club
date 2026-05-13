@@ -1420,8 +1420,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   t("pricing_premium_f4"),
                   t("pricing_premium_f5"),
                   t("pricing_premium_f6"),
-                  t("pricing_premium_f7"),
-                  t("pricing_premium_f8"),
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
