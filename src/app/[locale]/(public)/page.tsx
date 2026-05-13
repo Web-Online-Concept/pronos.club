@@ -322,6 +322,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         <div className="relative mx-auto flex max-w-4xl flex-col items-center justify-center px-4 py-4 text-center sm:py-8">
           {/* Titre + sous-titre (déplacés au-dessus des cartes le 12/05/2026) */}
+          {/* Logo Pronos Club — MOBILE UNIQUEMENT (caché en desktop via sm:hidden) */}
+          <Image
+            src="/pronos_club.png"
+            alt="PRONOS.CLUB"
+            width={150}
+            height={150}
+            className="mx-auto mb-3 h-[150px] w-[150px] object-contain sm:hidden"
+            priority
+          />
           <h1 className="text-2xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl">
             <span className="inline-block animate-[textShimmer_10s_linear_infinite] bg-[length:300%_100%] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(105deg, white 0%, white 35%, #6ee7b7 45%, #a7f3d0 50%, #6ee7b7 55%, white 65%, white 100%)" }}>
               {t("hero_title_line1")}
@@ -333,7 +342,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </h1>
 
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400 sm:mt-5 sm:text-lg">
-            {t("hero_subtitle")}
+            {/* Découpage en 3 phrases avec <br> mobile-only.
+                Le subtitle JSON contient 3 phrases séparées par ". " — on le splitte
+                pour insérer un <br className="sm:hidden" /> entre chaque phrase.
+                Résultat : 3 lignes sur mobile, 1 seule ligne (avec espaces) en desktop. */}
+            {t("hero_subtitle").split(". ").map((sentence, i, arr) => (
+              <span key={i}>
+                {sentence}{i < arr.length - 1 ? "." : ""}
+                {i < arr.length - 1 && (
+                  <>
+                    <br className="sm:hidden" />
+                    <span className="hidden sm:inline"> </span>
+                  </>
+                )}
+              </span>
+            ))}
           </p>
 
           {/* Hero — 3 cartes médaillons (Tipster / IA / Abonnés) */}
