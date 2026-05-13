@@ -1227,11 +1227,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/10"
+                className="rounded-2xl border border-emerald-600 bg-emerald-500 p-5 text-center shadow-md shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-emerald-500/30"
               >
                 <span className="text-2xl">{item.icon}</span>
-                <h3 className="mt-3 text-sm font-bold text-emerald-700">{item.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-neutral-600">{item.desc}</p>
+                <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/90">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -1250,7 +1250,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
             <Link
               href={`/${locale}/pronos-abonnes/classement`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-white px-8 py-4 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-emerald-500/40 sm:w-auto"
             >
               {t("abonnes_cta_secondary")}
             </Link>
