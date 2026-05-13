@@ -1227,10 +1227,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             ].map((item) => (
               <div
                 key={item.title}
-                className="rounded-2xl border border-neutral-200 bg-white p-5 text-center shadow-sm transition hover:border-amber-400/50 hover:shadow-md"
+                className="rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/10"
               >
                 <span className="text-2xl">{item.icon}</span>
-                <h3 className="mt-3 text-sm font-bold text-neutral-900">{item.title}</h3>
+                <h3 className="mt-3 text-sm font-bold text-emerald-700">{item.title}</h3>
                 <p className="mt-2 text-xs leading-relaxed text-neutral-600">{item.desc}</p>
               </div>
             ))}
@@ -1250,7 +1250,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Link>
             <Link
               href={`/${locale}/pronos-abonnes/classement`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-8 py-4 text-sm font-semibold text-neutral-700 transition hover:border-amber-400/60 hover:text-neutral-900 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-500 bg-white px-8 py-4 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700 sm:w-auto"
             >
               {t("abonnes_cta_secondary")}
             </Link>
