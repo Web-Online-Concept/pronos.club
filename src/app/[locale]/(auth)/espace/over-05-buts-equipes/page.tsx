@@ -67,8 +67,10 @@ export default function SelectionPage() {
 
         // Identifier les championnats avec PROJETS seedés
         // Top 5 (Understat) : L1=1, PL=2, La Liga=3, Bundesliga=4, Serie A=5
-        // D2 (API-Football, sans xG) : Ligue 2=6, Championship=7, Serie B=10
-        setLeaguesWithProjects(new Set([1, 2, 3, 4, 5, 6, 7, 10]));
+        // D2 (API-Football, sans xG) : Ligue 2=6, Championship=7, La Liga 2=8,
+        //   2. Bundesliga=9, Serie B=10, Eredivisie=11, Liga Portugal=12,
+        //   Pro League BE=13, Süper Lig TR=14
+        setLeaguesWithProjects(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
       } finally {
@@ -183,7 +185,7 @@ export default function SelectionPage() {
           )}
           {selectedLeagueId !== null && !leaguesWithProjects.has(selectedLeagueId) && (
             <p className="mt-2 text-xs text-yellow-300">
-              ⚠️ Ce championnat n&apos;a pas encore de PROJETS configurés en DB. Disponibles : Ligue 1, Premier League, La Liga, Bundesliga, Serie A, Ligue 2, Championship, Serie B.
+              ⚠️ Ce championnat n&apos;a pas encore de PROJETS configurés en DB. Tous les championnats devraient maintenant être disponibles. Si tu vois ce message, contacte l'admin.
             </p>
           )}
         </div>
