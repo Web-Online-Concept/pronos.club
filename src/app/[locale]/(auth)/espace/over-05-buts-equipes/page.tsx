@@ -288,9 +288,37 @@ function RecentAnalysesSection({
   useEffect(() => {
     const load = async () => {
       try {
-        // On va piocher dans la liste via une requête simple (à défaut d'endpoint dédié,
-        // on récupère les leagues pour fallback. Pour l'instant on affiche placeholder)
-        // Sera amélioré quand on aura l'endpoint /api/over-05/analyses (list)
+        const res = await fetch("/api/over-05/analyses?period=30d");
+        if (!res.ok) {
+          setRecentAnalyses([]);
+          return;
+        }
+        const json = await res.json();
+        // Mapper le format API vers le format attendu (3 plus récentes)
+        type ApiAnalysis = {
+          id: string;
+          league: { name: string } | null;
+          matchday_label: string | null;
+          date_from: string;
+          total_matches: number;
+          matches_analyzed: number;
+          status: string;
+          created_at: string;
+        };
+        const mapped: RecentAnalysis[] = (json.analyses ?? [])
+          .slice(0, 3)
+          .map((a: ApiAnalysis) => ({
+            id: a.id,
+            league_name: a.league?.name ?? "—",
+            matchday_label: a.matchday_label,
+            date_from: a.date_from,
+            total_matches: a.total_matches,
+            matches_analyzed: a.matches_analyzed,
+            status: a.status,
+            created_at: a.created_at,
+          }));
+        setRecentAnalyses(mapped);
+      } catch {
         setRecentAnalyses([]);
       } finally {
         setLoading(false);
