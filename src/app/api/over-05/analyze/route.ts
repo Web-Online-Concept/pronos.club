@@ -5,7 +5,7 @@
 //
 // → Crée une session d'analyse (status='pending') et retourne immédiatement
 //   l'analysis_id au frontend. L'analyse réelle tourne en background via
-//   un appel fire-and-forget à /api/over-05/_internal/run-analysis.
+//   un appel fire-and-forget à /api/over-05/internal/run-analysis.
 //
 // Le frontend poll ensuite GET /api/over-05/analyses/[id] toutes les 3s
 // pour suivre l'avancement.
@@ -140,14 +140,14 @@ export async function POST(req: NextRequest) {
   }
 
   // ─── FIRE-AND-FORGET : déclenche le job background ───
-  // Astuce Vercel : on appelle /api/over-05/_internal/run-analysis sans
+  // Astuce Vercel : on appelle /api/over-05/internal/run-analysis sans
   // attendre la réponse. La fonction tourne en serverless asynchrone.
   // Auth interne via header secret partagé.
   const internalSecret = process.env.CRON_SECRET ?? "PronosClub2026CronAuto";
   const baseUrl = req.nextUrl.origin;
 
   // Important : pas d'await ici, on lance et on oublie
-  fetch(`${baseUrl}/api/over-05/_internal/run-analysis`, {
+  fetch(`${baseUrl}/api/over-05/internal/run-analysis`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
