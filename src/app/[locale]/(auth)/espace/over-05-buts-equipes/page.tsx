@@ -1,182 +1,365 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useLocale } from "next-intl";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import OpportunityCard from "./OpportunityCard";
+import { useLocale } from "next-intl";
 
-type Opportunity = {
+// ─── Types ───────────────────────────────────────────────────────
+
+type League = {
+  id: number;
+  api_football_id: number;
+  name: string;
+  country: string;
+  country_code: string;
+  xg_source: "understat" | "sofascore";
+  is_top5: boolean;
+};
+
+type Matchday = {
+  matchday_label: string;
+  round_value: string;
+  date_from: string;
+  date_to: string;
+  match_count: number;
+  first_match_iso: string;
+};
+
+type RecentAnalysis = {
   id: string;
-  match_date: string;
-  home_team_name: string;
-  away_team_name: string;
-  target_team_name: string;
-  target_role: "home" | "away";
-  opponent_team_name: string;
-  stake_score: number;
-  stake_situations: Array<{ type: string; detail: string; gap_points: number }>;
-  target_intrinsic: number;
-  opponent_intrinsic: number;
-  target_form_score: number;
-  opponent_fragility_score: number;
-  total_score: number;
-  badge: "green" | "orange" | "red";
-  bertrand_decision: "play" | "skip" | "pending" | null;
-  o05_leagues: { name: string; country: string } | null;
+  league_name: string;
+  matchday_label: string | null;
+  date_from: string;
+  total_matches: number;
+  matches_analyzed: number;
+  status: string;
+  created_at: string;
 };
 
-type ApiResponse = {
-  date: string;
-  total: number;
-  opportunities: Opportunity[];
-};
+// ─── Page ────────────────────────────────────────────────────────
 
-const BADGE_OPTIONS: Array<{ value: string; label: string; color: string }> = [
-  { value: "green", label: "🟢 Vertes uniquement", color: "bg-emerald-600" },
-  { value: "orange", label: "🟠 + Oranges", color: "bg-amber-600" },
-  { value: "red", label: "🔴 + Rouges", color: "bg-red-600" },
-  { value: "all", label: "📊 Toutes", color: "bg-neutral-700" },
-];
-
-
-export default function Over05ButsEquipesPage() {
+export default function SelectionPage() {
+  const router = useRouter();
   const locale = useLocale();
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // États
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [leaguesWithProjects, setLeaguesWithProjects] = useState<Set<number>>(new Set());
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+  const [matchdays, setMatchdays] = useState<Matchday[]>([]);
+  const [selectedMatchday, setSelectedMatchday] = useState<Matchday | null>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([]);
+
+  const [loadingLeagues, setLoadingLeagues] = useState(true);
+  const [loadingMatchdays, setLoadingMatchdays] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterBadge, setFilterBadge] = useState<string>("green");
-  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
+  // ─── Charger les championnats au mount ────────────────────────
   useEffect(() => {
-    fetchOpportunities();
-  }, [filterBadge, filterDate]);
+    const load = async () => {
+      try {
+        const res = await fetch("/api/over-05/leagues");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setLeagues(json.leagues ?? []);
 
-  async function fetchOpportunities() {
-    setLoading(true);
+        // Identifier les championnats avec PROJETS seedés (L1=1, PL=2, La Liga=3)
+        // Pour la Phase 4 c'est en dur — on raffinera plus tard si besoin
+        setLeaguesWithProjects(new Set([1, 2, 3]));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erreur de chargement");
+      } finally {
+        setLoadingLeagues(false);
+      }
+    };
+    load();
+  }, []);
+
+  // ─── Charger les journées quand un championnat est sélectionné ─
+  useEffect(() => {
+    if (!selectedLeagueId) {
+      setMatchdays([]);
+      setSelectedMatchday(null);
+      return;
+    }
+    const load = async () => {
+      setLoadingMatchdays(true);
+      setMatchdays([]);
+      setSelectedMatchday(null);
+      try {
+        const res = await fetch(`/api/over-05/matchdays?league_id=${selectedLeagueId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setMatchdays(json.matchdays ?? []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erreur de chargement");
+      } finally {
+        setLoadingMatchdays(false);
+      }
+    };
+    load();
+  }, [selectedLeagueId]);
+
+  // ─── Lancer l'analyse ─────────────────────────────────────────
+  const handleLaunch = async () => {
+    if (!selectedLeagueId || !selectedMatchday) return;
+    setLaunching(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        badge: filterBadge,
-        date: filterDate,
+      const res = await fetch("/api/over-05/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          league_id: selectedLeagueId,
+          matchday_label: selectedMatchday.matchday_label,
+          date_from: selectedMatchday.date_from,
+          date_to: selectedMatchday.date_to,
+        }),
       });
-      const res = await fetch(`/api/over-05-buts-equipes/opportunities?${params}`);
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || `HTTP ${res.status}`);
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
       }
-      const json = (await res.json()) as ApiResponse;
-      setData(json);
+      const json = await res.json();
+      router.push(`/${locale}/espace/over-05-buts-equipes/${json.analysis_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setLoading(false);
+      setError(err instanceof Error ? err.message : "Erreur de lancement");
+      setLaunching(false);
     }
-  }
+  };
 
-  const filteredOpportunities = (() => {
-    if (!data?.opportunities) return [];
-    if (filterBadge === "green") return data.opportunities.filter((o) => o.badge === "green");
-    if (filterBadge === "orange")
-      return data.opportunities.filter((o) => o.badge === "green" || o.badge === "orange");
-    return data.opportunities;
-  })();
+  const canLaunch =
+    selectedLeagueId !== null &&
+    selectedMatchday !== null &&
+    leaguesWithProjects.has(selectedLeagueId) &&
+    !launching;
 
+  // ─── Render ───────────────────────────────────────────────────
   return (
-    <main className="min-h-screen bg-neutral-50">
-      {/* Hero */}
-      <div className="bg-white border-b border-neutral-200">
-        <div className="mx-auto max-w-7xl px-4 py-6">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-emerald-600">
-                🔐 Outil privé · Détection live
-              </p>
-              <h1 className="mt-2 text-2xl font-black text-neutral-900 sm:text-3xl">
-                Over 0.5 buts Equipes
-              </h1>
-              <p className="mt-2 text-sm text-neutral-600 max-w-2xl">
-                Détection automatique d'opportunités de paris &quot;+0.5 but équipe&quot; à jouer en live à
-                cote 1.50. Méthode Bertrand : enjeu sportif + niveau intrinsèque + 5 derniers matchs.
-              </p>
-            </div>
-            <Link
-              href={`/${locale}/espace/over-05-buts-equipes/historique`}
-              className="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100"
-            >
-              📊 Mon historique
-            </Link>
-          </div>
-        </div>
+    <main className="mx-auto max-w-4xl px-4 py-8">
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-black tracking-tight text-neutral-900 sm:text-3xl">
+          🎯 Sélection +0.5 but équipe
+        </h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Méthode PROJETS Bertrand · xG + Big Chances + niveau adversaire
+        </p>
       </div>
 
-      {/* Filtres */}
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 outline-none focus:border-emerald-500"
-          />
+      {/* Card principale sélection */}
+      <div
+        className="overflow-hidden rounded-xl border border-white/[0.06] p-6"
+        style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+      >
+        <h2 className="text-base font-black text-white">⚙️ Paramètres d&apos;analyse</h2>
 
-          <div className="flex flex-wrap gap-2">
-            {BADGE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setFilterBadge(opt.value)}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
-                  filterBadge === opt.value
-                    ? `${opt.color} text-white shadow-md`
-                    : "border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {data && (
-            <span className="ml-auto text-xs text-neutral-500">
-              {filteredOpportunities.length} opportunité{filteredOpportunities.length > 1 ? "s" : ""}
-            </span>
+        {/* Championnat */}
+        <div className="mt-5">
+          <label className="text-xs font-bold uppercase tracking-wider text-white/60">
+            Championnat
+          </label>
+          {loadingLeagues ? (
+            <div className="mt-2 h-12 animate-pulse rounded-xl bg-white/5" />
+          ) : (
+            <select
+              value={selectedLeagueId ?? ""}
+              onChange={(e) => setSelectedLeagueId(e.target.value ? Number(e.target.value) : null)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+            >
+              <option value="">— Sélectionner un championnat —</option>
+              {leagues.map((l) => {
+                const hasProjects = leaguesWithProjects.has(l.id);
+                return (
+                  <option key={l.id} value={l.id} disabled={!hasProjects}>
+                    {l.name} ({l.country}){!hasProjects ? " — 📋 PROJETS à compléter" : ""}
+                  </option>
+                );
+              })}
+            </select>
+          )}
+          {selectedLeagueId !== null && !leaguesWithProjects.has(selectedLeagueId) && (
+            <p className="mt-2 text-xs text-yellow-300">
+              ⚠️ Ce championnat n&apos;a pas encore de PROJETS configurés en DB. Disponibles : Ligue 1, Premier League, La Liga.
+            </p>
           )}
         </div>
 
-        {/* Liste */}
-        <div className="mt-6">
-          {loading && (
-            <div className="flex items-center justify-center py-20">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              ⚠️ Erreur : {error}
-            </div>
-          )}
-
-          {!loading && !error && filteredOpportunities.length === 0 && (
-            <div className="rounded-3xl border-2 border-dashed border-neutral-300 bg-white py-20 text-center">
-              <p className="text-4xl">🎯</p>
-              <p className="mt-4 text-sm text-neutral-600">
-                Aucune opportunité {filterBadge === "green" ? "verte" : ""} pour cette date.
-              </p>
-              <p className="mt-2 text-xs text-neutral-400">
-                Le cron quotidien tourne à 6h Paris. Reviens demain matin.
-              </p>
-            </div>
-          )}
-
-          {!loading && !error && filteredOpportunities.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredOpportunities.map((opp) => (
-                <OpportunityCard key={opp.id} opportunity={opp} />
+        {/* Journée */}
+        <div className="mt-5">
+          <label className="text-xs font-bold uppercase tracking-wider text-white/60">
+            Journée
+          </label>
+          {loadingMatchdays ? (
+            <div className="mt-2 h-12 animate-pulse rounded-xl bg-white/5" />
+          ) : (
+            <select
+              value={selectedMatchday?.round_value ?? ""}
+              onChange={(e) => {
+                const md = matchdays.find((m) => m.round_value === e.target.value) ?? null;
+                setSelectedMatchday(md);
+              }}
+              disabled={!selectedLeagueId || matchdays.length === 0}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-50"
+            >
+              <option value="">
+                {!selectedLeagueId
+                  ? "— Sélectionne d'abord un championnat —"
+                  : matchdays.length === 0
+                  ? "— Aucune journée trouvée —"
+                  : "— Sélectionner une journée —"}
+              </option>
+              {matchdays.map((m) => (
+                <option key={m.round_value} value={m.round_value}>
+                  {m.matchday_label} · {m.match_count} matchs · {formatDateRange(m.date_from, m.date_to)}
+                </option>
               ))}
-            </div>
+            </select>
           )}
         </div>
+
+        {/* Résumé sélection */}
+        {selectedMatchday && (
+          <div className="mt-5 rounded-lg bg-emerald-500/10 p-3 text-sm">
+            <p className="font-bold text-emerald-300">
+              📊 {selectedMatchday.match_count} matchs détectés sur cette journée
+            </p>
+            <p className="mt-1 text-xs text-emerald-200/70">
+              Période : {formatDateRange(selectedMatchday.date_from, selectedMatchday.date_to)}
+            </p>
+          </div>
+        )}
+
+        {/* Bouton ANALYSER */}
+        <button
+          onClick={handleLaunch}
+          disabled={!canLaunch}
+          className="mt-6 w-full rounded-xl bg-emerald-600 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600"
+        >
+          {launching ? "⏳ Lancement..." : "🔍 ANALYSER"}
+        </button>
+
+        {error && (
+          <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            ❌ {error}
+          </p>
+        )}
+      </div>
+
+      {/* Mes dernières analyses */}
+      <RecentAnalysesSection
+        locale={locale}
+        recentAnalyses={recentAnalyses}
+        setRecentAnalyses={setRecentAnalyses}
+      />
+
+      {/* Lien historique */}
+      <div className="mt-8 text-center">
+        <Link
+          href={`/${locale}/espace/over-05-buts-equipes/historique`}
+          className="inline-block rounded-xl border border-neutral-300 px-6 py-2.5 text-sm font-bold text-neutral-700 transition hover:bg-neutral-100"
+        >
+          📚 Voir tout mon historique
+        </Link>
       </div>
     </main>
   );
+}
+
+
+// ─── Composant : Mes dernières analyses ──────────────────────────
+
+function RecentAnalysesSection({
+  locale,
+  recentAnalyses,
+  setRecentAnalyses,
+}: {
+  locale: string;
+  recentAnalyses: RecentAnalysis[];
+  setRecentAnalyses: (r: RecentAnalysis[]) => void;
+}) {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        // On va piocher dans la liste via une requête simple (à défaut d'endpoint dédié,
+        // on récupère les leagues pour fallback. Pour l'instant on affiche placeholder)
+        // Sera amélioré quand on aura l'endpoint /api/over-05/analyses (list)
+        setRecentAnalyses([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [setRecentAnalyses]);
+
+  if (loading) return null;
+  if (recentAnalyses.length === 0) {
+    return (
+      <div className="mt-10 text-center text-sm text-neutral-500">
+        💡 Tes prochaines analyses apparaîtront ici
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-10">
+      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-700">
+        📜 Mes dernières analyses
+      </h3>
+      <div className="grid gap-3">
+        {recentAnalyses.map((a) => (
+          <Link
+            key={a.id}
+            href={`/${locale}/espace/over-05-buts-equipes/${a.id}`}
+            className="overflow-hidden rounded-xl border border-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
+            style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-white">
+                  {a.league_name}
+                  {a.matchday_label && (
+                    <span className="ml-2 text-white/40">— {a.matchday_label}</span>
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-white/40">
+                  {formatDate(a.created_at)} · {a.matches_analyzed}/{a.total_matches} matchs
+                </p>
+              </div>
+              <span className="text-emerald-400">→</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function formatDateRange(from: string, to: string): string {
+  const fmt = (d: string) => {
+    const dt = new Date(d + "T12:00:00");
+    return dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  };
+  return from === to ? fmt(from) : `${fmt(from)} → ${fmt(to)}`;
+}
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }
