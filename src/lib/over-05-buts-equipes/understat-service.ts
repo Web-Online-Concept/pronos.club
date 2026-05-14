@@ -1,20 +1,31 @@
 // src/lib/over-05-buts-equipes/understat-service.ts
 //
-// Service de scraping Understat (https://understat.com) pour récupérer
-// les xG / xGA des équipes des 5 grands championnats européens.
+// Service Understat — VERSION 2 (AJAX endpoints)
 //
-// Pourquoi Understat ?
-//  - Données xG fiables (modèle propre, stable depuis 2018)
-//  - HTML très simple : les données sont injectées dans des variables JS
-//    via JSON.parse(window.atob(...)) — facile à extraire avec regex
-//  - Pas de Cloudflare ni captcha
-//  - Couverture : EPL, La Liga, Bundesliga, Serie A, Ligue 1, RFPL
+// ─────────────────────────────────────────────────────────────────
+// HISTORIQUE DU CHANGEMENT (mai 2026) :
 //
-// Limitations :
-//  - Top 5 uniquement (pas de Ligue 2, Championship, etc.)
-//  - Pas de "Big Chances" Opta. On approxime par "tirs avec xG > 0.3".
-
-// ─── Configuration ───────────────────────────────────────────────
+// Understat a migré son architecture en décembre 2025. Avant : les
+// données étaient injectées en dur dans le HTML via :
+//
+//     var datesData = JSON.parse('\\x7B"..."}');
+//
+// Maintenant : Understat sert les données via des endpoints AJAX
+// internes qui retournent du JSON directement. Pas de scraping HTML
+// requis, pas de regex, pas de décodage \xHH.
+//
+// Endpoints découverts :
+//   - GET https://understat.com/getTeamData/{slug}/{year}
+//     → { dates: [...], players: [...], statistics: {...} }
+//   - GET https://understat.com/getMatchData/{match_id}
+//     → { shots: {...}, rosters: {...}, tmpl: {...} }
+//
+// Header OBLIGATOIRE pour que ça marche :
+//   X-Requested-With: XMLHttpRequest
+//
+// Source confirmation : code Python officiel understatapi 0.7.1
+// (https://collinb9.github.io/understatAPI/)
+// ─────────────────────────────────────────────────────────────────
 
 const UNDERSTAT_BASE_URL = "https://understat.com";
 const REQUEST_TIMEOUT_MS = 12000;
@@ -42,213 +53,202 @@ export type UnderstatShot = {
   match_id: number;
   player: string;
   is_home: boolean;
-  xg: number;             // 0..1
-  result: string;          // "Goal", "MissedShots", "BlockedShot", "ShotOnPost", "SavedShot"
+  xg: number;
+  result: string;
 };
 
-export type UnderstatTeamStats = {
-  team_name: string;
-  team_id: number;
-  season: number;
-  matches: UnderstatTeamMatch[];   // tous les matchs joués cette saison
+
+// Raw types from Understat API
+type RawDateEntry = {
+  id?: string | number;
+  isResult?: boolean | string;
+  side?: "h" | "a";
+  h?: { id?: string; title?: string; short_title?: string };
+  a?: { id?: string; title?: string; short_title?: string };
+  goals?: { h?: string | number; a?: string | number };
+  xG?: { h?: string | number; a?: string | number };
+  datetime?: string;
+};
+
+type RawShotEntry = {
+  id?: string | number;
+  match_id?: string | number;
+  player?: string;
+  xG?: string | number;
+  result?: string;
+  h_a?: "h" | "a";
 };
 
 
 export class UnderstatError extends Error {
-  constructor(message: string, public readonly url: string) {
+  constructor(message: string, public readonly url: string, public readonly status?: number) {
     super(message);
     this.name = "UnderstatError";
   }
 }
 
 
-// ─── Helpers réseau ──────────────────────────────────────────────
+// ─── Helper : fetch AJAX ─────────────────────────────────────────
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-const fetchWithTimeout = async (url: string): Promise<string> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new UnderstatError(
-        `Understat returned ${response.status}`,
-        url
-      );
-    }
-    return await response.text();
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
 
 /**
- * Fetch une URL Understat avec retry.
+ * Fait un appel AJAX vers un endpoint Understat.
+ * Retourne le JSON parsé directement.
+ *
+ * Headers critiques :
+ *   - X-Requested-With: XMLHttpRequest (sans ça, Understat renvoie le HTML)
+ *   - User-Agent navigateur (sinon parfois bloqué)
  */
-const fetchUnderstatHtml = async (url: string): Promise<string> => {
+const fetchUnderstatAjax = async <T = unknown>(
+  endpoint: string
+): Promise<T> => {
+  const url = `${UNDERSTAT_BASE_URL}/${endpoint}`;
   let lastError: unknown = null;
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
-      return await fetchWithTimeout(url);
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "User-Agent": USER_AGENT,
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new UnderstatError(
+          `Understat returned ${response.status}`,
+          url,
+          response.status
+        );
+      }
+
+      const data = (await response.json()) as T;
+      return data;
     } catch (err) {
+      clearTimeout(timeout);
       lastError = err;
       if (attempt < MAX_RETRIES - 1) {
         await sleep(1000 * (attempt + 1));
       }
     }
   }
+
   throw lastError instanceof Error
     ? lastError
     : new UnderstatError("Max retries", url);
 };
 
 
-// ─── Parsing ─────────────────────────────────────────────────────
+// ─── API publique ────────────────────────────────────────────────
 
 /**
- * Extrait une variable JS du HTML Understat.
- * Understat injecte ses données via :
- *   var matchesData = JSON.parse('\\x7B"...\\x7D');
- * On extrait la chaîne entre les quotes et on parse.
- */
-const extractJsVariable = (html: string, varName: string): unknown => {
-  // Pattern : varName = JSON.parse('...');
-  const pattern = new RegExp(
-    `${varName}\\s*=\\s*JSON\\.parse\\('([^']+)'\\)`,
-    "s"
-  );
-  const match = html.match(pattern);
-  if (!match) {
-    return null;
-  }
-  // Décoder les \xHH
-  const escaped = match[1];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const decoded = (escaped as any).replace(
-    /\\x([0-9A-Fa-f]{2})/g,
-    (_: string, hex: string) => String.fromCharCode(parseInt(hex, 16))
-  );
-  try {
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
-};
-
-
-// ─── Fonctions publiques ─────────────────────────────────────────
-
-/**
- * Récupère tous les matchs d'une équipe sur une saison Understat.
+ * Récupère tous les matchs joués par une équipe dans une saison.
  *
  * @param teamSlug Slug Understat (ex: "Marseille", "Manchester_City")
  * @param year Année de début de saison (ex: 2025 pour 2025-2026)
- *
- * Le slug doit correspondre exactement au format Understat. Une table
- * de mapping (DB ou code) sera nécessaire pour mapper les noms PRONOS.CLUB
- * vers les slugs Understat. Cette correspondance sera construite en Phase 3.
  */
 export const getUnderstatTeamMatches = async (
   teamSlug: string,
   year: number
 ): Promise<UnderstatTeamMatch[]> => {
-  const url = `${UNDERSTAT_BASE_URL}/team/${teamSlug}/${year}`;
-  const html = await fetchUnderstatHtml(url);
+  const endpoint = `getTeamData/${teamSlug}/${year}`;
+  const data = await fetchUnderstatAjax<{
+    dates?: RawDateEntry[];
+    players?: unknown[];
+    statistics?: unknown;
+  }>(endpoint);
 
-  // Understat utilise la variable `datesData` pour la liste des matchs
-  const data = extractJsVariable(html, "datesData");
-  if (!Array.isArray(data)) {
+  const rawDates = data.dates;
+  if (!Array.isArray(rawDates)) {
     throw new UnderstatError(
-      `Failed to parse datesData for ${teamSlug} ${year}`,
-      url
+      `No 'dates' array in response for ${teamSlug}/${year}`,
+      `${UNDERSTAT_BASE_URL}/${endpoint}`
     );
   }
 
   const matches: UnderstatTeamMatch[] = [];
-  for (const m of data as Array<Record<string, unknown>>) {
+  for (const m of rawDates) {
     try {
-      // Structure observée :
-      // { id, isResult, side: "h"|"a", h:{id,title,short_title}, a:{...},
-      //   goals:{h,a}, xG:{h,a}, datetime:"2026-05-10 17:00:00", forecast:{...} }
+      // Filtrer les matchs non joués
       const isResult = m.isResult === true || m.isResult === "true";
-      if (!isResult) continue; // skip les matchs non joués
+      if (!isResult) continue;
 
-      const home = m.h as { title: string };
-      const away = m.a as { title: string };
-      const goals = m.goals as { h: string; a: string };
-      const xg = m.xG as { h: string; a: string };
+      const homeTitle = m.h?.title ?? "";
+      const awayTitle = m.a?.title ?? "";
+      const goalsH = parseInt(String(m.goals?.h ?? "0"), 10);
+      const goalsA = parseInt(String(m.goals?.a ?? "0"), 10);
+      const xgH = parseFloat(String(m.xG?.h ?? "0"));
+      const xgA = parseFloat(String(m.xG?.a ?? "0"));
+      const matchId = typeof m.id === "string" ? parseInt(m.id, 10) : (m.id as number);
 
       matches.push({
-        match_id: typeof m.id === "string" ? parseInt(m.id, 10) : (m.id as number),
-        date: m.datetime as string,
+        match_id: matchId,
+        date: m.datetime ?? "",
         is_home: m.side === "h",
-        home_team: home.title,
-        away_team: away.title,
-        home_goals: parseInt(goals.h, 10),
-        away_goals: parseInt(goals.a, 10),
-        home_xg: parseFloat(xg.h),
-        away_xg: parseFloat(xg.a),
+        home_team: homeTitle,
+        away_team: awayTitle,
+        home_goals: goalsH,
+        away_goals: goalsA,
+        home_xg: xgH,
+        away_xg: xgA,
       });
     } catch {
-      // On ignore les matchs malformés silencieusement
+      // Skip les matchs malformés
       continue;
     }
   }
 
-  // Tri chronologique inverse (le plus récent en premier)
+  // Tri chronologique inverse (plus récent en premier)
   matches.sort((a, b) => b.date.localeCompare(a.date));
-
   return matches;
 };
 
 
 /**
- * Récupère les tirs détaillés d'un match Understat.
- * Permet de calculer "Big Chances ~ tirs avec xG > 0.3" (approximation Opta).
- *
- * @param matchId ID Understat du match (récupéré via getUnderstatTeamMatches)
+ * Récupère les tirs détaillés d'un match.
+ * Permet de calculer Big Chances (xG > 0.3) et TC.
  */
 export const getUnderstatMatchShots = async (
   matchId: number
 ): Promise<UnderstatShot[]> => {
-  const url = `${UNDERSTAT_BASE_URL}/match/${matchId}`;
-  const html = await fetchUnderstatHtml(url);
+  const endpoint = `getMatchData/${matchId}`;
+  const data = await fetchUnderstatAjax<{
+    shots?: { h?: RawShotEntry[]; a?: RawShotEntry[] };
+    rosters?: unknown;
+  }>(endpoint);
 
-  // Understat utilise la variable `shotsData` pour les tirs du match
-  // Structure : { h: [...shots], a: [...shots] }
-  const data = extractJsVariable(html, "shotsData") as
-    | { h: Array<Record<string, unknown>>; a: Array<Record<string, unknown>> }
-    | null;
-
-  if (!data) {
+  const rawShots = data.shots;
+  if (!rawShots || (typeof rawShots !== "object")) {
     throw new UnderstatError(
-      `Failed to parse shotsData for match ${matchId}`,
-      url
+      `No 'shots' object in response for match ${matchId}`,
+      `${UNDERSTAT_BASE_URL}/${endpoint}`
     );
   }
 
   const shots: UnderstatShot[] = [];
 
-  const parseShots = (arr: Array<Record<string, unknown>>, isHome: boolean) => {
+  const parseShots = (arr: RawShotEntry[] | undefined, isHome: boolean) => {
+    if (!Array.isArray(arr)) return;
     for (const s of arr) {
       try {
         shots.push({
           match_id: matchId,
-          player: (s.player as string) ?? "",
+          player: s.player ?? "",
           is_home: isHome,
-          xg: parseFloat((s.xG as string) ?? "0"),
-          result: (s.result as string) ?? "",
+          xg: parseFloat(String(s.xG ?? "0")),
+          result: s.result ?? "",
         });
       } catch {
         continue;
@@ -256,22 +256,15 @@ export const getUnderstatMatchShots = async (
     }
   };
 
-  parseShots(data.h, true);
-  parseShots(data.a, false);
+  parseShots(rawShots.h, true);
+  parseShots(rawShots.a, false);
 
   return shots;
 };
 
 
 /**
- * Compte les "Big Chances approximées" pour une équipe sur un match.
- *
- * Définition Opta officielle (FotMob) : "situation où un joueur devrait
- * raisonnablement marquer, généralement en face-à-face ou très courte distance".
- * Seuil heuristique appliqué chez plusieurs analystes : xG par tir > 0.3.
- *
- * @param shots Tirs du match (depuis getUnderstatMatchShots)
- * @param wantHome true si on veut les Big Chances de l'équipe à domicile
+ * Compte les Big Chances approximées (tirs avec xG > 0.3).
  */
 export const countBigChances = (
   shots: UnderstatShot[],
@@ -282,11 +275,7 @@ export const countBigChances = (
 
 
 /**
- * Compte les tirs cadrés pour une équipe sur un match.
- * Tirs cadrés (TC) = ceux qui ont touché le cadre :
- *   - "Goal" : but
- *   - "SavedShot" : tir arrêté par le gardien
- *   - "ShotOnPost" : tir sur le poteau (Understat compte ça comme TC)
+ * Compte les tirs cadrés (Goal + SavedShot + ShotOnPost).
  */
 export const countShotsOnTarget = (
   shots: UnderstatShot[],
