@@ -33,6 +33,7 @@ interface AdminPick {
   audit_category: string | null;
   generation_batch: string;
   created_at: string;
+  live_score_hidden?: boolean;  // ← ajout : si true, le score live n'est pas affiche publiquement
 }
 
 
@@ -53,6 +54,31 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
   const [category, setCategory] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Toggle live score (cacher/afficher en cas de mauvais matching ESPN)
+  const [liveHidden, setLiveHidden] = useState(!!pick.live_score_hidden);
+  const [togglingLive, setTogglingLive] = useState(false);
+
+  async function handleToggleLiveScore() {
+    setTogglingLive(true);
+    try {
+      const res = await fetch(`/api/admin/picks/${pick.id}/toggle-live-score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden: !liveHidden }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erreur serveur");
+      }
+      setLiveHidden(!liveHidden);
+      router.refresh();
+    } catch (err) {
+      alert(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTogglingLive(false);
+    }
+  }
 
   const status = STATUS_LABELS[pick.status] ?? { label: pick.status, color: "bg-neutral-700/40 text-neutral-400 border-neutral-600" };
 
@@ -161,6 +187,19 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
               className="rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1 text-xs text-neutral-300 hover:border-neutral-600 hover:bg-neutral-700"
             >
               {showDetails ? "Masquer" : "Détails"}
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleLiveScore}
+              disabled={togglingLive}
+              title={liveHidden ? "Réafficher le score live" : "Cacher le score live (en cas de mauvais matching)"}
+              className={`rounded-lg border px-3 py-1 text-xs disabled:opacity-50 ${
+                liveHidden
+                  ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-900/40"
+                  : "border-amber-500/40 bg-amber-950/40 text-amber-300 hover:border-amber-500 hover:bg-amber-900/40"
+              }`}
+            >
+              {togglingLive ? "…" : liveHidden ? "👁️ Réafficher" : "🚫 Cacher live"}
             </button>
             {pick.status !== "void" && (
               <button

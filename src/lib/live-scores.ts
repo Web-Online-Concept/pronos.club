@@ -189,7 +189,10 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
   const b = normalize(pickTeam);
 
   if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
+  // Containment STRICT : on n'accepte que si le mot contenu fait au moins 5 caracteres,
+  // sinon "PSG" matcherait "PSG United Arabs" ou des trucs farfelus.
+  if (b.length >= 5 && a.includes(b)) return true;
+  if (a.length >= 5 && b.includes(a)) return true;
 
   const apiWords = a.split(" ").filter(w => w.length >= 3);
   const pickWords = b.split(" ").filter(w => w.length >= 3);
@@ -203,7 +206,15 @@ export function teamsMatch(apiTeam: string, pickTeam: string): boolean {
     }
   }
 
-  return matches >= 1;
+  // STRICT v2 : si le pick a 2+ mots, il en faut au moins 2 qui matchent
+  // (sinon "Stade Brestois 29" matche n'importe quoi avec "Stade")
+  if (pickWords.length >= 2) {
+    return matches >= 2;
+  }
+
+  // Sinon (1 mot dans le pick — cas tennis souvent), match unique exige aussi
+  // que le mot pick soit "important" (>= 4 chars) pour limiter les faux positifs
+  return matches >= 1 && pickWords[0].length >= 4;
 }
 
 // ═══════════════════════════════════════════════

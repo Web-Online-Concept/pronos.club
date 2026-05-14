@@ -243,18 +243,12 @@ async function findScore(
   const eventDt = new Date(eventDate);
   const dateStr = eventDt.toISOString().split("T")[0].replace(/-/g, "");
 
-  // For tennis, ESPN groups all matches under the tournament event
-  // Try: exact date, then no date (current tournaments), then previous day
-  const isTennisSport = sportSlug === "tennis"
-    || (competition?.toLowerCase().includes("atp") ?? false)
-    || (competition?.toLowerCase().includes("wta") ?? false);
-
+  // For tennis, ESPN groups all matches under the tournament event.
+  // ANCIEN COMPORTEMENT (buggue) : on tentait aussi "no date" qui renvoyait le scoreboard
+  // courant, ce qui faisait que pour un pick "Sinner vs Rublev" du 14 mai, on pouvait
+  // recuperer "Sinner vs Pellegrino" du 13 mai par erreur.
+  // NOUVEAU : on ne tente que la date exacte, plus de fallback dangereux.
   const datesToTry = [dateStr];
-  if (isTennisSport) {
-    datesToTry.push(""); // no date = current scoreboard
-    const prevDay = new Date(eventDt.getTime() - 24 * 60 * 60 * 1000);
-    datesToTry.push(prevDay.toISOString().split("T")[0].replace(/-/g, ""));
-  }
 
   for (const slug of espnSlugs) {
     for (const tryDate of datesToTry) {
@@ -263,11 +257,15 @@ async function findScore(
 
       for (const game of games) {
         if (teams.length >= 2) {
+          // 2 noms attendus : on doit matcher les 2 (dans un sens ou l'autre)
           const match1 = teamsMatch(game.homeTeam, teams[0]) && teamsMatch(game.awayTeam, teams[1]);
           const match2 = teamsMatch(game.homeTeam, teams[1]) && teamsMatch(game.awayTeam, teams[0]);
           if (!match1 && !match2) continue;
         } else {
-          if (!teamsMatch(game.homeTeam, teams[0]) && !teamsMatch(game.awayTeam, teams[0])) continue;
+          // 1 seul nom extrait du pick : trop ambigu, on SKIP (risque trop fort
+          // de mauvais matching - ex: "Sinner" tout seul matche n'importe quel
+          // match avec Sinner, peu importe l'adversaire).
+          continue;
         }
 
         return {

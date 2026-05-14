@@ -57,7 +57,10 @@ export default function LiveScore({
 
   // If we have a saved score from DB, no need to fetch at all
   const hasSavedScore = !!savedScore;
-  const shouldFetch = !hasSavedScore && isRecentEvent(checkDate, isResolved) && (isPending || isResolved);
+  // CHANGEMENT MAI 2026 : on n'affiche le score live QUE pour les picks resolus
+  // (won/lost/etc.), plus sur les "Pronos en cours" (pending). Decision Florent :
+  // un score n'a de sens que sur l'historique, pas pendant la phase de pari.
+  const shouldFetch = !hasSavedScore && isRecentEvent(checkDate, isResolved) && isResolved;
 
   const isLegMode = !!legEventName;
 
@@ -69,9 +72,12 @@ export default function LiveScore({
 
     fetchScore();
 
-    if (isPending) {
-      intervalRef.current = setInterval(fetchScore, 60000);
-    }
+    // Plus d'auto-refresh : on n'affiche les scores que pour les picks RESOLUS,
+    // donc un seul fetch suffit (le score ne changera plus).
+    // (Code conserve au cas ou on voudrait reactiver le live sur pending plus tard)
+    // if (isPending) {
+    //   intervalRef.current = setInterval(fetchScore, 60000);
+    // }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -108,7 +114,10 @@ export default function LiveScore({
       const res = await fetch(url);
       if (!res.ok) { setLoaded(true); return; }
       const data = await res.json();
-      if (data.found === false || !data.homeTeam) {
+      // data.hidden=true : flag admin "cacher score" → on n'affiche rien
+      // data.found=false : ESPN n'a pas trouve le match → on n'affiche rien
+      // !data.homeTeam : reponse malformee → on n'affiche rien
+      if (data.found === false || data.hidden === true || !data.homeTeam) {
         setScore(null);
       } else {
         setScore(data);
