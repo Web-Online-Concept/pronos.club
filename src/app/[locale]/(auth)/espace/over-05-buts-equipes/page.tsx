@@ -167,13 +167,13 @@ export default function SelectionPage() {
             <select
               value={selectedLeagueId ?? ""}
               onChange={(e) => setSelectedLeagueId(e.target.value ? Number(e.target.value) : null)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
             >
-              <option value="">— Sélectionner un championnat —</option>
+              <option value="" className="bg-neutral-900 text-white">— Sélectionner un championnat —</option>
               {leagues.map((l) => {
                 const hasProjects = leaguesWithProjects.has(l.id);
                 return (
-                  <option key={l.id} value={l.id} disabled={!hasProjects}>
+                  <option key={l.id} value={l.id} disabled={!hasProjects} className="bg-neutral-900 text-white">
                     {l.name} ({l.country}){!hasProjects ? " — 📋 PROJETS à compléter" : ""}
                   </option>
                 );
@@ -202,9 +202,9 @@ export default function SelectionPage() {
                 setSelectedMatchday(md);
               }}
               disabled={!selectedLeagueId || matchdays.length === 0}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-50"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 disabled:opacity-50"
             >
-              <option value="">
+              <option value="" className="bg-neutral-900 text-white">
                 {!selectedLeagueId
                   ? "— Sélectionne d'abord un championnat —"
                   : matchdays.length === 0
@@ -212,7 +212,7 @@ export default function SelectionPage() {
                   : "— Sélectionner une journée —"}
               </option>
               {matchdays.map((m) => (
-                <option key={m.round_value} value={m.round_value}>
+                <option key={m.round_value} value={m.round_value} className="bg-neutral-900 text-white">
                   {m.matchday_label} · {m.match_count} matchs · {formatDateRange(m.date_from, m.date_to)}
                 </option>
               ))}
