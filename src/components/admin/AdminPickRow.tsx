@@ -33,7 +33,8 @@ interface AdminPick {
   audit_category: string | null;
   generation_batch: string;
   created_at: string;
-  live_score_hidden?: boolean;  // ← ajout : si true, le score live n'est pas affiche publiquement
+  live_score_hide_during_match?: boolean;  // cache pendant le live, affiche le score final
+  live_score_hide_completely?: boolean;    // cache toujours, jamais rien d'affiche
 }
 
 
@@ -55,28 +56,40 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
   const [submitting, setSubmitting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Toggle live score (cacher/afficher en cas de mauvais matching ESPN)
-  const [liveHidden, setLiveHidden] = useState(!!pick.live_score_hidden);
-  const [togglingLive, setTogglingLive] = useState(false);
+  // Toggle live score : 2 modes distincts
+  //  - "live_only" : cache pendant le match, score final OK
+  //  - "full"      : cache toujours (live ET final)
+  const [hideDuringMatch, setHideDuringMatch] = useState(!!pick.live_score_hide_during_match);
+  const [hideCompletely, setHideCompletely] = useState(!!pick.live_score_hide_completely);
+  const [togglingDuring, setTogglingDuring] = useState(false);
+  const [togglingFull, setTogglingFull] = useState(false);
 
-  async function handleToggleLiveScore() {
-    setTogglingLive(true);
+  async function handleToggle(type: "live_only" | "full") {
+    const isFull = type === "full";
+    const currentHidden = isFull ? hideCompletely : hideDuringMatch;
+    const newHidden = !currentHidden;
+
+    if (isFull) setTogglingFull(true);
+    else setTogglingDuring(true);
+
     try {
       const res = await fetch(`/api/admin/picks/${pick.id}/toggle-live-score`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hidden: !liveHidden }),
+        body: JSON.stringify({ type, hidden: newHidden }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Erreur serveur");
       }
-      setLiveHidden(!liveHidden);
+      if (isFull) setHideCompletely(newHidden);
+      else setHideDuringMatch(newHidden);
       router.refresh();
     } catch (err) {
       alert(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      setTogglingLive(false);
+      if (isFull) setTogglingFull(false);
+      else setTogglingDuring(false);
     }
   }
 
@@ -188,18 +201,42 @@ export default function AdminPickRow({ pick }: { pick: AdminPick }) {
             >
               {showDetails ? "Masquer" : "Détails"}
             </button>
+            {/* Bouton 1 : Cacher live seulement (score final autorisé) */}
             <button
               type="button"
-              onClick={handleToggleLiveScore}
-              disabled={togglingLive}
-              title={liveHidden ? "Réafficher le score live" : "Cacher le score live (en cas de mauvais matching)"}
+              onClick={() => handleToggle("live_only")}
+              disabled={togglingDuring}
+              title={
+                hideDuringMatch
+                  ? "Réactiver le live (live et final affichés)"
+                  : "Cacher pendant le live mais afficher le score final une fois le match terminé"
+              }
               className={`rounded-lg border px-3 py-1 text-xs disabled:opacity-50 ${
-                liveHidden
+                hideDuringMatch
                   ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-900/40"
                   : "border-amber-500/40 bg-amber-950/40 text-amber-300 hover:border-amber-500 hover:bg-amber-900/40"
               }`}
             >
-              {togglingLive ? "…" : liveHidden ? "👁️ Réafficher" : "🚫 Cacher live"}
+              {togglingDuring ? "…" : hideDuringMatch ? "👁️ Live ON" : "🚫 Cacher live"}
+            </button>
+
+            {/* Bouton 2 : Cacher tout (live ET final) */}
+            <button
+              type="button"
+              onClick={() => handleToggle("full")}
+              disabled={togglingFull}
+              title={
+                hideCompletely
+                  ? "Réactiver complètement le score (live et final)"
+                  : "Cacher complètement le score (live ET final). Utiliser quand le matching ESPN est définitivement faux pour ce pick."
+              }
+              className={`rounded-lg border px-3 py-1 text-xs disabled:opacity-50 ${
+                hideCompletely
+                  ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:border-emerald-500 hover:bg-emerald-900/40"
+                  : "border-purple-500/40 bg-purple-950/40 text-purple-300 hover:border-purple-500 hover:bg-purple-900/40"
+              }`}
+            >
+              {togglingFull ? "…" : hideCompletely ? "👁️ Tout ON" : "🙈 Cacher tout"}
             </button>
             {pick.status !== "void" && (
               <button

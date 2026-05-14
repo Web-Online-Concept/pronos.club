@@ -2,16 +2,29 @@
 //
 // POST /api/admin/picks/[id]/toggle-live-score
 //
-// Bascule le flag live_score_hidden sur un pick (ai_pick OU pick tipster).
-// Si le score live affiche est faux (mauvais matching ESPN), l'admin clique
-// sur le bouton dans AdminPickRow et le score disparait du front public.
+// Body : {
+//   type: "live_only" | "full",   // type de cache
+//   hidden: boolean                // true = cacher / false = afficher
+// }
 //
-// Auth : utilise l'auth admin existante.
+// 2 types de cache :
+//   - "live_only" : cache le score live PENDANT le match (ESPN se trompe live)
+//                   mais affiche le score final une fois le match termine
+//   - "full"      : cache TOUJOURS le score (live ET final)
+//
+// Si hidden=true, on efface aussi `live_score_data` pour vider le cache.
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+
+
+type HideType = "live_only" | "full";
+type ToggleBody = {
+  type: HideType;
+  hidden: boolean;
+};
 
 
 export async function POST(
@@ -20,37 +33,46 @@ export async function POST(
 ) {
   const { id } = await ctx.params;
 
-  // ─── Auth admin via header secret (memes patterns que les autres routes admin) ───
-  const secret = req.headers.get("x-admin-secret") ?? req.headers.get("x-internal-secret");
-  const expected = process.env.ADMIN_SECRET ?? process.env.CRON_SECRET ?? "PronosClub2026CronAuto";
-  // Pour les routes appelees depuis le navigateur admin, on accepte aussi via cookie
-  // (memes patterns que /api/admin/ai-picks/[id]/void/route.ts probable)
-  // Si tu utilises un autre auth, adapte ici.
-
-  // Lecture du body
-  let body: { hidden?: boolean; clear_saved_score?: boolean } = {};
+  let body: ToggleBody;
   try {
     body = await req.json();
   } catch {
-    // body optionnel — on togglera automatiquement
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  if (!body.type || (body.type !== "live_only" && body.type !== "full")) {
+    return NextResponse.json(
+      { error: "Missing or invalid 'type' (expected 'live_only' or 'full')" },
+      { status: 400 }
+    );
+  }
+
+  if (typeof body.hidden !== "boolean") {
+    return NextResponse.json(
+      { error: "Missing 'hidden' boolean" },
+      { status: 400 }
+    );
+  }
+
+  // Choix de la colonne a updater
+  const columnName =
+    body.type === "live_only"
+      ? "live_score_hide_during_match"
+      : "live_score_hide_completely";
 
   // ─── Tentative 1 : ai_picks ───
   const { data: aiPick } = await supabaseAdmin
     .from("ai_picks")
-    .select("id, live_score_hidden, live_score_data")
+    .select(`id, live_score_hide_during_match, live_score_hide_completely`)
     .eq("id", id)
     .maybeSingle();
 
   if (aiPick) {
-    // Si body.hidden fourni explicitement, on l'applique
-    // Sinon, on toggle
-    const newHidden = body.hidden !== undefined ? body.hidden : !aiPick.live_score_hidden;
-
-    // Si on cache le score, on peut aussi effacer le live_score_data deja sauvegarde
-    // (sinon il reste affiche meme avec hidden=true via savedScore)
-    const updates: Record<string, unknown> = { live_score_hidden: newHidden };
-    if (newHidden && body.clear_saved_score !== false) {
+    const updates: Record<string, unknown> = { [columnName]: body.hidden };
+    // Quand on cache (live_only OU full), on efface aussi le score sauvegarde
+    // pour eviter qu'il continue d'apparaitre via savedScore.
+    // Si on RE-AFFICHE (hidden=false), on garde live_score_data tel quel.
+    if (body.hidden) {
       updates.live_score_data = null;
     }
 
@@ -70,23 +92,22 @@ export async function POST(
       ok: true,
       table: "ai_picks",
       id,
-      live_score_hidden: newHidden,
-      cleared_saved_score: newHidden && body.clear_saved_score !== false,
+      column: columnName,
+      hidden: body.hidden,
+      cleared_saved_score: body.hidden,
     });
   }
 
   // ─── Tentative 2 : picks (tipster) ───
   const { data: tipsterPick } = await supabaseAdmin
     .from("picks")
-    .select("id, live_score_hidden, live_score_data")
+    .select(`id, live_score_hide_during_match, live_score_hide_completely`)
     .eq("id", id)
     .maybeSingle();
 
   if (tipsterPick) {
-    const newHidden = body.hidden !== undefined ? body.hidden : !tipsterPick.live_score_hidden;
-
-    const updates: Record<string, unknown> = { live_score_hidden: newHidden };
-    if (newHidden && body.clear_saved_score !== false) {
+    const updates: Record<string, unknown> = { [columnName]: body.hidden };
+    if (body.hidden) {
       updates.live_score_data = null;
     }
 
@@ -106,8 +127,9 @@ export async function POST(
       ok: true,
       table: "picks",
       id,
-      live_score_hidden: newHidden,
-      cleared_saved_score: newHidden && body.clear_saved_score !== false,
+      column: columnName,
+      hidden: body.hidden,
+      cleared_saved_score: body.hidden,
     });
   }
 

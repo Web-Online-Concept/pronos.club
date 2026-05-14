@@ -128,14 +128,36 @@ async function getPickScore(pickId: string) {
   // ── Tentative 1 : table `picks` (Tipster) ────────────────
   const { data: tipsterPick } = await supabaseAdmin
     .from("picks")
-    .select("id, event_name, event_date, competition, status, live_score_data, sport:sports(slug)")
+    .select("id, event_name, event_date, competition, status, live_score_data, live_score_hide_during_match, live_score_hide_completely, sport:sports(slug)")
     .eq("id", pickId)
     .maybeSingle();
 
   if (tipsterPick) {
-    // If already saved, return it directly
-    if (tipsterPick.live_score_data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tipsterAny = tipsterPick as any;
+
+    // Flag "cacher completement" : on retourne hidden sans rien chercher
+    if (tipsterAny.live_score_hide_completely) {
+      return NextResponse.json({ found: false, hidden: true });
+    }
+
+    // Flag "cacher pendant le live uniquement" :
+    // si live_score_data deja sauvegarde (match final) ET le statut etait final,
+    // on l'affiche. Sinon on cherche normalement et on filtrera plus bas.
+    const hideDuringMatch = !!tipsterAny.live_score_hide_during_match;
+
+    // If already saved, return it directly (sauf si flag = on doit re-evaluer)
+    if (tipsterPick.live_score_data && !hideDuringMatch) {
       return NextResponse.json(tipsterPick.live_score_data);
+    }
+    // Si hideDuringMatch=true MAIS on a un live_score_data ET il est final, on l'affiche
+    if (tipsterPick.live_score_data && hideDuringMatch) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((tipsterPick.live_score_data as any).matchStatus === "final") {
+        return NextResponse.json(tipsterPick.live_score_data);
+      }
+      // Score live sauvegarde mais pas encore final -> on cache
+      return NextResponse.json({ found: false, hidden: true });
     }
 
     const pickAny = tipsterPick as Record<string, unknown>;
@@ -150,6 +172,11 @@ async function getPickScore(pickId: string) {
 
     if (!result) {
       return NextResponse.json({ found: false });
+    }
+
+    // Si flag "cacher pendant live" actif ET match pas encore final, on cache
+    if (hideDuringMatch && result.matchStatus !== "final") {
+      return NextResponse.json({ found: false, hidden: true });
     }
 
     // Auto-save if pick is resolved and match is final
@@ -167,7 +194,7 @@ async function getPickScore(pickId: string) {
   // ── Tentative 2 : table `ai_picks` (IA) ──────────────────
   const { data: aiPick } = await supabaseAdmin
     .from("ai_picks")
-    .select("id, event_name, event_date, league, status, live_score_data, sport")
+    .select("id, event_name, event_date, league, status, live_score_data, sport, live_score_hide_during_match, live_score_hide_completely")
     .eq("id", pickId)
     .maybeSingle();
 
@@ -175,9 +202,27 @@ async function getPickScore(pickId: string) {
     return NextResponse.json({ found: false });
   }
 
-  // If already saved, return it directly
-  if (aiPick.live_score_data) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aiPickAny = aiPick as any;
+
+  // Flag "cacher completement" : on retourne hidden sans rien chercher
+  if (aiPickAny.live_score_hide_completely) {
+    return NextResponse.json({ found: false, hidden: true });
+  }
+
+  // Flag "cacher pendant le live uniquement"
+  const aiHideDuringMatch = !!aiPickAny.live_score_hide_during_match;
+
+  // If already saved, return it directly (en filtrant si live et flag actif)
+  if (aiPick.live_score_data && !aiHideDuringMatch) {
     return NextResponse.json(aiPick.live_score_data);
+  }
+  if (aiPick.live_score_data && aiHideDuringMatch) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((aiPick.live_score_data as any).matchStatus === "final") {
+      return NextResponse.json(aiPick.live_score_data);
+    }
+    return NextResponse.json({ found: false, hidden: true });
   }
 
   // Pour ai_picks, le sport est stocke directement comme string (ex: "football")
@@ -194,6 +239,11 @@ async function getPickScore(pickId: string) {
 
   if (!result) {
     return NextResponse.json({ found: false });
+  }
+
+  // Si flag "cacher pendant live" actif ET match pas encore final, on cache
+  if (aiHideDuringMatch && result.matchStatus !== "final") {
+    return NextResponse.json({ found: false, hidden: true });
   }
 
   // Auto-save if pick is resolved and match is final

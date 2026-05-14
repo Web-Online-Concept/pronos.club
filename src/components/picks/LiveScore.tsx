@@ -57,10 +57,16 @@ export default function LiveScore({
 
   // If we have a saved score from DB, no need to fetch at all
   const hasSavedScore = !!savedScore;
-  // CHANGEMENT MAI 2026 : on n'affiche le score live QUE pour les picks resolus
-  // (won/lost/etc.), plus sur les "Pronos en cours" (pending). Decision Florent :
-  // un score n'a de sens que sur l'historique, pas pendant la phase de pari.
-  const shouldFetch = !hasSavedScore && isRecentEvent(checkDate, isResolved) && isResolved;
+
+  // ─── MAJ MAI 2026 ─────────────────────────────────────────────────
+  // Decision : on affiche le score uniquement si le match a COMMENCE
+  // (event_date <= now), peu importe que le pick soit pending ou resolu.
+  // Logique :
+  //   - event_date dans le futur : pas de score (pas encore joue)
+  //   - event_date passe : on cherche le score live ou final
+  // ─────────────────────────────────────────────────────────────────
+  const matchStarted = new Date(checkDate).getTime() <= Date.now();
+  const shouldFetch = !hasSavedScore && matchStarted && isRecentEvent(checkDate, isResolved);
 
   const isLegMode = !!legEventName;
 
@@ -72,12 +78,11 @@ export default function LiveScore({
 
     fetchScore();
 
-    // Plus d'auto-refresh : on n'affiche les scores que pour les picks RESOLUS,
-    // donc un seul fetch suffit (le score ne changera plus).
-    // (Code conserve au cas ou on voudrait reactiver le live sur pending plus tard)
-    // if (isPending) {
-    //   intervalRef.current = setInterval(fetchScore, 60000);
-    // }
+    // Auto-refresh 60s pendant un match en cours (pas final)
+    // Le useEffect plus bas l'arretera automatiquement quand matchStatus="final".
+    if (isPending) {
+      intervalRef.current = setInterval(fetchScore, 60000);
+    }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

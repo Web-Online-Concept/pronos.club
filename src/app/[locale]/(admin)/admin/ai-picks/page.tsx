@@ -65,7 +65,8 @@ export default async function AdminAIPicksPage({
        ai_confidence, consensus_tier, status, final_score,
        audit_reason, audit_category,
        generation_version, model_used, dossier_status,
-       generation_batch, created_at, slug, classic_number`,
+       generation_batch, created_at, slug, classic_number,
+       live_score_hide_during_match, live_score_hide_completely`,
       { count: "exact" }
     )
     .is("deleted_at", null)
