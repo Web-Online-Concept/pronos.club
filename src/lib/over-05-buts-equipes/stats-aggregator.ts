@@ -1,14 +1,13 @@
 // src/lib/over-05-buts-equipes/stats-aggregator.ts
 //
-// Recupere et agrege les stats des 3 derniers matchs d'une equipe
-// pour le calcul du score selon la methode PROJETS Bertrand.
+// VERSION 2 — supporte 2 sources de stats :
+//  - Understat : Top 5 europeens (xG natif)
+//  - API-Football : 9 championnats hors Top 5 (pas d'xG, on substitue par les buts)
 //
-// Sources de donnees :
-//  - Understat (xG, xGA, tirs detailes) pour les 5 grands championnats
-//  - SofaScore (pas implemente Phase 3, pour les 9 autres championnats)
-//
-// Resultat : MatchStats (attaque) + MatchDefenseStats (defense)
-// avec pondération récence × niveau adversaire (formule validée Q4).
+// La fonction publique est fetchTeamStats() qui dispatche automatiquement
+// selon le parametre xg_source du championnat. Les anciennes signatures
+// (fetchTeamStatsUnderstat) sont conservees pour compatibilite avec les
+// anciens appels.
 
 import {
   getUnderstatTeamMatches,
@@ -17,26 +16,22 @@ import {
   countShotsOnTarget,
   type UnderstatTeamMatch,
 } from "./understat-service";
+import {
+  getApiFootballTeamLastMatches,
+  type ApiFootballTeamMatch,
+} from "./apifootball-team-stats-service";
 import { getUnderstatSlug } from "./team-mapping";
 import type { MatchStats, MatchDefenseStats, O05DataQuality } from "./types";
 
 
 // ─── Pondérations (validées Q4) ──────────────────────────────────
 
-/**
- * Pondération récence : matchs M-3 (le plus récent) → M-2 → M-1 (le plus ancien).
- * Plus le match est récent, plus il compte (forme actuelle plus représentative).
- */
 const RECENCY_WEIGHTS = {
   M3: 1.5,  // match le plus récent
   M2: 1.2,
   M1: 1.0,  // match le moins récent (des 3)
 };
 
-/**
- * Coefficient niveau adversaire : un but contre PSG > un but contre Le Havre.
- * Categorie de l'adversaire de chaque match.
- */
 const OPPONENT_LEVEL_COEFFS: Record<string, number> = {
   ELITE: 1.30,
   EUROPE: 1.15,
@@ -54,9 +49,9 @@ const getOpponentCoeff = (category: string | null | undefined): number => {
 // ─── Types intermediaires ────────────────────────────────────────
 
 export type ProcessedMatch = {
-  match_date: string;                  // ISO datetime
+  match_date: string;
   opponent_name: string;
-  opponent_category: string | null;    // depuis o05_projects (peut etre null)
+  opponent_category: string | null;
   is_home: boolean;
   // Stats offensives
   xg_for: number;
@@ -75,26 +70,63 @@ export type ProcessedMatch = {
 export type TeamStatsResult = {
   attack: MatchStats;
   defense: MatchDefenseStats;
-  raw_matches: ProcessedMatch[];   // pour audit / debug
+  raw_matches: ProcessedMatch[];
   data_quality: O05DataQuality;
   errors: string[];
 };
 
 
-// ─── Fonction principale ─────────────────────────────────────────
+// ─── Dispatcher public ───────────────────────────────────────────
 
 /**
- * Recupere les stats agregees d'une equipe pour les N derniers matchs joues,
- * en utilisant Understat (Top 5 europeens uniquement).
+ * Recupere les stats agregees d'une equipe.
+ * Dispatche automatiquement vers Understat ou API-Football selon xg_source.
  *
- * @param dbNormalizedName  name_normalized de l'equipe (ex: "marseille")
- * @param year              annee Understat (ex: 2025 pour saison 2025-2026)
- * @param beforeDate        ne prendre que les matchs AVANT cette date
- *                          (le match qu'on analyse n'est pas inclus)
- * @param opponentCategories  Map<opponent_name_understat, category PROJET>
- *                            (pour appliquer le coef niveau adversaire)
+ * @param dbNormalizedName  name_normalized de l'equipe
+ * @param apiFootballTeamId ID API-Football de l'equipe (requis pour apifootball)
+ * @param year              annee de saison (ex: 2025)
+ * @param beforeDate        date avant laquelle filtrer
+ * @param opponentCategories Map (opponent_name -> category PROJET)
+ * @param xgSource          'understat' ou 'apifootball'
  * @param N                 nombre de matchs voulus (defaut 3)
  */
+export const fetchTeamStats = async (
+  dbNormalizedName: string,
+  apiFootballTeamId: number | null,
+  year: number,
+  beforeDate: Date,
+  opponentCategories: Map<string, string | null>,
+  xgSource: "understat" | "apifootball",
+  N: number = 3
+): Promise<TeamStatsResult> => {
+  if (xgSource === "understat") {
+    return fetchTeamStatsUnderstat(
+      dbNormalizedName,
+      year,
+      beforeDate,
+      opponentCategories,
+      N
+    );
+  } else {
+    if (apiFootballTeamId === null) {
+      return emptyResult([
+        `Pas d'api_football_id pour ${dbNormalizedName}, impossible d'utiliser API-Football`,
+      ]);
+    }
+    return fetchTeamStatsApiFootball(
+      apiFootballTeamId,
+      dbNormalizedName,
+      year,
+      beforeDate,
+      opponentCategories,
+      N
+    );
+  }
+};
+
+
+// ─── Source Understat (existant Phase 3, inchange) ───────────────
+
 export const fetchTeamStatsUnderstat = async (
   dbNormalizedName: string,
   year: number,
@@ -118,8 +150,7 @@ export const fetchTeamStatsUnderstat = async (
     return emptyResult([`Understat fetch failed for ${slug}/${year}: ${msg}`]);
   }
 
-  // 2. Filtrer ceux AVANT beforeDate (on ne triche pas avec des matchs futurs)
-  // Les matchs Understat sont déjà triés du plus récent au plus ancien.
+  // 2. Filtrer ceux AVANT beforeDate
   const beforeIso = beforeDate.toISOString().replace("T", " ").substring(0, 19);
   const pastMatches = allMatches.filter((m) => m.date < beforeIso);
 
@@ -127,31 +158,27 @@ export const fetchTeamStatsUnderstat = async (
     return emptyResult([`No past matches for ${slug} before ${beforeIso}`]);
   }
 
-  // 3. Prendre les N derniers (les plus recents)
   const lastN = pastMatches.slice(0, N);
 
-  // 4. Pour chaque match, fetcher les tirs detailes (pour TC + Big Chances)
+  // 3. Pour chaque match, fetcher les tirs detailles
   const processed: ProcessedMatch[] = [];
   for (const match of lastN) {
     try {
       const shots = await getUnderstatMatchShots(match.match_id);
       const isHome = match.is_home;
 
-      // Stats offensives = ce que NOTRE equipe a produit
       const xg_for = isHome ? match.home_xg : match.away_xg;
       const goals_for = isHome ? match.home_goals : match.away_goals;
       const sot_for = countShotsOnTarget(shots, isHome);
       const bc_for = countBigChances(shots, isHome);
 
-      // Stats defensives = ce que l'adversaire a produit
       const xg_against = isHome ? match.away_xg : match.home_xg;
       const goals_against = isHome ? match.away_goals : match.home_goals;
       const sot_against = countShotsOnTarget(shots, !isHome);
       const bc_against = countBigChances(shots, !isHome);
 
       const opponentName = isHome ? match.away_team : match.home_team;
-      const opponentCategory =
-        opponentCategories.get(opponentName) ?? null;
+      const opponentCategory = opponentCategories.get(opponentName) ?? null;
 
       processed.push({
         match_date: match.date,
@@ -171,7 +198,6 @@ export const fetchTeamStatsUnderstat = async (
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`Match ${match.match_id} shots fetch failed: ${msg}`);
-      // On garde quand meme le match avec stats partielles (sans TC/BC)
       const isHome = match.is_home;
       const opponentName = isHome ? match.away_team : match.home_team;
       processed.push({
@@ -192,25 +218,98 @@ export const fetchTeamStatsUnderstat = async (
     }
   }
 
-  // 5. Calcul des stats ponderees
-  return computeWeightedStats(processed, errors);
+  return computeWeightedStats(processed, errors, "understat");
 };
 
 
+// ─── Source API-Football (nouveau Phase 5) ───────────────────────
+
 /**
- * Calcule les stats ponderees a partir d'une liste de matchs traites.
- * Formule pondération validee Q4 :
- *   stat_ponderée = Σ (stat × poids_récence × coef_niveau_adv)
- *                   / Σ (poids_récence × coef_niveau_adv)
+ * Recupere les stats via API-Football (pas d'xG, substitution par les buts).
  *
- * Note : on suppose que processed est trie du plus recent au plus ancien.
- * Donc processed[0] = M-3 (poids 1.5), processed[1] = M-2 (poids 1.2),
- * processed[2] = M-1 (poids 1.0). Si moins de 3 matchs, on utilise les
- * poids disponibles.
+ * SUBSTITUTIONS :
+ *  - xg_for       -> goals_for (buts marques)
+ *  - xg_against   -> goals_against (buts encaisses)
+ *  - big_chances  -> heuristique : tirs cadres / 3 (approximation)
+ *                   Justification : sur les Top 5, ratio BC/TC est ~30-40%
  */
+export const fetchTeamStatsApiFootball = async (
+  apiFootballTeamId: number,
+  dbNormalizedName: string,
+  year: number,
+  beforeDate: Date,
+  opponentCategories: Map<string, string | null>,
+  N: number = 3
+): Promise<TeamStatsResult> => {
+  const errors: string[] = [];
+
+  // 1. Recuperer les N derniers matchs avec stats
+  const beforeDateStr = beforeDate.toISOString().substring(0, 10);
+
+  let matches: ApiFootballTeamMatch[];
+  try {
+    matches = await getApiFootballTeamLastMatches(
+      apiFootballTeamId,
+      year,
+      beforeDateStr,
+      N
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return emptyResult([
+      `API-Football fetch failed for team ${dbNormalizedName} (id ${apiFootballTeamId}): ${msg}`,
+    ]);
+  }
+
+  if (matches.length === 0) {
+    return emptyResult([
+      `No past matches via API-Football for ${dbNormalizedName} before ${beforeDateStr}`,
+    ]);
+  }
+
+  // 2. Transformer en ProcessedMatch (avec substitutions)
+  const processed: ProcessedMatch[] = matches.map((m) => {
+    const opponentName = m.is_home ? m.away_team_name : m.home_team_name;
+    const opponentCategory =
+      opponentCategories.get(opponentName) ??
+      opponentCategories.get(opponentName.toLowerCase()) ??
+      null;
+
+    // SUBSTITUTIONS clés :
+    //  - xg_for = goals_for (on n'a pas d'xG)
+    //  - big_chances_for = shots_on_goal_for / 3 (heuristique)
+    const big_chances_for_estimate = m.shots_on_goal_for / 3;
+    const big_chances_against_estimate = m.shots_on_goal_against / 3;
+
+    return {
+      match_date: m.date,
+      opponent_name: opponentName,
+      opponent_category: opponentCategory,
+      is_home: m.is_home,
+      // OFFENSE
+      xg_for: m.goals_for,                            // substitution
+      shots_on_target_for: m.shots_on_goal_for,
+      big_chances_for: round2(big_chances_for_estimate),
+      goals_for: m.goals_for,
+      // DEFENSE
+      xg_against: m.goals_against,                    // substitution
+      shots_on_target_against: m.shots_on_goal_against,
+      big_chances_against: round2(big_chances_against_estimate),
+      goals_against: m.goals_against,
+      clean_sheet: m.goals_against === 0,
+    };
+  });
+
+  return computeWeightedStats(processed, errors, "apifootball");
+};
+
+
+// ─── Compute weighted stats (commun aux 2 sources) ────────────────
+
 const computeWeightedStats = (
   processed: ProcessedMatch[],
-  errors: string[]
+  errors: string[],
+  source: "understat" | "apifootball"
 ): TeamStatsResult => {
   if (processed.length === 0) {
     return emptyResult(errors.length > 0 ? errors : ["No matches to compute"]);
@@ -218,7 +317,6 @@ const computeWeightedStats = (
 
   const weights = [RECENCY_WEIGHTS.M3, RECENCY_WEIGHTS.M2, RECENCY_WEIGHTS.M1];
 
-  // Accumulateurs
   let denominator = 0;
   let xg_for_sum = 0;
   let tc_for_sum = 0;
@@ -269,7 +367,6 @@ const computeWeightedStats = (
     matches_count: processed.length,
   };
 
-  // Determination de la qualité des données
   let data_quality: O05DataQuality = "complete";
   if (processed.length < 3) data_quality = "partial";
   if (errors.length > 0 && processed.length < 2) data_quality = "missing";

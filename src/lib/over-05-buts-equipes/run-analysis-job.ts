@@ -1,11 +1,10 @@
 // src/lib/over-05-buts-equipes/run-analysis-job.ts
 //
-// Logique du job d'analyse extraite en fonction reutilisable.
-// Utilise par :
-//  - /api/over-05/analyze (via after())
-//  - /api/over-05/internal/run-analysis (via HTTP, pour debug et test direct)
+// VERSION 4 (Phase 5) — supporte 2 sources de stats :
+//   - Understat (Top 5 europeens)
+//   - API-Football (9 D2 / petits championnats)
 //
-// VERSION 3 — pipeline complet :
+// Pipeline complet :
 //   1. Charger la session d'analyse + le championnat
 //   2. Verifier que tous les championnats ont PROJETS
 //   3. Fetch les fixtures de la plage de dates via API-Football
@@ -13,9 +12,9 @@
 //      a) Resoudre les team_id home/away (creer si absents)
 //      b) Charger les PROJETS des 2 equipes
 //      c) Identifier le favori intrinseque (favori-resolver)
-//      d) Recuperer les stats des 3 derniers matchs de la cible (Understat)
-//      e) Recuperer les stats defensives des 3 derniers matchs de l'adv (Understat)
-//      f) Calculer les scores (scoring-engine)
+//      d) Recuperer les stats des 3 derniers matchs (Understat OU API-Football)
+//      e) Recuperer les stats defensives idem
+//      f) Calculer les scores (scoring-engine — identique)
 //      g) Inserer le resultat complet en DB
 //   5. Marquer status='completed'
 
@@ -27,7 +26,7 @@ import {
 import { getCurrentApiFootballSeason } from "./season-helper";
 import { apiFootballToDbName, normalizeTeamName } from "./team-mapping";
 import { resolveFavoriIntrinseque, computeProjectBonus } from "./favori-resolver";
-import { fetchTeamStatsUnderstat } from "./stats-aggregator";
+import { fetchTeamStats } from "./stats-aggregator";
 import { computeScoring } from "./scoring-engine";
 
 const supabaseAdmin = createAdminClient(
@@ -51,6 +50,7 @@ type TeamWithProject = {
   team_id: number;
   team_name: string;
   name_normalized: string;
+  api_football_id: number | null;   // Phase 5 : pour appel API-Football
   current_rank: number | null;
   avg_rank_historical: number | null;
   category: string | null;
@@ -88,6 +88,7 @@ async function resolveTeamWithProject(
         .from("o05_teams")
         .update({ api_football_id: apiFootballTeamId })
         .eq("id", team.id);
+      team.api_football_id = apiFootballTeamId;
     }
   }
 
@@ -100,7 +101,7 @@ async function resolveTeamWithProject(
         name_normalized: normalizeTeamName(apiFootballTeamName),
         api_football_id: apiFootballTeamId,
       })
-      .select("id, name, name_normalized")
+      .select("id, name, name_normalized, api_football_id")
       .single();
 
     if (error || !created) {
@@ -114,6 +115,7 @@ async function resolveTeamWithProject(
       team_id: created.id,
       team_name: created.name,
       name_normalized: created.name_normalized,
+      api_football_id: created.api_football_id,
       current_rank: null,
       avg_rank_historical: null,
       category: null,
@@ -135,6 +137,7 @@ async function resolveTeamWithProject(
     team_id: team.id,
     team_name: team.name,
     name_normalized: team.name_normalized,
+    api_football_id: team.api_football_id,
     current_rank: project?.current_rank ?? null,
     avg_rank_historical: project?.avg_rank_historical ?? null,
     category: project?.category ?? null,
@@ -195,16 +198,9 @@ async function insertFailedMatch(
 
 // ─── Fonction principale exportee ─────────────────────────────────
 
-/**
- * Execute le job d'analyse pour une session donnée.
- * Cette fonction peut etre appelee directement (pas via fetch HTTP).
- *
- * @param analysisId UUID de l'analyse a executer
- */
 export async function runAnalysisJob(
   analysisId: string
 ): Promise<RunAnalysisResult> {
-  // Charger l'analyse
   const { data: analysis, error: analysisErr } = await supabaseAdmin
     .from("o05_analyses")
     .select("id, league_id, date_from, date_to, status")
@@ -223,7 +219,6 @@ export async function runAnalysisJob(
     };
   }
 
-  // Charger le championnat
   const { data: league } = await supabaseAdmin
     .from("o05_leagues")
     .select("id, api_football_id, name, xg_source, is_top5, understat_slug")
@@ -260,12 +255,13 @@ export async function runAnalysisJob(
     throw new Error("PROJETS missing");
   }
 
-  // ─── Validation : Understat couvre ce championnat ? ───
-  if (league.xg_source !== "understat") {
+  // ─── Validation source xG : Understat OU API-Football ───
+  // Phase 5 : on supporte les 2. Avant on bloquait apifootball.
+  const xgSource = league.xg_source as "understat" | "apifootball";
+  if (xgSource !== "understat" && xgSource !== "apifootball") {
     await markFailed(
       analysisId,
-      `Le championnat "${league.name}" utilise ${league.xg_source} comme source xG. ` +
-      `Seul Understat est supporte (5 grands championnats). Phase 5 ajoutera API-Football.`
+      `Source xG "${league.xg_source}" non supportee pour ${league.name}.`
     );
     throw new Error("Source xG non supportee");
   }
@@ -366,19 +362,24 @@ export async function runAnalysisJob(
       const opponent = favori.target_role === "home" ? awayTeam : homeTeam;
       const matchDate = new Date(fixture.fixture.date);
 
-      const targetStats = await fetchTeamStatsUnderstat(
+      // PHASE 5 : appel du dispatcher fetchTeamStats avec xg_source
+      const targetStats = await fetchTeamStats(
         target.name_normalized,
+        target.api_football_id,
         currentSeason,
         matchDate,
         opponentCategories,
+        xgSource,
         3
       );
 
-      const opponentStats = await fetchTeamStatsUnderstat(
+      const opponentStats = await fetchTeamStats(
         opponent.name_normalized,
+        opponent.api_football_id,
         currentSeason,
         matchDate,
         opponentCategories,
+        xgSource,
         3
       );
 
@@ -386,12 +387,13 @@ export async function runAnalysisJob(
         targetStats.data_quality === "missing" &&
         opponentStats.data_quality === "missing"
       ) {
+        const sourceLabel = xgSource === "understat" ? "Understat" : "API-Football";
         await insertFailedMatch(
           analysisId,
           fixture,
           homeTeam.team_id,
           awayTeam.team_id,
-          `Stats Understat indisponibles : ${[
+          `Stats ${sourceLabel} indisponibles : ${[
             ...targetStats.errors,
             ...opponentStats.errors,
           ].join(" | ")}`,
@@ -465,7 +467,7 @@ export async function runAnalysisJob(
           total_score: scoring.total_score,
           note_10: scoring.note_10,
           verdict: scoring.verdict,
-          data_source: "understat",
+          data_source: xgSource,
           data_quality,
           raw_data: {
             favori_reason: favori.reason,
