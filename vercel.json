@@ -57,14 +57,12 @@
       "schedule": "0 20 1 * *"
     },
     {
-      "path": "/api/cron/over-05-buts-equipes-detect",
-      "schedule": "0 5 * * *"
-    },
-    {
       "path": "/api/cron/ai-picks-dossier",
       "schedule": "15 7 * * *"
     },
-    { "path": "/api/cron/email-retry", 
-      "schedule": "*/15 * * * *" }
+    {
+      "path": "/api/cron/email-retry",
+      "schedule": "*/15 * * * *"
+    }
   ]
 }
