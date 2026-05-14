@@ -1,19 +1,17 @@
 // src/app/api/over-05/analyze/route.ts
 //
-// POST /api/over-05/analyze
-// Body: { league_id, matchday_label, date_from, date_to }
+// VERSION 3 — FIABLE : appel direct de la fonction du job (pas de fetch interne).
 //
-// → Crée une session d'analyse (status='pending') et retourne immédiatement
-//   l'analysis_id au frontend. L'analyse réelle tourne en background via
-//   un appel fire-and-forget à /api/over-05/internal/run-analysis.
+// Au lieu d'utiliser fire-and-forget (fetch sans await) ou after()
+// (qui se sont reveles peu fiables sur Vercel), on extrait la logique
+// du job dans une fonction reutilisable et on l'appelle DIRECTEMENT
+// depuis cette route.
 //
-// Le frontend poll ensuite GET /api/over-05/analyses/[id] toutes les 3s
-// pour suivre l'avancement.
-//
-// Cache 24h : si une analyse récente existe pour (league_id, date_from,
-// date_to), on retourne son ID au lieu d'en relancer une nouvelle.
+// La cle : after() pour faire tourner le job APRES avoir renvoye la
+// reponse au client, sans le ralentir.
 
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { isO05Authorized } from "@/lib/over-05-buts-equipes/auth";
@@ -21,6 +19,7 @@ import type {
   AnalyzeRequestBody,
   AnalyzeResponse,
 } from "@/lib/over-05-buts-equipes/types";
+import { runAnalysisJob } from "@/lib/over-05-buts-equipes/run-analysis-job";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -63,7 +62,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Format YYYY-MM-DD
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!dateRegex.test(body.date_from) || !dateRegex.test(body.date_to)) {
     return NextResponse.json(
@@ -72,7 +70,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Vérifier que le championnat existe
+  // Verifier que le championnat existe
   const { data: league, error: leagueErr } = await supabaseAdmin
     .from("o05_leagues")
     .select("id, name")
@@ -87,8 +85,6 @@ export async function POST(req: NextRequest) {
   }
 
   // ─── CACHE 24h ───
-  // Chercher une analyse existante pour les mêmes paramètres,
-  // créée par le même utilisateur, dans les dernières 24h, terminée.
   const cacheThreshold = new Date(
     Date.now() - CACHE_DURATION_HOURS * 60 * 60 * 1000
   ).toISOString();
@@ -139,23 +135,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ─── FIRE-AND-FORGET : déclenche le job background ───
-  // Astuce Vercel : on appelle /api/over-05/internal/run-analysis sans
-  // attendre la réponse. La fonction tourne en serverless asynchrone.
-  // Auth interne via header secret partagé.
-  const internalSecret = process.env.CRON_SECRET ?? "PronosClub2026CronAuto";
-  const baseUrl = req.nextUrl.origin;
+  const analysisId = newAnalysis.id;
 
-  // Important : pas d'await ici, on lance et on oublie
-  fetch(`${baseUrl}/api/over-05/internal/run-analysis`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": internalSecret,
-    },
-    body: JSON.stringify({ analysis_id: newAnalysis.id }),
-  }).catch((err) => {
-    console.error("[o05-analyze] Fire-and-forget failed:", err);
+  // ─── LANCEMENT DU JOB EN BACKGROUND ───
+  // after() garantit l'execution APRES la reponse, sans bloquer le client.
+  // Cette fois on appelle DIRECTEMENT la fonction (pas de fetch interne).
+  // Plus de souci de propagation reseau, plus de 404, plus rien qui merdouille.
+  after(async () => {
+    try {
+      console.log(`[o05-analyze] Starting job for ${analysisId}`);
+      const result = await runAnalysisJob(analysisId);
+      console.log(`[o05-analyze] Job completed for ${analysisId}:`, result);
+    } catch (err) {
+      console.error(
+        `[o05-analyze] Job failed for ${analysisId}:`,
+        err instanceof Error ? err.message : err
+      );
+      // Marquer en failed
+      await supabaseAdmin
+        .from("o05_analyses")
+        .update({
+          status: "failed",
+          error_message: `Job error: ${
+            err instanceof Error ? err.message : "unknown"
+          }`,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", analysisId);
+    }
   });
 
   // Retour immédiat au frontend
