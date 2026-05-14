@@ -1,16 +1,14 @@
-// src/app/api/over-05/analyses/route.ts
+// src/app/api/over-05/analyses/[id]/route.ts
 //
-// GET /api/over-05/analyses?league_id=X&period=30d&bet_status=won
+// GET    /api/over-05/analyses/[id]
+//   → Retourne l'etat d'une analyse + ses resultats partiels au fur et à mesure
+//     que le job background avance.
+//   Utilise en polling toutes les 3s par le frontend pendant qu'une analyse
+//   est "running".
 //
-// Liste les analyses du user connecte avec metadonnees enrichies :
-//   - Info championnat (nom, pays, drapeau)
-//   - Bilan des paris associes a chaque analyse (mises, profits, ROI)
-//   - Stats globales : nb analyses, paris totaux, ROI global
-//
-// Filtres optionnels :
-//   - league_id : un championnat specifique
-//   - period : '7d', '30d', '90d', 'all'
-//   - bet_status : 'with_bets', 'won_only', 'lost_only', 'all'
+// DELETE /api/over-05/analyses/[id]
+//   → Supprime definitivement une analyse + ses matchs + ses paris.
+//   Seul le user qui a cree l'analyse peut la supprimer.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -25,22 +23,21 @@ const supabaseAdmin = createAdminClient(
 );
 
 
-export async function GET(req: NextRequest) {
-  // Auth
+// ─── GET : polling de l'analyse ──────────────────────────────────
+
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !user.email || !isO05Authorized(user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userEmail = user.email;
-  const { searchParams } = new URL(req.url);
-  const filterLeagueId = searchParams.get("league_id");
-  const filterPeriod = searchParams.get("period") ?? "all";
-  const filterBetStatus = searchParams.get("bet_status") ?? "all";
-
-  // ─── 1. Recuperer les analyses du user ───
-  let analysesQuery = supabaseAdmin
+  const { data: analysis, error: analysisErr } = await supabaseAdmin
     .from("o05_analyses")
     .select(`
       id,
@@ -52,197 +49,162 @@ export async function GET(req: NextRequest) {
       matches_analyzed,
       matches_failed,
       status,
+      error_message,
+      requested_by,
       created_at,
-      completed_at,
-      league:o05_leagues!o05_analyses_league_id_fkey(id, name, country, country_code)
+      completed_at
     `)
-    .eq("requested_by", userEmail)
-    .order("created_at", { ascending: false });
+    .eq("id", id)
+    .single();
 
-  // Filtre championnat
-  if (filterLeagueId) {
-    const lid = parseInt(filterLeagueId, 10);
-    if (!Number.isNaN(lid)) {
-      analysesQuery = analysesQuery.eq("league_id", lid);
-    }
-  }
-
-  // Filtre periode
-  if (filterPeriod !== "all") {
-    const days =
-      filterPeriod === "7d" ? 7 :
-      filterPeriod === "30d" ? 30 :
-      filterPeriod === "90d" ? 90 : 0;
-    if (days > 0) {
-      const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-      analysesQuery = analysesQuery.gte("created_at", threshold);
-    }
-  }
-
-  const { data: analyses, error: analysesErr } = await analysesQuery.limit(100);
-
-  if (analysesErr) {
+  if (analysisErr || !analysis) {
     return NextResponse.json(
-      { error: "Failed to fetch analyses", details: analysesErr.message },
+      { error: "Analysis not found" },
+      { status: 404 }
+    );
+  }
+
+  if (analysis.requested_by !== user.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: matchAnalyses } = await supabaseAdmin
+    .from("o05_match_analyses")
+    .select(`
+      id,
+      api_football_fixture_id,
+      match_date,
+      home_team_id,
+      away_team_id,
+      target_team_id,
+      target_role,
+      attack_xg_weighted,
+      attack_tc_weighted,
+      attack_go_weighted,
+      attack_goals_weighted,
+      attack_efficiency,
+      attack_score,
+      attack_bonus_projet,
+      defense_xgc_weighted,
+      defense_tc_subis_weighted,
+      defense_go_conceded_weighted,
+      defense_goals_conceded_weighted,
+      defense_clean_sheets,
+      defense_score,
+      defense_bonus_projet,
+      matchup_bonus,
+      home_bonus,
+      closed_match_malus,
+      total_score,
+      note_10,
+      verdict,
+      data_source,
+      data_quality,
+      error_message,
+      created_at,
+      home_team:o05_teams!o05_match_analyses_home_team_id_fkey(id, name),
+      away_team:o05_teams!o05_match_analyses_away_team_id_fkey(id, name),
+      target_team:o05_teams!o05_match_analyses_target_team_id_fkey(id, name)
+    `)
+    .eq("analysis_id", id)
+    .order("note_10", { ascending: false, nullsFirst: false });
+
+  return NextResponse.json({
+    analysis,
+    match_analyses: matchAnalyses ?? [],
+  });
+}
+
+
+// ─── DELETE : suppression definitive ──────────────────────────────
+
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
+
+  // Auth
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email || !isO05Authorized(user.email)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verifier que l'analyse existe et appartient au user
+  const { data: analysis, error: analysisErr } = await supabaseAdmin
+    .from("o05_analyses")
+    .select("id, requested_by")
+    .eq("id", id)
+    .single();
+
+  if (analysisErr || !analysis) {
+    return NextResponse.json({ error: "Analysis not found" }, { status: 404 });
+  }
+
+  if (analysis.requested_by !== user.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // 1. Recuperer les IDs des match_analyses associes
+  const { data: matchAnalyses } = await supabaseAdmin
+    .from("o05_match_analyses")
+    .select("id")
+    .eq("analysis_id", id);
+
+  const matchAnalysisIds = matchAnalyses?.map((m) => m.id) ?? [];
+
+  // 2. Supprimer les paris associes (si applicable)
+  if (matchAnalysisIds.length > 0) {
+    const { error: betsErr } = await supabaseAdmin
+      .from("o05_bets")
+      .delete()
+      .in("match_analysis_id", matchAnalysisIds);
+
+    if (betsErr) {
+      console.error(`[o05-delete] Failed to delete bets:`, betsErr.message);
+      return NextResponse.json(
+        { error: "Failed to delete bets", details: betsErr.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // 3. Supprimer les match_analyses
+  if (matchAnalysisIds.length > 0) {
+    const { error: matchErr } = await supabaseAdmin
+      .from("o05_match_analyses")
+      .delete()
+      .eq("analysis_id", id);
+
+    if (matchErr) {
+      console.error(`[o05-delete] Failed to delete matches:`, matchErr.message);
+      return NextResponse.json(
+        { error: "Failed to delete matches", details: matchErr.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // 4. Supprimer l'analyse elle-meme
+  const { error: deleteErr } = await supabaseAdmin
+    .from("o05_analyses")
+    .delete()
+    .eq("id", id);
+
+  if (deleteErr) {
+    console.error(`[o05-delete] Failed to delete analysis:`, deleteErr.message);
+    return NextResponse.json(
+      { error: "Failed to delete analysis", details: deleteErr.message },
       { status: 500 }
     );
   }
 
-  if (!analyses || analyses.length === 0) {
-    return NextResponse.json({
-      analyses: [],
-      stats: emptyStats(),
-    });
-  }
-
-  // ─── 2. Recuperer les paris associes ───
-  const analysisIds = analyses.map((a) => a.id);
-
-  // o05_bets est lié via match_analysis_id → o05_match_analyses → analysis_id
-  // On joint via une sous-requête
-  const { data: matchAnalyses } = await supabaseAdmin
-    .from("o05_match_analyses")
-    .select("id, analysis_id")
-    .in("analysis_id", analysisIds);
-
-  const matchAnalysisIds = matchAnalyses?.map((m) => m.id) ?? [];
-  const matchToAnalysisMap = new Map<string, string>();
-  for (const ma of matchAnalyses ?? []) {
-    matchToAnalysisMap.set(ma.id, ma.analysis_id);
-  }
-
-  const { data: bets } = await supabaseAdmin
-    .from("o05_bets")
-    .select(`
-      id,
-      match_analysis_id,
-      user_email,
-      played,
-      stake_amount,
-      odds,
-      bet_status,
-      target_team_scored,
-      profit
-    `)
-    .in("match_analysis_id", matchAnalysisIds.length > 0 ? matchAnalysisIds : ["__none__"])
-    .eq("user_email", userEmail);
-
-  // ─── 3. Agreger les paris par analyse ───
-  type BetSummary = {
-    bets_count: number;
-    bets_played: number;
-    bets_pending: number;
-    bets_won: number;
-    bets_lost: number;
-    total_staked: number;
-    total_profit: number;
-    has_won: boolean;   // pour le filtre bet_status
-    has_lost: boolean;
-  };
-
-  const betSummaryByAnalysis = new Map<string, BetSummary>();
-  for (const aId of analysisIds) {
-    betSummaryByAnalysis.set(aId, {
-      bets_count: 0,
-      bets_played: 0,
-      bets_pending: 0,
-      bets_won: 0,
-      bets_lost: 0,
-      total_staked: 0,
-      total_profit: 0,
-      has_won: false,
-      has_lost: false,
-    });
-  }
-
-  for (const b of bets ?? []) {
-    const aId = matchToAnalysisMap.get(b.match_analysis_id);
-    if (!aId) continue;
-    const summary = betSummaryByAnalysis.get(aId);
-    if (!summary) continue;
-    summary.bets_count++;
-    if (b.played) summary.bets_played++;
-    if (b.bet_status === "pending") summary.bets_pending++;
-    else if (b.bet_status === "won") {
-      summary.bets_won++;
-      summary.has_won = true;
-    } else if (b.bet_status === "lost") {
-      summary.bets_lost++;
-      summary.has_lost = true;
-    }
-    if (b.played && b.stake_amount) summary.total_staked += Number(b.stake_amount);
-    if (b.profit) summary.total_profit += Number(b.profit);
-  }
-
-  // ─── 4. Enrichir + filtrer (bet_status) ───
-  let enriched = analyses.map((a) => {
-    const summary = betSummaryByAnalysis.get(a.id) ?? {
-      bets_count: 0, bets_played: 0, bets_pending: 0,
-      bets_won: 0, bets_lost: 0, total_staked: 0,
-      total_profit: 0, has_won: false, has_lost: false,
-    };
-    return {
-      ...a,
-      bets: summary,
-    };
-  });
-
-  if (filterBetStatus === "with_bets") {
-    enriched = enriched.filter((a) => a.bets.bets_played > 0);
-  } else if (filterBetStatus === "won_only") {
-    enriched = enriched.filter((a) => a.bets.has_won);
-  } else if (filterBetStatus === "lost_only") {
-    enriched = enriched.filter((a) => a.bets.has_lost);
-  }
-
-  // ─── 5. Stats globales sur les analyses retournees ───
-  const globalStats = {
-    total_analyses: enriched.length,
-    total_matches_analyzed: enriched.reduce((s, a) => s + (a.matches_analyzed ?? 0), 0),
-    total_bets: enriched.reduce((s, a) => s + a.bets.bets_played, 0),
-    total_bets_won: enriched.reduce((s, a) => s + a.bets.bets_won, 0),
-    total_bets_lost: enriched.reduce((s, a) => s + a.bets.bets_lost, 0),
-    total_bets_pending: enriched.reduce((s, a) => s + a.bets.bets_pending, 0),
-    total_staked: round2(enriched.reduce((s, a) => s + a.bets.total_staked, 0)),
-    total_profit: round2(enriched.reduce((s, a) => s + a.bets.total_profit, 0)),
-    roi_percent: 0,
-    win_rate_percent: 0,
-  };
-
-  if (globalStats.total_staked > 0) {
-    globalStats.roi_percent = round2(
-      (globalStats.total_profit / globalStats.total_staked) * 100
-    );
-  }
-  const resolvedBets = globalStats.total_bets_won + globalStats.total_bets_lost;
-  if (resolvedBets > 0) {
-    globalStats.win_rate_percent = round2(
-      (globalStats.total_bets_won / resolvedBets) * 100
-    );
-  }
-
   return NextResponse.json({
-    analyses: enriched,
-    stats: globalStats,
+    ok: true,
+    deleted: {
+      analysis_id: id,
+      matches_count: matchAnalysisIds.length,
+    },
   });
-}
-
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function emptyStats() {
-  return {
-    total_analyses: 0,
-    total_matches_analyzed: 0,
-    total_bets: 0,
-    total_bets_won: 0,
-    total_bets_lost: 0,
-    total_bets_pending: 0,
-    total_staked: 0,
-    total_profit: 0,
-    roi_percent: 0,
-    win_rate_percent: 0,
-  };
 }

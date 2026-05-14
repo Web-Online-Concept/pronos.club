@@ -1,11 +1,14 @@
 // src/app/api/over-05/analyses/[id]/route.ts
 //
-// GET /api/over-05/analyses/[id]
-// → Retourne l'etat d'une analyse + ses resultats partiels au fur et à mesure
-//   que le job background avance.
+// GET    /api/over-05/analyses/[id]
+//   → Retourne l'etat d'une analyse + ses resultats partiels au fur et à mesure
+//     que le job background avance.
+//   Utilise en polling toutes les 3s par le frontend pendant qu'une analyse
+//   est "running".
 //
-// Utilise en polling toutes les 3s par le frontend pendant qu'une analyse
-// est "running".
+// DELETE /api/over-05/analyses/[id]
+//   → Supprime definitivement une analyse + ses matchs + ses paris.
+//   Seul le user qui a cree l'analyse peut la supprimer.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -20,21 +23,20 @@ const supabaseAdmin = createAdminClient(
 );
 
 
+// ─── GET : polling de l'analyse ──────────────────────────────────
+
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  // Next.js 16 : params est une Promise
   const { id } = await ctx.params;
 
-  // Auth
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !user.email || !isO05Authorized(user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Recuperer la session d'analyse
   const { data: analysis, error: analysisErr } = await supabaseAdmin
     .from("o05_analyses")
     .select(`
@@ -62,12 +64,10 @@ export async function GET(
     );
   }
 
-  // Securite supplementaire : seul le user qui a cree l'analyse peut la voir
   if (analysis.requested_by !== user.email) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Recuperer les match analyses deja calcules
   const { data: matchAnalyses } = await supabaseAdmin
     .from("o05_match_analyses")
     .select(`
@@ -112,5 +112,99 @@ export async function GET(
   return NextResponse.json({
     analysis,
     match_analyses: matchAnalyses ?? [],
+  });
+}
+
+
+// ─── DELETE : suppression definitive ──────────────────────────────
+
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
+
+  // Auth
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email || !isO05Authorized(user.email)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verifier que l'analyse existe et appartient au user
+  const { data: analysis, error: analysisErr } = await supabaseAdmin
+    .from("o05_analyses")
+    .select("id, requested_by")
+    .eq("id", id)
+    .single();
+
+  if (analysisErr || !analysis) {
+    return NextResponse.json({ error: "Analysis not found" }, { status: 404 });
+  }
+
+  if (analysis.requested_by !== user.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // 1. Recuperer les IDs des match_analyses associes
+  const { data: matchAnalyses } = await supabaseAdmin
+    .from("o05_match_analyses")
+    .select("id")
+    .eq("analysis_id", id);
+
+  const matchAnalysisIds = matchAnalyses?.map((m) => m.id) ?? [];
+
+  // 2. Supprimer les paris associes (si applicable)
+  if (matchAnalysisIds.length > 0) {
+    const { error: betsErr } = await supabaseAdmin
+      .from("o05_bets")
+      .delete()
+      .in("match_analysis_id", matchAnalysisIds);
+
+    if (betsErr) {
+      console.error(`[o05-delete] Failed to delete bets:`, betsErr.message);
+      return NextResponse.json(
+        { error: "Failed to delete bets", details: betsErr.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // 3. Supprimer les match_analyses
+  if (matchAnalysisIds.length > 0) {
+    const { error: matchErr } = await supabaseAdmin
+      .from("o05_match_analyses")
+      .delete()
+      .eq("analysis_id", id);
+
+    if (matchErr) {
+      console.error(`[o05-delete] Failed to delete matches:`, matchErr.message);
+      return NextResponse.json(
+        { error: "Failed to delete matches", details: matchErr.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // 4. Supprimer l'analyse elle-meme
+  const { error: deleteErr } = await supabaseAdmin
+    .from("o05_analyses")
+    .delete()
+    .eq("id", id);
+
+  if (deleteErr) {
+    console.error(`[o05-delete] Failed to delete analysis:`, deleteErr.message);
+    return NextResponse.json(
+      { error: "Failed to delete analysis", details: deleteErr.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    deleted: {
+      analysis_id: id,
+      matches_count: matchAnalysisIds.length,
+    },
   });
 }

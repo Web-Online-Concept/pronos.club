@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
@@ -77,6 +77,10 @@ export default function HistoriquePage() {
     bet_status: "all",
   });
 
+  // Suppression : état du modal
+  const [deleteModal, setDeleteModal] = useState<AnalysisItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // ─── Charger les championnats (pour le filtre dropdown) ───────
   useEffect(() => {
     const loadLeagues = async () => {
@@ -87,39 +91,66 @@ export default function HistoriquePage() {
           setLeagues(json.leagues ?? []);
         }
       } catch {
-        // ignore - filtre championnat ne sera pas dispo
+        // ignore
       }
     };
     loadLeagues();
   }, []);
 
   // ─── Charger les analyses (avec filtres) ──────────────────────
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams();
-        if (filter.league_id !== null) params.set("league_id", String(filter.league_id));
-        if (filter.period !== "all") params.set("period", filter.period);
-        if (filter.bet_status !== "all") params.set("bet_status", filter.bet_status);
+  const reload = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (filter.league_id !== null) params.set("league_id", String(filter.league_id));
+      if (filter.period !== "all") params.set("period", filter.period);
+      if (filter.bet_status !== "all") params.set("bet_status", filter.bet_status);
 
-        const res = await fetch(`/api/over-05/analyses?${params}`);
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error ?? `HTTP ${res.status}`);
-        }
-        const json = await res.json();
-        setAnalyses(json.analyses ?? []);
-        setStats(json.stats ?? null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur de chargement");
-      } finally {
-        setLoading(false);
+      const res = await fetch(`/api/over-05/analyses?${params}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
       }
-    };
-    load();
+      const json = await res.json();
+      setAnalyses(json.analyses ?? []);
+      setStats(json.stats ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de chargement");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
+
+  // ─── Suppression ──────────────────────────────────────────────
+  const handleConfirmDelete = async () => {
+    if (!deleteModal) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/over-05/analyses/${deleteModal.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      // Retirer localement et recharger les stats
+      setDeleteModal(null);
+      await reload();
+    } catch (err) {
+      alert(
+        "Erreur de suppression : " +
+          (err instanceof Error ? err.message : "Inconnue")
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // ─── Render ───────────────────────────────────────────────────
   return (
@@ -141,10 +172,8 @@ export default function HistoriquePage() {
         </p>
       </div>
 
-      {/* Stats globales */}
       {stats && <GlobalStatsSection stats={stats} />}
 
-      {/* Filtres */}
       <FilterSection filter={filter} setFilter={setFilter} leagues={leagues} />
 
       {/* Liste analyses */}
@@ -178,12 +207,137 @@ export default function HistoriquePage() {
         ) : (
           <div className="grid gap-3">
             {analyses.map((a) => (
-              <AnalysisCard key={a.id} analysis={a} locale={locale} />
+              <AnalysisCard
+                key={a.id}
+                analysis={a}
+                locale={locale}
+                onDeleteClick={() => setDeleteModal(a)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal confirmation suppression */}
+      {deleteModal && (
+        <DeleteConfirmModal
+          analysis={deleteModal}
+          deleting={deleting}
+          onCancel={() => setDeleteModal(null)}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
     </main>
+  );
+}
+
+
+// ─── Modal de confirmation suppression ───────────────────────────
+
+function DeleteConfirmModal({
+  analysis,
+  deleting,
+  onCancel,
+  onConfirm,
+}: {
+  analysis: AnalysisItem;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const hasBets = analysis.bets.bets_played > 0;
+  const hasResolvedBets = analysis.bets.bets_won + analysis.bets.bets_lost > 0;
+
+  // Si paris joués : on demande une confirmation supplémentaire (saisie "SUPPRIMER")
+  const [extraConfirmText, setExtraConfirmText] = useState("");
+  const canConfirm = !hasBets || extraConfirmText.trim().toUpperCase() === "SUPPRIMER";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-xl border border-white/[0.06]"
+        style={{ background: "linear-gradient(135deg, #1a1a1a 0%, #0a3d2a 100%)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
+          <h3 className="text-lg font-black text-white">
+            🗑️ Supprimer cette analyse ?
+          </h3>
+          <p className="mt-2 text-sm text-white/70">
+            <span className="font-bold text-white">
+              {analysis.league?.name ?? "—"}
+              {analysis.matchday_label && ` — ${analysis.matchday_label}`}
+            </span>
+            <br />
+            <span className="text-xs text-white/40">
+              {formatDate(analysis.created_at)} · {analysis.matches_analyzed}/{analysis.total_matches} matchs
+            </span>
+          </p>
+
+          {/* Cas paris : avertissement */}
+          {hasBets && (
+            <div className="mt-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
+              <p className="font-bold text-yellow-300">⚠️ Cette analyse contient des paris</p>
+              <p className="mt-1 text-xs text-yellow-200/80">
+                {analysis.bets.bets_played} pari{analysis.bets.bets_played > 1 ? "s" : ""} joué{analysis.bets.bets_played > 1 ? "s" : ""}
+                {hasResolvedBets && (
+                  <>
+                    {" "}({analysis.bets.bets_won} gagné{analysis.bets.bets_won > 1 ? "s" : ""}, {analysis.bets.bets_lost} perdu{analysis.bets.bets_lost > 1 ? "s" : ""})
+                    {", "}
+                    profit : <strong>{analysis.bets.total_profit >= 0 ? "+" : ""}{analysis.bets.total_profit.toFixed(2)}€</strong>
+                  </>
+                )}
+              </p>
+              <p className="mt-2 text-xs text-yellow-200/80">
+                Supprimer cette analyse va aussi supprimer ces paris.
+                Ton ROI global sera recalculé.
+              </p>
+
+              <div className="mt-3">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-yellow-300/60">
+                  Tape <span className="font-mono">SUPPRIMER</span> pour confirmer
+                </label>
+                <input
+                  type="text"
+                  value={extraConfirmText}
+                  onChange={(e) => setExtraConfirmText(e.target.value)}
+                  placeholder="SUPPRIMER"
+                  className="mt-1 w-full rounded-lg border border-yellow-500/30 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-yellow-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+
+          {!hasBets && (
+            <p className="mt-4 text-xs text-white/40">
+              La suppression est définitive. L&apos;analyse et ses {analysis.matches_analyzed} matchs analysés seront retirés de ton historique.
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={deleting}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting || !canConfirm}
+              className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? "Suppression..." : "🗑️ Supprimer"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -196,7 +350,6 @@ function GlobalStatsSection({ stats }: { stats: GlobalStats }) {
 
   return (
     <div className="space-y-3">
-      {/* Compteurs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label="Analyses"
@@ -220,7 +373,6 @@ function GlobalStatsSection({ stats }: { stats: GlobalStats }) {
         />
       </div>
 
-      {/* ROI big card */}
       {stats.total_bets > 0 && (
         <div
           className="overflow-hidden rounded-xl border border-white/[0.06] p-5"
@@ -273,7 +425,6 @@ function FilterSection({
         🔍 Filtres
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {/* Championnat */}
         <div>
           <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">
             Championnat
@@ -297,7 +448,6 @@ function FilterSection({
           </select>
         </div>
 
-        {/* Période */}
         <div>
           <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">
             Période
@@ -316,7 +466,6 @@ function FilterSection({
           </select>
         </div>
 
-        {/* Statut paris */}
         <div>
           <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">
             Statut paris
@@ -349,22 +498,32 @@ function FilterSection({
 }
 
 
-// ─── Card analyse ────────────────────────────────────────────────
+// ─── Card analyse (avec bouton supprimer) ────────────────────────
 
-function AnalysisCard({ analysis, locale }: { analysis: AnalysisItem; locale: string }) {
+function AnalysisCard({
+  analysis,
+  locale,
+  onDeleteClick,
+}: {
+  analysis: AnalysisItem;
+  locale: string;
+  onDeleteClick: () => void;
+}) {
   const a = analysis;
   const hasBets = a.bets.bets_played > 0;
   const profitClass = a.bets.total_profit >= 0 ? "text-emerald-300" : "text-red-300";
 
   return (
-    <Link
-      href={`/${locale}/espace/over-05-buts-equipes/${a.id}`}
-      className="overflow-hidden rounded-xl border border-white/[0.06] p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
+    <div
+      className="overflow-hidden rounded-xl border border-white/[0.06] transition hover:-translate-y-0.5 hover:shadow-lg"
       style={{ background: "linear-gradient(135deg, #111111 0%, #0a3d2a 100%)" }}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        {/* Gauche : info analyse */}
-        <div className="flex-1">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+        {/* Lien cliquable principal (toute la zone sauf bouton) */}
+        <Link
+          href={`/${locale}/espace/over-05-buts-equipes/${a.id}`}
+          className="flex-1 min-w-0"
+        >
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-bold text-white">
               {a.league?.name ?? "—"}
@@ -380,42 +539,52 @@ function AnalysisCard({ analysis, locale }: { analysis: AnalysisItem; locale: st
               <span className="ml-1 text-yellow-300">({a.matches_failed} en erreur)</span>
             )}
           </p>
-        </div>
+        </Link>
 
-        {/* Droite : bilan paris (si applicable) */}
-        {hasBets && (
-          <div className="text-left sm:text-right">
-            <div className="flex items-center gap-2 sm:justify-end">
-              <span className="text-xs text-white/60">
-                {a.bets.bets_played} paris
-              </span>
-              {a.bets.bets_won > 0 && (
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                  ✓ {a.bets.bets_won}
+        {/* Droite : bilan paris + bouton supprimer */}
+        <div className="flex items-center gap-3 sm:items-start">
+          {hasBets && (
+            <div className="text-left sm:text-right">
+              <div className="flex items-center gap-2 sm:justify-end flex-wrap">
+                <span className="text-xs text-white/60">
+                  {a.bets.bets_played} paris
                 </span>
-              )}
-              {a.bets.bets_lost > 0 && (
-                <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">
-                  ✗ {a.bets.bets_lost}
-                </span>
-              )}
-              {a.bets.bets_pending > 0 && (
-                <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">
-                  ⏳ {a.bets.bets_pending}
-                </span>
+                {a.bets.bets_won > 0 && (
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                    ✓ {a.bets.bets_won}
+                  </span>
+                )}
+                {a.bets.bets_lost > 0 && (
+                  <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">
+                    ✗ {a.bets.bets_lost}
+                  </span>
+                )}
+                {a.bets.bets_pending > 0 && (
+                  <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">
+                    ⏳ {a.bets.bets_pending}
+                  </span>
+                )}
+              </div>
+              {(a.bets.bets_won > 0 || a.bets.bets_lost > 0) && (
+                <p className={`mt-1 text-sm font-bold ${profitClass}`}>
+                  {a.bets.total_profit >= 0 ? "+" : ""}{a.bets.total_profit.toFixed(2)}€
+                </p>
               )}
             </div>
-            {(a.bets.bets_won > 0 || a.bets.bets_lost > 0) && (
-              <p className={`mt-1 text-sm font-bold ${profitClass}`}>
-                {a.bets.total_profit >= 0 ? "+" : ""}{a.bets.total_profit.toFixed(2)}€
-              </p>
-            )}
-          </div>
-        )}
+          )}
 
-        <span className="hidden text-emerald-400 sm:block">→</span>
+          {/* Bouton supprimer */}
+          <button
+            onClick={onDeleteClick}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/40 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+            aria-label="Supprimer cette analyse"
+            title="Supprimer cette analyse"
+          >
+            🗑️
+          </button>
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
