@@ -74,6 +74,9 @@ export interface WeeklyBilanRow {
   week_iso: string;
   week_year: number;
   week_number: number;
+  week_start: string;            // ISO date string
+  week_end: string;              // ISO date string
+  // Champ calcule côté code (pas en DB) : ex "11 au 17 mai 2026"
   week_label: string;
   total_picks: number;
   picks_won: number;
@@ -84,7 +87,7 @@ export interface WeeklyBilanRow {
   winrate_pct: number;
   clv_avg_pct: number | null;
   clv_picks_count: number;
-  generated_at: string;
+  generated_at: string;          // = created_at (alias pour compat composant)
 }
 
 
@@ -112,13 +115,39 @@ export default async function PronosIABilansPage({
     supabaseAdmin
       .from("weekly_bilans")
       .select(
-        "week_slug, week_iso, week_year, week_number, week_label, total_picks, picks_won, picks_lost, picks_void, total_profit_units, roi_pct, winrate_pct, clv_avg_pct, clv_picks_count, generated_at"
+        "week_slug, week_iso, week_year, week_number, week_start, week_end, total_picks, picks_won, picks_lost, picks_void, total_profit_units, roi_pct, winrate_pct, clv_avg_pct, clv_picks_count, created_at, updated_at"
       )
       .order("week_iso", { ascending: false }),
   ]);
 
   const monthlyBilans = (bilansData ?? []) as MonthlyBilanRow[];
-  const weeklyBilans = (weeklyData ?? []) as WeeklyBilanRow[];
+
+  // Construction de week_label cote code + alias generated_at = created_at
+  // (la colonne week_label n'existe pas en DB, on la calcule a partir de week_start/end)
+  type RawWeekly = {
+    week_slug: string;
+    week_iso: string;
+    week_year: number;
+    week_number: number;
+    week_start: string;
+    week_end: string;
+    total_picks: number;
+    picks_won: number;
+    picks_lost: number;
+    picks_void: number;
+    total_profit_units: number;
+    roi_pct: number;
+    winrate_pct: number;
+    clv_avg_pct: number | null;
+    clv_picks_count: number;
+    created_at: string;
+    updated_at: string;
+  };
+  const weeklyBilans: WeeklyBilanRow[] = ((weeklyData ?? []) as RawWeekly[]).map((w) => ({
+    ...w,
+    week_label: formatWeekLabel(w.week_start, w.week_end),
+    generated_at: w.created_at,
+  }));
 
   return (
     <div className="pronos-ia-section min-h-[calc(100vh-100px)] bg-white text-zinc-900">
@@ -259,4 +288,34 @@ function TabLink({
       )}
     </Link>
   );
+}
+
+// ─── Helper : formate "du 11 au 17 mai 2026" ───────────────────────
+
+function formatWeekLabel(weekStartIso: string, weekEndIso: string): string {
+  try {
+    const start = new Date(weekStartIso);
+    const end = new Date(weekEndIso);
+    const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+      d.toLocaleDateString("fr-FR", { ...opts, timeZone: "Europe/Paris" });
+
+    const startDay = fmt(start, { day: "numeric" });
+    const endDay = fmt(end, { day: "numeric" });
+    const endMonth = fmt(end, { month: "long" });
+    const endYear = fmt(end, { year: "numeric" });
+
+    // Memes mois ?
+    const startMonth = fmt(start, { month: "long" });
+    const startYear = fmt(start, { year: "numeric" });
+
+    if (startMonth === endMonth && startYear === endYear) {
+      return `du ${startDay} au ${endDay} ${endMonth} ${endYear}`;
+    }
+    if (startYear === endYear) {
+      return `du ${startDay} ${startMonth} au ${endDay} ${endMonth} ${endYear}`;
+    }
+    return `du ${startDay} ${startMonth} ${startYear} au ${endDay} ${endMonth} ${endYear}`;
+  } catch {
+    return "";
+  }
 }
