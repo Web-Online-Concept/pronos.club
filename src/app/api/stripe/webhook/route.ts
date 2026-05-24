@@ -36,6 +36,44 @@ function toISO(timestamp: unknown): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+// ── Extraction robuste de current_period_end / start ──
+//
+// IMPORTANT : depuis une MAJ de l'API Stripe (2025), current_period_end
+// et current_period_start ne sont PLUS a la racine de l'objet subscription.
+// Ils sont desormais sur les ITEMS : subscription.items.data[0].current_period_end
+//
+// Cette fonction lit la valeur au bon endroit, avec fallback sur l'ancienne
+// position pour rester compatible avec les anciens abonnements / anciennes
+// versions d'API.
+function getSubscriptionPeriod(
+  subscription: unknown
+): { periodStart: string | null; periodEnd: string | null } {
+  const sub = subscription as Record<string, unknown>;
+
+  // 1. Tentative NOUVELLE position : items.data[0].current_period_*
+  const items = sub.items as Record<string, unknown> | undefined;
+  const itemsData = (items?.data ?? []) as Array<Record<string, unknown>>;
+  const firstItem = itemsData[0];
+
+  let periodEnd: string | null = null;
+  let periodStart: string | null = null;
+
+  if (firstItem) {
+    periodEnd = toISO(firstItem.current_period_end);
+    periodStart = toISO(firstItem.current_period_start);
+  }
+
+  // 2. Fallback ANCIENNE position : racine de subscription
+  if (periodEnd == null) {
+    periodEnd = toISO(sub.current_period_end);
+  }
+  if (periodStart == null) {
+    periodStart = toISO(sub.current_period_start);
+  }
+
+  return { periodStart, periodEnd };
+}
+
 export async function POST(request: Request) {
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
@@ -76,16 +114,21 @@ export async function POST(request: Request) {
           break;
         }
 
-        const sub = subscription as unknown as Record<string, unknown>;
         const subStatus = subscription.status === "trialing" ? "trialing" : "active";
-        const periodEnd = toISO(sub.current_period_end);
-        const periodStart = toISO(sub.current_period_start);
+        const { periodStart, periodEnd } = getSubscriptionPeriod(subscription);
+
+        // Garde-fou : si Stripe ne renvoie toujours pas de periode, on calcule
+        // une echeance par defaut (+1 mois) pour ne JAMAIS laisser un abonne
+        // actif avec subscription_end = null (sinon il se fait kicker du Telegram).
+        const safePeriodEnd = periodEnd ?? new Date(
+          Date.now() + 31 * 24 * 60 * 60 * 1000
+        ).toISOString();
 
         await supabaseAdmin
           .from("users")
           .update({
             subscription_status: subStatus,
-            subscription_end: periodEnd,
+            subscription_end: safePeriodEnd,
             stripe_customer_id: customerId,
             ...(subStatus === "trialing" ? { has_used_trial: true } : {}),
           })
@@ -101,7 +144,7 @@ export async function POST(request: Request) {
             amount: 2000,
             currency: "eur",
             current_period_start: periodStart,
-            current_period_end: periodEnd,
+            current_period_end: safePeriodEnd,
           },
           { onConflict: "stripe_subscription_id" }
         );
@@ -133,21 +176,34 @@ export async function POST(request: Request) {
             subscription.status === "trialing" ? "trialing" :
             subscription.status === "past_due" ? "past_due" : "canceled";
 
-          const periodEnd = toISO(sub.current_period_end);
+          const { periodEnd } = getSubscriptionPeriod(subscription);
+
+          // Pour un abonnement actif/trialing, on ne veut JAMAIS ecrire null.
+          // Si Stripe ne donne pas de periode, on garde la date existante en BDD
+          // (on ne l'ecrase pas avec null).
+          const isActiveLike = status === "active" || status === "trialing";
+          const updatePayload: Record<string, unknown> = {
+            subscription_status: status,
+          };
+          if (periodEnd != null) {
+            updatePayload.subscription_end = periodEnd;
+          } else if (isActiveLike) {
+            // periodEnd introuvable mais abonne actif : fallback +1 mois
+            updatePayload.subscription_end = new Date(
+              Date.now() + 31 * 24 * 60 * 60 * 1000
+            ).toISOString();
+          }
 
           await supabaseAdmin
             .from("users")
-            .update({
-              subscription_status: status,
-              subscription_end: periodEnd,
-            })
+            .update(updatePayload)
             .eq("id", userId);
 
           await supabaseAdmin
             .from("subscriptions")
             .update({
               status,
-              current_period_end: periodEnd,
+              ...(periodEnd != null ? { current_period_end: periodEnd } : {}),
               canceled_at: sub.canceled_at ? toISO(sub.canceled_at) : null,
             })
             .eq("stripe_subscription_id", subscription.id);
