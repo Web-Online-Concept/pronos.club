@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 
 const NAV_ITEMS = [
   { href: "/pronostics", labelKey: "tipster", icon: "🎯" },
-  { href: "/pronos-ia", labelKey: "ia", icon: "🎯" },
   { href: "/pronos-abonnes/en-cours", labelKey: "abonnes", icon: "🎯" },
   { href: "/news", labelKey: "news", icon: "📰" },
   { href: "/espace", labelKey: "account", icon: "👤" },
