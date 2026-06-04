@@ -343,7 +343,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               Les 3 compteurs viennent de caches taggés "home-picks" donc actualisés
               automatiquement à chaque résolution de pick (cf. revalidateTag dans
               picks/[id]/result/route.ts). */}
-          <div className="mx-auto mt-6 mb-3 grid w-full max-w-3xl grid-cols-3 gap-3 sm:mt-8 sm:mb-6 sm:gap-6">
+          <div className="mx-auto mt-6 mb-3 grid w-full max-w-2xl grid-cols-2 gap-3 sm:mt-8 sm:mb-6 sm:gap-6">
             {(
               [
                 {
@@ -1143,6 +1143,94 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </>
             );
           })()}
+        </div>
+      </section>
+
+      {/* ═══════════ PRONOS.CLUB AI — À VENIR (DARK — emerald + accent violet) ═══════════ */}
+      <section
+        className="relative overflow-hidden px-4 py-16"
+        style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #062e1f 50%, #0a0a0a 100%)" }}
+      >
+        {/* Halo violet subtil (accent IA) */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-violet-500/10 blur-[100px]" />
+          <div className="absolute -right-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl">
+          {/* En-tête */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5">
+              <span className="text-base">🤖</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-violet-300">
+                Bientôt disponible
+              </span>
+            </div>
+            <h2 className="mt-4 text-2xl font-extrabold text-white sm:text-3xl">
+              Un assistant IA personnalisé pour vos paris
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-white/50">
+              Nous préparons un nouvel outil pensé pour vous accompagner au quotidien
+              dans vos décisions de paris. Conçu pour le parieur régulier qui veut progresser.
+            </p>
+          </div>
+
+          {/* 5 modules à venir */}
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                icon: "🔥",
+                title: "Pronos du jour",
+                desc: "Des sélections personnalisées selon votre profil de risque et vos sports favoris.",
+              },
+              {
+                icon: "💎",
+                title: "Values du jour",
+                desc: "Détection automatique des paris avec une cote mathématiquement avantageuse.",
+              },
+              {
+                icon: "🔍",
+                title: "Analyser un match",
+                desc: "Analyse complète d'une rencontre : forme, stats, blessures, marchés à jouer.",
+              },
+              {
+                icon: "💰",
+                title: "Comparer les cotes",
+                desc: "Trouvez en un clic le bookmaker qui propose la meilleure cote sur votre pari.",
+              },
+              {
+                icon: "✅",
+                title: "Vérifier mon pari",
+                desc: "Validation de votre idée : value bet, mise optimale (Kelly), points de vigilance.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-white/[0.06] p-5 text-left transition hover:border-violet-400/30"
+                style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 100%)" }}
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/40">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA désactivé */}
+          <div className="mt-10 flex justify-center">
+            <span
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-8 py-4 text-sm font-bold text-white/40"
+              aria-disabled="true"
+            >
+              <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
+              À venir bientôt
+            </span>
+          </div>
+
+          {/* Note */}
+          <p className="mx-auto mt-6 max-w-md text-center text-xs text-white/30">
+            Réservé aux abonnés PRONOS.CLUB. Plus d&apos;informations à venir.
+          </p>
         </div>
       </section>
 
