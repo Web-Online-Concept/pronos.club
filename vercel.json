@@ -13,6 +13,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/telegram-reconcile",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/cron/auto-news",
       "schedule": "0 */1 * * *"
     },

@@ -4,6 +4,7 @@
 import { stripe } from "@/lib/stripe/config";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onPremiumActivated, onPremiumRevoked } from "@/lib/telegram-hooks";
+import { hasOtherActiveSubscription } from "@/lib/stripe/has-other-active-sub";
 import { sendAdminAlert } from "@/lib/admin-alerts";
 import { NextResponse } from "next/server";
 
@@ -207,6 +208,42 @@ export async function POST(request: Request) {
               canceled_at: sub.canceled_at ? toISO(sub.canceled_at) : null,
             })
             .eq("stripe_subscription_id", subscription.id);
+
+          // ── CORRECTIF 3 : révocation via `updated` ────────────────────────
+          // `customer.subscription.deleted` ne se déclenche QUE sur suppression
+          // effective. Un abonné qui tombe en `canceled` / `unpaid` /
+          // `incomplete_expired` passe souvent par `updated`. Sans ce bloc, il
+          // garderait son accès Telegram indéfiniment.
+          //
+          // On applique le MÊME garde-fou doublon que dans `deleted` : on ne
+          // kicke pas s'il reste un autre abonnement actif chez Stripe.
+          const REVOKING_STATUSES = ["canceled", "unpaid", "incomplete_expired"];
+          if (REVOKING_STATUSES.includes(subscription.status)) {
+            const customerId = subscription.customer as string;
+            const keepsAccess = await hasOtherActiveSubscription(
+              customerId,
+              subscription.id
+            );
+
+            if (!keepsAccess) {
+              await supabaseAdmin
+                .from("users")
+                .update({ subscription_status: "canceled" })
+                .eq("id", userId);
+
+              onPremiumRevoked(userId).catch(() => {});
+
+              console.log(
+                `[webhook] updated → status ${subscription.status}, ` +
+                `no other active sub for user ${userId} — premium revoked + Telegram kick.`
+              );
+            } else {
+              console.log(
+                `[webhook] updated → status ${subscription.status} but user ${userId} ` +
+                `keeps another active subscription — premium preserved.`
+              );
+            }
+          }
         }
         break;
       }
@@ -227,36 +264,11 @@ export async function POST(request: Request) {
           // un AUTRE abonnement actif chez Stripe. Cas typique : un abonne
           // avait 2 abonnements en parallele (doublon), on en annule 1, mais
           // il doit garder son acces grace a l'autre.
-          let hasAnotherActiveSub = false;
-          try {
-            const customerId = subscription.customer as string;
-            const otherSubs = await stripe.subscriptions.list({
-              customer: customerId,
-              status: "active",
-              limit: 10,
-            });
-            // On cherche un abonnement actif DIFFERENT de celui qu'on annule
-            hasAnotherActiveSub = otherSubs.data.some(
-              (s) => s.id !== subscription.id
-            );
-
-            // On verifie aussi les abonnements "trialing" (essai en cours)
-            if (!hasAnotherActiveSub) {
-              const trialingSubs = await stripe.subscriptions.list({
-                customer: customerId,
-                status: "trialing",
-                limit: 10,
-              });
-              hasAnotherActiveSub = trialingSubs.data.some(
-                (s) => s.id !== subscription.id
-              );
-            }
-          } catch (err) {
-            // Si l'appel Stripe echoue, on reste prudent : on NE revoque PAS
-            // (mieux vaut un acces de trop qu'un abonne paye vire par erreur).
-            console.error("[webhook] deleted — check other subs failed:", err);
-            hasAnotherActiveSub = true;
-          }
+          const customerId = subscription.customer as string;
+          const hasAnotherActiveSub = await hasOtherActiveSubscription(
+            customerId,
+            subscription.id
+          );
 
           if (hasAnotherActiveSub) {
             // L'utilisateur garde un autre abonnement actif : on NE touche

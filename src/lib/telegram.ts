@@ -159,3 +159,43 @@ export async function revokeInviteLink(inviteLink: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Renvoie le statut d'un membre dans le groupe :
+ *   "creator" | "administrator" | "member" | "restricted" | "left" | "kicked"
+ * ou null si l'appel échoue.
+ *
+ * Sert au cron de réconciliation pour savoir qui est RÉELLEMENT présent
+ * dans le groupe avant de tenter un kick (évite de polluer les logs avec
+ * des kicks sur des gens déjà partis).
+ */
+export async function getChatMemberStatus(
+  telegramUserId: number
+): Promise<string | null> {
+  try {
+    const data = await telegramRequest("getChatMember", {
+      chat_id: GROUP_ID,
+      user_id: telegramUserId,
+    });
+    if (data.ok && (data.result as { status?: string })?.status) {
+      return (data.result as { status: string }).status;
+    }
+    return null;
+  } catch (err) {
+    console.error("[telegram] getChatMemberStatus failed:", err);
+    return null;
+  }
+}
+
+/**
+ * True si l'utilisateur est présent et actif dans le groupe
+ * (creator, administrator, member ou restricted présent).
+ * False s'il est parti/banni, null inconnu => traité comme "pas sûr".
+ */
+export async function isUserInGroup(
+  telegramUserId: number
+): Promise<boolean | null> {
+  const status = await getChatMemberStatus(telegramUserId);
+  if (status === null) return null;
+  return ["creator", "administrator", "member", "restricted"].includes(status);
+}
