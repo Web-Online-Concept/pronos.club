@@ -419,13 +419,28 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="mt-5 flex flex-col items-center gap-2 sm:mt-8 sm:justify-center">
             {isPremium ? (
               <>
-                {/* PREMIUM : Accéder à mon espace */}
-                <Link
-                  href={`/${locale}/espace`}
-                  className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
-                >
-                  ✅ {t("cta_my_space")}
-                </Link>
+                {/* PREMIUM : Accéder à mon espace
+                    Exception Jerem (rainechoes@live.fr) : lien direct vers le
+                    calculateur Pro au lieu de l'espace, avec libellé dédié. */}
+                {user?.email === "rainechoes@live.fr" ? (
+                  <Link
+                    href={`/${locale}/espace/calculateurs/pro`}
+                    className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
+                  >
+                    🧮 {locale === "en"
+                      ? "PRO CALCULATOR ACCESS"
+                      : locale === "es"
+                      ? "ACCESO CALCULADORA PRO"
+                      : "ACCÈS CALCULATEUR PRO"}
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/${locale}/espace`}
+                    className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 py-3 text-sm font-bold text-emerald-400 sm:w-auto sm:px-8 sm:py-4"
+                  >
+                    ✅ {t("cta_my_space")}
+                  </Link>
+                )}
               </>
             ) : (
               <>
