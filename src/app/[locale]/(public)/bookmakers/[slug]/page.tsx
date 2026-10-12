@@ -30,7 +30,7 @@ const BOOKMAKER_META: Record<string, {
   video_files: (string | Record<string, string>)[];
 }> = {
   "1xbet": {
-    vpn_required: true, vpn_countries_key: "1xbet_vpn_countries", has_access_info: false, code_bonus: "PRONOSCLUB",
+    vpn_required: true, vpn_countries_key: "1xbet_vpn_countries", has_access_info: false, code_bonus: "d_83425m_4098c_1x_22083",
     badge_class: "bg-amber-500/20 text-amber-400",
     highlight_values: ["2007", "50+", "1000+", "Crypto"],
     section_icons: ["🏆", "📈", "₿", "🔒"], section_images: [undefined, undefined, undefined, undefined],
